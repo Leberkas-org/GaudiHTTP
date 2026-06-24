@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11StateMachineSpec
 {
-    private static TurboClientOptions MakeConfig(int maxPipelineDepth = 8)
+    private static GaudiClientOptions MakeConfig(int maxPipelineDepth = 8)
         => new()
         {
             Http1 = new Http1ClientOptions
@@ -657,7 +657,7 @@ public sealed class Http11StateMachineSpec
     public void CanAcceptRequest_should_be_false_while_body_pending()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
+        var sm = new Http11ClientStateMachine(ops, new GaudiClientOptions());
         sm.PreStart();
 
         // A body larger than the pump's unflushed high-water mark: with no flush signalled the inline
@@ -676,7 +676,7 @@ public sealed class Http11StateMachineSpec
     public void CanAcceptRequest_should_become_true_after_body_drain_completes()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
+        var sm = new Http11ClientStateMachine(ops, new GaudiClientOptions());
         sm.PreStart();
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")

@@ -10,7 +10,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientStateMachineSpec : TestKit
 {
-    private static TurboClientOptions MakeConfig() => new();
+    private static GaudiClientOptions MakeConfig() => new();
 
     private static HttpRequestMessage MakeRequest(string uri = "http://example.com/", HttpContent? content = null)
     {

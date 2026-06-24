@@ -43,13 +43,13 @@ public sealed class EngineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Engine_should_use_provided_turbo_client_options()
+    public void Engine_should_use_provided_gaudi_client_options()
     {
         // Arrange
         var engine = new Engine();
         var transports = CreateMockTransportRegistry();
         var descriptor = PipelineDescriptor.Empty;
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             MaxConcurrentEndpoints = 20,
             Http1 = new Http1ClientOptions { MaxPipelineDepth = 2 }
@@ -87,22 +87,22 @@ public sealed class EngineSpec
 
         // Act
         var flow = engine.CreateFlow(transports, descriptor,
-            options: new TurboClientOptions());
+            options: new GaudiClientOptions());
 
         // Assert
         Assert.NotNull(flow);
     }
 
     [Fact(Timeout = 5000)]
-    public void Engine_should_build_turbo_request_options_with_base_address()
+    public void Engine_should_build_gaudi_request_options_with_base_address()
     {
         // Arrange
         var baseUri = new Uri("http://api.example.com");
-        var options = new TurboClientOptions { BaseAddress = baseUri };
+        var options = new GaudiClientOptions { BaseAddress = baseUri };
 
         // Act
         var holder = new HttpRequestMessage();
-        var reqOptions = new TurboRequestOptions(
+        var reqOptions = new GaudiRequestOptions(
             BaseAddress: options.BaseAddress,
             DefaultRequestVersion: holder.Version,
             DefaultRequestHeaders: holder.Headers,

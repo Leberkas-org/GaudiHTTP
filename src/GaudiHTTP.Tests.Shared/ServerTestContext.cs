@@ -7,7 +7,7 @@ internal static class ServerTestContext
 {
     internal static IFeatureCollection CreateResponse(int statusCode = 200)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = statusCode };
         features.Set<IHttpResponseFeature>(responseFeature);
@@ -19,7 +19,7 @@ internal static class ServerTestContext
     internal static IFeatureCollection CreateH3Response(long streamId, int statusCode = 200)
     {
         var features = CreateResponse(statusCode);
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         return features;
     }
 }

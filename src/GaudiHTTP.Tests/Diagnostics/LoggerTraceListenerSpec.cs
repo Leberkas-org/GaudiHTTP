@@ -140,7 +140,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddTurboLoggerTracing();
+        services.AddGaudiLoggerTracing();
 
         var provider = services.BuildServiceProvider();
         var listener = provider.GetRequiredService<IServusTraceListener>();

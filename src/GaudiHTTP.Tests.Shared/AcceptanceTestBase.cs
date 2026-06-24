@@ -11,28 +11,28 @@ public abstract class AcceptanceTestBase : EngineTestBase
 {
     internal static IClientProtocolEngine CreateHttp10Engine(Action<Http1ClientOptions>? configure = null)
     {
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
         configure?.Invoke(clientOptions.Http1);
         return new Http10ClientEngine(clientOptions);
     }
 
     internal static IClientProtocolEngine CreateHttp11Engine(Action<Http1ClientOptions>? configure = null)
     {
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
         configure?.Invoke(clientOptions.Http1);
         return new Http11ClientEngine(clientOptions);
     }
 
     internal static IClientProtocolEngine CreateHttp20Engine(Action<Http2ClientOptions>? configure = null)
     {
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
         configure?.Invoke(clientOptions.Http2);
         return new Http20ClientEngine(clientOptions);
     }
 
     internal static IClientProtocolEngine CreateHttp30Engine(Action<Http3ClientOptions>? configure = null)
     {
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
         configure?.Invoke(clientOptions.Http3);
         return new Http30ClientEngine(clientOptions);
     }

@@ -15,9 +15,9 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
 {
     private static FakeServerOps MakeOps() => new();
 
-    private static TurboFeatureCollection CreateResponseContext(long contentLength = 0)
+    private static GaudiFeatureCollection CreateResponseContext(long contentLength = 0)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         if (contentLength > 0)
@@ -44,7 +44,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     public void DecodeClientData_should_set_ShouldComplete_on_decode_error()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
 
@@ -58,7 +58,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     public void DecodeClientData_should_not_crash_after_prior_decode_error()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var invalidBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
         sm.DecodeClientData(TransportData.Rent(invalidBuffer));
@@ -73,7 +73,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     public void Cleanup_should_be_idempotent()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var ex1 = Record.Exception(() => sm.Cleanup());
         var ex2 = Record.Exception(() => sm.Cleanup());
@@ -87,7 +87,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     {
         var inbox = Inbox.Create(Sys);
         var ops = new FakeServerOps { StageActor = inbox.Receiver };
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
         sm.PreStart();
 
         var context = CreateResponseContext(5);
@@ -113,7 +113,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     public void OnBodyMessage_should_ignore_unknown_message_type()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var ex = Record.Exception(() => sm.OnBodyMessage("unknown message"));
 
@@ -124,7 +124,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     public void OnBodyMessage_DrainReadFailed_should_not_crash_without_prior_response()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var failedMsg = new DrainReadFailed<int>(0, new Exception("Body read failed"));
         var ex = Record.Exception(() => sm.OnBodyMessage(failedMsg));

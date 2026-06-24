@@ -42,9 +42,9 @@ public sealed class Http3ClientOptionsSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.2.4.1")]
-    public void TurboClientOptions_should_expose_Http3Options_with_defaults()
+    public void GaudiClientOptions_should_expose_Http3Options_with_defaults()
     {
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         Assert.NotNull(clientOptions.Http3);
         Assert.Equal(4, clientOptions.Http3.MaxConnectionsPerServer);

@@ -7,6 +7,6 @@ public sealed class Http10ClientDecoderOptionsSpec
     [Fact(Timeout = 5000)]
     public void Default_client_options_should_project_sensible_decoder_values()
     {
-        Assert.Equal(64L * 1024, new TurboClientOptions().ToHttp10DecoderOptions().StreamingThreshold);
+        Assert.Equal(64L * 1024, new GaudiClientOptions().ToHttp10DecoderOptions().StreamingThreshold);
     }
 }

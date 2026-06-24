@@ -91,7 +91,7 @@ public sealed class ListenerActorSpec : TestKit
         }
     }
 
-    private static TurboServerOptions DefaultOptions() => new();
+    private static GaudiServerOptions DefaultOptions() => new();
 
     [Fact(Timeout = 5000)]
     public void Listener_should_reply_ListeningStarted_on_successful_bind()
@@ -132,7 +132,7 @@ public sealed class ListenerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public void Listener_should_reject_connection_when_at_max_concurrent()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Limits.MaxConcurrentConnections = 1;
 
         var listener = Sys.ActorOf(ListenerActor.Create(

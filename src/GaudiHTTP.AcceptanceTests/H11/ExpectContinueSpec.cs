@@ -14,7 +14,7 @@ namespace GaudiHTTP.AcceptanceTests.H11;
 public sealed class ExpectContinueSpec : AcceptanceTestBase
 {
     private static Http11ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     private static BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed>
         CreateExpectContinueEngine()

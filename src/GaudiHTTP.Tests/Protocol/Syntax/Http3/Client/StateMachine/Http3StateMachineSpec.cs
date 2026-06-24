@@ -18,11 +18,11 @@ public sealed class Http3StateMachineSpec
         TransportProtocol.Tcp);
 
     private Http3ClientStateMachine CreateMachine(
-        TurboClientOptions? options = null,
+        GaudiClientOptions? options = null,
         FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
-            options ?? new TurboClientOptions(),
+            options ?? new GaudiClientOptions(),
             ops ?? _clientOps);
     }
 
@@ -517,7 +517,7 @@ public sealed class Http3StateMachineSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void OnTimerFired_should_handle_idle_timeout()
     {
-        var sm = CreateMachine(new TurboClientOptions
+        var sm = CreateMachine(new GaudiClientOptions
         { Http3 = new Http3ClientOptions { IdleTimeout = TimeSpan.FromMilliseconds(1) } });
         sm.PreStart();
 

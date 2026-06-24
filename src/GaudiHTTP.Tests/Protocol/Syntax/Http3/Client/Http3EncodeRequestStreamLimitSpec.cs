@@ -8,7 +8,7 @@ public sealed class Http3EncodeRequestStreamLimitSpec
 {
     private static Http3ClientSessionManager CreateSessionManager(FakeClientOps ops, int maxConcurrentStreams)
     {
-        var clientOpts = new TurboClientOptions();
+        var clientOpts = new GaudiClientOptions();
         clientOpts.Http3.MaxConcurrentStreams = maxConcurrentStreams;
         return new Http3ClientSessionManager(
             clientOpts.ToHttp3EncoderOptions(),

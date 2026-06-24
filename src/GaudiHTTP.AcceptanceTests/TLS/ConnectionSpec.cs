@@ -10,7 +10,7 @@ namespace GaudiHTTP.AcceptanceTests.TLS;
 public sealed class ConnectionSpec : AcceptanceTestBase
 {
     private static Http11ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     private static byte[] BuildResponse(string body, HttpStatusCode status = HttpStatusCode.OK,
         string? extraHeaders = null)

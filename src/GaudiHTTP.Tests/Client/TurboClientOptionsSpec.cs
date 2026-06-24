@@ -4,12 +4,12 @@ using GaudiHTTP.Client;
 
 namespace GaudiHTTP.Tests.Client;
 
-public sealed class TurboClientOptionsSpec
+public sealed class GaudiClientOptionsSpec
 {
     [Fact(Timeout = 5000)]
     public void BaseAddress_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.BaseAddress);
     }
@@ -17,7 +17,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void BaseAddress_CanBeSet()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("https://example.com");
 
         options.BaseAddress = uri;
@@ -28,7 +28,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void Http1_DefaultInstanceIsNotNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.NotNull(options.Http1);
     }
@@ -36,7 +36,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_DefaultInstanceIsNotNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.NotNull(options.Http2);
     }
@@ -44,7 +44,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void Http3_DefaultInstanceIsNotNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.NotNull(options.Http3);
     }
@@ -52,7 +52,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void ConnectTimeout_DefaultIs15Seconds()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Equal(TimeSpan.FromSeconds(15), options.ConnectTimeout);
     }
@@ -60,7 +60,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void ConnectTimeout_CanBeSet()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var timeout = TimeSpan.FromSeconds(30);
 
         options.ConnectTimeout = timeout;
@@ -71,7 +71,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PooledConnectionIdleTimeout_DefaultIs90Seconds()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Equal(TimeSpan.FromSeconds(90), options.PooledConnectionIdleTimeout);
     }
@@ -79,7 +79,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PooledConnectionIdleTimeout_CanBeSet()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var timeout = TimeSpan.FromSeconds(120);
 
         options.PooledConnectionIdleTimeout = timeout;
@@ -90,7 +90,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PooledConnectionLifetime_DefaultIsInfinite()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Equal(Timeout.InfiniteTimeSpan, options.PooledConnectionLifetime);
     }
@@ -98,7 +98,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PooledConnectionLifetime_CanBeSet()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var lifetime = TimeSpan.FromMinutes(5);
 
         options.PooledConnectionLifetime = lifetime;
@@ -109,7 +109,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void MaxConcurrentEndpoints_DefaultIs256()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Equal(256u, options.MaxConcurrentEndpoints);
     }
@@ -117,7 +117,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void MaxConcurrentEndpoints_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             MaxConcurrentEndpoints = 512
         };
@@ -128,7 +128,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void EnabledSslProtocols_DefaultIsNone()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Equal(SslProtocols.None, options.EnabledSslProtocols);
     }
@@ -136,7 +136,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void EnabledSslProtocols_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
         };
@@ -147,7 +147,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void ClientCertificates_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.ClientCertificates);
     }
@@ -155,7 +155,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void DangerousAcceptAnyServerCertificate_DefaultIsFalse()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.False(options.DangerousAcceptAnyServerCertificate);
     }
@@ -163,7 +163,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void DangerousAcceptAnyServerCertificate_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             DangerousAcceptAnyServerCertificate = true
         };
@@ -174,7 +174,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void ServerCertificateValidationCallback_DefaultIsNotNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.NotNull(options.ServerCertificateValidationCallback);
     }
@@ -182,7 +182,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void ServerCertificateValidationCallback_CanBeSet()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         RemoteCertificateValidationCallback customCallback = (_, _, _, _) => false;
 
         options.ServerCertificateValidationCallback = customCallback;
@@ -193,7 +193,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketSendBufferSize_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.SocketSendBufferSize);
     }
@@ -201,7 +201,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketSendBufferSize_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             SocketSendBufferSize = 65536
         };
@@ -212,7 +212,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketReceiveBufferSize_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.SocketReceiveBufferSize);
     }
@@ -220,7 +220,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketReceiveBufferSize_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             SocketReceiveBufferSize = 65536
         };
@@ -231,7 +231,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void UseProxy_DefaultIsTrue()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.True(options.UseProxy);
     }
@@ -239,7 +239,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void UseProxy_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             UseProxy = false
         };
@@ -250,7 +250,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void Proxy_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.Proxy);
     }
@@ -258,7 +258,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void DefaultProxyCredentials_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.DefaultProxyCredentials);
     }
@@ -266,7 +266,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void Credentials_DefaultIsNull()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.Credentials);
     }
@@ -274,7 +274,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PreAuthenticate_DefaultIsFalse()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.False(options.PreAuthenticate);
     }
@@ -282,7 +282,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PreAuthenticate_CanBeSet()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             PreAuthenticate = true
         };
@@ -293,7 +293,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void MaxRequestBodyBufferSize_default_should_be_64_KiB()
     {
-        var o = new TurboClientOptions();
+        var o = new GaudiClientOptions();
 
         Assert.Equal(64 * 1024, o.Http2.MaxRequestBodyBufferSize);
         Assert.Equal(64 * 1024, o.Http3.MaxRequestBodyBufferSize);
@@ -303,7 +303,7 @@ public sealed class TurboClientOptionsSpec
     public void
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateFalse_ReturnsCustomCallback()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         RemoteCertificateValidationCallback customCallback = (_, _, _, _) => false;
         options.ServerCertificateValidationCallback = customCallback;
         options.DangerousAcceptAnyServerCertificate = false;
@@ -318,7 +318,7 @@ public sealed class TurboClientOptionsSpec
     public void
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateTrue_ReturnsAlwaysTrue()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = (_, _, _, _) => false,
             DangerousAcceptAnyServerCertificate = true
@@ -336,7 +336,7 @@ public sealed class TurboClientOptionsSpec
     public void
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateTrue_IgnoresServerCertificateValidationCallback()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callbackCalled = false;
         options.ServerCertificateValidationCallback = (_, _, _, _) =>
         {
@@ -354,7 +354,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void EffectiveServerCertificateValidationCallback_WithDefaultCallback_ReturnsTrueOnlyForValidCertificates()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         // Use the default callback
 
         var effective = options.EffectiveServerCertificateValidationCallback;
@@ -371,7 +371,7 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void EffectiveServerCertificateValidationCallback_TogglingDangerous_SwitchesCallback()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = (_, _, _, _) => false
         };

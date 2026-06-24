@@ -28,7 +28,7 @@ public sealed class Http11StateMachineReconnectSpec
         return (request, pending);
     }
 
-    private static TurboClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
+    private static GaudiClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
         new()
         {
             Http1 = new Http1ClientOptions

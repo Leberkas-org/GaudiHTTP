@@ -12,7 +12,7 @@ public sealed class Http3ClientConnectionErrorSpec
 
     private Http3ClientStateMachine CreateMachine()
     {
-        var sm = new Http3ClientStateMachine(new TurboClientOptions(), _clientOps);
+        var sm = new Http3ClientStateMachine(new GaudiClientOptions(), _clientOps);
         sm.PreStart();
         sm.DecodeServerData(new TransportConnected(null!));
         _clientOps.Outbound.Clear();

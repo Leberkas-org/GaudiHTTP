@@ -7,7 +7,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// Baseline cold-start cost for .NET <see cref="HttpClient"/> (SocketsHttpHandler): each measured
 /// invocation creates a fresh handler+client and performs its FIRST request against an already-warm
 /// Kestrel server, capturing connection establishment (DNS/TCP/TLS/QUIC handshake). Mirrors
-/// <see cref="KestrelTurboColdStartBenchmarks"/>; created clients are stashed and disposed in cleanup
+/// <see cref="KestrelGaudiColdStartBenchmarks"/>; created clients are stashed and disposed in cleanup
 /// so teardown stays out of the measured region.
 /// </summary>
 [MemoryDiagnoser]

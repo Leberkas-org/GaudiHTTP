@@ -16,25 +16,25 @@ public sealed class DiagnosticSpec : End2EndSpecBase
     }
 
     [Fact(Timeout = 15000)]
-    public async Task A_first_test_turbo_client()
+    public async Task A_first_test_gaudi_client()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/ping");
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
 
-        await Console.Error.WriteLineAsync($"[DIAG-A] TurboClient: status={response.StatusCode} body='{body}'");
+        await Console.Error.WriteLineAsync($"[DIAG-A] GaudiClient: status={response.StatusCode} body='{body}'");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("pong", body);
     }
 
     [Fact(Timeout = 15000)]
-    public async Task B_second_test_turbo_client()
+    public async Task B_second_test_gaudi_client()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/ping");
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
 
-        await Console.Error.WriteLineAsync($"[DIAG-B] TurboClient: status={response.StatusCode} body='{body}'");
+        await Console.Error.WriteLineAsync($"[DIAG-B] GaudiClient: status={response.StatusCode} body='{body}'");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("pong", body);
     }

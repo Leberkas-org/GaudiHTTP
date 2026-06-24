@@ -17,7 +17,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 /// </summary>
 public sealed class Http11ClientFragmentedResponseSpec
 {
-    private static TurboClientOptions MakeConfig()
+    private static GaudiClientOptions MakeConfig()
         => new() { Http1 = new Http1ClientOptions { MaxPipelineDepth = 256 } };
 
     private static HttpRequestMessage MakeRequest(string path = "/")

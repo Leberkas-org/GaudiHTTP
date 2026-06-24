@@ -21,7 +21,7 @@ public sealed class Http11ServerBodyPumpStallSpec
     private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
         CreateStreamingResponseContext(int bodySize)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
 
@@ -55,8 +55,8 @@ public sealed class Http11ServerBodyPumpStallSpec
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
         return new Http11ServerStateMachine(
-            new TurboServerOptions().ToHttp1Options(),
-            new TurboServerOptions().ToHttp2Options(),
+            new GaudiServerOptions().ToHttp1Options(),
+            new GaudiServerOptions().ToHttp2Options(),
             ops);
     }
 

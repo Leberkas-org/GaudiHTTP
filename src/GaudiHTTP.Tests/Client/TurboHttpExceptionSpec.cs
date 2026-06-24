@@ -14,19 +14,19 @@ internal sealed class TestGaudiHttpException : GaudiHttpException
     }
 }
 
-internal sealed class TestTurboProtocolException : TurboProtocolException
+internal sealed class TestGaudiProtocolException : GaudiProtocolException
 {
-    public TestTurboProtocolException(string message) : base(message)
+    public TestGaudiProtocolException(string message) : base(message)
     {
     }
 
-    public TestTurboProtocolException(string message, Exception innerException)
+    public TestGaudiProtocolException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
 }
 
-internal sealed class TestTurboTransportException(string message) : TurboTransportException(message);
+internal sealed class TestGaudiTransportException(string message) : GaudiTransportException(message);
 
 public sealed class GaudiHttpExceptionSpec
 {
@@ -60,19 +60,19 @@ public sealed class GaudiHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_WithMessage_CreatesException()
+    public void GaudiProtocolException_WithMessage_CreatesException()
     {
-        var exception = new TestTurboProtocolException("protocol error");
+        var exception = new TestGaudiProtocolException("protocol error");
 
         Assert.NotNull(exception);
         Assert.Equal("protocol error", exception.Message);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_WithMessageAndInner_CreatesException()
+    public void GaudiProtocolException_WithMessageAndInner_CreatesException()
     {
         var innerException = new InvalidDataException("malformed");
-        var exception = new TestTurboProtocolException("protocol error", innerException);
+        var exception = new TestGaudiProtocolException("protocol error", innerException);
 
         Assert.NotNull(exception);
         Assert.Equal("protocol error", exception.Message);
@@ -80,35 +80,35 @@ public sealed class GaudiHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_IsGaudiHttpException()
+    public void GaudiProtocolException_IsGaudiHttpException()
     {
-        var exception = new TestTurboProtocolException("test");
+        var exception = new TestGaudiProtocolException("test");
 
         Assert.IsAssignableFrom<GaudiHttpException>(exception);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboTransportException_WithMessage_CreatesException()
+    public void GaudiTransportException_WithMessage_CreatesException()
     {
-        var exception = new TestTurboTransportException("connection failed");
+        var exception = new TestGaudiTransportException("connection failed");
 
         Assert.NotNull(exception);
         Assert.Equal("connection failed", exception.Message);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboTransportException_Message_IsPreserved()
+    public void GaudiTransportException_Message_IsPreserved()
     {
-        var exception = new TestTurboTransportException("connection failed");
+        var exception = new TestGaudiTransportException("connection failed");
 
         Assert.NotNull(exception);
         Assert.Equal("connection failed", exception.Message);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboTransportException_IsGaudiHttpException()
+    public void GaudiTransportException_IsGaudiHttpException()
     {
-        var exception = new TestTurboTransportException("test");
+        var exception = new TestGaudiTransportException("test");
 
         Assert.IsAssignableFrom<GaudiHttpException>(exception);
     }
@@ -132,13 +132,13 @@ public sealed class GaudiHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_CanBeCaughtAsGaudiHttpException()
+    public void GaudiProtocolException_CanBeCaughtAsGaudiHttpException()
     {
         GaudiHttpException? caughtException;
 
         try
         {
-            throw new TestTurboProtocolException("protocol");
+            throw new TestGaudiProtocolException("protocol");
         }
         catch (GaudiHttpException ex)
         {
@@ -146,7 +146,7 @@ public sealed class GaudiHttpExceptionSpec
         }
 
         Assert.NotNull(caughtException);
-        Assert.IsType<TestTurboProtocolException>(caughtException);
+        Assert.IsType<TestGaudiProtocolException>(caughtException);
     }
 
     [Fact(Timeout = 5000)]
@@ -162,8 +162,8 @@ public sealed class GaudiHttpExceptionSpec
     public void ExceptionHierarchy_AllInheritFromGaudiHttpException()
     {
         var httpEx = new TestGaudiHttpException("http");
-        var protocolEx = new TestTurboProtocolException("protocol");
-        var transportEx = new TestTurboTransportException("transport");
+        var protocolEx = new TestGaudiProtocolException("protocol");
+        var transportEx = new TestGaudiTransportException("transport");
 
         Assert.IsAssignableFrom<GaudiHttpException>(httpEx);
         Assert.IsAssignableFrom<GaudiHttpException>(protocolEx);

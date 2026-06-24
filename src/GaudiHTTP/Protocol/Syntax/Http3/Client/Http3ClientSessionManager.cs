@@ -17,7 +17,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 {
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private readonly IClientStageOperations _ops;
 
     private readonly QuicStreamTracker _tracker;
@@ -43,7 +43,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     public Http3ClientSessionManager(
         Http3ClientEncoderOptions encoderOptions,
         Http3ClientDecoderOptions decoderOptions,
-        TurboClientOptions options,
+        GaudiClientOptions options,
         IClientStageOperations ops)
     {
         _encoderOptions = encoderOptions;

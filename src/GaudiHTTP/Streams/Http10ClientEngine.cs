@@ -7,7 +7,7 @@ using GaudiHTTP.Streams.Stages.Client;
 
 namespace GaudiHTTP.Streams;
 
-internal class Http10ClientEngine(TurboClientOptions options) : IClientProtocolEngine
+internal class Http10ClientEngine(GaudiClientOptions options) : IClientProtocolEngine
 {
     public BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed> CreateFlow()
     {

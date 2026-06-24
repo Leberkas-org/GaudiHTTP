@@ -3,9 +3,9 @@ using GaudiHTTP.IntegrationTests.Server.Shared;
 
 namespace GaudiHTTP.IntegrationTests.Server.Middleware;
 
-public sealed class MiddlewareSpec(TurboServerFixture server) : IDisposable
+public sealed class MiddlewareSpec(GaudiServerFixture server) : IDisposable
 {
-    private readonly HttpClient _client = TurboServerFixture.CreateClient();
+    private readonly HttpClient _client = GaudiServerFixture.CreateClient();
 
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 

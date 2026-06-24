@@ -4,7 +4,7 @@ using GaudiHTTP.Protocol;
 
 namespace GaudiHTTP.Diagnostics;
 
-internal static class TurboServerInstrumentationExtensions
+internal static class GaudiServerInstrumentationExtensions
 {
     private static readonly HashSet<string> StandardMethods = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -110,11 +110,11 @@ internal static class TurboServerInstrumentationExtensions
 
     public static void AddBackpressureEvent(this ServusTrace _, Activity activity, int inflight, int max)
     {
-        activity.AddEvent(new ActivityEvent("turbo.backpressure",
+        activity.AddEvent(new ActivityEvent("gaudi.backpressure",
             tags: new ActivityTagsCollection
             {
-                { "turbo.pipeline.inflight", inflight },
-                { "turbo.pipeline.max", max }
+                { "gaudi.pipeline.inflight", inflight },
+                { "gaudi.pipeline.max", max }
             }));
     }
 

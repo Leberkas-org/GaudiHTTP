@@ -13,7 +13,7 @@ public sealed class Http11Server1xxSpec
 {
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
     }
 
@@ -50,7 +50,7 @@ public sealed class Http11Server1xxSpec
 
         Assert.Single(ops.Requests);
         var features = ops.Requests[0];
-        var informational = features.Get<TurboInformationalResponseFeature>();
+        var informational = features.Get<GaudiInformationalResponseFeature>();
         Assert.NotNull(informational);
 
         informational.SendInformational(103, new HeaderDictionary
@@ -72,7 +72,7 @@ public sealed class Http11Server1xxSpec
         sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
 
         var features = ops.Requests[0];
-        features.Get<TurboInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
+        features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -86,7 +86,7 @@ public sealed class Http11Server1xxSpec
         sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
 
         var features = ops.Requests[0];
-        features.Get<TurboInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
+        features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
 
         var responseFeature = features.Get<IHttpResponseFeature>()!;
         responseFeature.StatusCode = 200;
@@ -107,7 +107,7 @@ public sealed class Http11Server1xxSpec
         sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
 
         var features = ops.Requests[0];
-        features.Get<TurboInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
+        features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
 
         Assert.Empty(ops.ResponseBodyCompletions);
     }
@@ -121,7 +121,7 @@ public sealed class Http11Server1xxSpec
         sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
 
         var features = ops.Requests[0];
-        features.Get<TurboInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
+        features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
 
         Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name.Contains("keep-alive"));
     }

@@ -17,7 +17,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 public sealed class Http11ServerResponseRecyclingSpec
 {
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
-        => new(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        => new(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
     private static void SendRequest(Http11ServerStateMachine sm, string method = "GET")
     {
@@ -31,7 +31,7 @@ public sealed class Http11ServerResponseRecyclingSpec
 
     private static IFeatureCollection ResponseFeatures(int statusCode, string requestMethod = "GET")
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = requestMethod });
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = statusCode });
         features.Set<IHttpResponseBodyFeature>(new GaudiHttpResponseBodyFeature());

@@ -25,7 +25,7 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
         TransportRegistry transports,
         Version version,
         Action<IGaudiHttpClientBuilder>? configure = null,
-        Action<TurboClientOptions>? configureOptions = null)
+        Action<GaudiClientOptions>? configureOptions = null)
     {
         var services = new ServiceCollection();
 
@@ -37,12 +37,12 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
 
         var builder = services.AddGaudiHttpClient();
 
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             BaseAddress = new Uri("http://fake.test")
         };
         configureOptions?.Invoke(options);
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(options)));
 
         configure?.Invoke(builder);
@@ -72,8 +72,8 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
         await _provider.DisposeAsync();
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

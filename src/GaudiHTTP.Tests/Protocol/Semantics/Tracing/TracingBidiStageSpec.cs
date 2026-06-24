@@ -135,7 +135,7 @@ public sealed class TracingBidiStageSpec : StreamTestBase, IDisposable
 
         var result = Assert.Single(results);
         Assert.True(result.Options.TryGetValue(
-            TurboClientInstrumentationExtensions.RequestActivityKey, out var activity));
+            GaudiClientInstrumentationExtensions.RequestActivityKey, out var activity));
         Assert.NotNull(activity);
     }
 
@@ -163,9 +163,9 @@ public sealed class TracingBidiStageSpec : StreamTestBase, IDisposable
 
         Assert.Equal(2, results.Count);
         Assert.True(results[0].Options.TryGetValue(
-            TurboClientInstrumentationExtensions.RequestActivityKey, out var act1));
+            GaudiClientInstrumentationExtensions.RequestActivityKey, out var act1));
         Assert.True(results[1].Options.TryGetValue(
-            TurboClientInstrumentationExtensions.RequestActivityKey, out var act2));
+            GaudiClientInstrumentationExtensions.RequestActivityKey, out var act2));
         Assert.NotNull(act1);
         Assert.NotNull(act2);
     }

@@ -19,7 +19,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     internal sealed record RegisterConsumer(
         Guid ConsumerId,
         ChannelReader<HttpRequestMessage> RequestReader,
-        Func<TurboRequestOptions> OptionsFactory,
+        Func<GaudiRequestOptions> OptionsFactory,
         ChannelWriter<HttpResponseMessage> FallbackResponseWriter);
     internal sealed record UnregisterConsumer(Guid ConsumerId);
 
@@ -41,7 +41,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
 
-    private readonly TurboClientOptions _clientOptions;
+    private readonly GaudiClientOptions _clientOptions;
     private readonly PipelineDescriptor _pipeline;
     private readonly TransportRegistry? _transportOverride;
     private readonly TimeSpan _initialBackoff;
@@ -67,7 +67,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     public ITimerScheduler Timers { get; set; } = null!;
     public IStash Stash { get; set; } = null!;
 
-    public StreamOwner(TurboClientOptions clientOptions, PipelineDescriptor pipeline,
+    public StreamOwner(GaudiClientOptions clientOptions, PipelineDescriptor pipeline,
         TransportRegistry? transportOverride = null,
         TimeSpan? initialBackoffOverride = null)
     {

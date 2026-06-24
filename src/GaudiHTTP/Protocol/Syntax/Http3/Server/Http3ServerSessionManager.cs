@@ -165,7 +165,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
     private void SendInformational(long streamId, int statusCode, IHeaderDictionary headers)
     {
-        var fc = new TurboFeatureCollection();
+        var fc = new GaudiFeatureCollection();
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = statusCode };
         foreach (var h in headers)
         {
@@ -213,13 +213,13 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         var hasBody = contentLength is not null and not 0
                       || (contentLength is null && hasStarted);
 
-        if (!hasBody || responseBody is not GaudiHttpResponseBodyFeature turboBody)
+        if (!hasBody || responseBody is not GaudiHttpResponseBodyFeature gaudiBody)
         {
             EmitEndOfBody(streamId, state);
             return;
         }
 
-        if (turboBody.TryGetBufferedBody(out var bufferedBody))
+        if (gaudiBody.TryGetBufferedBody(out var bufferedBody))
         {
             if (bufferedBody.Length > 0)
             {
@@ -231,7 +231,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             return;
         }
 
-        var bodyStream = turboBody.GetResponseStream();
+        var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
         _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
         _pump.Register(streamId, bodyStream, CancellationToken.None, initialCredits: 16);
@@ -657,12 +657,12 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
             var features = FeatureCollectionFactory.Create(_ops.PoolContext!, requestFeature, hasBody,
                 _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
-            features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+            features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
             features.Set<IHttpResetFeature>(new GaudiHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (ErrorCode)errorCode)));
-            features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+            features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
                 SendInformational(capturedStreamId, statusCode, headers)));
 
             _ops.OnRequest(features);
@@ -805,9 +805,9 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         if (trailerFeature?.Trailers is { Count: > 0 } trailers)
         {
-            if (trailers is TurboHeaderDictionary turboTrailers)
+            if (trailers is GaudiHeaderDictionary gaudiTrailers)
             {
-                turboTrailers.SetReadOnly();
+                gaudiTrailers.SetReadOnly();
             }
 
             var trailerFrame = _responseEncoder.EncodeTrailers(trailers);

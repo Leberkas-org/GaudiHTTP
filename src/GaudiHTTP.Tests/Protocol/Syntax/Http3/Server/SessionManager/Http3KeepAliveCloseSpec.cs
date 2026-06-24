@@ -11,7 +11,7 @@ public sealed class Http3KeepAliveCloseSpec
     public void OnTimerFired_should_set_ShouldComplete_on_keepalive_timeout()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
         sm.PreStart();
 
         sm.OnTimerFired("keep-alive-timeout");

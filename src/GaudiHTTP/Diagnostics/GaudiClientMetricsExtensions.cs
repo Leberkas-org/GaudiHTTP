@@ -3,7 +3,7 @@ using Servus.Diagnostics;
 
 namespace GaudiHTTP.Diagnostics;
 
-internal static class TurboClientMetricsExtensions
+internal static class GaudiClientMetricsExtensions
 {
     private static Counter<long>? _requestCount;
     private static Histogram<double>? _requestDuration;

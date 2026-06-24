@@ -62,7 +62,7 @@ public sealed class ConnectionActorSpec : TestKit
     public void ConnectionActor_should_stop_on_stream_completion()
     {
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            1, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
+            1, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
@@ -72,7 +72,7 @@ public sealed class ConnectionActorSpec : TestKit
     public void ConnectionActor_should_stop_on_stream_failure()
     {
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            2, FailingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
+            2, FailingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
@@ -82,7 +82,7 @@ public sealed class ConnectionActorSpec : TestKit
     public void ConnectionActor_should_drain_on_drain_message()
     {
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            3, HangingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
+            3, HangingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
         actor.Tell(new ConnectionActor.Drain());

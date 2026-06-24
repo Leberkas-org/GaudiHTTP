@@ -17,7 +17,7 @@ public sealed class Http3GoAwayComplianceSpec
         TransportProtocol.Tcp);
 
     private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
-        => new(new TurboClientOptions(), ops ?? _clientOps);
+        => new(new GaudiClientOptions(), ops ?? _clientOps);
 
     private static TransportBuffer SerializeFrame(Http3Frame frame)
     {

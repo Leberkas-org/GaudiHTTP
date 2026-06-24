@@ -10,10 +10,10 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineSpec
 {
-    private static TurboClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null,
+    private static GaudiClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null,
         int initialStreamWindowSize = 65_535, int maxFrameSize = 16_384)
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 =
             {

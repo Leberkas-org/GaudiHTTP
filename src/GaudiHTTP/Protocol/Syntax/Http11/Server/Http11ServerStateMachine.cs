@@ -277,7 +277,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);
-                features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+                features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
                     SendInformational(statusCode, headers)));
 
                 if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
@@ -402,11 +402,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         // The body is already materialized and copied synchronously on the existing path too, so
         // buffer ownership is unchanged. Streamed bodies report false here; chunked bodies keep the
         // framed EmitBufferedBody path below.
-        var turboBody = responseBody as GaudiHttpResponseBodyFeature;
+        var gaudiBody = responseBody as GaudiHttpResponseBodyFeature;
         ReadOnlyMemory<byte> bufferedBody = default;
         var hasBufferedBody = !suppressBody
-            && turboBody is not null
-            && turboBody.TryGetBufferedBody(out bufferedBody);
+            && gaudiBody is not null
+            && gaudiBody.TryGetBufferedBody(out bufferedBody);
         var coalesceBody = hasBufferedBody && !isChunked;
 
         var estimatedSize = headerScan.EstimatedSize;
@@ -460,7 +460,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
         }
 
-        if (turboBody is not null)
+        if (gaudiBody is not null)
         {
             if (coalesceBody)
             {
@@ -487,7 +487,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             _activeResponseFeatures = features;
             Tracing.For("Protocol").Debug(this, "response body writer starting (chunked={0})", isChunked);
 
-            var bodyStream = turboBody.GetResponseStream();
+            var bodyStream = gaudiBody.GetResponseStream();
 
             _serialPump =
                 new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
@@ -561,9 +561,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         var trailerFeature = features?.Get<IHttpResponseTrailersFeature>();
         if (trailerFeature?.Trailers is { Count: > 0 } trailers)
         {
-            if (trailers is TurboHeaderDictionary turboTrailers)
+            if (trailers is GaudiHeaderDictionary gaudiTrailers)
             {
-                turboTrailers.SetReadOnly();
+                gaudiTrailers.SetReadOnly();
             }
 
             var trailerSize = ChunkedFramingHelper.GetTrailerSectionSize(trailers);

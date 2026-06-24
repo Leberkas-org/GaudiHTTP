@@ -13,13 +13,13 @@ public sealed class Http2ServerStreamCorrelationSpec
 {
     private static IFeatureCollection CreateResponseContext(long streamId)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         return features;
     }
 
@@ -74,7 +74,7 @@ public sealed class Http2ServerStreamCorrelationSpec
     public void Multiple_concurrent_streams_should_correlate_responses_to_correct_stream_ids()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS on stream 1
         var headerBlock1 = EncodeHeaders("GET", "/path1", "example.com");
@@ -176,7 +176,7 @@ public sealed class Http2ServerStreamCorrelationSpec
     public void Stream_IDs_should_preserve_request_response_correlation_across_interleaved_processing()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send three requests on streams 1, 3, 5
         for (var streamId = 1; streamId <= 5; streamId += 2)
@@ -250,7 +250,7 @@ public sealed class Http2ServerStreamCorrelationSpec
     public void Concurrent_streams_should_maintain_independent_state()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send multiple requests without waiting for responses
         var headerBlock1 = EncodeHeaders("GET", "/");

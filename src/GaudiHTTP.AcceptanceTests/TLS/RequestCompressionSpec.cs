@@ -16,7 +16,7 @@ namespace GaudiHTTP.AcceptanceTests.TLS;
 public sealed class RequestCompressionSpec : AcceptanceTestBase
 {
     private static Http11ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     private static byte[] MakePayload(int size)
     {

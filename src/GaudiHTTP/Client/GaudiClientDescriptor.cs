@@ -4,7 +4,7 @@ using GaudiHTTP.Protocol.Semantics;
 
 namespace GaudiHTTP.Client;
 
-internal sealed class TurboClientDescriptor
+internal sealed class GaudiClientDescriptor
 {
     public RedirectPolicy? RedirectPolicy { get; set; }
     public RetryPolicy? RetryPolicy { get; set; }
@@ -22,5 +22,5 @@ internal sealed class TurboClientDescriptor
     /// Type-based registrations (AddHandler&lt;T&gt;) add to both HandlerTypes and this list.
     /// Delegate-based registrations (UseRequest/UseResponse) add only to this list.
     /// </summary>
-    public List<Func<IServiceProvider, TurboHandler>> HandlerFactories { get; } = [];
+    public List<Func<IServiceProvider, GaudiHandler>> HandlerFactories { get; } = [];
 }

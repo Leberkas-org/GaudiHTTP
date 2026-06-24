@@ -18,7 +18,7 @@ public sealed class Http11ServerBodyBackpressureSpec
 {
     private static IFeatureCollection CreateResponseContext()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
@@ -38,8 +38,8 @@ public sealed class Http11ServerBodyBackpressureSpec
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
         return new Http11ServerStateMachine(
-            new TurboServerOptions().ToHttp1Options(),
-            new TurboServerOptions().ToHttp2Options(),
+            new GaudiServerOptions().ToHttp1Options(),
+            new GaudiServerOptions().ToHttp2Options(),
             ops);
     }
 

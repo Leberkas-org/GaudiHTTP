@@ -7,7 +7,7 @@ public sealed class ClientOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_max_frame_size_should_flow_to_encoder_options()
     {
-        var o = new TurboClientOptions
+        var o = new GaudiClientOptions
         {
             Http2 =
             {
@@ -23,7 +23,7 @@ public sealed class ClientOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_default_max_frame_size_should_be_projected_not_dropped()
     {
-        var enc = new TurboClientOptions().ToHttp2EncoderOptions();
+        var enc = new GaudiClientOptions().ToHttp2EncoderOptions();
 
         Assert.Equal(64 * 1024, enc.MaxFrameSize);
     }
@@ -31,7 +31,7 @@ public sealed class ClientOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_header_table_size_should_flow_to_encoder_options()
     {
-        var o = new TurboClientOptions
+        var o = new GaudiClientOptions
         {
             Http2 =
             {
@@ -47,7 +47,7 @@ public sealed class ClientOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_adaptive_scaling_options_should_flow_to_decoder_options()
     {
-        var o = new TurboClientOptions
+        var o = new GaudiClientOptions
         {
             Http2 =
             {
@@ -69,7 +69,7 @@ public sealed class ClientOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_defaults_should_start_at_1mb_with_16mb_cap()
     {
-        var dec = new TurboClientOptions().ToHttp2DecoderOptions();
+        var dec = new GaudiClientOptions().ToHttp2DecoderOptions();
 
         Assert.Equal(1 * 1024 * 1024, dec.InitialStreamWindowSize);
         Assert.Equal(16 * 1024 * 1024, dec.MaxStreamWindowSize);

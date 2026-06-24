@@ -41,7 +41,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http2_for_alpn_h2()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
 
@@ -54,7 +54,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http11_for_alpn_http11()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http11));
 
@@ -66,7 +66,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http11_for_default_alpn()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected(default(SslApplicationProtocol)));
 
@@ -80,7 +80,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http2_for_pri_preface()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -95,7 +95,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http11_for_get_request()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -113,7 +113,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_select_http11_for_post_request()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -131,7 +131,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void DecodeClientData_should_stay_sniffing_for_insufficient_data()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
         sm.DecodeClientData(MakeData("PR"u8.ToArray()));
@@ -147,7 +147,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void Sniffing_should_abort_when_buffered_bytes_exceed_cap()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -162,7 +162,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void Sniffing_should_identify_http2_when_first_segment_exceeds_sniff_cap()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -183,7 +183,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void Sniffing_should_arm_idle_timeout_and_abort_when_it_fires()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
 
@@ -200,7 +200,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void MaxConcurrentRequests_should_serialize_dispatch_for_negotiated_http11()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
         sm.DecodeClientData(MakeData("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray()));
@@ -215,7 +215,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void MaxConcurrentRequests_should_stay_unbounded_for_negotiated_http2()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
 
@@ -227,7 +227,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     public void Cleanup_should_dispose_buffered_data()
     {
         var ops = new FakeServerOps();
-        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
         sm.DecodeClientData(MakeConnected());
         sm.Cleanup();

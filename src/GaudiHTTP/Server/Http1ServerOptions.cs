@@ -3,7 +3,7 @@ namespace GaudiHTTP.Server;
 /// <summary>
 /// HTTP/1.x-specific server configuration.
 /// Controls request line parsing, pipelining, chunked-encoding limits, body read timeouts,
-/// and data-rate enforcement. Nullable properties inherit from <see cref="TurboServerLimits"/>
+/// and data-rate enforcement. Nullable properties inherit from <see cref="GaudiServerLimits"/>
 /// when left at <c>null</c>.
 /// </summary>
 public sealed class Http1ServerOptions
@@ -29,27 +29,27 @@ public sealed class Http1ServerOptions
     /// <summary>Gets or sets the timeout for reading the complete request body after headers are received. Default is 30 seconds.</summary>
     public TimeSpan BodyReadTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>Gets or sets the maximum total size of all request headers in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
+    /// <summary>Gets or sets the maximum total size of all request headers in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
     public int? MaxHeaderListSize { get; set; }
 
-    /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestBodySize"/>.</summary>
+    /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
 
-    /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="TurboServerLimits.KeepAliveTimeout"/>.</summary>
+    /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="GaudiServerLimits.KeepAliveTimeout"/>.</summary>
     public TimeSpan? KeepAliveTimeout { get; set; }
 
-    /// <summary>Gets or sets the timeout for receiving the complete request headers, or <c>null</c> to inherit from <see cref="TurboServerLimits.RequestHeadersTimeout"/>.</summary>
+    /// <summary>Gets or sets the timeout for receiving the complete request headers, or <c>null</c> to inherit from <see cref="GaudiServerLimits.RequestHeadersTimeout"/>.</summary>
     public TimeSpan? RequestHeadersTimeout { get; set; }
 
-    /// <summary>Gets or sets the minimum acceptable request body data rate in bytes/second, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinRequestBodyDataRate"/>.</summary>
+    /// <summary>Gets or sets the minimum acceptable request body data rate in bytes/second, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinRequestBodyDataRate"/>.</summary>
     public double? MinRequestBodyDataRate { get; set; }
 
-    /// <summary>Gets or sets the grace period before enforcing the minimum request body data rate, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinRequestBodyDataRateGracePeriod"/>.</summary>
+    /// <summary>Gets or sets the grace period before enforcing the minimum request body data rate, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinRequestBodyDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
 
-    /// <summary>Gets or sets the minimum acceptable response data rate in bytes/second, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinResponseDataRate"/>.</summary>
+    /// <summary>Gets or sets the minimum acceptable response data rate in bytes/second, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinResponseDataRate"/>.</summary>
     public double? MinResponseDataRate { get; set; }
 
-    /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
+    /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinResponseDataRateGracePeriod { get; set; }
 }

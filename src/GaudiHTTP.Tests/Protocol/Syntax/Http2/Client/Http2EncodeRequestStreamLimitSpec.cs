@@ -10,7 +10,7 @@ public sealed class Http2EncodeRequestStreamLimitSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void CanOpenStream_should_return_false_when_MaxConcurrentStreams_reached()
     {
-        var opts = new TurboClientOptions();
+        var opts = new GaudiClientOptions();
         opts.Http2.MaxConcurrentStreams = 1;
         var ops = new FakeClientOps();
         var mgr = new Http2ClientSessionManager(opts, ops);
@@ -24,7 +24,7 @@ public sealed class Http2EncodeRequestStreamLimitSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void CanOpenStream_should_return_true_when_below_limit()
     {
-        var opts = new TurboClientOptions();
+        var opts = new GaudiClientOptions();
         opts.Http2.MaxConcurrentStreams = 2;
         var ops = new FakeClientOps();
         var mgr = new Http2ClientSessionManager(opts, ops);
@@ -38,7 +38,7 @@ public sealed class Http2EncodeRequestStreamLimitSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void EncodeRequest_should_not_throw_when_limit_reached()
     {
-        var opts = new TurboClientOptions();
+        var opts = new GaudiClientOptions();
         opts.Http2.MaxConcurrentStreams = 1;
         var ops = new FakeClientOps();
         var mgr = new Http2ClientSessionManager(opts, ops);

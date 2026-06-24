@@ -4,7 +4,7 @@ using GaudiHTTP.Protocol;
 
 namespace GaudiHTTP.Diagnostics;
 
-internal static class TurboClientInstrumentationExtensions
+internal static class GaudiClientInstrumentationExtensions
 {
     internal static readonly HttpRequestOptionsKey<Activity> RequestActivityKey
         = new("GaudiHTTP.RequestActivity");

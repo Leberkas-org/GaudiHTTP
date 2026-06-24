@@ -12,7 +12,7 @@ public sealed class Http3DuplicateStreamSpec
 
     private Http3ClientStateMachine CreateMachine()
     {
-        return new Http3ClientStateMachine(new TurboClientOptions(), _clientOps);
+        return new Http3ClientStateMachine(new GaudiClientOptions(), _clientOps);
     }
 
     private static TransportBuffer BuildStreamTypeBuffer(StreamType type, byte[]? trailingData = null)

@@ -5,7 +5,7 @@ namespace GaudiHTTP.Server;
 /// (<see cref="Http1ServerOptions"/>, <see cref="Http2ServerOptions"/>, <see cref="Http3ServerOptions"/>)
 /// can override these values per protocol; <c>null</c> overrides fall back to the values here.
 /// </summary>
-public sealed class TurboServerLimits
+public sealed class GaudiServerLimits
 {
     /// <summary>Gets or sets the maximum number of concurrent connections the server accepts. 0 means unlimited. Default is 0.</summary>
     public int MaxConcurrentConnections { get; set; }

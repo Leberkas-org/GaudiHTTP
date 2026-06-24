@@ -4,7 +4,7 @@ using GaudiHTTP.Client;
 
 namespace GaudiHTTP.Tests.Client;
 
-public sealed class TurboClientServiceCollectionExtensionsSpec
+public sealed class GaudiClientServiceCollectionExtensionsSpec
 {
     [Fact(Timeout = 5000)]
     public void AddGaudiHttpClient_WithName_ReturnsBuilder()
@@ -25,7 +25,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
 
         // Verify that builder was returned and configuration would work
         var sp = services.BuildServiceProvider();
-        var monitor = sp.GetService<IOptionsMonitor<TurboClientOptions>>();
+        var monitor = sp.GetService<IOptionsMonitor<GaudiClientOptions>>();
         Assert.NotNull(monitor);
     }
 
@@ -36,7 +36,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient("test", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(30));
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options = optionsMonitor.Get("test");
 
         Assert.Equal(TimeSpan.FromSeconds(30), options.ConnectTimeout);
@@ -49,7 +49,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient();
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options = optionsMonitor.Get(string.Empty);
 
         Assert.NotNull(options);
@@ -63,7 +63,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient("test2", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(20));
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options1 = optionsMonitor.Get("test1");
         var options2 = optionsMonitor.Get("test2");
 
@@ -79,7 +79,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
             .WithCookies();
 
         var sp = services.BuildServiceProvider();
-        var descriptorMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var descriptorMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
         var descriptor = descriptorMonitor.Get("test");
 
         Assert.True(descriptor.EnableCookies);
@@ -103,7 +103,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient<TestClient>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(25));
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options = optionsMonitor.Get("TestClient");
 
         Assert.Equal(TimeSpan.FromSeconds(25), options.ConnectTimeout);
@@ -127,7 +127,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient<ITestClient, TestClientImpl>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(35));
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options = optionsMonitor.Get("ITestClient");
 
         Assert.Equal(TimeSpan.FromSeconds(35), options.ConnectTimeout);
@@ -149,7 +149,7 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
         services.AddGaudiHttpClient("client2", opt => opt.MaxConcurrentEndpoints = 200);
 
         var sp = services.BuildServiceProvider();
-        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
+        var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
         var options1 = optionsMonitor.Get("client1");
         var options2 = optionsMonitor.Get("client2");
 

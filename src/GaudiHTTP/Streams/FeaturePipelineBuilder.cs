@@ -13,7 +13,7 @@ namespace GaudiHTTP.Streams;
 /// <para><b>Stacking order (outermost → innermost):</b></para>
 /// <list type="number">
 ///   <item><description>TracingBidiStage — root "GaudiHTTP.ClientRequest" activity lifecycle</description></item>
-///   <item><description>User Handlers — HandlerBidiStage per TurboHandler (FIFO: [0] outermost)</description></item>
+///   <item><description>User Handlers — HandlerBidiStage per GaudiHandler (FIFO: [0] outermost)</description></item>
 ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
 ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>
 ///   <item><description>RetryBidiStage — RFC 9110 §9.2, internal feedback loop</description></item>

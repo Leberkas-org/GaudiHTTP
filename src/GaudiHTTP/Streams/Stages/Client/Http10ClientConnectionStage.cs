@@ -6,7 +6,7 @@ using GaudiHTTP.Protocol.Syntax.Http10.Client;
 
 namespace GaudiHTTP.Streams.Stages.Client;
 
-internal sealed class Http10ClientConnectionStage(TurboClientOptions options) : GraphStage<ClientConnectionShape>
+internal sealed class Http10ClientConnectionStage(GaudiClientOptions options) : GraphStage<ClientConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inServer = new("Http10Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http10Connection.Out.Response");

@@ -14,7 +14,7 @@ public sealed class Http3FrameBatchingSpec
     {
         var encoderOpts = ClientOptionDefaults.Http3Encoder();
         var decoderOpts = ClientOptionDefaults.Http3Decoder();
-        var clientOpts = new TurboClientOptions { DangerousAcceptAnyServerCertificate = true };
+        var clientOpts = new GaudiClientOptions { DangerousAcceptAnyServerCertificate = true };
         var session = new Http3ClientSessionManager(encoderOpts, decoderOpts, clientOpts, ops);
         session.OnTransportConnected();
         return session;

@@ -214,7 +214,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         // Prove that RequestEnricher overrides Version when it's the 1.1 default
         // and DefaultRequestVersion differs. Since redirect enters AFTER enricher,
         // a redirected request with Version 2.0 (set by BuildRedirectRequest) is NOT overridden.
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: new Version(2, 0),

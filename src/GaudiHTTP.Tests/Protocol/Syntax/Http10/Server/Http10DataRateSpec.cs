@@ -14,7 +14,7 @@ public sealed class Http10DataRateSpec
 {
     private static IFeatureCollection CreateStreamingResponseContext(long contentLength)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         responseFeature.Headers["Content-Length"] = contentLength.ToString();
@@ -44,7 +44,7 @@ public sealed class Http10DataRateSpec
 
     private static Http1ConnectionOptions CreateOptionsWithResponseRate(double minRate, TimeSpan grace)
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var newLimits = defaultOptions.Limits with
         {
             MinResponseDataRate = minRate,
@@ -55,7 +55,7 @@ public sealed class Http10DataRateSpec
 
     private static Http1ConnectionOptions CreateOptionsWithRequestRate(double minRate, TimeSpan grace)
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var newLimits = defaultOptions.Limits with
         {
             MinRequestBodyDataRate = minRate,
@@ -67,7 +67,7 @@ public sealed class Http10DataRateSpec
     [Fact(Timeout = 5000)]
     public void Data_rate_monitoring_disabled_by_default()
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(defaultOptions, ops);
 

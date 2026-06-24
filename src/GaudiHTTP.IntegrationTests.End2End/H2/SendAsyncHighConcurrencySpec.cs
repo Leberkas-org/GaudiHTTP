@@ -84,7 +84,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         var system = ActorSystem.Create($"repro-{Guid.NewGuid():N}", bootstrap.And(diSetup));
         services.AddSingleton(system);
 
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             BaseAddress = new Uri(_baseUri),
             Http2 = new Http2ClientOptions
@@ -96,7 +96,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         };
 
         services.AddGaudiHttpClient();
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         _clientProvider = services.BuildServiceProvider();
@@ -746,8 +746,8 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
             TraceLevel.Warning);
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

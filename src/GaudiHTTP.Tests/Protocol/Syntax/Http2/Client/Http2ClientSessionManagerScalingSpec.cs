@@ -40,7 +40,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
     public void Session_should_emit_measurement_ping_on_inbound_data_when_scaling_enabled()
     {
         var clock = new FakeTimeProvider();
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 = new Http2ClientOptions
             {
@@ -71,7 +71,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
     public void Session_should_record_minrtt_when_measurement_ping_ack_received()
     {
         var clock = new FakeTimeProvider();
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 = new Http2ClientOptions
             {
@@ -108,7 +108,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
     public void Session_should_not_emit_measurement_ping_when_scaling_disabled()
     {
         var clock = new FakeTimeProvider();
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 = new Http2ClientOptions
             {
@@ -137,7 +137,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
     public void Session_should_not_send_measurement_ping_when_window_at_max()
     {
         var clock = new FakeTimeProvider();
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 = new Http2ClientOptions
             {

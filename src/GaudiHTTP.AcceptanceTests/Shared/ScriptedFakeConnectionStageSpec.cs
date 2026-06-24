@@ -11,7 +11,7 @@ namespace GaudiHTTP.AcceptanceTests.Shared;
 public sealed class ScriptedFakeConnectionStageSpec : EngineTestBase
 {
     private static Http10ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     [Fact(Timeout = 5000)]
     public async Task ScriptedFake_should_route_responses_by_request_index()

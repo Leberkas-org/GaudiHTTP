@@ -119,7 +119,7 @@ public sealed class Http2ServerFlowControlSpec
         // Create SM with small window so we can easily exceed threshold
         const int initialWindowSize = 16384;
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {
@@ -238,7 +238,7 @@ public sealed class Http2ServerFlowControlSpec
     public void DecodeClientData_with_window_update_should_not_emit_goaway()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -277,7 +277,7 @@ public sealed class Http2ServerFlowControlSpec
     {
         const int initialWindowSize = 20000;
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {

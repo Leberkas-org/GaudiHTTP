@@ -7,7 +7,7 @@ using GaudiHTTP.Server;
 namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
-/// Real HTTP/2 requests against TurboServer over TLS, driven by a neutral .NET HttpClient.
+/// Real HTTP/2 requests against GaudiServer over TLS, driven by a neutral .NET HttpClient.
 /// </summary>
 [Collection("Infrastructure")]
 public sealed class Http2ServerSpec : MultiProtocolTlsServerSpecBase

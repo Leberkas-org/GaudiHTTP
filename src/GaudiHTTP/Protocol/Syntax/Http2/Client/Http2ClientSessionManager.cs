@@ -18,7 +18,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 {
     private readonly Http2ClientEncoderOptions _encoderOptions;
     private readonly Http2ClientDecoderOptions _decoderOptions;
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private readonly IClientStageOperations _ops;
     private readonly ConnectionPoolContext _poolContext = new();
 
@@ -57,7 +57,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         ping.Data.Span.SequenceEqual(RttPingPayload);
 
     public Http2ClientSessionManager(
-        TurboClientOptions options,
+        GaudiClientOptions options,
         IClientStageOperations ops,
         TimeProvider? timeProvider = null)
     {

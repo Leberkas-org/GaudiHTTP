@@ -23,7 +23,7 @@ public sealed class Http3TransportSelectionSpec
     public void Should_ProduceQuicOptions_When_Http3Version()
     {
         var uri = new Uri("https://example.com/path");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
@@ -37,7 +37,7 @@ public sealed class Http3TransportSelectionSpec
     public void Should_ProduceTcpOptions_When_Http11Version()
     {
         var uri = new Uri("http://example.com/path");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version11), clientOptions);
 
@@ -51,7 +51,7 @@ public sealed class Http3TransportSelectionSpec
     public void Should_ProduceTlsOptions_When_Http11AndHttps()
     {
         var uri = new Uri("https://example.com/path");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version11), clientOptions);
 
@@ -63,7 +63,7 @@ public sealed class Http3TransportSelectionSpec
     public void Should_PropagateCertCallback_When_Http3()
     {
         var uri = new Uri("https://example.com/");
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             DangerousAcceptAnyServerCertificate = true,
         };
@@ -80,7 +80,7 @@ public sealed class Http3TransportSelectionSpec
     {
         var httpsUri = new Uri("https://example.com/");
         var httpUri = new Uri("http://example.com/");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var httpsResult = OptionsFactory.Build(ToEndpoint(httpsUri, null), clientOptions);
         var httpResult = OptionsFactory.Build(ToEndpoint(httpUri, null), clientOptions);
@@ -95,7 +95,7 @@ public sealed class Http3TransportSelectionSpec
     public void Should_ProduceQuicOptions_When_Http3EvenWithHttpScheme()
     {
         var uri = new Uri("http://example.com:4433/");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 

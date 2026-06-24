@@ -14,7 +14,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
 {
     private Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)> RunAsync(
         params Http2Frame[] serverFrames)
-        => RunFlowAsync(new Http20ClientConnectionStage(new TurboClientOptions()), serverFrames);
+        => RunFlowAsync(new Http20ClientConnectionStage(new GaudiClientOptions()), serverFrames);
 
     private async Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)>
         RunFlowAsync(
@@ -83,7 +83,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     {
         // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
         // Sending exactly 40000 bytes crosses the threshold in a single DATA frame.
-        var stage = new Http20ClientConnectionStage(new TurboClientOptions
+        var stage = new Http20ClientConnectionStage(new GaudiClientOptions
         { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
         var data = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
 
@@ -119,7 +119,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     {
         // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
         // Sending 40000 bytes crosses both thresholds simultaneously.
-        var stage = new Http20ClientConnectionStage(new TurboClientOptions
+        var stage = new Http20ClientConnectionStage(new GaudiClientOptions
         { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
         var data = new DataFrame(streamId: 3, data: new byte[40000], endStream: true);
 
@@ -146,7 +146,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
@@ -184,7 +184,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
@@ -222,7 +222,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.Never<ITransportInbound>());
                     var requestSource = b.Add(Source.Single(request));
@@ -258,7 +258,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.Never<ITransportInbound>());
                     var requestSource = b.Add(Source.Single(request));
@@ -296,7 +296,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
 
                     // Server sends WINDOW_UPDATEs immediately, then a harmless SETTINGS ACK

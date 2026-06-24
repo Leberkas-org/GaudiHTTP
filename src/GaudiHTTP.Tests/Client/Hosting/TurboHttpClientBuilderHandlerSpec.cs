@@ -6,16 +6,16 @@ namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class GaudiHttpClientBuilderHandlerSpec
 {
-    private sealed class TestHandler : TurboHandler;
+    private sealed class TestHandler : GaudiHandler;
 
-    private sealed class AlphaHandler : TurboHandler;
+    private sealed class AlphaHandler : GaudiHandler;
 
-    private sealed class BetaHandler : TurboHandler;
+    private sealed class BetaHandler : GaudiHandler;
 
-    private static TurboClientDescriptor GetDescriptor(IServiceCollection services, string name)
+    private static GaudiClientDescriptor GetDescriptor(IServiceCollection services, string name)
     {
         var sp = services.BuildServiceProvider();
-        return sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get(name);
+        return sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get(name);
     }
 
     [Fact(Timeout = 5000)]
@@ -86,7 +86,7 @@ public sealed class GaudiHttpClientBuilderHandlerSpec
             .AddHandler<BetaHandler>();
 
         var sp = services.BuildServiceProvider();
-        var descriptor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get("test");
+        var descriptor = sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get("test");
 
         Assert.Equal(2, descriptor.HandlerFactories.Count);
         Assert.IsType<AlphaHandler>(descriptor.HandlerFactories[0](sp));
@@ -100,7 +100,7 @@ public sealed class GaudiHttpClientBuilderHandlerSpec
         services.AddGaudiHttpClient("test").AddHandler<TestHandler>();
 
         var sp = services.BuildServiceProvider();
-        var descriptor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get("test");
+        var descriptor = sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get("test");
 
         var resolved = descriptor.HandlerFactories[0](sp);
 

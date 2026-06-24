@@ -9,7 +9,7 @@ namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 /// <summary>
 /// Verifies the client actually routes through a configured proxy: a transparent in-process
-/// relay proxy forwards to the real TurboServer and counts how many connections it received.
+/// relay proxy forwards to the real GaudiServer and counts how many connections it received.
 /// </summary>
 [Collection("H11")]
 public sealed class ProxySpec : End2EndSpecBase
@@ -18,7 +18,7 @@ public sealed class ProxySpec : End2EndSpecBase
 
     protected override Version ProtocolVersion => HttpVersion.Version11;
 
-    protected override void ConfigureClientOptions(TurboClientOptions options)
+    protected override void ConfigureClientOptions(GaudiClientOptions options)
     {
         var server = new Uri(BaseUri);
         _proxy = new RelayProxy(server.Host, server.Port);

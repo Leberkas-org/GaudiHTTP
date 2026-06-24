@@ -7,7 +7,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Override_should_win_over_limits()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http2 =
             {
@@ -25,7 +25,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Null_override_should_inherit_limits()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         var eff = o.ToHttp2Options();
 
@@ -37,7 +37,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http3_body_override_should_now_be_honored()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http3 =
             {
@@ -51,7 +51,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void ToRateMonitor_should_project_four_rate_fields()
     {
-        var eff = new TurboServerOptions().ToHttp2Options();
+        var eff = new GaudiServerOptions().ToHttp2Options();
 
         var rate = eff.ToRateMonitor();
 
@@ -62,7 +62,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http1_chunk_extension_limit_should_flow_to_decoder_options()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http1 =
             {
@@ -78,7 +78,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Header_size_should_fall_back_to_global_total_when_protocol_unset()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits =
             {
@@ -94,7 +94,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Header_size_protocol_override_should_win_over_global_total()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits =
             {
@@ -112,7 +112,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_response_buffer_limit_should_flow_to_connection_options()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http2 =
             {
@@ -126,7 +126,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void MaxRequestBodySize_default_should_match_kestrel()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(30_000_000, o.Limits.MaxRequestBodySize);
     }
@@ -134,7 +134,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void MaxResponseBufferSize_global_default_should_be_64_KiB()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(64 * 1024, o.Limits.MaxResponseBufferSize);
     }
@@ -142,7 +142,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_MaxResponseBufferSize_should_fall_back_to_global()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits = { MaxResponseBufferSize = 99_999 }
         };
@@ -153,7 +153,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_MaxResponseBufferSize_override_should_win()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits = { MaxResponseBufferSize = 99_999 },
             Http2 = { MaxResponseBufferSize = 42 }
@@ -165,7 +165,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http3_MaxResponseBufferSize_should_fall_back_to_global()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits = { MaxResponseBufferSize = 88_888 }
         };
@@ -176,7 +176,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http3_MaxResponseBufferSize_override_should_win()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits = { MaxResponseBufferSize = 88_888 },
             Http3 = { MaxResponseBufferSize = 77 }
@@ -188,7 +188,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http3_response_buffer_limit_should_flow_to_connection_options()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http3 = { MaxResponseBufferSize = 5678 }
         };
@@ -199,7 +199,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void MaxRequestBufferSize_default_should_be_1_MiB()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(1024 * 1024, o.Limits.MaxRequestBufferSize);
     }
@@ -207,7 +207,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void MaxOutboundCoalesceCount_default_should_be_32()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(32, o.MaxOutboundCoalesceCount);
     }
@@ -215,7 +215,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void AllowResponseHeaderCompression_default_should_be_true()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.True(o.AllowResponseHeaderCompression);
     }
@@ -223,7 +223,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void AllowResponseHeaderCompression_should_flow_to_h2_encoder_options()
     {
-        var o = new TurboServerOptions { AllowResponseHeaderCompression = false };
+        var o = new GaudiServerOptions { AllowResponseHeaderCompression = false };
 
         var enc = o.ToHttp2Options().ToEncoderOptions();
 
@@ -233,7 +233,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void AllowResponseHeaderCompression_should_flow_to_h3_encoder_options()
     {
-        var o = new TurboServerOptions { AllowResponseHeaderCompression = false };
+        var o = new GaudiServerOptions { AllowResponseHeaderCompression = false };
 
         var enc = o.ToHttp3Options().ToEncoderOptions();
 
@@ -243,7 +243,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_KeepAlivePingDelay_default_should_be_infinite()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(Timeout.InfiniteTimeSpan, o.ToHttp2Options().KeepAlivePingDelay);
     }
@@ -251,7 +251,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_KeepAlivePingTimeout_default_should_be_20s()
     {
-        var o = new TurboServerOptions();
+        var o = new GaudiServerOptions();
 
         Assert.Equal(TimeSpan.FromSeconds(20), o.ToHttp2Options().KeepAlivePingTimeout);
     }
@@ -259,7 +259,7 @@ public sealed class ServerOptionsProjectionsSpec
     [Fact(Timeout = 5000)]
     public void Http2_KeepAlivePing_custom_should_flow()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http2 =
             {

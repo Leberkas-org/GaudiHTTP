@@ -3,7 +3,7 @@ namespace GaudiHTTP.Server;
 /// <summary>
 /// HTTP/2-specific server configuration.
 /// Controls stream concurrency, flow-control windows, HPACK table size, frame size, response buffering,
-/// and keep-alive pings. Nullable properties inherit from <see cref="TurboServerLimits"/>
+/// and keep-alive pings. Nullable properties inherit from <see cref="GaudiServerLimits"/>
 /// when left at <c>null</c>.
 /// </summary>
 public sealed class Http2ServerOptions
@@ -32,31 +32,31 @@ public sealed class Http2ServerOptions
     /// <summary>Gets or sets the HPACK dynamic header table size in bytes. Default is 4 KiB.</summary>
     public int HeaderTableSize { get; set; } = 4 * 1024;
 
-    /// <summary>Gets or sets the maximum total size of request headers in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
+    /// <summary>Gets or sets the maximum total size of request headers in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
     public int? MaxHeaderListSize { get; set; }
 
-    /// <summary>Gets or sets the maximum size of the response write buffer in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxResponseBufferSize"/>.</summary>
+    /// <summary>Gets or sets the maximum size of the response write buffer in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxResponseBufferSize"/>.</summary>
     public long? MaxResponseBufferSize { get; set; }
 
-    /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestBodySize"/>.</summary>
+    /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
 
-    /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="TurboServerLimits.KeepAliveTimeout"/>.</summary>
+    /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="GaudiServerLimits.KeepAliveTimeout"/>.</summary>
     public TimeSpan? KeepAliveTimeout { get; set; }
 
-    /// <summary>Gets or sets the timeout for receiving the complete request headers, or <c>null</c> to inherit from <see cref="TurboServerLimits.RequestHeadersTimeout"/>.</summary>
+    /// <summary>Gets or sets the timeout for receiving the complete request headers, or <c>null</c> to inherit from <see cref="GaudiServerLimits.RequestHeadersTimeout"/>.</summary>
     public TimeSpan? RequestHeadersTimeout { get; set; }
 
-    /// <summary>Gets or sets the minimum acceptable request body data rate in bytes/second, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinRequestBodyDataRate"/>.</summary>
+    /// <summary>Gets or sets the minimum acceptable request body data rate in bytes/second, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinRequestBodyDataRate"/>.</summary>
     public double? MinRequestBodyDataRate { get; set; }
 
-    /// <summary>Gets or sets the grace period before enforcing the minimum request body data rate, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinRequestBodyDataRateGracePeriod"/>.</summary>
+    /// <summary>Gets or sets the grace period before enforcing the minimum request body data rate, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinRequestBodyDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
 
-    /// <summary>Gets or sets the minimum acceptable response data rate in bytes/second, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinResponseDataRate"/>.</summary>
+    /// <summary>Gets or sets the minimum acceptable response data rate in bytes/second, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinResponseDataRate"/>.</summary>
     public double? MinResponseDataRate { get; set; }
 
-    /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
+    /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinResponseDataRateGracePeriod { get; set; }
 
     /// <summary>

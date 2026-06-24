@@ -286,9 +286,9 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var activity = Tracing.StartRequest(request)!;
 
-        request.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, activity);
+        request.Options.Set(GaudiClientInstrumentationExtensions.RequestActivityKey, activity);
 
-        Assert.True(request.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey,
+        Assert.True(request.Options.TryGetValue(GaudiClientInstrumentationExtensions.RequestActivityKey,
             out var retrieved));
         Assert.Same(activity, retrieved);
     }
@@ -300,7 +300,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/start");
         var rootActivity = Tracing.StartRequest(request)!;
-        request.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, rootActivity);
+        request.Options.Set(GaudiClientInstrumentationExtensions.RequestActivityKey, rootActivity);
 
         Tracing.AddRedirectEvent(rootActivity, new Uri("https://example.com/hop1"), 301);
         Tracing.AddRetryEvent(rootActivity, 1);
@@ -327,7 +327,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/fail");
         var rootActivity = Tracing.StartRequest(request)!;
-        request.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, rootActivity);
+        request.Options.Set(GaudiClientInstrumentationExtensions.RequestActivityKey, rootActivity);
 
         var exception = new HttpRequestException("Connection refused");
         Tracing.SetHttpError(rootActivity, exception);
@@ -421,28 +421,28 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     public void RedactUrl_should_replace_query_with_asterisk()
     {
         var uri = new Uri("https://example.com/path?secret=abc&token=xyz");
-        Assert.Equal("https://example.com/path?*", TurboClientInstrumentationExtensions.RedactUrl(uri));
+        Assert.Equal("https://example.com/path?*", GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Fact(Timeout = 5000)]
     public void RedactUrl_should_preserve_url_without_query()
     {
         var uri = new Uri("https://example.com/path");
-        Assert.Equal("https://example.com/path", TurboClientInstrumentationExtensions.RedactUrl(uri));
+        Assert.Equal("https://example.com/path", GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Fact(Timeout = 5000)]
     public void RedactUrl_should_strip_fragment()
     {
         var uri = new Uri("https://example.com/path#section");
-        Assert.Equal("https://example.com/path", TurboClientInstrumentationExtensions.RedactUrl(uri));
+        Assert.Equal("https://example.com/path", GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Fact(Timeout = 5000)]
     public void RedactUrl_should_strip_fragment_and_redact_query()
     {
         var uri = new Uri("https://example.com/path?q=1#frag");
-        Assert.Equal("https://example.com/path?*", TurboClientInstrumentationExtensions.RedactUrl(uri));
+        Assert.Equal("https://example.com/path?*", GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Theory]
@@ -457,7 +457,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     [InlineData("CONNECT", "CONNECT")]
     public void NormalizeMethod_should_return_standard_methods_uppercased(string input, string expected)
     {
-        Assert.Equal(expected, TurboClientInstrumentationExtensions.NormalizeMethod(input));
+        Assert.Equal(expected, GaudiClientInstrumentationExtensions.NormalizeMethod(input));
     }
 
     [Theory]
@@ -466,7 +466,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     [InlineData("CUSTOM")]
     public void NormalizeMethod_should_return_OTHER_for_nonstandard(string method)
     {
-        Assert.Equal("_OTHER", TurboClientInstrumentationExtensions.NormalizeMethod(method));
+        Assert.Equal("_OTHER", GaudiClientInstrumentationExtensions.NormalizeMethod(method));
     }
 
     [Fact(Timeout = 5000)]
@@ -500,7 +500,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     [InlineData(3, 0, "3")]
     public void FormatProtocolVersion_should_return_correct_format(int major, int minor, string expected)
     {
-        Assert.Equal(expected, TurboClientInstrumentationExtensions.FormatProtocolVersion(new Version(major, minor)));
+        Assert.Equal(expected, GaudiClientInstrumentationExtensions.FormatProtocolVersion(new Version(major, minor)));
     }
 
     [Fact(Timeout = 5000)]
@@ -586,7 +586,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     public void RedactUrl_should_handle_empty_query()
     {
         var uri = new Uri("https://example.com/path?");
-        Assert.Equal("https://example.com/path?*", TurboClientInstrumentationExtensions.RedactUrl(uri));
+        Assert.Equal("https://example.com/path?*", GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Fact(Timeout = 5000)]
@@ -594,7 +594,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     {
         var uri = new Uri("https://api.example.com:8080/v1/users/123/profile?token=secret#top");
         Assert.Equal("https://api.example.com:8080/v1/users/123/profile?*",
-            TurboClientInstrumentationExtensions.RedactUrl(uri));
+            GaudiClientInstrumentationExtensions.RedactUrl(uri));
     }
 
     [Fact(Timeout = 5000)]
@@ -621,16 +621,16 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     [Fact(Timeout = 5000)]
     public void NormalizeMethod_should_handle_lowercase_standard_methods()
     {
-        Assert.Equal("GET", TurboClientInstrumentationExtensions.NormalizeMethod("get"));
-        Assert.Equal("POST", TurboClientInstrumentationExtensions.NormalizeMethod("post"));
-        Assert.Equal("PUT", TurboClientInstrumentationExtensions.NormalizeMethod("put"));
+        Assert.Equal("GET", GaudiClientInstrumentationExtensions.NormalizeMethod("get"));
+        Assert.Equal("POST", GaudiClientInstrumentationExtensions.NormalizeMethod("post"));
+        Assert.Equal("PUT", GaudiClientInstrumentationExtensions.NormalizeMethod("put"));
     }
 
     [Fact(Timeout = 5000)]
     public void NormalizeMethod_should_handle_mixed_case()
     {
-        Assert.Equal("GET", TurboClientInstrumentationExtensions.NormalizeMethod("Get"));
-        Assert.Equal("POST", TurboClientInstrumentationExtensions.NormalizeMethod("PoSt"));
+        Assert.Equal("GET", GaudiClientInstrumentationExtensions.NormalizeMethod("Get"));
+        Assert.Equal("POST", GaudiClientInstrumentationExtensions.NormalizeMethod("PoSt"));
     }
 
     [Fact(Timeout = 5000)]
@@ -647,7 +647,7 @@ public sealed class GaudiHttpInstrumentationSpec : IDisposable
     [Fact(Timeout = 5000)]
     public void FormatProtocolVersion_should_handle_version_3_with_minor()
     {
-        Assert.Equal("3", TurboClientInstrumentationExtensions.FormatProtocolVersion(new Version(3, 1)));
+        Assert.Equal("3", GaudiClientInstrumentationExtensions.FormatProtocolVersion(new Version(3, 1)));
     }
 
     [Fact(Timeout = 5000)]

@@ -9,7 +9,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
-public sealed class TurboServerFixture : IAsyncLifetime
+public sealed class GaudiServerFixture : IAsyncLifetime
 {
     private WebApplication? _app;
 

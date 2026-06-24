@@ -76,7 +76,7 @@ public sealed class Http2ServerHeadResponseSpec
     public void OnResponse_should_not_emit_DATA_for_HEAD_request()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
         Feed(sm, BuildHeadersFrame(1, EncodeHeaders("HEAD", "/resource")));

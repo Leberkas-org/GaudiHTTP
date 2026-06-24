@@ -41,7 +41,7 @@ public sealed class Http2ClientBodyFastPathSpec
 
     private static Http2ClientSessionManager CreateSession(FakeClientOps ops, int initialSendWindow = 1 * 1024 * 1024)
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 = new Http2ClientOptions
             {

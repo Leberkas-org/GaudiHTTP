@@ -31,7 +31,7 @@ public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
     private static ApplicationBridgeStage<IFeatureCollection> CreateStage(
         IHttpApplication<IFeatureCollection> app)
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             HandlerTimeout = TimeSpan.FromSeconds(30),
             HandlerGracePeriod = TimeSpan.FromSeconds(5),

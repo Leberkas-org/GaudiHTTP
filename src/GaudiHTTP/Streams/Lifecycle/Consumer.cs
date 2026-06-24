@@ -18,7 +18,7 @@ internal sealed class Consumer : ReceiveActor
     private readonly IMaterializer _materializer = Context.Materializer();
     private readonly Guid _consumerId;
     private readonly ChannelReader<HttpRequestMessage> _requestReader;
-    private readonly Func<TurboRequestOptions> _optionsFactory;
+    private readonly Func<GaudiRequestOptions> _optionsFactory;
     private readonly ChannelWriter<HttpResponseMessage> _responseEgress;
     private readonly Sink<HttpRequestMessage, NotUsed> _requestIngress;
     private readonly Source<HttpResponseMessage, NotUsed> _responseFanoutSource;
@@ -33,7 +33,7 @@ internal sealed class Consumer : ReceiveActor
     public static Props Props(
         Guid consumerId,
         ChannelReader<HttpRequestMessage> requestReader,
-        Func<TurboRequestOptions> optionsFactory,
+        Func<GaudiRequestOptions> optionsFactory,
         ChannelWriter<HttpResponseMessage> responseWriter,
         Sink<HttpRequestMessage, NotUsed> requestIngress,
         Source<HttpResponseMessage, NotUsed> responseFanoutSource,
@@ -45,7 +45,7 @@ internal sealed class Consumer : ReceiveActor
     private sealed class ConsumerActorProducer(
         Guid consumerId,
         ChannelReader<HttpRequestMessage> requestReader,
-        Func<TurboRequestOptions> optionsFactory,
+        Func<GaudiRequestOptions> optionsFactory,
         ChannelWriter<HttpResponseMessage> fallbackResponseWriter,
         Sink<HttpRequestMessage, NotUsed> requestIngress,
         Source<HttpResponseMessage, NotUsed> responseFanoutSource) : IIndirectActorProducer
@@ -66,7 +66,7 @@ internal sealed class Consumer : ReceiveActor
         Guid consumerId,
         ChannelReader<HttpRequestMessage> requestReader,
         ChannelWriter<HttpResponseMessage> responseEgress,
-        Func<TurboRequestOptions> optionsFactory,
+        Func<GaudiRequestOptions> optionsFactory,
         Sink<HttpRequestMessage, NotUsed> requestIngress,
         Source<HttpResponseMessage, NotUsed> responseFanoutSource)
     {

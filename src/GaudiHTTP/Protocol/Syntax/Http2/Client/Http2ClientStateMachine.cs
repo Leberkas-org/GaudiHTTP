@@ -12,7 +12,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     private readonly Http2ClientSessionManager _clientSession;
     private readonly ReconnectionManager _reconnect;
     private readonly IClientStageOperations _ops;
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private TransportOptions? _transportOptions;
 
     private const string KeepAlivePingTimerKey = "keep-alive-ping";
@@ -28,7 +28,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     public RequestEndpoint Endpoint => _clientSession.Endpoint;
     public int ReconnectBufferCount => _reconnect.BufferedCount;
 
-    public Http2ClientStateMachine(TurboClientOptions options, IClientStageOperations ops, TimeProvider? timeProvider = null)
+    public Http2ClientStateMachine(GaudiClientOptions options, IClientStageOperations ops, TimeProvider? timeProvider = null)
     {
         _options = options;
         _ops = ops;

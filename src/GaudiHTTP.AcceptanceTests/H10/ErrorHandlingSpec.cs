@@ -51,7 +51,7 @@ public sealed class ErrorHandlingSpec : ClientAcceptanceTestBase
         };
 
         var fake = CreateScriptedConnection((_, _) => null);
-        var flow = new Http10ClientEngine(new TurboClientOptions()).CreateFlow().Join(fake.AsFlow());
+        var flow = new Http10ClientEngine(new GaudiClientOptions()).CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -74,7 +74,7 @@ public sealed class ErrorHandlingSpec : ClientAcceptanceTestBase
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 10000\r\n\r\npartial";
 
         var fake = CreateScriptedConnectionWithClose((_, _) => Encoding.Latin1.GetBytes(raw));
-        var flow = new Http10ClientEngine(new TurboClientOptions()).CreateFlow().Join(fake.AsFlow());
+        var flow = new Http10ClientEngine(new GaudiClientOptions()).CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)

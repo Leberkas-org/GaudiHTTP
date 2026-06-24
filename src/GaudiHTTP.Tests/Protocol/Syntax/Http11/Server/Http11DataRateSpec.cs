@@ -12,9 +12,9 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11DataRateSpec
 {
-    private static TurboFeatureCollection CreateResponseContext()
+    private static GaudiFeatureCollection CreateResponseContext()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
@@ -34,7 +34,7 @@ public sealed class Http11DataRateSpec
 
     private static Http1ConnectionOptions CreateOptionsWithResponseRate(double minRate, TimeSpan grace)
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var newLimits = defaultOptions.Limits with
         {
             MinResponseDataRate = minRate,
@@ -45,7 +45,7 @@ public sealed class Http11DataRateSpec
 
     private static Http1ConnectionOptions CreateOptionsWithRequestRate(double minRate, TimeSpan grace)
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var newLimits = defaultOptions.Limits with
         {
             MinRequestBodyDataRate = minRate,
@@ -60,7 +60,7 @@ public sealed class Http11DataRateSpec
         var options = CreateOptionsWithRequestRate(1000, TimeSpan.FromSeconds(1));
         var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         // Chunked request body forces streaming (small Content-Length bodies are buffered, not observed).
         // One small chunk arrives, then the upload stalls without the terminating chunk.
@@ -80,9 +80,9 @@ public sealed class Http11DataRateSpec
     [Fact(Timeout = 5000)]
     public void Data_rate_monitoring_disabled_by_default()
     {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var defaultOptions = new GaudiServerOptions().ToHttp1Options();
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(defaultOptions, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(defaultOptions, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -104,7 +104,7 @@ public sealed class Http11DataRateSpec
     {
         var options = CreateOptionsWithResponseRate(100, TimeSpan.FromSeconds(1));
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -126,7 +126,7 @@ public sealed class Http11DataRateSpec
     {
         var options = CreateOptionsWithResponseRate(10000, TimeSpan.FromSeconds(1));
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -147,7 +147,7 @@ public sealed class Http11DataRateSpec
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(5));
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -168,7 +168,7 @@ public sealed class Http11DataRateSpec
     {
         var options = CreateOptionsWithResponseRate(10000, TimeSpan.FromMilliseconds(100));
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -195,7 +195,7 @@ public sealed class Http11DataRateSpec
         // one redundant scheduler call per response chunk on the hot path.
         var options = CreateOptionsWithResponseRate(240, TimeSpan.FromSeconds(5));
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
@@ -229,7 +229,7 @@ public sealed class Http11DataRateSpec
         var options = CreateOptionsWithResponseRate(240, TimeSpan.FromSeconds(1));
         var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
@@ -261,7 +261,7 @@ public sealed class Http11DataRateSpec
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));
         var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
@@ -292,7 +292,7 @@ public sealed class Http11DataRateSpec
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(5));
         var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+        var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);

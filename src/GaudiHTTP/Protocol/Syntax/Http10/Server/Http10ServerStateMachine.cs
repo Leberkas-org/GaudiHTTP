@@ -229,15 +229,15 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _deferredFeatures = features;
 
         var responseBody = features.Get<IHttpResponseBodyFeature>();
-        if (responseBody is GaudiHttpResponseBodyFeature turboBody)
+        if (responseBody is GaudiHttpResponseBodyFeature gaudiBody)
         {
-            if (turboBody.TryGetBufferedBody(out var bufferedBody))
+            if (gaudiBody.TryGetBufferedBody(out var bufferedBody))
             {
                 EncodeDeferredResponse(bufferedBody.Span);
                 return;
             }
 
-            var bodyStream = turboBody.GetResponseStream();
+            var bodyStream = gaudiBody.GetResponseStream();
             if (bodyStream is not null)
             {
                 var contentLength = ExtractContentLength(features.Get<IHttpResponseFeature>());

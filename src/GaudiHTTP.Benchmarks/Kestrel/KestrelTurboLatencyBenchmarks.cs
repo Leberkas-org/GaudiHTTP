@@ -7,7 +7,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 [MemoryDiagnoser]
 [WarmupCount(5)]
 [IterationCount(15)]
-public class KestrelTurboLatencyBenchmarks : KestrelBaseClass
+public class KestrelGaudiLatencyBenchmarks : KestrelBaseClass
 {
     private const int Ops = 32;
 

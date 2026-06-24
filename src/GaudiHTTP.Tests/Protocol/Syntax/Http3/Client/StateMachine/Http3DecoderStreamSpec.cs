@@ -9,9 +9,9 @@ public sealed class Http3DecoderStreamSpec
 {
     private readonly FakeClientOps _clientOps = new();
 
-    private Http3ClientStateMachine CreateMachine(TurboClientOptions? options = null)
+    private Http3ClientStateMachine CreateMachine(GaudiClientOptions? options = null)
     {
-        return new Http3ClientStateMachine(options ?? new TurboClientOptions(), _clientOps);
+        return new Http3ClientStateMachine(options ?? new GaudiClientOptions(), _clientOps);
     }
 
     private static void SimulateConnect(Http3ClientStateMachine sm)
@@ -40,7 +40,7 @@ public sealed class Http3DecoderStreamSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void PreStart_should_emit_control_stream_preface()
     {
-        var opts = new TurboClientOptions
+        var opts = new GaudiClientOptions
         {
             Http3 =
             {

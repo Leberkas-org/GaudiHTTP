@@ -83,7 +83,7 @@ public sealed class Http2ServerTimeoutSpec
     public void PreStart_should_schedule_keep_alive_timeout()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {
@@ -106,7 +106,7 @@ public sealed class Http2ServerTimeoutSpec
     public void KeepAlive_timeout_should_emit_goaway()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -127,7 +127,7 @@ public sealed class Http2ServerTimeoutSpec
     public void KeepAlive_should_cancel_on_stream_open()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.CancelledTimers.Clear();
@@ -152,7 +152,7 @@ public sealed class Http2ServerTimeoutSpec
     public void Headers_timeout_should_rst_stream_on_continuation_timeout()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {
@@ -202,7 +202,7 @@ public sealed class Http2ServerTimeoutSpec
     public void Headers_timeout_should_cancel_on_endheaders()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {
@@ -270,7 +270,7 @@ public sealed class Http2ServerTimeoutSpec
     public void Data_rate_check_should_schedule_on_request_data_frame()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
 

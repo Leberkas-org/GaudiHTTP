@@ -18,14 +18,14 @@ namespace GaudiHTTP.Server;
 /// <summary>
 /// GaudiHTTP's ASP.NET Core <see cref="IServer"/> implementation. Manages an Akka actor system,
 /// resolves configured endpoints, and routes incoming connections through the application pipeline.
-/// Register via <see cref="TurboServerWebHostBuilderExtensions.UseGaudiHttp"/>.
+/// Register via <see cref="GaudiServerWebHostBuilderExtensions.UseGaudiHttp"/>.
 /// </summary>
-public sealed class TurboServer : IServer
+public sealed class GaudiServer : IServer
 {
     private static readonly Config LoggingHocon = ConfigurationFactory.ParseString(
         """akka.loggers = ["Akka.Hosting.Logging.LoggerFactoryLogger, Akka.Hosting"]""");
 
-    private readonly TurboServerOptions _options;
+    private readonly GaudiServerOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IServiceProvider _services;
     private readonly FeatureCollection _features = new();
@@ -34,8 +34,8 @@ public sealed class TurboServer : IServer
     private bool _ownsSystem;
     private IActorRef _supervisor = ActorRefs.Nobody;
 
-    /// <summary>Initializes a new <see cref="TurboServer"/> with the provided options, logger factory, and service provider.</summary>
-    public TurboServer(IOptions<TurboServerOptions> options, ILoggerFactory loggerFactory, IServiceProvider services)
+    /// <summary>Initializes a new <see cref="GaudiServer"/> with the provided options, logger factory, and service provider.</summary>
+    public GaudiServer(IOptions<GaudiServerOptions> options, ILoggerFactory loggerFactory, IServiceProvider services)
     {
         _options = options.Value;
         _loggerFactory = loggerFactory;
@@ -64,7 +64,7 @@ public sealed class TurboServer : IServer
             var setup = BootstrapSetup.Create()
                 .WithConfig(LoggingHocon)
                 .And(new LoggerFactorySetup(_loggerFactory));
-            _system = ActorSystem.Create("turbo-server", setup);
+            _system = ActorSystem.Create("gaudi-server", setup);
             _ownsSystem = true;
         }
 
@@ -79,7 +79,7 @@ public sealed class TurboServer : IServer
 
         _supervisor = _system.ActorOf(
             Props.Create(() => new ServerSupervisorActor()),
-            "turbo-server");
+            "gaudi-server");
 
         var response = await _supervisor.Ask<object>(
             new ServerSupervisorActor.StartServer(bridgeFlow, _options, resolvedEndpoints),
@@ -112,16 +112,16 @@ public sealed class TurboServer : IServer
         {
             var cs = CoordinatedShutdown.Get(_system);
 
-            cs.AddTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "turbo-stop-accepting", () =>
+            cs.AddTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "gaudi-stop-accepting", () =>
             {
                 _supervisor.Tell(new ServerSupervisorActor.StopAccepting());
                 return Task.FromResult(Done.Instance);
             });
 
-            var logger = _loggerFactory.CreateLogger<TurboServer>();
+            var logger = _loggerFactory.CreateLogger<GaudiServer>();
             Task<ServerSupervisorActor.DrainComplete> drainTask = Task.FromResult(new ServerSupervisorActor.DrainComplete(false));
 
-            cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
+            cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "gaudi-goaway", () =>
             {
                 drainTask = _supervisor.Ask<ServerSupervisorActor.DrainComplete>(
                     new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout),
@@ -129,7 +129,7 @@ public sealed class TurboServer : IServer
                 return Task.FromResult(Done.Instance);
             });
 
-            cs.AddTask(CoordinatedShutdown.PhaseServiceRequestsDone, "turbo-drain", async () =>
+            cs.AddTask(CoordinatedShutdown.PhaseServiceRequestsDone, "gaudi-drain", async () =>
             {
                 try
                 {
@@ -177,7 +177,7 @@ public sealed class TurboServer : IServer
 
                 if (result.TimedOut)
                 {
-                    _loggerFactory.CreateLogger<TurboServer>()
+                    _loggerFactory.CreateLogger<GaudiServer>()
                         .LogWarning("Server drain timed out during stop");
                 }
             }

@@ -18,7 +18,7 @@ public sealed class Http3StreamLifecycleSpec
         TransportProtocol.Tcp);
 
     private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
-        => new(new TurboClientOptions(), ops ?? _clientOps);
+        => new(new GaudiClientOptions(), ops ?? _clientOps);
 
     private static void SimulateConnect(Http3ClientStateMachine sm)
         => sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));

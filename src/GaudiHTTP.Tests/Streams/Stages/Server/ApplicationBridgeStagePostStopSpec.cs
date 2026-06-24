@@ -48,7 +48,7 @@ public sealed class ApplicationBridgeStagePostStopSpec : StreamTestBase
     private static (ApplicationBridgeStage<IFeatureCollection> Stage, TrackingApplication App) CreateStage()
     {
         var app = new TrackingApplication();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             HandlerTimeout = TimeSpan.FromSeconds(30),
             HandlerGracePeriod = TimeSpan.FromSeconds(5),

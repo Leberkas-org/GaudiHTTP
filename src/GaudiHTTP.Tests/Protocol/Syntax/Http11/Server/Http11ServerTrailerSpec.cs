@@ -12,7 +12,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 public sealed class Http11ServerTrailerSpec
 {
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
-        => new(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        => new(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
     private static void SendRequest(Http11ServerStateMachine sm)
     {
@@ -27,7 +27,7 @@ public sealed class Http11ServerTrailerSpec
         byte[] body,
         GaudiHttpResponseTrailersFeature trailerFeature)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = "GET" });
 
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };

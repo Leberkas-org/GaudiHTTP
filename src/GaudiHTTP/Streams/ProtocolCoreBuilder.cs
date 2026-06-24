@@ -16,7 +16,7 @@ namespace GaudiHTTP.Streams;
 internal static class ProtocolCoreBuilder
 {
     internal static Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> Build(
-        TurboClientOptions clientOptions,
+        GaudiClientOptions clientOptions,
         TransportRegistry transports)
     {
         // Higher buffer sizes reduce backpressure signaling frequency, which lowers

@@ -73,7 +73,7 @@ public sealed class Http2HeadersTimerLeakSpec
 
     private static Http2ServerSessionManager CreateSm(FakeServerOps ops)
     {
-        var options = new TurboServerOptions().ToHttp2Options();
+        var options = new GaudiServerOptions().ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -140,7 +140,7 @@ public sealed class Http2HeadersTimerLeakSpec
         // When MaxConcurrentStreams=1 is reached, stream N+1 is closed via EmitRstStream.
         // Verify the headers-timeout timer for that stream is cancelled.
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
+        var baseOptions = new GaudiServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
         var sm = new Http2ServerSessionManager(baseOptions.ToHttp2Options(), ops);
         sm.PreStart();
         ops.Outbound.Clear();

@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
 public sealed class ResponseRetentionSpec
 {
-    private static TurboClientOptions MakeConfig() => new();
+    private static GaudiClientOptions MakeConfig() => new();
 
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");

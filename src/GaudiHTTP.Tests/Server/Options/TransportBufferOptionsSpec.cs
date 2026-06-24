@@ -10,7 +10,7 @@ public sealed class TransportBufferOptionsSpec
     [Fact(Timeout = 5000)]
     public void Tcp_partial_transport_override_should_fall_back_to_tcp_defaults_per_property()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Listen(IPAddress.Loopback, 5000, listen =>
         {
             listen.Transport = new TransportBufferOptions
@@ -33,7 +33,7 @@ public sealed class TransportBufferOptionsSpec
     public void Quic_partial_transport_override_should_fall_back_to_quic_defaults_per_property()
     {
         using var cert = CreateSelfSignedCert();
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Listen(IPAddress.Loopback, 5001, listen =>
         {
             listen.Protocols = HttpProtocols.Http3;
@@ -57,7 +57,7 @@ public sealed class TransportBufferOptionsSpec
     [Fact(Timeout = 5000)]
     public void Null_transport_should_use_tcp_defaults()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Listen(IPAddress.Loopback, 5002);
 
         var binding = Assert.Single(new EndpointResolver().Resolve(options));
@@ -73,7 +73,7 @@ public sealed class TransportBufferOptionsSpec
     [Fact(Timeout = 5000)]
     public void Resolved_input_resume_above_pause_should_throw()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Listen(IPAddress.Loopback, 5003, listen =>
         {
             listen.Transport = new TransportBufferOptions
@@ -88,7 +88,7 @@ public sealed class TransportBufferOptionsSpec
     [Fact(Timeout = 5000)]
     public void Resolved_output_resume_above_pause_should_throw()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         options.Listen(IPAddress.Loopback, 5004, listen =>
         {
             listen.Transport = new TransportBufferOptions

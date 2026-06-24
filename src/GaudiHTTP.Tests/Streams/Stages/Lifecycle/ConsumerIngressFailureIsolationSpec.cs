@@ -10,7 +10,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// Repro for the high-concurrency client collapse observed in the 2026-06-19 benchmark run
-/// (KestrelTurboSendAsyncConcurrentBenchmarks at ConcurrencyLevel 4096, HTTP/2 + HTTP/3 → "NA",
+/// (KestrelGaudiSendAsyncConcurrentBenchmarks at ConcurrencyLevel 4096, HTTP/2 + HTTP/3 → "NA",
 /// 1229 exceptions, then a 120s WaitAsync timeout).
 ///
 /// Root cause, from the benchmark log stack trace:
@@ -39,7 +39,7 @@ public sealed class ConsumerIngressFailureIsolationSpec : StreamTestBase
 {
     // DefaultRequestVersion = 2.0 is what makes RequestEnricher Rule 2 execute `request.Version = ...`
     // (set_Version), the exact call that throws on the disposed message in the benchmark.
-    private static TurboRequestOptions Options() => new(
+    private static GaudiRequestOptions Options() => new(
         BaseAddress: new Uri("https://test.example"),
         DefaultRequestHeaders: new HttpRequestMessage().Headers,
         DefaultRequestVersion: HttpVersion.Version20,

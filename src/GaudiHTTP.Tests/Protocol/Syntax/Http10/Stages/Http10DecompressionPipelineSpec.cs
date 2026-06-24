@@ -13,7 +13,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Stages;
 
 public sealed class Http10DecompressionPipelineSpec : EngineTestBase
 {
-    private static readonly Http10ClientEngine Engine = new(new TurboClientOptions());
+    private static readonly Http10ClientEngine Engine = new(new GaudiClientOptions());
 
     private static BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed>
         CreateDecompressingEngine()

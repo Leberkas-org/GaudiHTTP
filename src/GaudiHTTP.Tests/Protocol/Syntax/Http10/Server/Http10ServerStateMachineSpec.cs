@@ -15,7 +15,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
     private static IFeatureCollection CreateResponseContext()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
@@ -48,7 +48,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_decode_complete_request()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
@@ -65,7 +65,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_not_complete_before_response()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
@@ -80,7 +80,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void OnResponse_with_stream_body_and_no_content_length_should_use_connection_close_framing()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var context = CreateResponseContext();
 
@@ -100,7 +100,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public async Task OnResponse_with_body_should_emit_transport_data_after_body_buffered()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
@@ -117,9 +117,9 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void OnResponse_with_buffered_body_should_emit_transport_data()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         responseFeature.Headers["Content-Length"] = "0";
@@ -137,7 +137,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void CanAcceptResponse_should_always_be_true()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -147,7 +147,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void Cleanup_should_abort_active_body()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         sm.Cleanup();
 
@@ -159,7 +159,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public async Task OnResponse_should_use_http10_version_in_status_line()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeClientData(TransportData.Rent(requestBuffer));
@@ -177,7 +177,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_signal_error_for_unknown_method()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("PATCH /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeClientData(TransportData.Rent(requestBuffer));
@@ -192,7 +192,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_detect_simple_request()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET /path\r\n");
         sm.DecodeClientData(TransportData.Rent(requestBuffer));
@@ -205,7 +205,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_handle_post_without_content_length()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
         sm.DecodeClientData(TransportData.Rent(requestBuffer));

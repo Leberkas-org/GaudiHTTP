@@ -7,7 +7,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Stages.Server;
 
-internal sealed class Http30ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
+internal sealed class Http30ServerConnectionStage(GaudiServerOptions options, IServiceProvider? services = null)
     : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http30Connection.In.Network");

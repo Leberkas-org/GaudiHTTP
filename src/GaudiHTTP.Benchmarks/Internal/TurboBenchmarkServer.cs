@@ -10,7 +10,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Benchmarks.Internal;
 
-public sealed class TurboBenchmarkServer : IAsyncDisposable
+public sealed class GaudiBenchmarkServer : IAsyncDisposable
 {
     private WebApplication? _app;
     private X509Certificate2? _cert;

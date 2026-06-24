@@ -7,7 +7,7 @@ public sealed class Http3ServerOptionsResolutionSpec
     [Fact(Timeout = 5000)]
     public void Body_override_should_win_else_limits()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Http3 =
             {
@@ -16,7 +16,7 @@ public sealed class Http3ServerOptionsResolutionSpec
         };
         Assert.Equal(777, o.ToHttp3Options().Limits.MaxRequestBodySize);
 
-        var o2 = new TurboServerOptions
+        var o2 = new GaudiServerOptions
         {
             Limits =
             {
@@ -29,7 +29,7 @@ public sealed class Http3ServerOptionsResolutionSpec
     [Fact(Timeout = 5000)]
     public void QpackBlockedStreams_should_flow_from_Http3ServerOptions_to_ConnectionOptions()
     {
-        var opts = new TurboServerOptions
+        var opts = new GaudiServerOptions
         {
             Http3 =
             {
@@ -42,7 +42,7 @@ public sealed class Http3ServerOptionsResolutionSpec
     [Fact(Timeout = 5000)]
     public void QpackBlockedStreams_default_should_be_100()
     {
-        var opts = new TurboServerOptions();
+        var opts = new GaudiServerOptions();
         Assert.Equal(100, opts.ToHttp3Options().QpackBlockedStreams);
     }
 }

@@ -6,9 +6,9 @@ namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class RequestEnricherProxySpec
 {
-    private static TurboRequestOptions Options(bool useProxy = true, IWebProxy? proxy = null)
+    private static GaudiRequestOptions Options(bool useProxy = true, IWebProxy? proxy = null)
     {
-        return new TurboRequestOptions(
+        return new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,

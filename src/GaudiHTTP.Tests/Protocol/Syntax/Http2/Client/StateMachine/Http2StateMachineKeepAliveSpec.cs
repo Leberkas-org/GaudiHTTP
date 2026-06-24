@@ -7,9 +7,9 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineKeepAliveSpec
 {
-    private static TurboClientOptions MakeConfig()
+    private static GaudiClientOptions MakeConfig()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 =
             {

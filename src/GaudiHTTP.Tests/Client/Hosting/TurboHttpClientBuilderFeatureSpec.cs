@@ -7,10 +7,10 @@ namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class GaudiHttpClientBuilderFeatureSpec
 {
-    private static TurboClientDescriptor GetDescriptor(IServiceCollection services, string name)
+    private static GaudiClientDescriptor GetDescriptor(IServiceCollection services, string name)
     {
         var sp = services.BuildServiceProvider();
-        return sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get(name);
+        return sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get(name);
     }
 
     [Fact(Timeout = 5000)]

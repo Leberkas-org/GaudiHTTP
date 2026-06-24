@@ -19,7 +19,7 @@ public sealed class Http10ServerBodyPumpStallSpec
     private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
         CreateStreamingResponseContext(int bodySize, bool setContentLength = false)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         if (setContentLength)
@@ -59,7 +59,7 @@ public sealed class Http10ServerBodyPumpStallSpec
 
     private static Http10ServerStateMachine CreateSm(FakeServerOps ops)
     {
-        return new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
+        return new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
     }
 
     private static void SendRequest(Http10ServerStateMachine sm)

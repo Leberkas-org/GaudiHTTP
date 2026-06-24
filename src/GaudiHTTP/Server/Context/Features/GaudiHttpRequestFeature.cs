@@ -6,7 +6,7 @@ namespace GaudiHTTP.Server.Context.Features;
 
 internal sealed class GaudiHttpRequestFeature : IHttpRequestFeature
 {
-    private readonly TurboHeaderDictionary _headers = new();
+    private readonly GaudiHeaderDictionary _headers = new();
 
     public string Protocol { get; set; } = WellKnownHeaders.Http11;
 

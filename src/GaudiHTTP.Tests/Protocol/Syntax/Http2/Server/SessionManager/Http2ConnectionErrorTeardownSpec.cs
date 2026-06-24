@@ -10,7 +10,7 @@ public sealed class Http2ConnectionErrorTeardownSpec
 {
     private static Http2ServerSessionManager CreateSessionManager(FakeServerOps ops)
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         return new Http2ServerSessionManager(options.ToHttp2Options(), ops);
     }
 

@@ -17,7 +17,7 @@ public sealed class Http11ServerHeadResponseSpec
 {
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
     }
 
@@ -32,7 +32,7 @@ public sealed class Http11ServerHeadResponseSpec
 
     private static IFeatureCollection BuildResponse(string method, string body)
     {
-        var fc = new TurboFeatureCollection();
+        var fc = new GaudiFeatureCollection();
         fc.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = method });
 
         var responseFeature = new GaudiHttpResponseFeature

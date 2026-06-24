@@ -6,7 +6,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// <summary>
 /// Baseline concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
 /// .NET <see cref="HttpClient"/> (SocketsHttpHandler). Mirrors
-/// <see cref="KestrelTurboSingleConnectionBenchmarks"/> so single-connection multiplexing
+/// <see cref="KestrelGaudiSingleConnectionBenchmarks"/> so single-connection multiplexing
 /// efficiency is directly comparable. EnableMultipleHttp2Connections is irrelevant here because
 /// the per-server cap is pinned to 1.
 /// </summary>

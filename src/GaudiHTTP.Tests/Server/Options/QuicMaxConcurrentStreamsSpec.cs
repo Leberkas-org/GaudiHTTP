@@ -26,7 +26,7 @@ public sealed class QuicMaxConcurrentStreamsSpec
     public void Quic_binding_should_reflect_configured_max_concurrent_streams()
     {
         using var cert = CreateSelfSignedCert();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http3 =
             {

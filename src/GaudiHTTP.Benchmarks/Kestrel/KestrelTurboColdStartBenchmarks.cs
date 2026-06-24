@@ -17,7 +17,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 [WarmupCount(2)]
 [IterationCount(8)]
 [InvocationCount(1, 1)]
-public class KestrelTurboColdStartBenchmarks : KestrelBaseClass
+public class KestrelGaudiColdStartBenchmarks : KestrelBaseClass
 {
     private readonly List<ClientHelper> _created = new();
 

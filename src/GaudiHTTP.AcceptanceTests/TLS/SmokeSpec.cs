@@ -10,7 +10,7 @@ namespace GaudiHTTP.AcceptanceTests.TLS;
 public sealed class SmokeSpec : AcceptanceTestBase
 {
     private static Http11ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.3")]

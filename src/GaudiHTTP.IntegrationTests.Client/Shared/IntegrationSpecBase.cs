@@ -49,7 +49,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
     protected ClientHelper CreateClient(
         ProtocolVariant variant,
         Action<IGaudiHttpClientBuilder>? configure = null,
-        Action<TurboClientOptions>? configureOptions = null)
+        Action<GaudiClientOptions>? configureOptions = null)
     {
         SkipIfUnavailable(variant);
         return BuildClient(variant, configure, configureOptions);
@@ -81,7 +81,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
     private ClientHelper BuildClient(
         ProtocolVariant variant,
         Action<IGaudiHttpClientBuilder>? configure = null,
-        Action<TurboClientOptions>? configureOptions = null)
+        Action<GaudiClientOptions>? configureOptions = null)
     {
         var (port, scheme, host) = variant switch
         {

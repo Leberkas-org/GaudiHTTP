@@ -34,10 +34,10 @@ public sealed class Http3StreamLifecycleSpec
 
     private static IFeatureCollection CreateResponseContext(long streamId = 999)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);

@@ -5,7 +5,7 @@ using GaudiHTTP.Server;
 namespace GaudiHTTP.Tests.Server.Options;
 
 /// <summary>
-/// TurboServerLimits.MaxRequestBufferSize must actually bound the TCP read-pipe input buffer.
+/// GaudiServerLimits.MaxRequestBufferSize must actually bound the TCP read-pipe input buffer.
 /// Previously it was declared and documented but never read by any production code (a dead knob).
 /// It now drives the TCP InputPauseThreshold as a server-wide default; an explicit per-listener
 /// TransportBufferOptions.InputPauseThreshold still takes precedence.
@@ -15,7 +15,7 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void MaxRequestBufferSize_should_drive_tcp_input_pause_threshold()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Limits =
             {
@@ -35,7 +35,7 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void Explicit_per_listener_input_pause_should_override_max_request_buffer_size()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Limits =
             {
@@ -56,7 +56,7 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void Null_max_request_buffer_size_should_fall_back_to_transport_default()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Limits =
             {

@@ -1,14 +1,14 @@
-﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/leberkas-org/TurboHTTP.git")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.AcceptanceTests")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Benchmarks")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Client")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.End2End")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Server")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.StressBenchmarks")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests.Shared")]
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/leberkas-org/GaudiHTTP.git")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.AcceptanceTests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.Benchmarks")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.Client")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.End2End")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.Server")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.StressBenchmarks")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.Tests.Shared")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
-namespace TurboHTTP.Client
+namespace GaudiHTTP.Client
 {
     public sealed class CacheOptions
     {
@@ -35,6 +35,93 @@ namespace TurboHTTP.Client
         public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
         public static System.Net.Http.HttpRequestMessage WithFirstPartyContext(this System.Net.Http.HttpRequestMessage request, System.Uri firstParty) { }
         public static System.Net.Http.HttpRequestMessage WithTimeout(this System.Net.Http.HttpRequestMessage request, System.TimeSpan timeout) { }
+    }
+    public sealed class GaudiClientOptions
+    {
+        public GaudiClientOptions() { }
+        public System.Uri? BaseAddress { get; set; }
+        public System.Security.Cryptography.X509Certificates.X509CertificateCollection? ClientCertificates { get; set; }
+        public System.TimeSpan ConnectTimeout { get; set; }
+        public System.Net.ICredentials? Credentials { get; set; }
+        public bool DangerousAcceptAnyServerCertificate { get; set; }
+        public System.Net.ICredentials? DefaultProxyCredentials { get; set; }
+        public System.Net.Security.RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback { get; }
+        public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
+        public GaudiHTTP.Client.Http1ClientOptions Http1 { get; init; }
+        public GaudiHTTP.Client.Http2ClientOptions Http2 { get; init; }
+        public GaudiHTTP.Client.Http3ClientOptions Http3 { get; init; }
+        public uint MaxConcurrentEndpoints { get; set; }
+        public long? MaxStreamedResponseBodySize { get; set; }
+        public int MinimumSegmentSize { get; set; }
+        public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
+        public System.TimeSpan PooledConnectionLifetime { get; set; }
+        public bool PreAuthenticate { get; set; }
+        public System.Net.IWebProxy? Proxy { get; set; }
+        public int ReceiveBufferHint { get; set; }
+        public int RequestBodyChunkSize { get; set; }
+        public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
+        public int? SocketReceiveBufferSize { get; set; }
+        public int? SocketSendBufferSize { get; set; }
+        public bool UseProxy { get; set; }
+    }
+    public static class GaudiClientServiceCollectionExtensions
+    {
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder AddGaudiHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<GaudiHTTP.Client.GaudiClientOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder AddGaudiHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Action<GaudiHTTP.Client.GaudiClientOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder AddGaudiHttpClient<TClient>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<GaudiHTTP.Client.GaudiClientOptions>? configure = null)
+            where TClient :  class { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder AddGaudiHttpClient<TClient, TImpl>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<GaudiHTTP.Client.GaudiClientOptions>? configure = null)
+            where TClient :  class
+            where TImpl :  class, TClient { }
+        public static GaudiHTTP.Client.IGaudiHttpClient CreateClient(this GaudiHTTP.Client.IGaudiHttpClientFactory factory) { }
+    }
+    public abstract class GaudiHandler
+    {
+        protected GaudiHandler() { }
+        public virtual System.Net.Http.HttpRequestMessage ProcessRequest(System.Net.Http.HttpRequestMessage request) { }
+        public virtual System.Net.Http.HttpResponseMessage ProcessResponse(System.Net.Http.HttpRequestMessage original, System.Net.Http.HttpResponseMessage response) { }
+    }
+    public sealed class GaudiHttpClient : GaudiHTTP.Client.IGaudiHttpClient, System.IDisposable
+    {
+        public System.Uri? BaseAddress { get; set; }
+        public System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; }
+        public System.Version DefaultRequestVersion { get; set; }
+        public System.Net.Http.HttpVersionPolicy DefaultVersionPolicy { get; set; }
+        public System.Threading.Channels.ChannelWriter<System.Net.Http.HttpRequestMessage> Requests { get; }
+        public System.Threading.Channels.ChannelReader<System.Net.Http.HttpResponseMessage> Responses { get; }
+        public System.TimeSpan Timeout { get; set; }
+        public void CancelPendingRequests() { }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken cancellationToken) { }
+    }
+    public static class GaudiHttpClientBuilderExtensions
+    {
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder AddHandler<T>(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder)
+            where T : GaudiHTTP.Client.GaudiHandler { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder UseRequest(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpRequestMessage> transform) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder UseResponse(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage, System.Net.Http.HttpResponseMessage> transform) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithCache(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Action<GaudiHTTP.Client.CacheOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithCache(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, GaudiHTTP.Features.Caching.ICacheStore store, System.Action<GaudiHTTP.Client.CacheOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithCookies(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithCookies(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, GaudiHTTP.Features.Cookies.ICookieStore store) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithDecompression(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, bool enabled = true) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithExpectContinue(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Action<GaudiHTTP.Client.Expect100Options>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithRedirect(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Action<GaudiHTTP.Client.RedirectOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithRequestCompression(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Action<GaudiHTTP.Client.CompressionOptions>? configure = null) { }
+        public static GaudiHTTP.Client.IGaudiHttpClientBuilder WithRetry(this GaudiHTTP.Client.IGaudiHttpClientBuilder builder, System.Action<GaudiHTTP.Client.RetryOptions>? configure = null) { }
+    }
+    public class GaudiRequestOptions : System.IEquatable<GaudiHTTP.Client.GaudiRequestOptions>
+    {
+        public GaudiRequestOptions(System.Uri? BaseAddress, System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders, System.Version DefaultRequestVersion, System.Net.Http.HttpVersionPolicy DefaultVersionPolicy, System.TimeSpan Timeout, System.Net.ICredentials? Credentials = null, bool PreAuthenticate = false, bool UseProxy = true, System.Net.IWebProxy? Proxy = null) { }
+        public System.Uri? BaseAddress { get; init; }
+        public System.Net.ICredentials? Credentials { get; init; }
+        public System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; init; }
+        public System.Version DefaultRequestVersion { get; init; }
+        public System.Net.Http.HttpVersionPolicy DefaultVersionPolicy { get; init; }
+        public bool PreAuthenticate { get; init; }
+        public System.Net.IWebProxy? Proxy { get; init; }
+        public System.TimeSpan Timeout { get; init; }
+        public bool UseProxy { get; init; }
     }
     public sealed class Http1ClientOptions
     {
@@ -86,7 +173,7 @@ namespace TurboHTTP.Client
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
     }
-    public interface ITurboHttpClient : System.IDisposable
+    public interface IGaudiHttpClient : System.IDisposable
     {
         System.Uri? BaseAddress { get; set; }
         System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; }
@@ -98,14 +185,14 @@ namespace TurboHTTP.Client
         void CancelPendingRequests();
         System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken cancellationToken);
     }
-    public interface ITurboHttpClientBuilder
+    public interface IGaudiHttpClientBuilder
     {
         string Name { get; }
         Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
     }
-    public interface ITurboHttpClientFactory
+    public interface IGaudiHttpClientFactory
     {
-        TurboHTTP.Client.ITurboHttpClient CreateClient(string name);
+        GaudiHTTP.Client.IGaudiHttpClient CreateClient(string name);
     }
     public sealed class RedirectOptions
     {
@@ -119,107 +206,20 @@ namespace TurboHTTP.Client
         public int MaxRetries { get; set; }
         public bool RespectRetryAfter { get; set; }
     }
-    public sealed class TurboClientOptions
-    {
-        public TurboClientOptions() { }
-        public System.Uri? BaseAddress { get; set; }
-        public System.Security.Cryptography.X509Certificates.X509CertificateCollection? ClientCertificates { get; set; }
-        public System.TimeSpan ConnectTimeout { get; set; }
-        public System.Net.ICredentials? Credentials { get; set; }
-        public bool DangerousAcceptAnyServerCertificate { get; set; }
-        public System.Net.ICredentials? DefaultProxyCredentials { get; set; }
-        public System.Net.Security.RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback { get; }
-        public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
-        public TurboHTTP.Client.Http1ClientOptions Http1 { get; init; }
-        public TurboHTTP.Client.Http2ClientOptions Http2 { get; init; }
-        public TurboHTTP.Client.Http3ClientOptions Http3 { get; init; }
-        public uint MaxConcurrentEndpoints { get; set; }
-        public long? MaxStreamedResponseBodySize { get; set; }
-        public int MinimumSegmentSize { get; set; }
-        public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
-        public System.TimeSpan PooledConnectionLifetime { get; set; }
-        public bool PreAuthenticate { get; set; }
-        public System.Net.IWebProxy? Proxy { get; set; }
-        public int ReceiveBufferHint { get; set; }
-        public int RequestBodyChunkSize { get; set; }
-        public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
-        public int? SocketReceiveBufferSize { get; set; }
-        public int? SocketSendBufferSize { get; set; }
-        public bool UseProxy { get; set; }
-    }
-    public static class TurboClientServiceCollectionExtensions
-    {
-        public static TurboHTTP.Client.ITurboHttpClientBuilder AddTurboHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<TurboHTTP.Client.TurboClientOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder AddTurboHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Action<TurboHTTP.Client.TurboClientOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder AddTurboHttpClient<TClient>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<TurboHTTP.Client.TurboClientOptions>? configure = null)
-            where TClient :  class { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder AddTurboHttpClient<TClient, TImpl>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<TurboHTTP.Client.TurboClientOptions>? configure = null)
-            where TClient :  class
-            where TImpl :  class, TClient { }
-        public static TurboHTTP.Client.ITurboHttpClient CreateClient(this TurboHTTP.Client.ITurboHttpClientFactory factory) { }
-    }
-    public abstract class TurboHandler
-    {
-        protected TurboHandler() { }
-        public virtual System.Net.Http.HttpRequestMessage ProcessRequest(System.Net.Http.HttpRequestMessage request) { }
-        public virtual System.Net.Http.HttpResponseMessage ProcessResponse(System.Net.Http.HttpRequestMessage original, System.Net.Http.HttpResponseMessage response) { }
-    }
-    public sealed class TurboHttpClient : System.IDisposable, TurboHTTP.Client.ITurboHttpClient
-    {
-        public System.Uri? BaseAddress { get; set; }
-        public System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; }
-        public System.Version DefaultRequestVersion { get; set; }
-        public System.Net.Http.HttpVersionPolicy DefaultVersionPolicy { get; set; }
-        public System.Threading.Channels.ChannelWriter<System.Net.Http.HttpRequestMessage> Requests { get; }
-        public System.Threading.Channels.ChannelReader<System.Net.Http.HttpResponseMessage> Responses { get; }
-        public System.TimeSpan Timeout { get; set; }
-        public void CancelPendingRequests() { }
-        public void Dispose() { }
-        public System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken cancellationToken) { }
-    }
-    public static class TurboHttpClientBuilderExtensions
-    {
-        public static TurboHTTP.Client.ITurboHttpClientBuilder AddHandler<T>(this TurboHTTP.Client.ITurboHttpClientBuilder builder)
-            where T : TurboHTTP.Client.TurboHandler { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder UseRequest(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpRequestMessage> transform) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder UseResponse(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage, System.Net.Http.HttpResponseMessage> transform) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithCache(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Client.CacheOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithCache(this TurboHTTP.Client.ITurboHttpClientBuilder builder, TurboHTTP.Features.Caching.ICacheStore store, System.Action<TurboHTTP.Client.CacheOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithCookies(this TurboHTTP.Client.ITurboHttpClientBuilder builder) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithCookies(this TurboHTTP.Client.ITurboHttpClientBuilder builder, TurboHTTP.Features.Cookies.ICookieStore store) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithDecompression(this TurboHTTP.Client.ITurboHttpClientBuilder builder, bool enabled = true) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithExpectContinue(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Client.Expect100Options>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithRedirect(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Client.RedirectOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithRequestCompression(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Client.CompressionOptions>? configure = null) { }
-        public static TurboHTTP.Client.ITurboHttpClientBuilder WithRetry(this TurboHTTP.Client.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Client.RetryOptions>? configure = null) { }
-    }
-    public class TurboRequestOptions : System.IEquatable<TurboHTTP.Client.TurboRequestOptions>
-    {
-        public TurboRequestOptions(System.Uri? BaseAddress, System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders, System.Version DefaultRequestVersion, System.Net.Http.HttpVersionPolicy DefaultVersionPolicy, System.TimeSpan Timeout, System.Net.ICredentials? Credentials = null, bool PreAuthenticate = false, bool UseProxy = true, System.Net.IWebProxy? Proxy = null) { }
-        public System.Uri? BaseAddress { get; init; }
-        public System.Net.ICredentials? Credentials { get; init; }
-        public System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; init; }
-        public System.Version DefaultRequestVersion { get; init; }
-        public System.Net.Http.HttpVersionPolicy DefaultVersionPolicy { get; init; }
-        public bool PreAuthenticate { get; init; }
-        public System.Net.IWebProxy? Proxy { get; init; }
-        public System.TimeSpan Timeout { get; init; }
-        public bool UseProxy { get; init; }
-    }
 }
-namespace TurboHTTP.Diagnostics
+namespace GaudiHTTP.Diagnostics
 {
-    public static class TurboTraceExtensions
+    public static class GaudiTraceExtensions
     {
-        public static OpenTelemetry.Metrics.MeterProviderBuilder AddTurboHttpInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
-        public static OpenTelemetry.Trace.TracerProviderBuilder AddTurboHttpInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboLoggerTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
-        public static OpenTelemetry.Metrics.MeterProviderBuilder AddTurboServerInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
-        public static OpenTelemetry.Trace.TracerProviderBuilder AddTurboServerInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.IServusTraceListener listener, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
+        public static OpenTelemetry.Metrics.MeterProviderBuilder AddGaudiHttpInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
+        public static OpenTelemetry.Trace.TracerProviderBuilder AddGaudiHttpInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddGaudiLoggerTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
+        public static OpenTelemetry.Metrics.MeterProviderBuilder AddGaudiServerInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
+        public static OpenTelemetry.Trace.TracerProviderBuilder AddGaudiServerInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddGaudiTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.IServusTraceListener listener, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
     }
 }
-namespace TurboHTTP.Features.Caching
+namespace GaudiHTTP.Features.Caching
 {
     public sealed class CacheBody : System.IDisposable
     {
@@ -229,7 +229,7 @@ namespace TurboHTTP.Features.Caching
         public System.ReadOnlySpan<byte> Span { get; }
         public void Dispose() { }
     }
-    public sealed class CacheControl : System.IEquatable<TurboHTTP.Features.Caching.CacheControl>
+    public sealed class CacheControl : System.IEquatable<GaudiHTTP.Features.Caching.CacheControl>
     {
         public CacheControl() { }
         public bool Immutable { get; init; }
@@ -249,7 +249,7 @@ namespace TurboHTTP.Features.Caching
         public bool Public { get; init; }
         public System.TimeSpan? SMaxAge { get; init; }
     }
-    public sealed class CacheControlStoreEntry : System.IEquatable<TurboHTTP.Features.Caching.CacheControlStoreEntry>
+    public sealed class CacheControlStoreEntry : System.IEquatable<GaudiHTTP.Features.Caching.CacheControlStoreEntry>
     {
         public CacheControlStoreEntry() { }
         public bool Immutable { get; init; }
@@ -273,8 +273,8 @@ namespace TurboHTTP.Features.Caching
     {
         public CacheStoreEntry() { }
         public int? AgeSeconds { get; init; }
-        public required TurboHTTP.Features.Caching.CacheBody Body { get; init; }
-        public TurboHTTP.Features.Caching.CacheControlStoreEntry? CacheControl { get; init; }
+        public required GaudiHTTP.Features.Caching.CacheBody Body { get; init; }
+        public GaudiHTTP.Features.Caching.CacheControlStoreEntry? CacheControl { get; init; }
         public System.DateTimeOffset? Date { get; init; }
         public string? ETag { get; init; }
         public System.DateTimeOffset? Expires { get; init; }
@@ -290,7 +290,7 @@ namespace TurboHTTP.Features.Caching
     {
         int? AgeSeconds { get; }
         System.ReadOnlyMemory<byte> Body { get; }
-        TurboHTTP.Features.Caching.CacheControl? CacheControl { get; }
+        GaudiHTTP.Features.Caching.CacheControl? CacheControl { get; }
         System.DateTimeOffset? Date { get; }
         string? ETag { get; }
         System.DateTimeOffset? Expires { get; }
@@ -305,15 +305,15 @@ namespace TurboHTTP.Features.Caching
     {
         void Clear();
         bool Remove(string key);
-        void Set(string key, TurboHTTP.Features.Caching.CacheStoreEntry entry);
-        bool TryGet(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TurboHTTP.Features.Caching.CacheStoreEntry? entry);
+        void Set(string key, GaudiHTTP.Features.Caching.CacheStoreEntry entry);
+        bool TryGet(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out GaudiHTTP.Features.Caching.CacheStoreEntry? entry);
     }
 }
-namespace TurboHTTP.Features.Cookies
+namespace GaudiHTTP.Features.Cookies
 {
-    public sealed class CookieStoreEntry : System.IEquatable<TurboHTTP.Features.Cookies.CookieStoreEntry>
+    public sealed class CookieStoreEntry : System.IEquatable<GaudiHTTP.Features.Cookies.CookieStoreEntry>
     {
-        public CookieStoreEntry(string Name, string Value, string Domain, string Path, System.DateTimeOffset? ExpiresAt, bool Secure, bool HttpOnly, TurboHTTP.Features.Cookies.SameSitePolicy SameSite, bool IsHostOnly, System.DateTimeOffset CreatedAt) { }
+        public CookieStoreEntry(string Name, string Value, string Domain, string Path, System.DateTimeOffset? ExpiresAt, bool Secure, bool HttpOnly, GaudiHTTP.Features.Cookies.SameSitePolicy SameSite, bool IsHostOnly, System.DateTimeOffset CreatedAt) { }
         public System.DateTimeOffset CreatedAt { get; init; }
         public string Domain { get; init; }
         public System.DateTimeOffset? ExpiresAt { get; init; }
@@ -321,16 +321,16 @@ namespace TurboHTTP.Features.Cookies
         public bool IsHostOnly { get; init; }
         public string Name { get; init; }
         public string Path { get; init; }
-        public TurboHTTP.Features.Cookies.SameSitePolicy SameSite { get; init; }
+        public GaudiHTTP.Features.Cookies.SameSitePolicy SameSite { get; init; }
         public bool Secure { get; init; }
         public string Value { get; init; }
     }
     public interface ICookieStore
     {
         int Count { get; }
-        void Add(TurboHTTP.Features.Cookies.CookieStoreEntry entry);
+        void Add(GaudiHTTP.Features.Cookies.CookieStoreEntry entry);
         void Clear();
-        System.Collections.Generic.IReadOnlyList<TurboHTTP.Features.Cookies.CookieStoreEntry> GetAll();
+        System.Collections.Generic.IReadOnlyList<GaudiHTTP.Features.Cookies.CookieStoreEntry> GetAll();
         void Remove(string name, string domain, string path);
     }
     public enum SameSitePolicy
@@ -341,7 +341,7 @@ namespace TurboHTTP.Features.Cookies
         None = 3,
     }
 }
-namespace TurboHTTP.Server.Context.Features
+namespace GaudiHTTP.Server.Context.Features
 {
     public interface ITlsHandshakeFeature
     {
@@ -351,12 +351,101 @@ namespace TurboHTTP.Server.Context.Features
         System.Security.Authentication.SslProtocols Protocol { get; }
     }
 }
-namespace TurboHTTP.Server.Context
+namespace GaudiHTTP.Server.Context
 {
-    public interface ITurboHeaderDictionary : Microsoft.AspNetCore.Http.IHeaderDictionary, System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.Generic.IDictionary<string, Microsoft.Extensions.Primitives.StringValues>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.IEnumerable { }
+    public interface IGaudiHeaderDictionary : Microsoft.AspNetCore.Http.IHeaderDictionary, System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.Generic.IDictionary<string, Microsoft.Extensions.Primitives.StringValues>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.IEnumerable { }
 }
-namespace TurboHTTP.Server
+namespace GaudiHTTP.Server
 {
+    public sealed class GaudiHttpsOptions
+    {
+        public GaudiHttpsOptions() { }
+        public string? CertificatePassword { get; set; }
+        public string? CertificatePath { get; set; }
+        public Servus.Akka.Transport.ClientCertificateMode ClientCertificateMode { get; set; }
+        public System.Net.Security.RemoteCertificateValidationCallback? ClientCertificateValidationCallback { get; set; }
+        public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
+        public System.TimeSpan HandshakeTimeout { get; set; }
+        public System.Security.Cryptography.X509Certificates.X509Certificate2? ServerCertificate { get; set; }
+        public System.Func<string?, System.Security.Cryptography.X509Certificates.X509Certificate2?>? ServerCertificateSelector { get; set; }
+    }
+    public sealed class GaudiListenOptions
+    {
+        public GaudiListenOptions(System.Net.IPAddress address, ushort port) { }
+        public System.Net.IPAddress Address { get; }
+        public ushort Port { get; }
+        public GaudiHTTP.Server.HttpProtocols Protocols { get; set; }
+        public GaudiHTTP.Server.TransportBufferOptions? Transport { get; set; }
+        public void UseConnectionLogging() { }
+        public void UseConnectionLogging(string loggerName) { }
+        public void UseHttps() { }
+        public void UseHttps(System.Action<GaudiHTTP.Server.GaudiHttpsOptions> configure) { }
+        public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate) { }
+        public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate, System.Action<GaudiHTTP.Server.GaudiHttpsOptions> configure) { }
+        public void UseHttps(string path, string? password = null) { }
+        public void UseHttps(string path, string? password, System.Action<GaudiHTTP.Server.GaudiHttpsOptions> configure) { }
+    }
+    public sealed class GaudiServer : Microsoft.AspNetCore.Hosting.Server.IServer, System.IDisposable
+    {
+        public GaudiServer(Microsoft.Extensions.Options.IOptions<GaudiHTTP.Server.GaudiServerOptions> options, Microsoft.Extensions.Logging.ILoggerFactory loggerFactory, System.IServiceProvider services) { }
+        public Microsoft.AspNetCore.Http.Features.IFeatureCollection Features { get; }
+        public void Dispose() { }
+        public System.Threading.Tasks.Task StartAsync<TContext>(Microsoft.AspNetCore.Hosting.Server.IHttpApplication<TContext> application, System.Threading.CancellationToken cancellationToken)
+            where TContext :  notnull { }
+        public System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken) { }
+    }
+    public sealed class GaudiServerLimits
+    {
+        public GaudiServerLimits() { }
+        public System.TimeSpan KeepAliveTimeout { get; set; }
+        public int MaxConcurrentConnections { get; set; }
+        public long MaxRequestBodySize { get; set; }
+        public long? MaxRequestBufferSize { get; set; }
+        public int MaxRequestHeaderCount { get; set; }
+        public int MaxRequestHeadersTotalSize { get; set; }
+        public int MaxResetStreamsPerWindow { get; set; }
+        public long MaxResponseBufferSize { get; set; }
+        public double MinRequestBodyDataRate { get; set; }
+        public System.TimeSpan MinRequestBodyDataRateGracePeriod { get; set; }
+        public double MinResponseDataRate { get; set; }
+        public System.TimeSpan MinResponseDataRateGracePeriod { get; set; }
+        public System.TimeSpan RequestHeadersTimeout { get; set; }
+    }
+    public sealed class GaudiServerOptions
+    {
+        public GaudiServerOptions() { }
+        public bool AllowResponseHeaderCompression { get; set; }
+        public System.TimeSpan BodyConsumptionTimeout { get; set; }
+        public System.Collections.Generic.IList<GaudiHTTP.Server.ListenerBinding> Endpoints { get; }
+        public System.TimeSpan GracefulShutdownTimeout { get; set; }
+        public System.TimeSpan HandlerGracePeriod { get; set; }
+        public System.TimeSpan HandlerTimeout { get; set; }
+        public GaudiHTTP.Server.Http1ServerOptions Http1 { get; }
+        public GaudiHTTP.Server.Http2ServerOptions Http2 { get; }
+        public GaudiHTTP.Server.Http3ServerOptions Http3 { get; }
+        public GaudiHTTP.Server.GaudiServerLimits Limits { get; }
+        public int MaxOutboundCoalesceCount { get; set; }
+        public int ResponseBodyChunkSize { get; set; }
+        public System.Collections.Generic.IList<string> Urls { get; }
+        public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }
+        public void Bind(Servus.Akka.Transport.TcpListenerOptions options) { }
+        public void Bind(Servus.Akka.Transport.ListenerOptions options, Servus.Akka.Transport.IListenerFactory factory) { }
+        public void BindTcp(string host, ushort port) { }
+        public void ConfigureEndpointDefaults(System.Action<GaudiHTTP.Server.GaudiListenOptions> configure) { }
+        public void ConfigureHttpsDefaults(System.Action<GaudiHTTP.Server.GaudiHttpsOptions> configure) { }
+        public void Listen(string url) { }
+        public void Listen(System.Net.IPAddress address, ushort port) { }
+        public void Listen(string url, System.Action<GaudiHTTP.Server.GaudiListenOptions> configure) { }
+        public void Listen(System.Net.IPAddress address, ushort port, System.Action<GaudiHTTP.Server.GaudiListenOptions> configure) { }
+        public void ListenAnyIP(ushort port) { }
+        public void ListenAnyIP(ushort port, System.Action<GaudiHTTP.Server.GaudiListenOptions> configure) { }
+        public void ListenLocalhost(ushort port) { }
+        public void ListenLocalhost(ushort port, System.Action<GaudiHTTP.Server.GaudiListenOptions> configure) { }
+    }
+    public static class GaudiServerWebHostBuilderExtensions
+    {
+        public static Microsoft.Extensions.Hosting.IHostBuilder UseGaudiHttp(this Microsoft.Extensions.Hosting.IHostBuilder builder, System.Action<GaudiHTTP.Server.GaudiServerOptions>? configure = null) { }
+    }
     public sealed class Http1ServerOptions
     {
         public Http1ServerOptions() { }
@@ -425,7 +514,7 @@ namespace TurboHTTP.Server
     }
     public static class HttpProtocolsExtensions
     {
-        public static System.Collections.Generic.List<System.Net.Security.SslApplicationProtocol> ToAlpnProtocols(this TurboHTTP.Server.HttpProtocols protocols) { }
+        public static System.Collections.Generic.List<System.Net.Security.SslApplicationProtocol> ToAlpnProtocols(this GaudiHTTP.Server.HttpProtocols protocols) { }
     }
     public sealed class ListenerBinding
     {
@@ -443,94 +532,5 @@ namespace TurboHTTP.Server
         public long? OutputPauseThreshold { get; set; }
         public long? OutputResumeThreshold { get; set; }
         public int? ReceiveBufferHint { get; set; }
-    }
-    public sealed class TurboHttpsOptions
-    {
-        public TurboHttpsOptions() { }
-        public string? CertificatePassword { get; set; }
-        public string? CertificatePath { get; set; }
-        public Servus.Akka.Transport.ClientCertificateMode ClientCertificateMode { get; set; }
-        public System.Net.Security.RemoteCertificateValidationCallback? ClientCertificateValidationCallback { get; set; }
-        public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
-        public System.TimeSpan HandshakeTimeout { get; set; }
-        public System.Security.Cryptography.X509Certificates.X509Certificate2? ServerCertificate { get; set; }
-        public System.Func<string?, System.Security.Cryptography.X509Certificates.X509Certificate2?>? ServerCertificateSelector { get; set; }
-    }
-    public sealed class TurboListenOptions
-    {
-        public TurboListenOptions(System.Net.IPAddress address, ushort port) { }
-        public System.Net.IPAddress Address { get; }
-        public ushort Port { get; }
-        public TurboHTTP.Server.HttpProtocols Protocols { get; set; }
-        public TurboHTTP.Server.TransportBufferOptions? Transport { get; set; }
-        public void UseConnectionLogging() { }
-        public void UseConnectionLogging(string loggerName) { }
-        public void UseHttps() { }
-        public void UseHttps(System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
-        public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate) { }
-        public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate, System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
-        public void UseHttps(string path, string? password = null) { }
-        public void UseHttps(string path, string? password, System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
-    }
-    public sealed class TurboServer : Microsoft.AspNetCore.Hosting.Server.IServer, System.IDisposable
-    {
-        public TurboServer(Microsoft.Extensions.Options.IOptions<TurboHTTP.Server.TurboServerOptions> options, Microsoft.Extensions.Logging.ILoggerFactory loggerFactory, System.IServiceProvider services) { }
-        public Microsoft.AspNetCore.Http.Features.IFeatureCollection Features { get; }
-        public void Dispose() { }
-        public System.Threading.Tasks.Task StartAsync<TContext>(Microsoft.AspNetCore.Hosting.Server.IHttpApplication<TContext> application, System.Threading.CancellationToken cancellationToken)
-            where TContext :  notnull { }
-        public System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken) { }
-    }
-    public sealed class TurboServerLimits
-    {
-        public TurboServerLimits() { }
-        public System.TimeSpan KeepAliveTimeout { get; set; }
-        public int MaxConcurrentConnections { get; set; }
-        public long MaxRequestBodySize { get; set; }
-        public long? MaxRequestBufferSize { get; set; }
-        public int MaxRequestHeaderCount { get; set; }
-        public int MaxRequestHeadersTotalSize { get; set; }
-        public int MaxResetStreamsPerWindow { get; set; }
-        public long MaxResponseBufferSize { get; set; }
-        public double MinRequestBodyDataRate { get; set; }
-        public System.TimeSpan MinRequestBodyDataRateGracePeriod { get; set; }
-        public double MinResponseDataRate { get; set; }
-        public System.TimeSpan MinResponseDataRateGracePeriod { get; set; }
-        public System.TimeSpan RequestHeadersTimeout { get; set; }
-    }
-    public sealed class TurboServerOptions
-    {
-        public TurboServerOptions() { }
-        public bool AllowResponseHeaderCompression { get; set; }
-        public System.TimeSpan BodyConsumptionTimeout { get; set; }
-        public System.Collections.Generic.IList<TurboHTTP.Server.ListenerBinding> Endpoints { get; }
-        public System.TimeSpan GracefulShutdownTimeout { get; set; }
-        public System.TimeSpan HandlerGracePeriod { get; set; }
-        public System.TimeSpan HandlerTimeout { get; set; }
-        public TurboHTTP.Server.Http1ServerOptions Http1 { get; }
-        public TurboHTTP.Server.Http2ServerOptions Http2 { get; }
-        public TurboHTTP.Server.Http3ServerOptions Http3 { get; }
-        public TurboHTTP.Server.TurboServerLimits Limits { get; }
-        public int MaxOutboundCoalesceCount { get; set; }
-        public int ResponseBodyChunkSize { get; set; }
-        public System.Collections.Generic.IList<string> Urls { get; }
-        public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }
-        public void Bind(Servus.Akka.Transport.TcpListenerOptions options) { }
-        public void Bind(Servus.Akka.Transport.ListenerOptions options, Servus.Akka.Transport.IListenerFactory factory) { }
-        public void BindTcp(string host, ushort port) { }
-        public void ConfigureEndpointDefaults(System.Action<TurboHTTP.Server.TurboListenOptions> configure) { }
-        public void ConfigureHttpsDefaults(System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
-        public void Listen(string url) { }
-        public void Listen(System.Net.IPAddress address, ushort port) { }
-        public void Listen(string url, System.Action<TurboHTTP.Server.TurboListenOptions> configure) { }
-        public void Listen(System.Net.IPAddress address, ushort port, System.Action<TurboHTTP.Server.TurboListenOptions> configure) { }
-        public void ListenAnyIP(ushort port) { }
-        public void ListenAnyIP(ushort port, System.Action<TurboHTTP.Server.TurboListenOptions> configure) { }
-        public void ListenLocalhost(ushort port) { }
-        public void ListenLocalhost(ushort port, System.Action<TurboHTTP.Server.TurboListenOptions> configure) { }
-    }
-    public static class TurboServerWebHostBuilderExtensions
-    {
-        public static Microsoft.Extensions.Hosting.IHostBuilder UseTurboHttp(this Microsoft.Extensions.Hosting.IHostBuilder builder, System.Action<TurboHTTP.Server.TurboServerOptions>? configure = null) { }
     }
 }

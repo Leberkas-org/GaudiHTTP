@@ -8,7 +8,7 @@ namespace GaudiHTTP.Server;
 /// Configures a single server listen endpoint: the IP address, port, HTTP protocols, and
 /// optional TLS settings. Obtained from <see cref="Listen"/> overloads.
 /// </summary>
-public sealed class TurboListenOptions(IPAddress address, ushort port)
+public sealed class GaudiListenOptions(IPAddress address, ushort port)
 {
     /// <summary>Gets the IP address this endpoint listens on.</summary>
     public IPAddress Address { get; } = address;
@@ -20,7 +20,7 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     internal bool IsHttps => HttpsOptions is not null;
     internal GaudiHttpsOptions? HttpsOptions { get; private set; }
 
-    /// <summary>Enables HTTPS using the default <see cref="GaudiHttpsOptions"/> (certificate must be supplied via <see cref="TurboServerOptions.ConfigureHttpsDefaults"/>).</summary>
+    /// <summary>Enables HTTPS using the default <see cref="GaudiHttpsOptions"/> (certificate must be supplied via <see cref="GaudiServerOptions.ConfigureHttpsDefaults"/>).</summary>
     public void UseHttps()
     {
         HttpsOptions = new GaudiHttpsOptions();

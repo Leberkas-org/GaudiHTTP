@@ -8,11 +8,11 @@ namespace GaudiHTTP.AcceptanceTests.H10;
 
 public sealed class OptionsSpec : AcceptanceTestBase
 {
-    private static TurboRequestOptions CreateOptions(ICredentials? credentials = null,
+    private static GaudiRequestOptions CreateOptions(ICredentials? credentials = null,
         bool preAuthenticate = false)
     {
         var msg = new HttpRequestMessage();
-        return new TurboRequestOptions(
+        return new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version10,
@@ -23,7 +23,7 @@ public sealed class OptionsSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendAsync(ResponseMap map, HttpRequestMessage request,
-        TurboRequestOptions options)
+        GaudiRequestOptions options)
     {
         var enricher = new RequestEnricher(() => options);
         var fake = ResponseMapFake.Create(map);

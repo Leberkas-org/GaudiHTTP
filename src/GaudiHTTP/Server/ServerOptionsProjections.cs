@@ -2,7 +2,7 @@ namespace GaudiHTTP.Server;
 
 internal static class ServerOptionsProjections
 {
-    public static Http1ConnectionOptions ToHttp1Options(this TurboServerOptions o)
+    public static Http1ConnectionOptions ToHttp1Options(this GaudiServerOptions o)
         => new()
         {
             Limits = ResolveLimits(o, o.Http1.MaxRequestBodySize, o.Http1.KeepAliveTimeout,
@@ -22,7 +22,7 @@ internal static class ServerOptionsProjections
             BodyConsumptionTimeout = o.BodyConsumptionTimeout
         };
 
-    public static Http2ConnectionOptions ToHttp2Options(this TurboServerOptions o)
+    public static Http2ConnectionOptions ToHttp2Options(this GaudiServerOptions o)
         => new()
         {
             Limits = ResolveLimits(o, o.Http2.MaxRequestBodySize, o.Http2.KeepAliveTimeout,
@@ -47,7 +47,7 @@ internal static class ServerOptionsProjections
             KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout
         };
 
-    public static Http3ConnectionOptions ToHttp3Options(this TurboServerOptions o)
+    public static Http3ConnectionOptions ToHttp3Options(this GaudiServerOptions o)
         => new()
         {
             Limits = ResolveLimits(o, o.Http3.MaxRequestBodySize, o.Http3.KeepAliveTimeout,
@@ -74,7 +74,7 @@ internal static class ServerOptionsProjections
                l.MinResponseDataRate, l.MinResponseDataRateGracePeriod);
 
     private static ResolvedServerLimits ResolveLimits(
-        TurboServerOptions o,
+        GaudiServerOptions o,
         long? maxBody, TimeSpan? keepAlive, TimeSpan? headersTimeout,
         double? minReqRate, TimeSpan? minReqGrace, double? minRespRate, TimeSpan? minRespGrace)
         => new(

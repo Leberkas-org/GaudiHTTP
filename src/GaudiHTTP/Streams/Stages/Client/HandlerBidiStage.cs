@@ -8,15 +8,15 @@ using static Servus.Senf;
 namespace GaudiHTTP.Streams.Stages.Client;
 
 /// <summary>
-/// Bidirectional stage that wraps a <see cref="TurboHandler"/> instance,
-/// calling <see cref="TurboHandler.ProcessRequest"/> on outbound requests
-/// and <see cref="TurboHandler.ProcessResponse"/> on inbound responses.
+/// Bidirectional stage that wraps a <see cref="GaudiHandler"/> instance,
+/// calling <see cref="GaudiHandler.ProcessRequest"/> on outbound requests
+/// and <see cref="GaudiHandler.ProcessResponse"/> on inbound responses.
 /// Composes via <c>BidiFlow.Atop</c> alongside built-in feature stages.
 /// </summary>
 internal sealed class HandlerBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
-    private readonly TurboHandler _handler;
+    private readonly GaudiHandler _handler;
 
     private readonly Inlet<HttpRequestMessage> _inRequest;
     private readonly Outlet<HttpRequestMessage> _outRequest;
@@ -25,7 +25,7 @@ internal sealed class HandlerBidiStage
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
-    public HandlerBidiStage(TurboHandler handler, int index)
+    public HandlerBidiStage(GaudiHandler handler, int index)
     {
         _handler = handler;
 

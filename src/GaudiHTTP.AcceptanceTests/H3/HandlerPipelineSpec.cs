@@ -12,7 +12,7 @@ namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class HandlerPipelineSpec : AcceptanceTestBase
 {
-    private sealed class TestHeaderHandler : TurboHandler
+    private sealed class TestHeaderHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
         {
@@ -21,7 +21,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
         }
     }
 
-    private sealed class RequestTransformHandler : TurboHandler
+    private sealed class RequestTransformHandler : GaudiHandler
     {
         private readonly Func<HttpRequestMessage, HttpRequestMessage> _transform;
 
@@ -34,7 +34,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
             => _transform(request);
     }
 
-    private sealed class ResponseTransformHandler : TurboHandler
+    private sealed class ResponseTransformHandler : GaudiHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> _transform;
 
@@ -73,7 +73,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerAsync(ResponseMap map, HttpRequestMessage request,
-        params TurboHandler[] handlers)
+        params GaudiHandler[] handlers)
     {
         var fake = ResponseMapFake.Create(map);
         var pipeline = BidiFlow.FromGraph(new HandlerBidiStage(handlers[0], 0));
@@ -94,7 +94,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerRedirectAsync(ResponseMap map,
-        HttpRequestMessage request, TurboHandler handler)
+        HttpRequestMessage request, GaudiHandler handler)
     {
         var handlerStage = BidiFlow.FromGraph(new HandlerBidiStage(handler, 0));
         var redirect = BidiFlow.FromGraph(new RedirectBidiStage(new RedirectPolicy()));
@@ -111,7 +111,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerCompressionAsync(ResponseMap map,
-        HttpRequestMessage request, TurboHandler handler)
+        HttpRequestMessage request, GaudiHandler handler)
     {
         var handlerStage = BidiFlow.FromGraph(new HandlerBidiStage(handler, 0));
         var contentEncoding = BidiFlow.FromGraph(new ContentEncodingBidiStage());
@@ -128,7 +128,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerCookieAsync(ResponseMap map,
-        HttpRequestMessage request, TurboHandler handler, CookieJar jar)
+        HttpRequestMessage request, GaudiHandler handler, CookieJar jar)
     {
         var handlerStage = BidiFlow.FromGraph(new HandlerBidiStage(handler, 0));
         var cookie = BidiFlow.FromGraph(new CookieBidiStage(jar));

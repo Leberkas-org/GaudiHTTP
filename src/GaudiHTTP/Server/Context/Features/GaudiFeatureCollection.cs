@@ -6,7 +6,7 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboFeatureCollection : IFeatureCollection, IResettable
+internal sealed class GaudiFeatureCollection : IFeatureCollection, IResettable
 {
     private IHttpRequestFeature? _request;
     private IHttpResponseFeature? _response;

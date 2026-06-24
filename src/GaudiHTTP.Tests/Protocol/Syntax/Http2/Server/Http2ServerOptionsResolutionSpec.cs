@@ -7,7 +7,7 @@ public sealed class Http2ServerOptionsResolutionSpec
     [Fact(Timeout = 5000)]
     public void Null_keepalive_override_should_resolve_to_limits()
     {
-        var o = new TurboServerOptions
+        var o = new GaudiServerOptions
         {
             Limits =
             {

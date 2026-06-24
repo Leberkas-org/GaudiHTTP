@@ -17,7 +17,7 @@ public sealed class GaudiHttpClientSpec
             [
                 typeof(ChannelWriter<HttpRequestMessage>),
                 typeof(ChannelReader<HttpResponseMessage>),
-                typeof(TurboRequestOptions),
+                typeof(GaudiRequestOptions),
                 typeof(NamedClientConsumerRegistration)
             ],
             null)!;
@@ -36,7 +36,7 @@ public sealed class GaudiHttpClientSpec
         var registration = new NamedClientConsumerRegistration(
             ActorRefs.Nobody, "test", consumerId.Value);
 
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -118,7 +118,7 @@ public sealed class GaudiHttpClientSpec
         var responses = Channel.CreateUnbounded<HttpResponseMessage>();
 
         var registration = new NamedClientConsumerRegistration(ActorRefs.Nobody, "test", Guid.NewGuid());
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,

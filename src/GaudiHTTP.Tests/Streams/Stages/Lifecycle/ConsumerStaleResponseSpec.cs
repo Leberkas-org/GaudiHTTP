@@ -25,7 +25,7 @@ public sealed class ConsumerStaleResponseSpec : StreamTestBase
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
         var responseInjectChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,

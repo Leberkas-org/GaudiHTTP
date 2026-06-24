@@ -30,7 +30,7 @@ public sealed class Http3SettingsSpec
     public void DecodeClientData_should_accept_first_SETTINGS_frame()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerSessionManager(new GaudiServerOptions().ToHttp3Options(), ops);
         sm.PreStart();
 
         var settingsData = BuildSettingsFrame();
@@ -44,7 +44,7 @@ public sealed class Http3SettingsSpec
     public void DecodeClientData_should_reject_second_SETTINGS_frame()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerSessionManager(new GaudiServerOptions().ToHttp3Options(), ops);
         sm.PreStart();
 
         var settings1 = BuildSettingsFrame();

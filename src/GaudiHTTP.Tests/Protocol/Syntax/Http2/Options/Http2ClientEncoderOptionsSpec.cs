@@ -8,6 +8,6 @@ public sealed class Http2ClientEncoderOptionsSpec
     [Trait("RFC", "RFC9113")]
     public void Default_client_options_should_project_sensible_encoder_values()
     {
-        Assert.Equal(64 * 1024, new TurboClientOptions().ToHttp2EncoderOptions().MaxFrameSize);
+        Assert.Equal(64 * 1024, new GaudiClientOptions().ToHttp2EncoderOptions().MaxFrameSize);
     }
 }

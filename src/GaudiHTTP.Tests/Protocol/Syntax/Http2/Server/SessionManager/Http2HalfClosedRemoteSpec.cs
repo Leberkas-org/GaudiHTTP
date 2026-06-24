@@ -66,7 +66,7 @@ public sealed class Http2HalfClosedRemoteSpec
 
     private static Http2ServerSessionManager CreateSm(FakeServerOps ops)
     {
-        var sm = new Http2ServerSessionManager(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerSessionManager(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
         return sm;

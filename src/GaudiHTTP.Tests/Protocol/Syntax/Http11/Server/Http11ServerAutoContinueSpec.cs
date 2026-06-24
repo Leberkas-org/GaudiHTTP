@@ -11,7 +11,7 @@ public sealed class Http11ServerAutoContinueSpec
 {
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
     }
 

@@ -37,7 +37,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
     protected virtual bool UseTls => ProtocolVersion.Major >= 2;
 
-    protected virtual void ConfigureServer(TurboServerOptions options, ushort port, X509Certificate2? cert)
+    protected virtual void ConfigureServer(GaudiServerOptions options, ushort port, X509Certificate2? cert)
     {
         if (ProtocolVersion.Major == 3)
         {
@@ -74,7 +74,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         }
     }
 
-    protected virtual void ConfigureClientOptions(TurboClientOptions options)
+    protected virtual void ConfigureClientOptions(GaudiClientOptions options)
     {
     }
 
@@ -129,7 +129,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         var system = ActorSystem.Create($"e2e-client-{Guid.NewGuid():N}", bootstrap.And(diSetup));
         services.AddSingleton(system);
 
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             BaseAddress = new Uri(BaseUri),
             DangerousAcceptAnyServerCertificate = needsTls
@@ -138,7 +138,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         ConfigureClientOptions(clientOptions);
 
         services.AddGaudiHttpClient();
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         _clientProvider = services.BuildServiceProvider();
@@ -208,8 +208,8 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         return new Uri(addresses.First()).Port;
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

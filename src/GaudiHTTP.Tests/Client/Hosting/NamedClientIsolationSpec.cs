@@ -7,10 +7,10 @@ namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class NamedClientIsolationSpec
 {
-    private static TurboClientDescriptor GetDescriptor(IServiceCollection services, string name)
+    private static GaudiClientDescriptor GetDescriptor(IServiceCollection services, string name)
     {
         var sp = services.BuildServiceProvider();
-        return sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get(name);
+        return sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get(name);
     }
 
     [Fact(Timeout = 5000)]
@@ -21,7 +21,7 @@ public sealed class NamedClientIsolationSpec
         services.AddGaudiHttpClient("b");
 
         var sp = services.BuildServiceProvider();
-        var monitor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var monitor = sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         var descriptorA = monitor.Get("a");
         var descriptorB = monitor.Get("b");

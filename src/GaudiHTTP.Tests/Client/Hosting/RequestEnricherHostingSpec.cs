@@ -15,7 +15,7 @@ public sealed class RequestEnricherHostingSpec
         var holder = new HttpRequestMessage();
         var headers = defaultHeaders ?? holder.Headers;
 
-        return new RequestEnricher(() => new TurboRequestOptions(
+        return new RequestEnricher(() => new GaudiRequestOptions(
             baseAddress,
             headers,
             defaultVersion ?? HttpVersion.Version11,

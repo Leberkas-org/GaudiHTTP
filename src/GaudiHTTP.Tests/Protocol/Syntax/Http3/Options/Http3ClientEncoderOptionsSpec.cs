@@ -8,6 +8,6 @@ public sealed class Http3ClientEncoderOptionsSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void Default_client_options_should_project_sensible_encoder_values()
     {
-        Assert.Equal(100, new TurboClientOptions().ToHttp3EncoderOptions().QpackBlockedStreams);
+        Assert.Equal(100, new GaudiClientOptions().ToHttp3EncoderOptions().QpackBlockedStreams);
     }
 }

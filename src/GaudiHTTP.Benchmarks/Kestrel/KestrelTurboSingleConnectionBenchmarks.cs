@@ -14,7 +14,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelTurboSingleConnectionBenchmarks : KestrelBaseClass
+public class KestrelGaudiSingleConnectionBenchmarks : KestrelBaseClass
 {
     [Params(64, 256)]
     public int ConcurrencyLevel { get; set; }

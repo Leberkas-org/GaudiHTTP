@@ -48,7 +48,7 @@ public sealed class Http3ServerTrailerEncodingSpec
     public void EncodeTrailers_should_produce_HEADERS_frame()
     {
         var pair = CreateEncoderAndDecoder();
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" },
             { "grpc-message", "OK" }
@@ -65,7 +65,7 @@ public sealed class Http3ServerTrailerEncodingSpec
     public void EncodeTrailers_should_qpack_encode_trailer_fields()
     {
         var pair = CreateEncoderAndDecoder();
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "x-checksum", "abc123" }
         };
@@ -89,7 +89,7 @@ public sealed class Http3ServerTrailerEncodingSpec
     public void EncodeTrailers_should_filter_prohibited_fields()
     {
         var pair = CreateEncoderAndDecoder();
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" },
             { "transfer-encoding", "chunked" },
@@ -117,7 +117,7 @@ public sealed class Http3ServerTrailerEncodingSpec
     public void EncodeTrailers_should_return_null_when_all_filtered()
     {
         var pair = CreateEncoderAndDecoder();
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "transfer-encoding", "chunked" }
         };
@@ -132,7 +132,7 @@ public sealed class Http3ServerTrailerEncodingSpec
     public void EncodeTrailers_should_not_include_pseudo_headers()
     {
         var pair = CreateEncoderAndDecoder();
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "x-checksum", "abc123" }
         };

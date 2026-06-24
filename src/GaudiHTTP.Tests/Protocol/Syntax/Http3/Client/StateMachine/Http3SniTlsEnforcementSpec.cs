@@ -24,7 +24,7 @@ public sealed class Http3SniTlsEnforcementSpec
     public void Should_CarryHostname_When_Http3QuicOptionsCreated()
     {
         var uri = new Uri("https://example.com/path");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
@@ -37,7 +37,7 @@ public sealed class Http3SniTlsEnforcementSpec
     public void Should_MatchRequestHost_When_CustomHostUsed()
     {
         var uri = new Uri("https://my-server.example.org:8443/api");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
@@ -70,7 +70,7 @@ public sealed class Http3SniTlsEnforcementSpec
     public void Should_AcceptIpAddress_When_UsedAsHost()
     {
         var uri = new Uri("https://192.168.1.1:443/");
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
@@ -83,7 +83,7 @@ public sealed class Http3SniTlsEnforcementSpec
     public void Should_PropagateCertCallback_When_Http3WithSni()
     {
         var callbackInvoked = false;
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = (_, _, _, _) =>
             {
@@ -112,7 +112,7 @@ public sealed class Http3SniTlsEnforcementSpec
     public void Should_PreserveHostname_When_VariousHostsUsed(string uriString, string expectedHost)
     {
         var uri = new Uri(uriString);
-        var clientOptions = new TurboClientOptions();
+        var clientOptions = new GaudiClientOptions();
 
         var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 

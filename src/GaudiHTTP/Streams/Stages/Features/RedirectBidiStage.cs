@@ -291,7 +291,7 @@ internal sealed class RedirectStateMachine(IFeatureStageOperations ops, Redirect
 
             var newRequest = handler.BuildRedirectRequest(original, response);
 
-            if (original.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey,
+            if (original.Options.TryGetValue(GaudiClientInstrumentationExtensions.RequestActivityKey,
                     out var rootActivity))
             {
                 Tracing.AddRedirectEvent(rootActivity, newRequest.RequestUri!, (int)response.StatusCode);
@@ -308,7 +308,7 @@ internal sealed class RedirectStateMachine(IFeatureStageOperations ops, Redirect
 
             if (rootActivity is not null)
             {
-                newRequest.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, rootActivity);
+                newRequest.Options.Set(GaudiClientInstrumentationExtensions.RequestActivityKey, rootActivity);
             }
 
             response.Dispose();

@@ -11,7 +11,7 @@ public sealed class Http2KeepAliveCloseSpec
     public void OnTimerFired_should_set_ShouldComplete_on_keepalive_timeout()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
         sm.OnTimerFired("keep-alive-timeout");

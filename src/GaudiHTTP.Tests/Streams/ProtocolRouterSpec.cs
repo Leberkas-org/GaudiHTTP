@@ -5,7 +5,7 @@ namespace GaudiHTTP.Tests.Streams;
 
 public sealed class ProtocolRouterSpec
 {
-    private static readonly TurboServerOptions DefaultOptions = new();
+    private static readonly GaudiServerOptions DefaultOptions = new();
 
     [Fact(Timeout = 5000)]
     public void ResolveEngine_should_return_http10_for_http10_version()

@@ -371,16 +371,16 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var tags = new TagList
             {
                 { "url.scheme", scheme },
-                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(method) }
+                { "http.request.method", GaudiClientInstrumentationExtensions.NormalizeMethod(method) }
             };
             Metrics.ServerActiveRequests().Add(1, tags);
         }
 
-        if (features is TurboFeatureCollection turbo)
+        if (features is GaudiFeatureCollection gaudi)
         {
-            turbo.RequestTimestamp = Stopwatch.GetTimestamp();
+            gaudi.RequestTimestamp = Stopwatch.GetTimestamp();
             var headers = requestFeature.Headers;
-            turbo.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, headers.TraceParent, headers.TraceState);
+            gaudi.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, headers.TraceParent, headers.TraceState);
         }
     }
 
@@ -396,25 +396,25 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var tags = new TagList
             {
                 { "url.scheme", requestFeature.Scheme },
-                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) }
+                { "http.request.method", GaudiClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) }
             };
             Metrics.ServerActiveRequests().Add(-1, tags);
         }
 
-        if (features is TurboFeatureCollection turbo)
+        if (features is GaudiFeatureCollection gaudi)
         {
-            if (turbo.RequestActivity is { } activity)
+            if (gaudi.RequestActivity is { } activity)
             {
                 Tracing.SetServerResponse(activity, statusCode);
                 activity.Stop();
             }
 
-            if (turbo.RequestTimestamp > 0 && Metrics.ServerRequestDuration().Enabled && requestFeature is not null)
+            if (gaudi.RequestTimestamp > 0 && Metrics.ServerRequestDuration().Enabled && requestFeature is not null)
             {
-                var elapsed = Stopwatch.GetElapsedTime(turbo.RequestTimestamp);
+                var elapsed = Stopwatch.GetElapsedTime(gaudi.RequestTimestamp);
                 var durationTags = new TagList
                 {
-                    { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
+                    { "http.request.method", GaudiClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
                     { "http.response.status_code", statusCode },
                     { "url.scheme", requestFeature.Scheme }
                 };

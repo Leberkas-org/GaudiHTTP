@@ -1,8 +1,8 @@
 namespace GaudiHTTP.Benchmarks.Internal;
 
-public abstract class TurboServerBaseClass : BenchmarkSuiteBase
+public abstract class GaudiServerBaseClass : BenchmarkSuiteBase
 {
-    private static TurboBenchmarkServer? _sharedServer;
+    private static GaudiBenchmarkServer? _sharedServer;
     private static readonly SemaphoreSlim ServerLock = new(1, 1);
     private static int _serverRefCount;
 
@@ -12,7 +12,7 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
     protected int GaudiHttp20Port { get; private set; }
     protected int GaudiHttp30Port { get; private set; }
 
-    protected int TurboPort => HttpVersion switch
+    protected int GaudiPort => HttpVersion switch
     {
         "3.0" => GaudiHttp30Port,
         "2.0" => GaudiHttp20Port,
@@ -21,11 +21,11 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
 
     private string Scheme => HttpVersion == "3.0" ? "https" : "http";
 
-    public Uri PlaintextUri => new(string.Concat(Scheme, "://127.0.0.1:", TurboPort.ToString(), "/plaintext"));
-    public Uri JsonUri => new(string.Concat(Scheme, "://127.0.0.1:", TurboPort.ToString(), "/json"));
-    public Uri FortunesUri => new(string.Concat(Scheme, "://127.0.0.1:", TurboPort.ToString(), "/fortunes"));
-    public Uri UploadUri => new(string.Concat(Scheme, "://127.0.0.1:", TurboPort.ToString(), "/upload"));
-    public Uri BaseAddress => new(string.Concat(Scheme, "://127.0.0.1:", TurboPort.ToString()));
+    public Uri PlaintextUri => new(string.Concat(Scheme, "://127.0.0.1:", GaudiPort.ToString(), "/plaintext"));
+    public Uri JsonUri => new(string.Concat(Scheme, "://127.0.0.1:", GaudiPort.ToString(), "/json"));
+    public Uri FortunesUri => new(string.Concat(Scheme, "://127.0.0.1:", GaudiPort.ToString(), "/fortunes"));
+    public Uri UploadUri => new(string.Concat(Scheme, "://127.0.0.1:", GaudiPort.ToString(), "/upload"));
+    public Uri BaseAddress => new(string.Concat(Scheme, "://127.0.0.1:", GaudiPort.ToString()));
 
     public static byte[] GeneratePayload(int sizeBytes)
     {
@@ -46,7 +46,7 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
         {
             if (_sharedServer is null)
             {
-                _sharedServer = new TurboBenchmarkServer();
+                _sharedServer = new GaudiBenchmarkServer();
                 await _sharedServer.InitializeAsync();
             }
 

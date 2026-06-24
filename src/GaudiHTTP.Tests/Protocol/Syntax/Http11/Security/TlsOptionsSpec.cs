@@ -141,7 +141,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_set_target_host_when_https_uri()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("https://secure.example.com/path");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -154,7 +154,7 @@ public sealed class TlsOptionsSpec
     public void TcpOptionsFactory_should_propagate_client_certificates_when_configured()
     {
         var certs = new X509CertificateCollection();
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ClientCertificates = certs,
         };
@@ -169,7 +169,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_propagate_enabled_ssl_protocols_when_configured()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
         };
@@ -184,7 +184,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_default_to_none_ssl_protocol_when_not_configured()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("https://example.com/");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -197,7 +197,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_produce_plain_tcp_options_when_http_uri()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("http://example.com/");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -209,7 +209,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_produce_tls_options_when_wss_uri()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("wss://ws.example.com/");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -220,7 +220,7 @@ public sealed class TlsOptionsSpec
     [Fact(Timeout = 5000)]
     public void TcpOptionsFactory_should_set_correct_port_when_https_with_custom_port()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("https://example.com:8443/");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -234,7 +234,7 @@ public sealed class TlsOptionsSpec
     public void TcpOptionsFactory_should_propagate_validation_callback_when_http3_request()
     {
         var invoked = false;
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = (_, _, _, _) =>
             {
@@ -253,9 +253,9 @@ public sealed class TlsOptionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_have_null_client_certificates_when_default_options()
+    public void GaudiClientOptions_should_have_null_client_certificates_when_default_options()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.Null(options.ClientCertificates);
 

@@ -21,9 +21,9 @@ public sealed class Http3SettingsPopulationSpec
 {
     private readonly FakeClientOps _clientOps = new();
 
-    private Http3ClientStateMachine CreateMachine(TurboClientOptions? options = null)
+    private Http3ClientStateMachine CreateMachine(GaudiClientOptions? options = null)
     {
-        return new Http3ClientStateMachine(options ?? new TurboClientOptions(), _clientOps);
+        return new Http3ClientStateMachine(options ?? new GaudiClientOptions(), _clientOps);
     }
 
     private static void SimulateConnect(Http3ClientStateMachine sm)
@@ -35,7 +35,7 @@ public sealed class Http3SettingsPopulationSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void PreStart_should_emit_qpack_max_table_capacity_setting()
     {
-        var opts = new TurboClientOptions
+        var opts = new GaudiClientOptions
         {
             Http3 =
             {
@@ -57,7 +57,7 @@ public sealed class Http3SettingsPopulationSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void PreStart_should_emit_qpack_blocked_streams_setting()
     {
-        var opts = new TurboClientOptions
+        var opts = new GaudiClientOptions
         {
             Http3 =
             {
@@ -79,7 +79,7 @@ public sealed class Http3SettingsPopulationSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void PreStart_should_emit_max_field_section_size_setting()
     {
-        var opts = new TurboClientOptions
+        var opts = new GaudiClientOptions
         {
             Http3 =
             {
@@ -101,7 +101,7 @@ public sealed class Http3SettingsPopulationSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void PreStart_should_emit_all_three_settings_when_configured()
     {
-        var opts = new TurboClientOptions
+        var opts = new GaudiClientOptions
         {
             Http3 =
             {

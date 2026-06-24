@@ -12,8 +12,8 @@ internal sealed class ClientStreamManager : ReceiveActor
         Guid ConsumerId,
         ChannelReader<HttpRequestMessage> RequestReader,
         ChannelWriter<HttpResponseMessage> ResponseWriter,
-        Func<TurboRequestOptions> OptionsFactory,
-        TurboClientOptions ClientOptions,
+        Func<GaudiRequestOptions> OptionsFactory,
+        GaudiClientOptions ClientOptions,
         PipelineDescriptor Pipeline,
         TransportRegistry? TransportOverride = null);
 

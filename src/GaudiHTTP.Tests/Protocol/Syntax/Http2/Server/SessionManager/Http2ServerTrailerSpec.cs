@@ -70,7 +70,7 @@ public sealed class Http2ServerTrailerSpec
     public void HandleHeadersFrame_should_not_emit_second_request_for_trailers()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);
@@ -108,7 +108,7 @@ public sealed class Http2ServerTrailerSpec
     public async Task HandleHeadersFrame_should_complete_body_on_trailer_endstream()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);

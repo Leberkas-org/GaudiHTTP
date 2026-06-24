@@ -31,7 +31,7 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Http11ConnectionStage_should_reconnect_and_replay_request_on_connection_drop()
     {
-        var stage = new Http11ClientConnectionStage(new TurboClientOptions
+        var stage = new Http11ClientConnectionStage(new GaudiClientOptions
         {
             Http1 =
             {
@@ -102,7 +102,7 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Http11ConnectionStage_should_complete_stage_when_max_reconnect_attempts_exceeded()
     {
-        var stage = new Http11ClientConnectionStage(new TurboClientOptions
+        var stage = new Http11ClientConnectionStage(new GaudiClientOptions
         {
             Http1 =
             {
@@ -156,7 +156,7 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Http11ConnectionStage_should_not_reconnect_when_no_inflight_request_on_close()
     {
-        var stage = new Http11ClientConnectionStage(new TurboClientOptions
+        var stage = new Http11ClientConnectionStage(new GaudiClientOptions
         {
             Http1 =
             {

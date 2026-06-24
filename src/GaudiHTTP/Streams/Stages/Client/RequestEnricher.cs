@@ -13,7 +13,7 @@ namespace GaudiHTTP.Streams.Stages.Client;
 /// Handles: URI resolution, version defaults, header merging, Referer sanitization,
 /// If-Range validation, and default timeout injection for the channel path.
 /// </summary>
-internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
+internal sealed class RequestEnricher(Func<GaudiRequestOptions> optionsFactory)
 {
     public HttpRequestMessage Enrich(HttpRequestMessage request)
     {
@@ -115,7 +115,7 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
         return request;
     }
 
-    internal static bool ProxyApplies(TurboRequestOptions options, Uri? requestUri)
+    internal static bool ProxyApplies(GaudiRequestOptions options, Uri? requestUri)
     {
         return options is { UseProxy: true, Proxy: not null }
                && requestUri is not null

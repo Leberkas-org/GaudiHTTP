@@ -2,12 +2,12 @@ using Microsoft.AspNetCore.Http;
 
 namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboInformationalResponseFeature
+internal sealed class GaudiInformationalResponseFeature
 {
     private readonly Action<int, IHeaderDictionary> _sendCallback;
     private bool _finalResponseSent;
 
-    public TurboInformationalResponseFeature(Action<int, IHeaderDictionary> sendCallback)
+    public GaudiInformationalResponseFeature(Action<int, IHeaderDictionary> sendCallback)
     {
         _sendCallback = sendCallback;
     }

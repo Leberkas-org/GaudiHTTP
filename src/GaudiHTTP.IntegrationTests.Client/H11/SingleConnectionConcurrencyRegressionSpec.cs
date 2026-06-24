@@ -6,7 +6,7 @@ namespace GaudiHTTP.IntegrationTests.Client.H11;
 
 /// <summary>
 /// Repro for the single-connection HTTP/1.1 concurrency deadlock in the 2026-06-19 benchmark run
-/// (KestrelTurboSingleConnectionBenchmarks [ConcurrencyLevel=64 and 256, HttpVersion=1.1] → NA).
+/// (KestrelGaudiSingleConnectionBenchmarks [ConcurrencyLevel=64 and 256, HttpVersion=1.1] → NA).
 /// With MaxConnectionsPerServer forced to 1, the benchmark completed a few iterations of N concurrent
 /// GETs (~1.5 ms each) and then HUNG to the 60 s WaitAsync — an intermittent pipelining/dispatch
 /// deadlock when many requests share one H1.1 connection. The H2 and H3 single-connection variants

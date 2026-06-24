@@ -13,7 +13,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelTurboDownloadBenchmarks : KestrelBaseClass
+public class KestrelGaudiDownloadBenchmarks : KestrelBaseClass
 {
     [Params(1, 32)]
     public int ConcurrencyLevel { get; set; }

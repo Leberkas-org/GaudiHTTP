@@ -61,8 +61,8 @@ public sealed class FeatureCollectionFactorySpec
         var responseBodyFeature = ctx.Get<IHttpResponseBodyFeature>();
         Assert.NotNull(responseBodyFeature);
 
-        var turboResponseBody = ctx.Get<IHttpResponseBodyFeature>();
-        Assert.NotNull(turboResponseBody);
+        var gaudiResponseBody = ctx.Get<IHttpResponseBodyFeature>();
+        Assert.NotNull(gaudiResponseBody);
     }
 
     [Fact(Timeout = 5000)]

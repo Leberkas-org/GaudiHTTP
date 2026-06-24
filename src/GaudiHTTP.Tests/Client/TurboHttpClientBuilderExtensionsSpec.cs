@@ -8,10 +8,10 @@ namespace GaudiHTTP.Tests.Client;
 
 public sealed class GaudiHttpClientBuilderExtensionsSpec
 {
-    private static TurboClientDescriptor GetDescriptor(IServiceCollection services, string name)
+    private static GaudiClientDescriptor GetDescriptor(IServiceCollection services, string name)
     {
         var sp = services.BuildServiceProvider();
-        return sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get(name);
+        return sp.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>().Get(name);
     }
 
     [Fact(Timeout = 5000)]
@@ -462,12 +462,12 @@ public sealed class GaudiHttpClientBuilderExtensionsSpec
         Assert.True(descriptor.AutomaticDecompression);
     }
 
-    private sealed class TestHandler : TurboHandler
+    private sealed class TestHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request) => request;
     }
 
-    private sealed class AnotherTestHandler : TurboHandler
+    private sealed class AnotherTestHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request) => request;
     }

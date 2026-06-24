@@ -11,7 +11,7 @@ public abstract class ClientAcceptanceTestBase : AcceptanceTestBase
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> responseFactory,
         Action<IGaudiHttpClientBuilder>? configure = null,
-        Action<TurboClientOptions>? configureOptions = null)
+        Action<GaudiClientOptions>? configureOptions = null)
     {
         var stage = CreateScriptedConnection(responseFactory);
         var transports = new TransportRegistry()

@@ -14,7 +14,7 @@ internal sealed record PipelineDescriptor(
     CookieJar? CookieJar,
     Cache? CacheStore,
     CachePolicy? CachePolicy,
-    IReadOnlyList<TurboHandler> Handlers,
+    IReadOnlyList<GaudiHandler> Handlers,
     bool AutomaticDecompression = true,
     AltSvcCache? AltSvcCache = null,
     bool UseProxy = true,

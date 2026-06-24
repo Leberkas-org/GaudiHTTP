@@ -11,7 +11,7 @@ using QuicListenerOptionsServus = Servus.Akka.Transport.QuicListenerOptions;
 namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
-/// Real HTTP/3 (QUIC) requests against TurboServer, driven by a neutral .NET HttpClient.
+/// Real HTTP/3 (QUIC) requests against GaudiServer, driven by a neutral .NET HttpClient.
 /// Skipped on platforms without QUIC support.
 /// </summary>
 [Collection("Infrastructure")]
@@ -30,7 +30,7 @@ public sealed class Http3ServerSpec : MultiProtocolTlsServerSpecBase
         await base.InitializeAsync();
     }
 
-    protected override void ConfigureListener(TurboServerOptions options, ushort port, X509Certificate2 certificate)
+    protected override void ConfigureListener(GaudiServerOptions options, ushort port, X509Certificate2 certificate)
     {
         options.Bind(new QuicListenerOptionsServus
         {

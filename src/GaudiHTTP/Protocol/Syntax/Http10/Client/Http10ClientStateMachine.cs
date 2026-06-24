@@ -14,7 +14,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly IClientStageOperations _ops;
     private readonly Http10ClientDecoder _decoder;
     private readonly Http10ClientEncoder _encoder;
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private readonly ConnectionPoolContext _poolContext = new();
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
@@ -53,7 +53,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public RequestEndpoint Endpoint { get; private set; }
 
-    public Http10ClientStateMachine(IClientStageOperations ops, TurboClientOptions options)
+    public Http10ClientStateMachine(IClientStageOperations ops, GaudiClientOptions options)
     {
         _ops = ops;
         _options = options;

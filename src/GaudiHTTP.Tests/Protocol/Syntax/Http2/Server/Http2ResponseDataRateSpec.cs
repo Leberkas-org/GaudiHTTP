@@ -9,7 +9,7 @@ public sealed class Http2ResponseDataRateSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Response_data_rate_monitor_should_be_initialized()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { MinResponseDataRate = 1_000_000, MinResponseDataRateGracePeriod = TimeSpan.FromSeconds(5) }
         };
@@ -24,7 +24,7 @@ public sealed class Http2ResponseDataRateSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Response_data_rate_monitor_should_track_violations()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { MinResponseDataRate = 1_000_000, MinResponseDataRateGracePeriod = TimeSpan.FromMilliseconds(100) }
         };
@@ -59,7 +59,7 @@ public sealed class Http2ResponseDataRateSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Response_data_rate_can_be_disabled()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { MinResponseDataRate = 0 }
         };
@@ -86,7 +86,7 @@ public sealed class Http2ResponseDataRateSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Response_data_rate_recovery_should_exit_grace_period()
     {
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { MinResponseDataRate = 1_000_000 }
         };

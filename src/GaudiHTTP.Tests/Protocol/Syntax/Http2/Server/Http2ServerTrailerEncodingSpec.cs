@@ -56,7 +56,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void ResponseTrailersFeature_should_store_and_expose_trailers()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature());
         var trailersFeature = new GaudiHttpResponseTrailersFeature();
@@ -81,7 +81,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     public void Encoder_should_produce_trailing_HEADERS_frame_with_END_STREAM()
     {
         var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" },
             { "grpc-message", "OK" }
@@ -105,7 +105,7 @@ public sealed class Http2ServerTrailerEncodingSpec
         var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
         var decoder = new HpackDecoder();
 
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" },
             { "transfer-encoding", "chunked" },

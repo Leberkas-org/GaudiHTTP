@@ -12,7 +12,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 {
     private static IFeatureCollection CreateResponseContext()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
@@ -26,7 +26,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_accept_requests_up_to_limit()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http1 =
             {
@@ -48,7 +48,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_enforce_pipelining_limit()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http1 =
             {
@@ -72,7 +72,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_close_after_limit_reached_response()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http1 =
             {
@@ -101,7 +101,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_default_limit_should_be_16()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(16);
         var buffer = MakeBuffer(request);
 
@@ -116,7 +116,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_reject_17th_request_with_default_limit()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(17);
         var buffer = MakeBuffer(request);
 
@@ -131,7 +131,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_accept_high_limit()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http1 =
             {
@@ -154,7 +154,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     {
         var ops = new FakeServerOps();
 
-        var invalidOpts1 = new TurboServerOptions
+        var invalidOpts1 = new GaudiServerOptions
         {
             Http1 =
             {
@@ -163,7 +163,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         };
         Assert.Throws<ArgumentException>(() => new Http11ServerStateMachine(invalidOpts1.ToHttp1Options(), invalidOpts1.ToHttp2Options(), ops));
 
-        var invalidOpts2 = new TurboServerOptions
+        var invalidOpts2 = new GaudiServerOptions
         {
             Http1 =
             {
@@ -178,7 +178,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_limit_applies_per_buffer()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http1 =
             {

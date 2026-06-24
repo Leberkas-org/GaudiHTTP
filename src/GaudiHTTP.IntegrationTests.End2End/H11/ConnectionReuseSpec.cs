@@ -12,7 +12,7 @@ public sealed class ConnectionReuseSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version11;
 
-    protected override void ConfigureClientOptions(TurboClientOptions options)
+    protected override void ConfigureClientOptions(GaudiClientOptions options)
     {
         // Ensure connection pooling is explicitly enabled with a reasonable idle timeout
         options.PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30);

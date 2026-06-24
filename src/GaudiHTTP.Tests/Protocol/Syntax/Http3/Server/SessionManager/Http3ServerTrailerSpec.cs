@@ -71,10 +71,10 @@ public sealed class Http3ServerTrailerSpec
     private static IFeatureCollection CreateNoBodyResponseWithTrailers(
         long streamId, IHeaderDictionary trailers)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         // No body started — takes the !hasBody branch
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
@@ -85,10 +85,10 @@ public sealed class Http3ServerTrailerSpec
 
     private static IFeatureCollection CreateNoBodyResponseNoTrailers(long streamId)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
@@ -109,7 +109,7 @@ public sealed class Http3ServerTrailerSpec
         const long streamId = 4;
         SendRequest(sm, streamId);
 
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" }
         };
@@ -161,7 +161,7 @@ public sealed class Http3ServerTrailerSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-6.5")]
-    public void OnResponse_should_freeze_TurboResponseHeaderDictionary_trailers_before_encoding()
+    public void OnResponse_should_freeze_GaudiResponseHeaderDictionary_trailers_before_encoding()
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerSessionManager(DefaultOptions(), ops);
@@ -169,7 +169,7 @@ public sealed class Http3ServerTrailerSpec
         const long streamId = 4;
         SendRequest(sm, streamId);
 
-        var trailers = new TurboHeaderDictionary
+        var trailers = new GaudiHeaderDictionary
         {
             { "grpc-status", "0" }
         };
@@ -186,7 +186,7 @@ public sealed class Http3ServerTrailerSpec
         var state = new StreamState();
         state.Initialize(42);
 
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
 
         state.SetFeatures(features);
@@ -207,7 +207,7 @@ public sealed class Http3ServerTrailerSpec
         var state = new StreamState();
         state.Initialize(42);
 
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         state.SetFeatures(features);
 
         state.Reset();

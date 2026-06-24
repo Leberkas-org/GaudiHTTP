@@ -7,10 +7,10 @@ namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class RequestEnricherTimeoutSpec
 {
-    private static TurboRequestOptions CreateOptions(TimeSpan timeout)
+    private static GaudiRequestOptions CreateOptions(TimeSpan timeout)
     {
         var msg = new HttpRequestMessage();
-        return new TurboRequestOptions(
+        return new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,

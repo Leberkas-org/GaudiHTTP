@@ -10,9 +10,9 @@ namespace GaudiHTTP.Server;
 
 internal sealed class EndpointResolver
 {
-    public IReadOnlyList<ListenerBinding> Resolve(TurboServerOptions options)
+    public IReadOnlyList<ListenerBinding> Resolve(GaudiServerOptions options)
     {
-        var allListenOptions = new List<TurboListenOptions>(options.ListenOptions);
+        var allListenOptions = new List<GaudiListenOptions>(options.ListenOptions);
 
         foreach (var url in options.Urls)
         {
@@ -77,7 +77,7 @@ internal sealed class EndpointResolver
         return bindings;
     }
 
-    internal static TurboListenOptions ParseUrl(string url)
+    internal static GaudiListenOptions ParseUrl(string url)
     {
         var normalizedUrl = url;
         if (url.Contains("://*:") || url.Contains("://+:"))
@@ -117,7 +117,7 @@ internal sealed class EndpointResolver
         }
 
         var port = (ushort)uri.Port;
-        var listenOptions = new TurboListenOptions(address, port);
+        var listenOptions = new GaudiListenOptions(address, port);
 
         if (uri.Scheme == "https")
         {
@@ -190,7 +190,7 @@ internal sealed class EndpointResolver
         return null;
     }
 
-    private static ListenerBinding CreateTcpBinding(TurboListenOptions listen, X509Certificate2? certificate,
+    private static ListenerBinding CreateTcpBinding(GaudiListenOptions listen, X509Certificate2? certificate,
         HttpProtocols protocols, long? maxRequestBufferSize)
     {
         var alpn = protocols.ToAlpnProtocols();
@@ -227,13 +227,13 @@ internal sealed class EndpointResolver
 
     /// <summary>
     /// Resolves the TCP read-pipe pause/resume thresholds, applying the server-wide
-    /// <see cref="TurboServerLimits.MaxRequestBufferSize"/> as the input-pause default. A
+    /// <see cref="GaudiServerLimits.MaxRequestBufferSize"/> as the input-pause default. A
     /// per-listener <see cref="TransportBufferOptions.InputPauseThreshold"/> takes precedence;
     /// a null limit falls through to the transport default. (QUIC is per-stream and is not driven
     /// by this connection-scoped limit.)
     /// </summary>
     private static (long InputPause, long InputResume) ResolveTcpInputThresholds(
-        TurboListenOptions listen, ResolvedTransportBuffers transport, long? maxRequestBufferSize)
+        GaudiListenOptions listen, ResolvedTransportBuffers transport, long? maxRequestBufferSize)
     {
         if (listen.Transport?.InputPauseThreshold is not null || maxRequestBufferSize is not { } cap)
         {
@@ -245,7 +245,7 @@ internal sealed class EndpointResolver
         return (cap, inputResume);
     }
 
-    private static ListenerBinding CreateQuicBinding(TurboListenOptions listen, X509Certificate2 certificate,
+    private static ListenerBinding CreateQuicBinding(GaudiListenOptions listen, X509Certificate2 certificate,
         int maxConcurrentStreams)
     {
         var transport = listen.Transport?.ResolveQuic() ?? TransportBufferOptions.QuicDefaults;

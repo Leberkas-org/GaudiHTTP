@@ -13,7 +13,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     private const string IdleTimeoutCheckTimer = "idle-timeout-check";
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private readonly IClientStageOperations _ops;
     private TransportOptions? _transportOptions;
 
@@ -41,7 +41,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private ConnectionState Connection { get; }
 
-    public Http3ClientStateMachine(TurboClientOptions options, IClientStageOperations ops)
+    public Http3ClientStateMachine(GaudiClientOptions options, IClientStageOperations ops)
     {
         _options = options;
         _ops = ops;

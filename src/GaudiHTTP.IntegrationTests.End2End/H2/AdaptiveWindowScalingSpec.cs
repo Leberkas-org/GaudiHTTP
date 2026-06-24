@@ -18,13 +18,13 @@ public sealed class AdaptiveWindowScalingSpec : End2EndSpecBase
     // CI contention; stay well below the 60s watchdogs instead.
     protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(45);
 
-    protected override void ConfigureClientOptions(TurboClientOptions options)
+    protected override void ConfigureClientOptions(GaudiClientOptions options)
     {
         options.Http2.EnableAdaptiveWindowScaling = _scalingEnabled;
         options.Http2.MaxConnectionsPerServer = 1;
     }
 
-    protected override void ConfigureServer(TurboServerOptions options, ushort port, X509Certificate2? cert)
+    protected override void ConfigureServer(GaudiServerOptions options, ushort port, X509Certificate2? cert)
     {
         base.ConfigureServer(options, port, cert);
         options.Limits.MinResponseDataRate = 0;

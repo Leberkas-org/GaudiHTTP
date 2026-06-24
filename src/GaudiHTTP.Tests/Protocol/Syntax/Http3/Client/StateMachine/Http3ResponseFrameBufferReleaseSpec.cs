@@ -22,7 +22,7 @@ public sealed class Http3ResponseFrameBufferReleaseSpec
     private readonly QpackTableSync _tableSync = new(0, 4 * 1024, 100, null);
 
     private Http3ClientStateMachine CreateMachine()
-        => new(new TurboClientOptions(), _clientOps);
+        => new(new GaudiClientOptions(), _clientOps);
 
     private TransportBuffer BuildHeadersBuffer()
     {

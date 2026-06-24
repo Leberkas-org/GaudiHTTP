@@ -10,11 +10,11 @@ public sealed class Http3StateMachineEdgeCasesSpec
     private readonly FakeClientOps _clientOps = new();
 
     private Http3ClientStateMachine CreateMachine(
-        TurboClientOptions? options = null,
+        GaudiClientOptions? options = null,
         FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
-            options ?? new TurboClientOptions(),
+            options ?? new GaudiClientOptions(),
             ops ?? _clientOps);
     }
 
@@ -211,7 +211,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
     [Trait("RFC", "RFC9114-5")]
     public void OnTimerFired_should_schedule_idle_check()
     {
-        var sm = CreateMachine(new TurboClientOptions
+        var sm = CreateMachine(new GaudiClientOptions
         { Http3 = new Http3ClientOptions { IdleTimeout = TimeSpan.FromSeconds(10) } });
         sm.PreStart();
 

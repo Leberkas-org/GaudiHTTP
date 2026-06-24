@@ -9,7 +9,7 @@ public sealed class RefererSanitizationSpec
     private static RequestEnricher CreateEnricher()
     {
         var holder = new HttpRequestMessage();
-        return new RequestEnricher(() => new TurboRequestOptions(
+        return new RequestEnricher(() => new GaudiRequestOptions(
             null,
             holder.Headers,
             HttpVersion.Version11,

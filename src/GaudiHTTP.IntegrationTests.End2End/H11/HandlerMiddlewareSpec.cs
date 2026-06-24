@@ -30,7 +30,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         });
     }
 
-    private sealed class HeaderInjectionHandler : TurboHandler
+    private sealed class HeaderInjectionHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
         {
@@ -39,7 +39,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         }
     }
 
-    private sealed class FailingHandler : TurboHandler
+    private sealed class FailingHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
         {
@@ -47,7 +47,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         }
     }
 
-    private sealed class ConditionalFailingHandler : TurboHandler
+    private sealed class ConditionalFailingHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
         {
@@ -107,12 +107,12 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         Assert.Equal(HttpStatusCode.OK, goodResponse.StatusCode);
     }
 
-    private IGaudiHttpClient CreateClientWithHandler<THandler>() where THandler : TurboHandler
+    private IGaudiHttpClient CreateClientWithHandler<THandler>() where THandler : GaudiHandler
     {
         var services = new ServiceCollection();
         services.AddSingleton(GetActorSystemAsync().Result);
 
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             BaseAddress = new Uri(BaseUri),
             DangerousAcceptAnyServerCertificate = false
@@ -121,7 +121,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         services.AddGaudiHttpClient()
             .AddHandler<THandler>();
 
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         var provider = services.BuildServiceProvider();
@@ -141,8 +141,8 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         return await Task.FromResult(ActorSystem.Create($"test-handler-{Guid.NewGuid():N}", setup));
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

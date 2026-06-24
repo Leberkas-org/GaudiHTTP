@@ -3,7 +3,7 @@ using BenchmarkDotNet.Attributes;
 namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
-/// Common base class shared by all benchmark suites (Kestrel and TurboServer localhost).
+/// Common base class shared by all benchmark suites (Kestrel and GaudiServer localhost).
 /// Provides BenchmarkDotNet parameter sets (concurrency level, HTTP version), ThreadPool
 /// tuning, and the warm-up hook. Subclasses add environment-specific setup (server lifecycle,
 /// URI construction, payload helpers).
@@ -26,7 +26,7 @@ public abstract class BenchmarkSuiteBase
     };
 
     /// <summary>
-    /// Shared in-flight request cap, applied identically to the Turbo SUT and the HttpClient
+    /// Shared in-flight request cap, applied identically to the Gaudi SUT and the HttpClient
     /// baseline so the comparison is apples-to-apples. Bounded by the per-version stream/connection
     /// limits configured on both clients (H2/H3 multiplex; H1.1 uses more connections).
     /// </summary>

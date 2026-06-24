@@ -93,11 +93,11 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
 
     internal Guid ConsumerId => _consumerRegistration.ConsumerId;
 
-    internal TurboRequestOptions CachedOptions { get; private set; } = null!;
+    internal GaudiRequestOptions CachedOptions { get; private set; } = null!;
 
     private void UpdateCachedOptions()
     {
-        CachedOptions = new TurboRequestOptions(
+        CachedOptions = new GaudiRequestOptions(
             _baseAddress,
             DefaultRequestHeaders,
             _defaultRequestVersion,
@@ -112,7 +112,7 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
     internal GaudiHttpClient(
         ChannelWriter<HttpRequestMessage> requests,
         ChannelReader<HttpResponseMessage> responses,
-        TurboRequestOptions options,
+        GaudiRequestOptions options,
         NamedClientConsumerRegistration consumerRegistration)
     {
         _baseAddress = options.BaseAddress;

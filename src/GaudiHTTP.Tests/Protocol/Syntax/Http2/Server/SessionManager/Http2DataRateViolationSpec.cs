@@ -90,7 +90,7 @@ public sealed class Http2DataRateViolationSpec
     {
         var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { MinRequestBodyDataRate = 1000, MinRequestBodyDataRateGracePeriod = TimeSpan.FromSeconds(1) }
         }.ToHttp2Options();

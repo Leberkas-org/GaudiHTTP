@@ -385,7 +385,7 @@ internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy
 
     private void EmitRetryTelemetry(HttpRequestMessage original, int attemptCount)
     {
-        if (original.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey, out var rootActivity))
+        if (original.Options.TryGetValue(GaudiClientInstrumentationExtensions.RequestActivityKey, out var rootActivity))
         {
             Tracing.AddRetryEvent(rootActivity, attemptCount);
         }

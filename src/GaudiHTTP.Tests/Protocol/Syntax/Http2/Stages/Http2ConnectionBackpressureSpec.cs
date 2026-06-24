@@ -28,7 +28,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
                 Source.Queue<HttpRequestMessage>(16, OverflowStrategy.Backpressure),
                 (b, reqSrc) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { MaxConcurrentStreams = maxConcurrentStreams } }));
                     var srvSrc = b.Add(Source.FromPublisher(serverProbe));
 

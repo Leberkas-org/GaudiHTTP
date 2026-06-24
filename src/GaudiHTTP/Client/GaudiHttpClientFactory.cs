@@ -11,8 +11,8 @@ using GaudiHTTP.Streams.Lifecycle;
 namespace GaudiHTTP.Client;
 
 internal sealed class GaudiHttpClientFactory(
-    IOptionsMonitor<TurboClientOptions> options,
-    IOptionsMonitor<TurboClientDescriptor> descriptors,
+    IOptionsMonitor<GaudiClientOptions> options,
+    IOptionsMonitor<GaudiClientDescriptor> descriptors,
     IServiceProvider provider,
     ActorSystem system)
     : IGaudiHttpClientFactory, IDisposable
@@ -69,7 +69,7 @@ internal sealed class GaudiHttpClientFactory(
         _manager.Tell(new ClientStreamManager.Shutdown());
     }
 
-    private PipelineDescriptor BuildPipeline(TurboClientOptions clientOptions, TurboClientDescriptor descriptor)
+    private PipelineDescriptor BuildPipeline(GaudiClientOptions clientOptions, GaudiClientDescriptor descriptor)
     {
         var cookieJar = descriptor.EnableCookies
             ? descriptor.CustomCookieJar ?? new CookieJar()
@@ -79,7 +79,7 @@ internal sealed class GaudiHttpClientFactory(
             ? new Cache(descriptor.CustomCacheStore ?? new MemoryCacheStore(), descriptor.CachePolicy)
             : null;
 
-        IReadOnlyList<TurboHandler> middlewares = descriptor.HandlerFactories.Count == 0
+        IReadOnlyList<GaudiHandler> middlewares = descriptor.HandlerFactories.Count == 0
             ? []
             : descriptor.HandlerFactories.Select(f => f(provider)).ToList();
 
@@ -102,9 +102,9 @@ internal sealed class GaudiHttpClientFactory(
             Proxy: clientOptions.Proxy);
     }
 
-    private static TurboRequestOptions CreateRequestOptions(TurboClientOptions clientOptions)
+    private static GaudiRequestOptions CreateRequestOptions(GaudiClientOptions clientOptions)
     {
-        return new TurboRequestOptions(
+        return new GaudiRequestOptions(
             BaseAddress: clientOptions.BaseAddress,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,

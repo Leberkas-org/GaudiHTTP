@@ -45,7 +45,7 @@ public sealed class ServerSupervisorActorSpec : TestKit
     }
 
     private static ServerSupervisorActor.StartServer StartMsg(params ListenerBinding[] bindings)
-        => new(PassthroughBridge(), new TurboServerOptions(), bindings);
+        => new(PassthroughBridge(), new GaudiServerOptions(), bindings);
 
     [Fact(Timeout = 5000)]
     public void Start_should_reply_ListenersReady_when_all_listeners_bind()

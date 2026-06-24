@@ -25,7 +25,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions()
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions()
                     {
                         Http2 =
                         {

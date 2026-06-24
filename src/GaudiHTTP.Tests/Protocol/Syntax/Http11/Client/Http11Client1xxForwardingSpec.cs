@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11Client1xxForwardingSpec
 {
-    private static TurboClientOptions MakeConfig()
+    private static GaudiClientOptions MakeConfig()
         => new() { Http1 = new Http1ClientOptions { MaxPipelineDepth = 1 } };
 
     private static TransportData Make(string raw)

@@ -13,12 +13,12 @@ public sealed class NamedClientRuntimeSpec : TestKit
         const string name = "shared-runtime";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(name, _ => { });
-        services.Configure<TurboClientDescriptor>(name, _ => { });
+        services.Configure<GaudiClientOptions>(name, _ => { });
+        services.Configure<GaudiClientDescriptor>(name, _ => { });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-        var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var options = provider.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
+        var descriptors = provider.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         using var first = (GaudiHttpClient)factory.CreateClient(name);
@@ -35,12 +35,12 @@ public sealed class NamedClientRuntimeSpec : TestKit
         const string name = "shared-runtime-concurrent";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(name, _ => { });
-        services.Configure<TurboClientDescriptor>(name, _ => { });
+        services.Configure<GaudiClientOptions>(name, _ => { });
+        services.Configure<GaudiClientDescriptor>(name, _ => { });
 
         await using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-        var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var options = provider.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
+        var descriptors = provider.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         var tasks = Enumerable.Range(0, 32)
@@ -71,14 +71,14 @@ public sealed class NamedClientRuntimeSpec : TestKit
         const string secondName = "runtime-b";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(firstName, _ => { });
-        services.Configure<TurboClientDescriptor>(firstName, _ => { });
-        services.Configure<TurboClientOptions>(secondName, _ => { });
-        services.Configure<TurboClientDescriptor>(secondName, _ => { });
+        services.Configure<GaudiClientOptions>(firstName, _ => { });
+        services.Configure<GaudiClientDescriptor>(firstName, _ => { });
+        services.Configure<GaudiClientOptions>(secondName, _ => { });
+        services.Configure<GaudiClientDescriptor>(secondName, _ => { });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-        var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var options = provider.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
+        var descriptors = provider.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         using var first = (GaudiHttpClient)factory.CreateClient(firstName);
@@ -94,13 +94,13 @@ public sealed class NamedClientRuntimeSpec : TestKit
         const string name = "named-defaults";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(name,
+        services.Configure<GaudiClientOptions>(name,
             options => { options.BaseAddress = new Uri("https://named.example"); });
-        services.Configure<TurboClientDescriptor>(name, _ => { });
+        services.Configure<GaudiClientDescriptor>(name, _ => { });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-        var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var options = provider.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
+        var descriptors = provider.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         using var client = (GaudiHttpClient)factory.CreateClient(name);
@@ -114,12 +114,12 @@ public sealed class NamedClientRuntimeSpec : TestKit
         const string name = "registration-test";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(name, _ => { });
-        services.Configure<TurboClientDescriptor>(name, _ => { });
+        services.Configure<GaudiClientOptions>(name, _ => { });
+        services.Configure<GaudiClientDescriptor>(name, _ => { });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-        var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
+        var options = provider.GetRequiredService<IOptionsMonitor<GaudiClientOptions>>();
+        var descriptors = provider.GetRequiredService<IOptionsMonitor<GaudiClientDescriptor>>();
 
         using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         using var client = (GaudiHttpClient)factory.CreateClient(name);

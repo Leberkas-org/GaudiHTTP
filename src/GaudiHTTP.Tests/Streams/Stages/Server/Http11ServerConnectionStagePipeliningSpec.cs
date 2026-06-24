@@ -56,7 +56,7 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
     [Trait("RFC", "RFC9112-9.3.2")]
     public void Http11_pipelined_requests_are_dispatched_one_at_a_time()
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         var gates = new ConcurrentDictionary<string, TaskCompletionSource>();
         var probe = CreateTestProbe();
 

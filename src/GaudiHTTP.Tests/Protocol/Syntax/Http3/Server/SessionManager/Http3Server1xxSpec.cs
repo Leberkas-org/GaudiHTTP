@@ -72,7 +72,7 @@ public sealed class Http3Server1xxSpec
         SendRequest(sm, 0);
 
         Assert.Single(ops.Requests);
-        var feature = ops.Requests[0].Get<TurboInformationalResponseFeature>();
+        var feature = ops.Requests[0].Get<GaudiInformationalResponseFeature>();
         Assert.NotNull(feature);
     }
 
@@ -85,7 +85,7 @@ public sealed class Http3Server1xxSpec
         SendRequest(sm, 0);
 
         var features = ops.Requests[0];
-        features.Get<TurboInformationalResponseFeature>()!
+        features.Get<GaudiInformationalResponseFeature>()!
             .SendInformational(100, new HeaderDictionary());
 
         var responseFeature = features.Get<IHttpResponseFeature>()!;
@@ -106,7 +106,7 @@ public sealed class Http3Server1xxSpec
         var features = ops.Requests[0];
         var outboundBefore = ops.Outbound.Count;
 
-        features.Get<TurboInformationalResponseFeature>()!
+        features.Get<GaudiInformationalResponseFeature>()!
             .SendInformational(103, new HeaderDictionary { ["Link"] = "</style.css>; rel=preload" });
 
         Assert.True(ops.Outbound.Count > outboundBefore);

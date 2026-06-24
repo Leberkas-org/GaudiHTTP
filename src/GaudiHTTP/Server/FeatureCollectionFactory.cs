@@ -19,7 +19,7 @@ internal static class FeatureCollectionFactory
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
     {
-        var features = pool.Rent(static () => new TurboFeatureCollection());
+        var features = pool.Rent(static () => new GaudiFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         if (!recycled || !ReferenceEquals(features.Get<IHttpRequestFeature>(), requestFeature))
@@ -38,7 +38,7 @@ internal static class FeatureCollectionFactory
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
     {
-        var features = pool.Rent(static () => new TurboFeatureCollection());
+        var features = pool.Rent(static () => new GaudiFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         if (recycled && features.Get<IHttpRequestFeature>() is GaudiHttpRequestFeature existingRequest)
@@ -56,7 +56,7 @@ internal static class FeatureCollectionFactory
     }
 
     private static IFeatureCollection CreateCore(
-        TurboFeatureCollection features,
+        GaudiFeatureCollection features,
         bool recycled,
         bool hasBody,
         IHttpConnectionFeature? connectionFeature,
@@ -167,7 +167,7 @@ internal static class FeatureCollectionFactory
 
     internal static void Return(ConnectionPoolContext pool, IFeatureCollection features)
     {
-        if (features is not TurboFeatureCollection turboFeatures)
+        if (features is not GaudiFeatureCollection gaudiFeatures)
         {
             return;
         }
@@ -177,7 +177,7 @@ internal static class FeatureCollectionFactory
             lifetime.Reset();
         }
 
-        pool.Return(turboFeatures);
+        pool.Return(gaudiFeatures);
     }
 
     internal static ArrayBufferWriter<byte> RentBuffer()

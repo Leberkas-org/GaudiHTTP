@@ -7,7 +7,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Stages.Server;
 
-internal sealed class ProtocolNegotiatorConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
+internal sealed class ProtocolNegotiatorConnectionStage(GaudiServerOptions options, IServiceProvider? services = null)
     : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("NegotiatorConnection.In.Network");

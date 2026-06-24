@@ -35,7 +35,7 @@ public sealed class ClientHelper : IAsyncDisposable
         ILoggerFactory? loggerFactory = null,
         Action<IGaudiHttpClientBuilder>? configure = null,
         ActorSystem? system = null,
-        Action<TurboClientOptions>? configureOptions = null,
+        Action<GaudiClientOptions>? configureOptions = null,
         string host = "127.0.0.1")
     {
         var services = new ServiceCollection();
@@ -67,13 +67,13 @@ public sealed class ClientHelper : IAsyncDisposable
 
         var builder = services.AddGaudiHttpClient();
 
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             BaseAddress = new Uri($"{scheme}://{host}:{port}"),
             DangerousAcceptAnyServerCertificate = true
         };
         configureOptions?.Invoke(options);
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(options)));
 
         configure?.Invoke(builder);
@@ -106,8 +106,8 @@ public sealed class ClientHelper : IAsyncDisposable
         await _provider.DisposeAsync();
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

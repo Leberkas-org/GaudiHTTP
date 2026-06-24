@@ -17,7 +17,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -50,7 +50,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
         var enrichedRequests = new List<HttpRequestMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -91,7 +91,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
         var baseAddress = new Uri("https://api.example");
         var enrichedRequests = new List<HttpRequestMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: baseAddress,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -131,7 +131,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -177,7 +177,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
         var responseInjectChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -220,7 +220,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -252,7 +252,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -285,7 +285,7 @@ public sealed class ConsumerSpec : StreamTestBase
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
         var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
+        var optionsFactory = () => new GaudiRequestOptions(
             BaseAddress: new Uri("https://test.example"),
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,

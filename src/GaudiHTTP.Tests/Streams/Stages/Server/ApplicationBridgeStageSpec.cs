@@ -33,9 +33,9 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
 
     private static ApplicationBridgeStage<IFeatureCollection> CreateStage(
         IHttpApplication<IFeatureCollection> app,
-        TurboServerOptions? options = null)
+        GaudiServerOptions? options = null)
     {
-        options ??= new TurboServerOptions();
+        options ??= new GaudiServerOptions();
         return new ApplicationBridgeStage<IFeatureCollection>(
             app, 10, options.HandlerTimeout, options.HandlerGracePeriod);
     }

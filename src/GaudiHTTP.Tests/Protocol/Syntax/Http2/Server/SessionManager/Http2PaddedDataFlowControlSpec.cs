@@ -71,7 +71,7 @@ public sealed class Http2PaddedDataFlowControlSpec
     public void Padded_data_should_count_full_payload_against_stream_flow_control()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions
+        var baseOptions = new GaudiServerOptions
         {
             Http2 =
             {

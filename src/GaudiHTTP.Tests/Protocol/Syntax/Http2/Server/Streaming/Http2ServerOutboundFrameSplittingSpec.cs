@@ -132,7 +132,7 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
     private static Http2ServerStateMachine CreateSmWithClientMaxFrameSize(
         FakeServerOps ops, uint clientMaxFrameSize, int connectionWindow = 1024 * 1024)
     {
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
         var settingsFrame = BuildSettingsFrameWithMaxFrameSize(clientMaxFrameSize);

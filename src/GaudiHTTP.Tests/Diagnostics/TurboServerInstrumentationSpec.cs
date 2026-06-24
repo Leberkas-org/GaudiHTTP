@@ -5,12 +5,12 @@ using static Servus.Senf;
 namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
-public sealed class TurboServerInstrumentationSpec : IDisposable
+public sealed class GaudiServerInstrumentationSpec : IDisposable
 {
     private readonly List<Activity> _activities = [];
     private readonly ActivityListener _listener;
 
-    public TurboServerInstrumentationSpec()
+    public GaudiServerInstrumentationSpec()
     {
         var sourceName = Tracing.Source.Name;
         _listener = new ActivityListener
@@ -173,16 +173,16 @@ public sealed class TurboServerInstrumentationSpec : IDisposable
 
         Tracing.AddBackpressureEvent(connActivity, 82, 100);
 
-        var evt = Assert.Single(connActivity.Events, e => e.Name == "turbo.backpressure");
-        Assert.Equal(82, evt.Tags.First(t => t.Key == "turbo.pipeline.inflight").Value);
-        Assert.Equal(100, evt.Tags.First(t => t.Key == "turbo.pipeline.max").Value);
+        var evt = Assert.Single(connActivity.Events, e => e.Name == "gaudi.backpressure");
+        Assert.Equal(82, evt.Tags.First(t => t.Key == "gaudi.pipeline.inflight").Value);
+        Assert.Equal(100, evt.Tags.First(t => t.Key == "gaudi.pipeline.max").Value);
     }
 
     [Fact(Timeout = 5000)]
     public void InjectConnectionTags_should_set_server_address_and_port()
     {
         var tags = new TagList();
-        TurboServerInstrumentationExtensions.InjectConnectionTags(ref tags, "10.0.0.1", 443);
+        GaudiServerInstrumentationExtensions.InjectConnectionTags(ref tags, "10.0.0.1", 443);
 
         Assert.Equal("10.0.0.1", tags.Single(t => t.Key == "server.address").Value);
         Assert.Equal(443, tags.Single(t => t.Key == "server.port").Value);

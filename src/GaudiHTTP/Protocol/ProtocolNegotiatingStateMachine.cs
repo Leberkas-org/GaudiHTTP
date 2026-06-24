@@ -16,7 +16,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 {
     private enum Phase { WaitingForConnect, Sniffing, Running }
 
-    private readonly TurboServerOptions _options;
+    private readonly GaudiServerOptions _options;
     private readonly UpgradeAwareOps _wrappedOps;
 
     // Pre-protocol guards: the sniffing window has no state machine yet, so it must bound how much
@@ -40,7 +40,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     // the conservative default of 1 is safe.
     public int MaxConcurrentRequests => _phase == Phase.Running ? _inner!.MaxConcurrentRequests : 1;
 
-    public ProtocolNegotiatingStateMachine(TurboServerOptions options, IServerStageOperations ops)
+    public ProtocolNegotiatingStateMachine(GaudiServerOptions options, IServerStageOperations ops)
     {
         _options = options;
         _wrappedOps = new UpgradeAwareOps(ops, this);

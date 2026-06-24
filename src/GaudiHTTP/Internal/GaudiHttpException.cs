@@ -19,13 +19,13 @@ internal abstract class GaudiHttpException : Exception
 /// Base class for protocol-level exceptions (RFC violations, malformed frames, compression errors).
 /// Catch this type to handle any protocol error across HTTP/1.x, HTTP/2, HTTP/3, HPACK, and QPACK.
 /// </summary>
-internal abstract class TurboProtocolException : GaudiHttpException
+internal abstract class GaudiProtocolException : GaudiHttpException
 {
-    protected TurboProtocolException(string message) : base(message)
+    protected GaudiProtocolException(string message) : base(message)
     {
     }
 
-    protected TurboProtocolException(string message, Exception innerException) : base(message, innerException)
+    protected GaudiProtocolException(string message, Exception innerException) : base(message, innerException)
     {
     }
 }
@@ -34,5 +34,5 @@ internal abstract class TurboProtocolException : GaudiHttpException
 /// Base class for transport-level exceptions (connection failures, abrupt disconnects).
 /// Catch this type to handle any connection or transport error.
 /// </summary>
-internal abstract class TurboTransportException(string message) : GaudiHttpException(message);
+internal abstract class GaudiTransportException(string message) : GaudiHttpException(message);
 

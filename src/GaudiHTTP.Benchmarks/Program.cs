@@ -7,17 +7,17 @@ var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(arg
 var enumerable = summaries.ToList();
 
 var kestrelHttp = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelHttpClientConcurrentBenchmarks>());
-var kestrelTurboSend = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelTurboSendAsyncConcurrentBenchmarks>());
-var kestrelTurboStream = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelTurboStreamingConcurrentBenchmarks>());
+var kestrelGaudiSend = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelGaudiSendAsyncConcurrentBenchmarks>());
+var kestrelGaudiStream = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelGaudiStreamingConcurrentBenchmarks>());
 
 if (kestrelHttp is not null
-    && kestrelTurboSend is not null
-    && kestrelTurboStream is not null)
+    && kestrelGaudiSend is not null
+    && kestrelGaudiStream is not null)
 {
     var markdown = BenchmarkComparisonReport.GenerateKestrelReport(
         SummaryExtractor.Extract(kestrelHttp),
-        SummaryExtractor.Extract(kestrelTurboSend),
-        SummaryExtractor.Extract(kestrelTurboStream));
+        SummaryExtractor.Extract(kestrelGaudiSend),
+        SummaryExtractor.Extract(kestrelGaudiStream));
 
     if (markdown.Contains("NaN") || markdown.Contains("Infinity") || markdown.Contains("Inf%"))
     {
@@ -32,49 +32,49 @@ else
     Console.WriteLine("Kestrel comparison report skipped — not all 3 benchmark suites ran.");
     Console.WriteLine("Required Kestrel suites:");
     Console.WriteLine($"  KestrelHttpClientConcurrentBenchmarks        : {(kestrelHttp is not null ? "OK" : "MISSING")}");
-    Console.WriteLine($"  KestrelTurboSendAsyncConcurrentBenchmarks    : {(kestrelTurboSend is not null ? "OK" : "MISSING")}");
-    Console.WriteLine($"  KestrelTurboStreamingConcurrentBenchmarks    : {(kestrelTurboStream is not null ? "OK" : "MISSING")}");
+    Console.WriteLine($"  KestrelGaudiSendAsyncConcurrentBenchmarks    : {(kestrelGaudiSend is not null ? "OK" : "MISSING")}");
+    Console.WriteLine($"  KestrelGaudiStreamingConcurrentBenchmarks    : {(kestrelGaudiStream is not null ? "OK" : "MISSING")}");
 }
 
 var kestrelServerPlaintext = enumerable.FirstOrDefault(s =>
     s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerPlaintextBenchmark>());
-var turboServerPlaintext = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerPlaintextBenchmark>());
+var gaudiServerPlaintext = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Gaudi.GaudiServerPlaintextBenchmark>());
 var kestrelServerJson = enumerable.FirstOrDefault(s =>
     s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerJsonBenchmark>());
-var turboServerJson = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerJsonBenchmark>());
+var gaudiServerJson = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Gaudi.GaudiServerJsonBenchmark>());
 var kestrelServerFortunes = enumerable.FirstOrDefault(s =>
     s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerFortunesBenchmark>());
-var turboServerFortunes = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerFortunesBenchmark>());
+var gaudiServerFortunes = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Gaudi.GaudiServerFortunesBenchmark>());
 var kestrelServerUpload = enumerable.FirstOrDefault(s =>
     s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerUploadBenchmark>());
-var turboServerUpload = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerUploadBenchmark>());
+var gaudiServerUpload = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Gaudi.GaudiServerUploadBenchmark>());
 
 var hasAnyServerBenchmarks =
-    kestrelServerPlaintext is not null || turboServerPlaintext is not null ||
-    kestrelServerJson is not null || turboServerJson is not null ||
-    kestrelServerFortunes is not null || turboServerFortunes is not null ||
-    kestrelServerUpload is not null || turboServerUpload is not null;
+    kestrelServerPlaintext is not null || gaudiServerPlaintext is not null ||
+    kestrelServerJson is not null || gaudiServerJson is not null ||
+    kestrelServerFortunes is not null || gaudiServerFortunes is not null ||
+    kestrelServerUpload is not null || gaudiServerUpload is not null;
 
 if (hasAnyServerBenchmarks)
 {
     var kestrelServerResults = new List<BenchmarkResult>();
-    var turboServerResults = new List<BenchmarkResult>();
+    var gaudiServerResults = new List<BenchmarkResult>();
 
     if (kestrelServerPlaintext is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerPlaintext));
     if (kestrelServerJson is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerJson));
     if (kestrelServerFortunes is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerFortunes));
     if (kestrelServerUpload is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerUpload));
 
-    if (turboServerPlaintext is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerPlaintext));
-    if (turboServerJson is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerJson));
-    if (turboServerFortunes is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerFortunes));
-    if (turboServerUpload is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerUpload));
+    if (gaudiServerPlaintext is not null) gaudiServerResults.AddRange(SummaryExtractor.Extract(gaudiServerPlaintext));
+    if (gaudiServerJson is not null) gaudiServerResults.AddRange(SummaryExtractor.Extract(gaudiServerJson));
+    if (gaudiServerFortunes is not null) gaudiServerResults.AddRange(SummaryExtractor.Extract(gaudiServerFortunes));
+    if (gaudiServerUpload is not null) gaudiServerResults.AddRange(SummaryExtractor.Extract(gaudiServerUpload));
 
-    var serverMarkdown = BenchmarkComparisonReport.GenerateServerReport(kestrelServerResults, turboServerResults);
+    var serverMarkdown = BenchmarkComparisonReport.GenerateServerReport(kestrelServerResults, gaudiServerResults);
 
     if (serverMarkdown.Contains("NaN") || serverMarkdown.Contains("Infinity") || serverMarkdown.Contains("Inf%"))
     {

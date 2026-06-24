@@ -19,9 +19,9 @@ public sealed class Http2StateMachineReconnectSpec
         return buffer;
     }
 
-    private static TurboClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null)
+    private static GaudiClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null)
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         if (maxConcurrentStreams.HasValue) options.Http2.MaxConcurrentStreams = maxConcurrentStreams.Value;
         if (maxReconnect.HasValue) options.Http2.MaxReconnectAttempts = maxReconnect.Value;
         return options;

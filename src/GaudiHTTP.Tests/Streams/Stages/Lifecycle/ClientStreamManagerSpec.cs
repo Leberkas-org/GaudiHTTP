@@ -10,9 +10,9 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class ClientStreamManagerSpec : StreamTestBase
 {
-    private static TurboRequestOptions CreateRequestOptions()
+    private static GaudiRequestOptions CreateRequestOptions()
     {
-        return new TurboRequestOptions(
+        return new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -33,7 +33,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -69,7 +69,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         manager.Tell(new ClientStreamManager.RegisterConsumer(
@@ -78,7 +78,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -103,7 +103,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(200, TestContext.Current.CancellationToken);
@@ -126,7 +126,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -150,7 +150,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -177,7 +177,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -215,7 +215,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         manager.Tell(new ClientStreamManager.RegisterConsumer(
@@ -224,7 +224,7 @@ public sealed class ClientStreamManagerSpec : StreamTestBase
             RequestReader: Channel.CreateUnbounded<HttpRequestMessage>().Reader,
             OptionsFactory: CreateRequestOptions,
             ResponseWriter: Channel.CreateUnbounded<HttpResponseMessage>().Writer,
-            ClientOptions: new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
+            ClientOptions: new GaudiClientOptions { BaseAddress = new Uri("http://localhost") },
             Pipeline: PipelineDescriptor.Empty));
 
         await Task.Delay(500, TestContext.Current.CancellationToken);

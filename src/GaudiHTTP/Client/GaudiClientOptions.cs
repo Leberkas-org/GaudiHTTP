@@ -19,7 +19,7 @@ namespace GaudiHTTP.Client;
 /// <param name="PreAuthenticate">When <see langword="true"/>, the Authorization header is sent proactively without waiting for a 401.</param>
 /// <param name="UseProxy">Whether requests are routed through <paramref name="Proxy"/> when one is configured.</param>
 /// <param name="Proxy">The forward proxy requests are routed through. HTTP/3 requests are downgraded to HTTP/2 when the proxy applies, since QUIC cannot traverse an HTTP proxy.</param>
-public record TurboRequestOptions(
+public record GaudiRequestOptions(
     Uri? BaseAddress,
     HttpRequestHeaders DefaultRequestHeaders,
     Version DefaultRequestVersion,
@@ -32,11 +32,11 @@ public record TurboRequestOptions(
 
 /// <summary>
 /// Top-level configuration for a named GaudiHTTP client.
-/// Set via <c>AddGaudiHttpClient(name, o => { … })</c> in <see cref="TurboClientServiceCollectionExtensions"/>.
+/// Set via <c>AddGaudiHttpClient(name, o => { … })</c> in <see cref="GaudiClientServiceCollectionExtensions"/>.
 /// Contains per-protocol sub-options (<see cref="Http1"/>, <see cref="Http2"/>, <see cref="Http3"/>)
 /// as well as shared transport, TLS, proxy, and pool settings.
 /// </summary>
-public sealed class TurboClientOptions
+public sealed class GaudiClientOptions
 {
     /// <summary>Base address used to resolve relative request URIs.</summary>
     public Uri? BaseAddress { get; set; }

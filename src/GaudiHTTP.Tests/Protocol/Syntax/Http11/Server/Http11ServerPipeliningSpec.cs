@@ -12,7 +12,7 @@ public sealed class Http11ServerPipeliningSpec
 {
     private static IFeatureCollection CreateResponseContext()
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
@@ -26,7 +26,7 @@ public sealed class Http11ServerPipeliningSpec
     public void ServerStateMachine_should_decode_two_pipelined_requests_from_single_buffer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
         var request = string.Concat(
             "GET / HTTP/1.1\r\n",
             "Host: example.com\r\n",
@@ -50,7 +50,7 @@ public sealed class Http11ServerPipeliningSpec
     public void ServerStateMachine_should_process_responses_fifo_for_pipelined_requests()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
         var request = string.Concat(
             "GET / HTTP/1.1\r\n",
             "Host: example.com\r\n",
@@ -78,7 +78,7 @@ public sealed class Http11ServerPipeliningSpec
     public void ServerStateMachine_should_throw_when_responding_without_pending_request()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         var context = CreateResponseContext();
 
@@ -90,7 +90,7 @@ public sealed class Http11ServerPipeliningSpec
     public void ServerStateMachine_should_handle_three_pipelined_requests()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
         var request = string.Concat(
             "GET /page1 HTTP/1.1\r\n",
             "Host: example.com\r\n",

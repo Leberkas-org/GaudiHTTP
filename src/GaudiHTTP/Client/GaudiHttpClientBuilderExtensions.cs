@@ -15,7 +15,7 @@ public static class GaudiHttpClientBuilderExtensions
     /// </summary>
     public static IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             d.EnableCookies = true;
             d.CustomCookieJar = new CookieJar();
@@ -28,7 +28,7 @@ public static class GaudiHttpClientBuilderExtensions
     /// </summary>
     public static IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder, ICookieStore store)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             d.EnableCookies = true;
             d.CustomCookieJar = new CookieJar(store);
@@ -42,7 +42,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder,
         Action<CacheOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             var options = new CacheOptions();
             configure?.Invoke(options);
@@ -57,7 +57,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder, ICacheStore store,
         Action<CacheOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             var options = new CacheOptions();
             configure?.Invoke(options);
@@ -73,7 +73,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithRetry(this IGaudiHttpClientBuilder builder,
         Action<RetryOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             var options = new RetryOptions();
             configure?.Invoke(options);
@@ -88,7 +88,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithRedirect(this IGaudiHttpClientBuilder builder,
         Action<RedirectOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name,
             d =>
             {
                 var options = new RedirectOptions();
@@ -103,7 +103,7 @@ public static class GaudiHttpClientBuilderExtensions
     /// </summary>
     public static IGaudiHttpClientBuilder WithDecompression(this IGaudiHttpClientBuilder builder, bool enabled = true)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.AutomaticDecompression = enabled; });
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d => { d.AutomaticDecompression = enabled; });
         return builder;
     }
 
@@ -113,7 +113,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithRequestCompression(
         this IGaudiHttpClientBuilder builder, Action<CompressionOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name,
             d =>
             {
                 var options = new CompressionOptions();
@@ -130,7 +130,7 @@ public static class GaudiHttpClientBuilderExtensions
     public static IGaudiHttpClientBuilder WithExpectContinue(
         this IGaudiHttpClientBuilder builder, Action<Expect100Options>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name,
             d =>
             {
                 var options = new Expect100Options();
@@ -145,10 +145,10 @@ public static class GaudiHttpClientBuilderExtensions
     /// Registration order is preserved (FIFO).
     /// </summary>
     public static IGaudiHttpClientBuilder AddHandler<T>(this IGaudiHttpClientBuilder builder)
-        where T : TurboHandler
+        where T : GaudiHandler
     {
         builder.Services.AddTransient<T>();
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name, d =>
         {
             d.HandlerTypes.Add(typeof(T));
             d.HandlerFactories.Add(sp => sp.GetRequiredService<T>());
@@ -157,32 +157,32 @@ public static class GaudiHttpClientBuilderExtensions
     }
 
     /// <summary>
-    /// Wraps a request transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
+    /// Wraps a request transform delegate in an anonymous <see cref="GaudiHandler"/> and appends it
     /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
     public static IGaudiHttpClientBuilder UseRequest(
         this IGaudiHttpClientBuilder builder,
         Func<HttpRequestMessage, HttpRequestMessage> transform)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name,
             d => { d.HandlerFactories.Add(_ => new DelegateRequestHandler(transform)); });
         return builder;
     }
 
     /// <summary>
-    /// Wraps a response transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
+    /// Wraps a response transform delegate in an anonymous <see cref="GaudiHandler"/> and appends it
     /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
     public static IGaudiHttpClientBuilder UseResponse(
         this IGaudiHttpClientBuilder builder,
         Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+        builder.Services.Configure<GaudiClientDescriptor>(builder.Name,
             d => { d.HandlerFactories.Add(_ => new DelegateResponseHandler(transform)); });
         return builder;
     }
 
-    private sealed class DelegateRequestHandler(Func<HttpRequestMessage, HttpRequestMessage> transform) : TurboHandler
+    private sealed class DelegateRequestHandler(Func<HttpRequestMessage, HttpRequestMessage> transform) : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
             => transform(request);
@@ -190,7 +190,7 @@ public static class GaudiHttpClientBuilderExtensions
 
     private sealed class DelegateResponseHandler(
         Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform)
-        : TurboHandler
+        : GaudiHandler
     {
         public override HttpResponseMessage ProcessResponse(HttpRequestMessage original, HttpResponseMessage response)
             => transform(original, response);

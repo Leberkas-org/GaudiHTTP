@@ -124,7 +124,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void OnResponse_with_no_body_should_send_headers_with_endstream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/status", "example.com");
@@ -156,7 +156,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void OnResponse_with_body_should_schedule_drain_timer_and_not_set_endstream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
@@ -187,7 +187,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void WindowUpdate_should_drain_outbound_buffer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
+        var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);

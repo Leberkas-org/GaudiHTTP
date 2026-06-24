@@ -6,7 +6,7 @@ namespace GaudiHTTP.Server.Context.Features;
 
 internal sealed class GaudiHttpRequestTrailersFeature : IHttpRequestTrailersFeature
 {
-    private readonly TurboHeaderDictionary _trailers = new();
+    private readonly GaudiHeaderDictionary _trailers = new();
 
     public bool Available { get; private set; }
 

@@ -3,9 +3,9 @@ using GaudiHTTP.IntegrationTests.Server.Shared;
 
 namespace GaudiHTTP.IntegrationTests.Server.Streaming;
 
-public sealed class ResponseBodySpec(TurboServerFixture server) : IDisposable
+public sealed class ResponseBodySpec(GaudiServerFixture server) : IDisposable
 {
-    private readonly HttpClient _client = TurboServerFixture.CreateClient();
+    private readonly HttpClient _client = GaudiServerFixture.CreateClient();
 
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 

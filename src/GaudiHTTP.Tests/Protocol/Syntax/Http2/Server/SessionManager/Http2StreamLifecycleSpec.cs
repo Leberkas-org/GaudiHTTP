@@ -13,13 +13,13 @@ public sealed class Http2StreamLifecycleSpec
 {
     private static IFeatureCollection CreateResponseContext(long streamId = 99)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         return features;
     }
 
@@ -90,7 +90,7 @@ public sealed class Http2StreamLifecycleSpec
     public void Should_accept_streams_up_to_max_concurrent()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions { Http2 = { MaxConcurrentStreams = 2 } };
+        var baseOptions = new GaudiServerOptions { Http2 = { MaxConcurrentStreams = 2 } };
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
@@ -121,7 +121,7 @@ public sealed class Http2StreamLifecycleSpec
     public void Should_refuse_stream_above_max_concurrent()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
+        var baseOptions = new GaudiServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
@@ -173,7 +173,7 @@ public sealed class Http2StreamLifecycleSpec
     public void RstStream_on_active_stream_should_close_it()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
@@ -203,7 +203,7 @@ public sealed class Http2StreamLifecycleSpec
     public void RstStream_on_closed_stream_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
 
@@ -227,7 +227,7 @@ public sealed class Http2StreamLifecycleSpec
     public void Headers_with_EndStream_true_should_emit_request_immediately()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
 
@@ -253,7 +253,7 @@ public sealed class Http2StreamLifecycleSpec
     public void Cleanup_should_be_idempotent()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
 
@@ -281,7 +281,7 @@ public sealed class Http2StreamLifecycleSpec
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
+        var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
 

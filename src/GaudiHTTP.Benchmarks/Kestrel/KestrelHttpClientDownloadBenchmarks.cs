@@ -5,7 +5,7 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
 /// Baseline large-download throughput for .NET <see cref="HttpClient"/> (SocketsHttpHandler).
-/// Mirrors <see cref="KestrelTurboDownloadBenchmarks"/> (same sizes, concurrency, fan-out cap, and
+/// Mirrors <see cref="KestrelGaudiDownloadBenchmarks"/> (same sizes, concurrency, fan-out cap, and
 /// drain-to-<see cref="Stream.Null"/>) so receive-path throughput is directly comparable.
 /// </summary>
 [MemoryDiagnoser]

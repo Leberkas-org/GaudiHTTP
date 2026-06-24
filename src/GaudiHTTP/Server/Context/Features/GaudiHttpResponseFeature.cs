@@ -5,7 +5,7 @@ namespace GaudiHTTP.Server.Context.Features;
 
 internal sealed class GaudiHttpResponseFeature : IHttpResponseFeature
 {
-    private readonly TurboHeaderDictionary _headers = new();
+    private readonly GaudiHeaderDictionary _headers = new();
     private List<(Func<object?, Task> callback, object? state)>? _onStartingCallbacks;
     private List<(Func<object?, Task> callback, object? state)>? _onCompletedCallbacks;
 

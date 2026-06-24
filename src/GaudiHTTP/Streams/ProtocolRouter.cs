@@ -4,7 +4,7 @@ namespace GaudiHTTP.Streams;
 
 internal static class ProtocolRouter
 {
-    internal static IServerProtocolEngine ResolveEngine(Version version, TurboServerOptions options)
+    internal static IServerProtocolEngine ResolveEngine(Version version, GaudiServerOptions options)
     {
         return version switch
         {
@@ -16,7 +16,7 @@ internal static class ProtocolRouter
         };
     }
 
-    internal static IServerProtocolEngine ResolveNegotiating(TurboServerOptions options)
+    internal static IServerProtocolEngine ResolveNegotiating(GaudiServerOptions options)
     {
         return new NegotiatingServerEngine(options);
     }

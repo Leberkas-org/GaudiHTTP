@@ -1,6 +1,6 @@
 using GaudiHTTP.IntegrationTests.Server.Shared;
 
-[assembly: AssemblyFixture(typeof(TurboServerFixture))]
+[assembly: AssemblyFixture(typeof(GaudiServerFixture))]
 
 namespace GaudiHTTP.IntegrationTests.Server.Shared;
 

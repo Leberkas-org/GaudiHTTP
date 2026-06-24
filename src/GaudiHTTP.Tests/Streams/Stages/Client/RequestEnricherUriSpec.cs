@@ -6,13 +6,13 @@ namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class RequestEnricherUriSpec
 {
-    private static TurboRequestOptions DefaultOptions
+    private static GaudiRequestOptions DefaultOptions
     {
         get
         {
             var msg = new HttpRequestMessage();
             msg.Headers.TryAddWithoutValidation("User-Agent", "TestClient/1.0");
-            return new TurboRequestOptions(
+            return new GaudiRequestOptions(
                 BaseAddress: new Uri("https://example.com"),
                 DefaultRequestHeaders: msg.Headers,
                 DefaultRequestVersion: HttpVersion.Version11,
@@ -28,7 +28,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_resolve_relative_uri_using_base_address()
     {
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com:8443/api/"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -50,7 +50,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_throw_when_uri_relative_and_no_base_address()
     {
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -71,7 +71,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_throw_when_uri_null_and_no_base_address()
     {
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: null,
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -105,7 +105,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_override_version_when_still_default()
     {
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: new Version(2, 0),
@@ -129,7 +129,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_not_override_explicitly_set_version()
     {
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: new Version(2, 0),
@@ -156,7 +156,7 @@ public sealed class RequestEnricherUriSpec
         var msg = new HttpRequestMessage();
         msg.Headers.Add("User-Agent", "GaudiHTTP/1.0");
         msg.Headers.Add("Accept", "application/json");
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -179,7 +179,7 @@ public sealed class RequestEnricherUriSpec
     {
         var msg = new HttpRequestMessage();
         msg.Headers.Add("User-Agent", "Default");
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -207,7 +207,7 @@ public sealed class RequestEnricherUriSpec
         var credentialsProvider = new CredentialsProvider(credentials);
 
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,
@@ -234,7 +234,7 @@ public sealed class RequestEnricherUriSpec
         var credentialsProvider = new CredentialsProvider(credentials);
 
         var msg = new HttpRequestMessage();
-        var options = new TurboRequestOptions(
+        var options = new GaudiRequestOptions(
             BaseAddress: new Uri("https://example.com"),
             DefaultRequestHeaders: msg.Headers,
             DefaultRequestVersion: HttpVersion.Version11,

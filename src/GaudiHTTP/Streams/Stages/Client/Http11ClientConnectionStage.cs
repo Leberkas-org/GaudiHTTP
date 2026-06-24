@@ -6,7 +6,7 @@ using GaudiHTTP.Protocol.Syntax.Http11.Client;
 
 namespace GaudiHTTP.Streams.Stages.Client;
 
-internal sealed class Http11ClientConnectionStage(TurboClientOptions options) : GraphStage<ClientConnectionShape>
+internal sealed class Http11ClientConnectionStage(GaudiClientOptions options) : GraphStage<ClientConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inServer = new("Http11Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http11Connection.Out.Response");

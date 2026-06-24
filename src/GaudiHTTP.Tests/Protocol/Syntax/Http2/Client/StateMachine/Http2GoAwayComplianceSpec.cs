@@ -9,9 +9,9 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2GoAwayComplianceSpec
 {
-    private static TurboClientOptions MakeConfig(int maxConcurrentStreams = 100)
+    private static GaudiClientOptions MakeConfig(int maxConcurrentStreams = 100)
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             Http2 =
             {

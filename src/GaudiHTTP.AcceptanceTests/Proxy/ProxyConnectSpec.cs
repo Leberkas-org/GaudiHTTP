@@ -11,7 +11,7 @@ namespace GaudiHTTP.AcceptanceTests.Proxy;
 public sealed class ProxyConnectSpec : AcceptanceTestBase
 {
     private static Http11ClientEngine Engine =>
-        new(new TurboClientOptions());
+        new(new GaudiClientOptions());
 
     private static byte[] BuildResponse(string body, HttpStatusCode status = HttpStatusCode.OK)
     {

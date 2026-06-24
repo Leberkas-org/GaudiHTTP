@@ -23,7 +23,7 @@ internal sealed class ConnectionActor : ReceiveActor
         Flow<ITransportOutbound, ITransportInbound, NotUsed> connectionFlow,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine,
-        TurboServerOptions options,
+        GaudiServerOptions options,
         IServiceProvider? services = null)
         => Akka.Actor.Props.Create(() => new ConnectionActor(
             connectionId, connectionFlow, bridgeGraph, engine, options, services));
@@ -33,7 +33,7 @@ internal sealed class ConnectionActor : ReceiveActor
         Flow<ITransportOutbound, ITransportInbound, NotUsed> connectionFlow,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine,
-        TurboServerOptions options,
+        GaudiServerOptions options,
         IServiceProvider? services = null)
     {
         // Mirror the client's StreamOwner tuning: the default 16/16 input buffer throttles H2

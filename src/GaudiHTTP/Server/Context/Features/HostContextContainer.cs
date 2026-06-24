@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http.Features;
 namespace GaudiHTTP.Server.Context.Features;
 
 /// <summary>
-/// A thin generic view over a pooled <see cref="TurboFeatureCollection"/> that adds
+/// A thin generic view over a pooled <see cref="GaudiFeatureCollection"/> that adds
 /// <see cref="IHostContextContainer{TContext}"/>. ASP.NET's <c>HostingApplication.CreateContext</c>
 /// checks <c>features is IHostContextContainer&lt;Context&gt;</c> and, when present, reuses the cached
 /// host context (and with it the <c>DefaultHttpContext</c> graph) instead of allocating a new context,
@@ -22,9 +22,9 @@ namespace GaudiHTTP.Server.Context.Features;
 internal sealed class HostContextContainer<TContext> : IFeatureCollection, IHostContextContainer<TContext>
     where TContext : notnull
 {
-    private readonly TurboFeatureCollection _inner;
+    private readonly GaudiFeatureCollection _inner;
 
-    public HostContextContainer(TurboFeatureCollection inner)
+    public HostContextContainer(GaudiFeatureCollection inner)
     {
         _inner = inner;
     }

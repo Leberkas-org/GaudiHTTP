@@ -8,7 +8,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class StreamOwnerSpec : TestKit
 {
-    private static TurboClientOptions DefaultClientOptions() => new()
+    private static GaudiClientOptions DefaultClientOptions() => new()
     {
         BaseAddress = new Uri("http://localhost:8080")
     };

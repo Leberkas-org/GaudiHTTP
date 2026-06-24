@@ -40,7 +40,7 @@ public sealed class Http2RapidResetSpec
         // CVE-2023-44487 (Rapid Reset): a client that opens-and-resets streams faster than a threshold
         // must be cut off with GOAWAY(ENHANCE_YOUR_CALM); MaxConcurrentStreams alone never saturates.
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
+        var options = new GaudiServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
         var sm = new Http2ServerSessionManager(options.ToHttp2Options(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -72,7 +72,7 @@ public sealed class Http2RapidResetSpec
     public void Resets_below_threshold_should_not_terminate_the_connection()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
+        var options = new GaudiServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
         var sm = new Http2ServerSessionManager(options.ToHttp2Options(), ops);
         sm.PreStart();
         ops.Outbound.Clear();

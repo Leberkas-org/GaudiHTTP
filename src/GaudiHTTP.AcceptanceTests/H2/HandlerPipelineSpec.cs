@@ -10,7 +10,7 @@ namespace GaudiHTTP.AcceptanceTests.H2;
 
 public sealed class HandlerPipelineSpec : AcceptanceTestBase
 {
-    private sealed class TestHeaderHandler : TurboHandler
+    private sealed class TestHeaderHandler : GaudiHandler
     {
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
         {
@@ -34,7 +34,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerAsync(ResponseMap map, HttpRequestMessage request,
-        params TurboHandler[] handlers)
+        params GaudiHandler[] handlers)
     {
         var fake = ResponseMapFake.Create(map);
 
@@ -56,7 +56,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendWithHandlerRedirectAsync(ResponseMap map, HttpRequestMessage request,
-        TurboHandler handler)
+        GaudiHandler handler)
     {
         var handlerStage = BidiFlow.FromGraph(new HandlerBidiStage(handler, 0));
         var redirect = BidiFlow.FromGraph(new RedirectBidiStage(new RedirectPolicy()));
@@ -171,7 +171,7 @@ public sealed class HandlerPipelineSpec : AcceptanceTestBase
         Assert.Equal("present", string.Join(",", vals));
     }
 
-    private sealed class RequestTransformHandler : TurboHandler
+    private sealed class RequestTransformHandler : GaudiHandler
     {
         private readonly Func<HttpRequestMessage, HttpRequestMessage> _transform;
 

@@ -7,7 +7,7 @@ using GaudiHTTP.Server;
 namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
 /// <summary>
-/// Base for tests that drive TurboServer over TLS with one or more negotiated protocols,
+/// Base for tests that drive GaudiServer over TLS with one or more negotiated protocols,
 /// using a neutral .NET <see cref="HttpClient"/> as the reference client. Subclasses choose
 /// the server's advertised protocols via <see cref="ServerProtocols"/>; tests pick the client's
 /// requested version per call via <see cref="CreateVersionedTlsClient"/>.
@@ -28,7 +28,7 @@ public abstract class MultiProtocolTlsServerSpecBase : ServerSpecBase
     /// Binds the server listener. Default is TCP + TLS advertising <see cref="ServerProtocols"/>.
     /// H3 subclasses override this to bind a QUIC listener.
     /// </summary>
-    protected virtual void ConfigureListener(TurboServerOptions options, ushort port, X509Certificate2 certificate)
+    protected virtual void ConfigureListener(GaudiServerOptions options, ushort port, X509Certificate2 certificate)
     {
         options.ListenLocalhost(port, listen =>
         {

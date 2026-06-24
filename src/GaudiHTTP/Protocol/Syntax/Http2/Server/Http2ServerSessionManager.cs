@@ -255,7 +255,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
     private void SendInformational(int streamId, int statusCode, IHeaderDictionary headers)
     {
-        var fc = new TurboFeatureCollection();
+        var fc = new GaudiFeatureCollection();
         var responseFeature = new GaudiHttpResponseFeature { StatusCode = statusCode };
         foreach (var h in headers)
         {
@@ -263,7 +263,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
         }
 
         fc.Set<IHttpResponseFeature>(responseFeature);
-        fc.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        fc.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 
         var frames = _responseEncoder.EncodeHeaders(fc, streamId, hasBody: true);
         for (var i = 0; i < frames.Count; i++)
@@ -309,13 +309,13 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             EmitFrame(frames[i]);
         }
 
-        if (!hasBody || responseBody is not GaudiHttpResponseBodyFeature turboBody)
+        if (!hasBody || responseBody is not GaudiHttpResponseBodyFeature gaudiBody)
         {
             CloseStream(streamId);
             return;
         }
 
-        if (turboBody.TryGetBufferedBody(out var bufferedBody))
+        if (gaudiBody.TryGetBufferedBody(out var bufferedBody))
         {
             if (bufferedBody.Length > 0)
             {
@@ -328,9 +328,9 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
                     if (hasTrailers)
                     {
-                        if (trailerFeature!.Trailers is TurboHeaderDictionary turboTrailers)
+                        if (trailerFeature!.Trailers is GaudiHeaderDictionary gaudiTrailers)
                         {
-                            turboTrailers.SetReadOnly();
+                            gaudiTrailers.SetReadOnly();
                         }
 
                         var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
@@ -383,7 +383,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             }
         }
 
-        var bodyStream = turboBody.GetResponseStream();
+        var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
         _pump!.Register(streamId, bodyStream, CancellationToken.None, initialCredits: 16);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
@@ -439,9 +439,9 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
         if (hasTrailers)
         {
-            if (trailerFeature!.Trailers is TurboHeaderDictionary turboTrailers)
+            if (trailerFeature!.Trailers is GaudiHeaderDictionary gaudiTrailers)
             {
-                turboTrailers.SetReadOnly();
+                gaudiTrailers.SetReadOnly();
             }
 
             var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
@@ -831,12 +831,12 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                     _ops.StageActor.Tell(new StreamBodyConsumed(capturedBodyStreamId), ActorRefs.NoSender);
             }
 
-            features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+            features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
             features.Set<IHttpResetFeature>(new GaudiHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
-            features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+            features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
                 SendInformational(capturedStreamId, statusCode, headers)));
 
             Tracing.For("Protocol")

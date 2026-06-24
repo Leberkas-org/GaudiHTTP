@@ -35,7 +35,7 @@ internal sealed class ClientHelper : IAsyncDisposable
     /// <param name="version">The HTTP version to use.</param>
     public static ClientHelper CreateClient(Uri baseAddress, Version version, int? maxConnectionsOverride = null)
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             BaseAddress = baseAddress,
             DangerousAcceptAnyServerCertificate = true,
@@ -82,7 +82,7 @@ internal sealed class ClientHelper : IAsyncDisposable
     /// <param name="version">The HTTP version to use.</param>
     public static ClientHelper CreateStreamingClient(Uri baseAddress, Version version)
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             BaseAddress = baseAddress,
             DangerousAcceptAnyServerCertificate = true,
@@ -109,7 +109,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         return Build(baseAddress, version, options);
     }
 
-    private static ClientHelper Build(Uri baseAddress, Version version, TurboClientOptions options)
+    private static ClientHelper Build(Uri baseAddress, Version version, GaudiClientOptions options)
     {
         var services = new ServiceCollection();
 
@@ -132,7 +132,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         services.AddSingleton(system);
 
         services.AddGaudiHttpClient();
-        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
+        services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(options)));
 
         var provider = services.BuildServiceProvider();
@@ -197,8 +197,8 @@ internal sealed class ClientHelper : IAsyncDisposable
         await _provider.DisposeAsync();
     }
 
-    private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
+    private sealed class FixedOptionsFactory(GaudiClientOptions options) : IOptionsFactory<GaudiClientOptions>
     {
-        public TurboClientOptions Create(string name) => options;
+        public GaudiClientOptions Create(string name) => options;
     }
 }

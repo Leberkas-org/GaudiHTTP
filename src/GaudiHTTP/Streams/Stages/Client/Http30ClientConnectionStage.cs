@@ -6,7 +6,7 @@ using GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 namespace GaudiHTTP.Streams.Stages.Client;
 
-internal sealed class Http30ClientConnectionStage(TurboClientOptions options) : GraphStage<ClientConnectionShape>
+internal sealed class Http30ClientConnectionStage(GaudiClientOptions options) : GraphStage<ClientConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inServer = new("Http30Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http30Connection.Out.Response");

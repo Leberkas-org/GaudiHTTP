@@ -52,9 +52,9 @@ public sealed class OptionsFactorySpec
         };
     }
 
-    private static TurboClientOptions CreateClientOptions()
+    private static GaudiClientOptions CreateClientOptions()
     {
-        return new TurboClientOptions();
+        return new GaudiClientOptions();
     }
 
     [Fact(Timeout = 5000)]
@@ -210,7 +210,7 @@ public sealed class OptionsFactorySpec
     {
         var endpoint = CreateHttpsEndpoint();
         var callback = (RemoteCertificateValidationCallback)((_, _, _, _) => true);
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = callback
         };
@@ -225,7 +225,7 @@ public sealed class OptionsFactorySpec
     {
         var endpoint = CreateHttpsEndpoint();
         var timeout = TimeSpan.FromSeconds(30);
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             ConnectTimeout = timeout
         };
@@ -239,7 +239,7 @@ public sealed class OptionsFactorySpec
     public void OptionsFactory_should_preserve_socket_send_buffer_size()
     {
         var endpoint = CreateHttpEndpoint();
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             SocketSendBufferSize = 65536
         };
@@ -253,7 +253,7 @@ public sealed class OptionsFactorySpec
     public void OptionsFactory_should_preserve_socket_receive_buffer_size()
     {
         var endpoint = CreateHttpEndpoint();
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             SocketReceiveBufferSize = 65536
         };
@@ -318,7 +318,7 @@ public sealed class OptionsFactorySpec
         var endpoint = CreateHttpEndpoint();
         var proxy = new WebProxy("http://proxy.example.com:8080");
         var credentials = new NetworkCredential("user", "pass");
-        var clientOptions = new TurboClientOptions
+        var clientOptions = new GaudiClientOptions
         {
             UseProxy = true,
             Proxy = proxy,

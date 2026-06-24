@@ -15,7 +15,7 @@ public sealed class UpgradeSpec : End2EndSpecBase
 
     protected override bool UseTls => false;
 
-    protected override void ConfigureServer(TurboServerOptions options, ushort port, System.Security.Cryptography.X509Certificates.X509Certificate2? cert)
+    protected override void ConfigureServer(GaudiServerOptions options, ushort port, System.Security.Cryptography.X509Certificates.X509Certificate2? cert)
     {
         options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = port });
     }

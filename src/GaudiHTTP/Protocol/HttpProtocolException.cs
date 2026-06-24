@@ -8,7 +8,7 @@ namespace GaudiHTTP.Protocol;
 /// <see cref="ConnectionProtocolException"/> / <see cref="StreamProtocolException"/>, which carry the
 /// wire error code so the session manager can emit an accurate GOAWAY/RST_STREAM and tear down.
 /// </summary>
-internal class HttpProtocolException(string message) : TurboProtocolException(message);
+internal class HttpProtocolException(string message) : GaudiProtocolException(message);
 
 /// <summary>
 /// A connection-fatal protocol error (RFC 9113 §5.4.1 / RFC 9114 §8). The peer must be sent a

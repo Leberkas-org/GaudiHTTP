@@ -220,7 +220,7 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void FeatureCollectionFactory_should_reuse_same_TurboFeatureCollection_instance_from_pool()
+    public void FeatureCollectionFactory_should_reuse_same_GaudiFeatureCollection_instance_from_pool()
     {
         var ctx1 = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
 

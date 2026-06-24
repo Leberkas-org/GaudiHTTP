@@ -24,7 +24,7 @@ public sealed class CertificateValidationSpec
     [Trait("RFC", "RFC9110-4.3.4")]
     public void DefaultOptions_should_enable_validation()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         // Default callback rejects certificates with policy errors
         Assert.NotNull(options.ServerCertificateValidationCallback);
@@ -52,7 +52,7 @@ public sealed class CertificateValidationSpec
     {
         var callbackInvoked = false;
 
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = CustomCallback,
         };
@@ -77,7 +77,7 @@ public sealed class CertificateValidationSpec
     public void DangerousAcceptAny_should_disable_validation()
     {
         var customCallbackInvoked = false;
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             DangerousAcceptAnyServerCertificate = true,
             ServerCertificateValidationCallback = (_, _, _, _) =>
@@ -103,7 +103,7 @@ public sealed class CertificateValidationSpec
     [Trait("RFC", "RFC9110-4.3.4")]
     public void EffectiveCallback_should_propagate_to_tls_options()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             DangerousAcceptAnyServerCertificate = true,
         };
@@ -123,7 +123,7 @@ public sealed class CertificateValidationSpec
     [Trait("RFC", "RFC9110-4.3.4")]
     public void DefaultEffectiveCallback_should_reject_invalid_certs()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         var uri = new Uri("https://example.com/");
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
@@ -141,7 +141,7 @@ public sealed class CertificateValidationSpec
     [Trait("RFC", "RFC9110-4.3.4")]
     public void HttpUri_should_not_produce_tls_options()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var uri = new Uri("http://example.com/");
 
         var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);

@@ -15,7 +15,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
-    private readonly TurboClientOptions _options;
+    private readonly GaudiClientOptions _options;
     private readonly ConnectionPoolContext _poolContext = new();
 
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
@@ -64,7 +64,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public Http11ClientStateMachine(
         IClientStageOperations ops,
-        TurboClientOptions options)
+        GaudiClientOptions options)
     {
         _ops = ops;
         _options = options;

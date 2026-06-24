@@ -1,12 +1,12 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Server.Turbo;
+namespace GaudiHTTP.Benchmarks.Server.Gaudi;
 
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class TurboServerUploadBenchmark : TurboServerBaseClass
+public class GaudiServerUploadBenchmark : GaudiServerBaseClass
 {
     private const int MaxFanOut = 1024;
 

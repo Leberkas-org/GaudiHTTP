@@ -40,7 +40,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void PreStart_should_schedule_keep_alive_timer()
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http3 =
             {
@@ -63,7 +63,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void ShouldComplete_should_always_be_false()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
 
         Assert.False(sm.ShouldComplete, "ShouldComplete should be false after construction");
 
@@ -79,7 +79,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void Stream_open_should_cancel_keep_alive()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
 
         sm.PreStart();
 
@@ -101,7 +101,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void OnTimerFired_headers_timeout_should_emit_RstStream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
 
         const long streamId = 4;
 
@@ -127,7 +127,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void Cleanup_should_be_idempotent()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
 
         sm.PreStart();
         SendRequest(sm, 4);
@@ -147,7 +147,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     public void OnDownstreamFinished_should_flush_pending()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
+        var sm = new Http3ServerStateMachine(new GaudiServerOptions().ToHttp3Options(), ops);
 
         const long streamId = 4;
 

@@ -8,7 +8,7 @@ using GaudiHTTP.Streams.Stages.Server;
 
 namespace GaudiHTTP.Streams;
 
-internal sealed class Http10ServerEngine(TurboServerOptions options) : IServerProtocolEngine
+internal sealed class Http10ServerEngine(GaudiServerOptions options) : IServerProtocolEngine
 {
     public Version ProtocolVersion => new(1, 0);
 

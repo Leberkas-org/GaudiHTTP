@@ -367,7 +367,7 @@ internal sealed class CacheStateMachine(
 
     private void EmitCacheTelemetry(HttpRequestMessage request, bool isHit)
     {
-        if (request.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey, out var rootActivity)
+        if (request.Options.TryGetValue(GaudiClientInstrumentationExtensions.RequestActivityKey, out var rootActivity)
             && request.RequestUri is not null)
         {
             Tracing.AddCacheLookupEvent(rootActivity, request.RequestUri, isHit);

@@ -74,10 +74,10 @@ public sealed class Http3ResponseBodyDrainTeardownSpec
     /// </summary>
     private static async Task<IFeatureCollection> StartedEmptyResponse(long streamId)
     {
-        var features = new TurboFeatureCollection();
+        var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
         var bodyFeature = new GaudiHttpResponseBodyFeature();
         await bodyFeature.StartAsync();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);

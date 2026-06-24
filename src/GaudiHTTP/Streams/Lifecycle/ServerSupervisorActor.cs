@@ -25,7 +25,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
 
     public sealed record StartServer(
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> BridgeFlow,
-        TurboServerOptions Options,
+        GaudiServerOptions Options,
         IReadOnlyList<ListenerBinding> Bindings);
 
     public sealed record ListenersReady(IReadOnlyList<int> BoundPorts);

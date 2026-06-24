@@ -6,14 +6,14 @@ using Servus.Akka.Transport.Tcp.Listener;
 namespace GaudiHTTP.Server;
 
 /// <summary>
-/// Top-level configuration for <see cref="TurboServer"/>. Controls server-wide limits, timeouts,
+/// Top-level configuration for <see cref="GaudiServer"/>. Controls server-wide limits, timeouts,
 /// protocol-specific sub-options, and endpoint bindings. Configure via
-/// <see cref="TurboServerWebHostBuilderExtensions.UseGaudiHttp"/> or DI options.
+/// <see cref="GaudiServerWebHostBuilderExtensions.UseGaudiHttp"/> or DI options.
 /// </summary>
-public sealed class TurboServerOptions
+public sealed class GaudiServerOptions
 {
     /// <summary>Gets the server-wide limits applied to all connections and requests.</summary>
-    public TurboServerLimits Limits { get; } = new();
+    public GaudiServerLimits Limits { get; } = new();
 
     /// <summary>Gets or sets the time allowed for in-flight requests to complete during shutdown. Default is 30 seconds.</summary>
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
@@ -63,9 +63,9 @@ public sealed class TurboServerOptions
     /// <summary>Adds a cleartext TCP listener on the specified <paramref name="host"/> and <paramref name="port"/>.</summary>
     public void BindTcp(string host, ushort port) => Bind(new TcpListenerOptions { Host = host, Port = port });
 
-    internal IList<TurboListenOptions> ListenOptions { get; } = new List<TurboListenOptions>();
+    internal IList<GaudiListenOptions> ListenOptions { get; } = new List<GaudiListenOptions>();
     internal Action<GaudiHttpsOptions>? HttpsDefaultsCallback { get; private set; }
-    internal Action<TurboListenOptions>? EndpointDefaultsCallback { get; private set; }
+    internal Action<GaudiListenOptions>? EndpointDefaultsCallback { get; private set; }
 
     /// <summary>Gets the collection of URL strings (e.g. <c>"https://0.0.0.0:443"</c>) resolved to listener bindings at startup.</summary>
     public IList<string> Urls { get; } = new List<string>();
@@ -76,8 +76,8 @@ public sealed class TurboServerOptions
         HttpsDefaultsCallback = configure;
     }
 
-    /// <summary>Registers a callback applied to every endpoint's <see cref="TurboListenOptions"/> before it is bound.</summary>
-    public void ConfigureEndpointDefaults(Action<TurboListenOptions> configure)
+    /// <summary>Registers a callback applied to every endpoint's <see cref="GaudiListenOptions"/> before it is bound.</summary>
+    public void ConfigureEndpointDefaults(Action<GaudiListenOptions> configure)
     {
         EndpointDefaultsCallback = configure;
     }
@@ -85,15 +85,15 @@ public sealed class TurboServerOptions
     /// <summary>Adds a listen endpoint on the given <paramref name="address"/> and <paramref name="port"/> with default options.</summary>
     public void Listen(IPAddress address, ushort port)
     {
-        var listenOptions = new TurboListenOptions(address, port);
+        var listenOptions = new GaudiListenOptions(address, port);
         EndpointDefaultsCallback?.Invoke(listenOptions);
         ListenOptions.Add(listenOptions);
     }
 
     /// <summary>Adds a listen endpoint on the given <paramref name="address"/> and <paramref name="port"/>, applying <paramref name="configure"/> to the resulting options.</summary>
-    public void Listen(IPAddress address, ushort port, Action<TurboListenOptions> configure)
+    public void Listen(IPAddress address, ushort port, Action<GaudiListenOptions> configure)
     {
-        var listenOptions = new TurboListenOptions(address, port);
+        var listenOptions = new GaudiListenOptions(address, port);
         EndpointDefaultsCallback?.Invoke(listenOptions);
         configure(listenOptions);
         ListenOptions.Add(listenOptions);
@@ -115,7 +115,7 @@ public sealed class TurboServerOptions
     }
 
     /// <summary>Parses <paramref name="url"/> and adds the resulting listen endpoint, applying <paramref name="configure"/> to the options.</summary>
-    public void Listen(string url, Action<TurboListenOptions> configure)
+    public void Listen(string url, Action<GaudiListenOptions> configure)
     {
         try
         {
@@ -137,7 +137,7 @@ public sealed class TurboServerOptions
     }
 
     /// <summary>Adds a listen endpoint on the loopback address at <paramref name="port"/>, applying <paramref name="configure"/> to the options.</summary>
-    public void ListenLocalhost(ushort port, Action<TurboListenOptions> configure)
+    public void ListenLocalhost(ushort port, Action<GaudiListenOptions> configure)
     {
         Listen(IPAddress.Loopback, port, configure);
     }
@@ -149,7 +149,7 @@ public sealed class TurboServerOptions
     }
 
     /// <summary>Adds a listen endpoint on all network interfaces at <paramref name="port"/>, applying <paramref name="configure"/> to the options.</summary>
-    public void ListenAnyIP(ushort port, Action<TurboListenOptions> configure)
+    public void ListenAnyIP(ushort port, Action<GaudiListenOptions> configure)
     {
         Listen(IPAddress.Any, port, configure);
     }

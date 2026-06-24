@@ -22,7 +22,7 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
@@ -71,7 +71,7 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
 
                     // Server sends GOAWAY then stays open (never finishes)

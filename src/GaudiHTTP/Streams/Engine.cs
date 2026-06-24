@@ -9,9 +9,9 @@ internal sealed class Engine
     internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(
         TransportRegistry transports,
         PipelineDescriptor descriptor,
-        TurboClientOptions? options = null)
+        GaudiClientOptions? options = null)
     {
-        options ??= new TurboClientOptions();
+        options ??= new GaudiClientOptions();
 
         var engineFlow = ProtocolCoreBuilder.Build(options, transports);
 

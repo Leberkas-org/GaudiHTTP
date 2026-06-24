@@ -6,7 +6,7 @@ using static Servus.Senf;
 namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
-public sealed class TurboTraceExtensionsSpec : IDisposable
+public sealed class GaudiTraceExtensionsSpec : IDisposable
 {
     public void Dispose()
     {
@@ -14,12 +14,12 @@ public sealed class TurboTraceExtensionsSpec : IDisposable
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboLoggerTracing_should_register_listener()
+    public void AddGaudiLoggerTracing_should_register_listener()
     {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddTurboLoggerTracing();
+        services.AddGaudiLoggerTracing();
 
         var provider = services.BuildServiceProvider();
         var listener = provider.GetRequiredService<IServusTraceListener>();
@@ -29,23 +29,23 @@ public sealed class TurboTraceExtensionsSpec : IDisposable
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboLoggerTracing_should_return_collection_for_chaining()
+    public void AddGaudiLoggerTracing_should_return_collection_for_chaining()
     {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        var result = services.AddTurboLoggerTracing();
+        var result = services.AddGaudiLoggerTracing();
 
         Assert.Same(services, result);
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboTracing_should_register_custom_listener()
+    public void AddGaudiTracing_should_register_custom_listener()
     {
         var services = new ServiceCollection();
         var customListener = new MockTraceListener();
 
-        services.AddTurboTracing(customListener);
+        services.AddGaudiTracing(customListener);
 
         var provider = services.BuildServiceProvider();
         var listener = provider.GetRequiredService<IServusTraceListener>();
@@ -54,23 +54,23 @@ public sealed class TurboTraceExtensionsSpec : IDisposable
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboTracing_should_return_collection_for_chaining()
+    public void AddGaudiTracing_should_return_collection_for_chaining()
     {
         var services = new ServiceCollection();
         var customListener = new MockTraceListener();
 
-        var result = services.AddTurboTracing(customListener);
+        var result = services.AddGaudiTracing(customListener);
 
         Assert.Same(services, result);
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboTracing_should_throw_when_listener_null()
+    public void AddGaudiTracing_should_throw_when_listener_null()
     {
         var services = new ServiceCollection();
 
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            services.AddTurboTracing(null!)
+            services.AddGaudiTracing(null!)
         );
 
         Assert.NotNull(ex);

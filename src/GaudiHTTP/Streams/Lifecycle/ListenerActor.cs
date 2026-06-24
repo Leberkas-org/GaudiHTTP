@@ -15,7 +15,7 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly IMaterializer _materializer = Context.Materializer();
     private readonly IListenerFactory _factory;
     private readonly ListenerOptions _listenerOptions;
-    private readonly TurboServerOptions _serverOptions;
+    private readonly GaudiServerOptions _serverOptions;
     private readonly IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> _bridgeGraph;
     private readonly IServerProtocolEngine _engine;
 
@@ -37,7 +37,7 @@ internal sealed class ListenerActor : ReceiveActor
     public ListenerActor(
         IListenerFactory factory,
         ListenerOptions listenerOptions,
-        TurboServerOptions serverOptions,
+        GaudiServerOptions serverOptions,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine)
     {
@@ -179,7 +179,7 @@ internal sealed class ListenerActor : ReceiveActor
     public static Props Create(
         IListenerFactory factory,
         ListenerOptions listenerOptions,
-        TurboServerOptions serverOptions,
+        GaudiServerOptions serverOptions,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine)
         => Props.Create(() => new ListenerActor(

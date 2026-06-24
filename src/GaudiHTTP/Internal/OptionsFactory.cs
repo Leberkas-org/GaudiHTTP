@@ -13,7 +13,7 @@ internal static class PoolKeys
 
 internal static class OptionsFactory
 {
-    internal static TransportOptions Build(RequestEndpoint endpoint, TurboClientOptions clientOptions)
+    internal static TransportOptions Build(RequestEndpoint endpoint, GaudiClientOptions clientOptions)
     {
         var isTls = endpoint.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
                     || endpoint.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase);

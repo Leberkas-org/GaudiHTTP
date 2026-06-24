@@ -33,7 +33,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10ConnectionStage_should_encode_request_and_emit_on_network_outlet()
     {
-        var stage = new Http10ClientConnectionStage(new TurboClientOptions());
+        var stage = new Http10ClientConnectionStage(new GaudiClientOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -83,7 +83,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC1945-6")]
     public async Task Http10ConnectionStage_should_decode_response_and_correlate_with_request()
     {
-        var stage = new Http10ClientConnectionStage(new TurboClientOptions());
+        var stage = new Http10ClientConnectionStage(new GaudiClientOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -136,7 +136,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC1945-7.2.2")]
     public async Task Http10ConnectionStage_should_emit_connection_reuse_close_for_http10()
     {
-        var stage = new Http10ClientConnectionStage(new TurboClientOptions());
+        var stage = new Http10ClientConnectionStage(new GaudiClientOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -186,7 +186,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10ConnectionStage_should_complete_stage_when_app_upstream_finishes_without_inflight()
     {
-        var stage = new Http10ClientConnectionStage(new TurboClientOptions());
+        var stage = new Http10ClientConnectionStage(new GaudiClientOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -228,7 +228,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10ConnectionStage_should_complete_when_server_closes_and_no_response_pending()
     {
-        var stage = new Http10ClientConnectionStage(new TurboClientOptions());
+        var stage = new Http10ClientConnectionStage(new GaudiClientOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();

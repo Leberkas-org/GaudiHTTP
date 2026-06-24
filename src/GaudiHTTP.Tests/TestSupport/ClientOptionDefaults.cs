@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.TestSupport;
 /// Test-only factory for the internal per-protocol client decoder/encoder option records.
 /// These records used to expose a static <c>Default</c> property; that was removed when the
 /// refactor made every member <c>required</c> (production sources the values from
-/// <see cref="GaudiHTTP.Client.TurboClientOptions"/> via the projection layer). The values here
+/// <see cref="GaudiHTTP.Client.GaudiClientOptions"/> via the projection layer). The values here
 /// reproduce the previous static defaults verbatim so existing specs keep their exact behaviour.
 /// </summary>
 internal static class ClientOptionDefaults

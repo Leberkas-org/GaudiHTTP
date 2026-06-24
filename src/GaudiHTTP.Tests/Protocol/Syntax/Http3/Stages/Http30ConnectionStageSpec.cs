@@ -22,7 +22,7 @@ public sealed class Http30ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9114-4")]
     public async Task Http30ConnectionStage_should_route_to_correct_quic_stream()
     {
-        var stage = new Http30ClientConnectionStage(new TurboClientOptions { Http3 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http30ClientConnectionStage(new GaudiClientOptions { Http3 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -71,7 +71,7 @@ public sealed class Http30ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9114-5.2")]
     public async Task Http30ConnectionStage_should_handle_idle_timeout()
     {
-        var stage = new Http30ClientConnectionStage(new TurboClientOptions
+        var stage = new Http30ClientConnectionStage(new GaudiClientOptions
         {
             Http3 =
             {
@@ -119,7 +119,7 @@ public sealed class Http30ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9114-3")]
     public async Task Http30ConnectionStage_should_complete_when_app_upstream_finishes_with_no_inflight()
     {
-        var stage = new Http30ClientConnectionStage(new TurboClientOptions { Http3 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http30ClientConnectionStage(new GaudiClientOptions { Http3 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();

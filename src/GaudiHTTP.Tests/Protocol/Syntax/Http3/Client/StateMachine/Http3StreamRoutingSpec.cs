@@ -15,7 +15,7 @@ public sealed class Http3StreamRoutingSpec
     private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
-            new TurboClientOptions(),
+            new GaudiClientOptions(),
             ops ?? _clientOps);
     }
 

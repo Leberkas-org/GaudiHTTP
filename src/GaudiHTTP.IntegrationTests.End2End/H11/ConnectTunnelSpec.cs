@@ -11,7 +11,7 @@ namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 /// <summary>
 /// Verifies HTTPS requests tunnel through a forward proxy via CONNECT: an in-process
-/// CONNECT proxy terminates the handshake, relays the TLS bytes to the real TurboServer,
+/// CONNECT proxy terminates the handshake, relays the TLS bytes to the real GaudiServer,
 /// and records the CONNECT request line and headers for assertions.
 /// </summary>
 [Collection("H11")]
@@ -24,7 +24,7 @@ public sealed class ConnectTunnelSpec : End2EndSpecBase
     protected override bool UseTls => true;
 
     protected override void ConfigureServer(
-        TurboServerOptions options, ushort port, System.Security.Cryptography.X509Certificates.X509Certificate2? cert)
+        GaudiServerOptions options, ushort port, System.Security.Cryptography.X509Certificates.X509Certificate2? cert)
     {
         // The base binds HTTP/1.1 without TLS; a CONNECT tunnel only makes sense for HTTPS.
         options.ListenLocalhost(port, listen =>
@@ -34,7 +34,7 @@ public sealed class ConnectTunnelSpec : End2EndSpecBase
         });
     }
 
-    protected override void ConfigureClientOptions(TurboClientOptions options)
+    protected override void ConfigureClientOptions(GaudiClientOptions options)
     {
         _proxy = new ConnectProxy();
         _proxy.Start();

@@ -11,11 +11,11 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Security;
 public sealed class TlsSecuritySpec
 {
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_reject_self_signed_cert_when_default_validation()
+    public void GaudiClientOptions_should_reject_self_signed_cert_when_default_validation()
     {
         // Attack: A self-signed certificate presents SslPolicyErrors.RemoteCertificateChainErrors.
         // Default configuration must reject it.
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callback = options.ServerCertificateValidationCallback;
 
         Assert.NotNull(callback);
@@ -23,30 +23,30 @@ public sealed class TlsSecuritySpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_reject_cert_name_mismatch_when_default_validation()
+    public void GaudiClientOptions_should_reject_cert_name_mismatch_when_default_validation()
     {
         // Attack: Attacker presents a valid cert for a different domain (MITM).
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callback = options.ServerCertificateValidationCallback!;
 
         Assert.False(callback(null!, null, null, SslPolicyErrors.RemoteCertificateNameMismatch));
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_reject_missing_cert_when_default_validation()
+    public void GaudiClientOptions_should_reject_missing_cert_when_default_validation()
     {
         // Attack: No certificate presented during handshake.
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callback = options.ServerCertificateValidationCallback!;
 
         Assert.False(callback(null!, null, null, SslPolicyErrors.RemoteCertificateNotAvailable));
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_reject_combined_errors_when_default_validation()
+    public void GaudiClientOptions_should_reject_combined_errors_when_default_validation()
     {
         // Attack: Multiple validation failures simultaneously (e.g. self-signed + wrong name).
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callback = options.ServerCertificateValidationCallback!;
 
         var combined = SslPolicyErrors.RemoteCertificateChainErrors | SslPolicyErrors.RemoteCertificateNameMismatch;
@@ -54,29 +54,29 @@ public sealed class TlsSecuritySpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_accept_valid_cert_when_default_validation()
+    public void GaudiClientOptions_should_accept_valid_cert_when_default_validation()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
         var callback = options.ServerCertificateValidationCallback!;
 
         Assert.True(callback(null!, null, null, SslPolicyErrors.None));
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_disable_dangerous_accept_any_when_default_options()
+    public void GaudiClientOptions_should_disable_dangerous_accept_any_when_default_options()
     {
-        var options = new TurboClientOptions();
+        var options = new GaudiClientOptions();
 
         Assert.False(options.DangerousAcceptAnyServerCertificate);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_invoke_custom_callback_when_configured()
+    public void GaudiClientOptions_should_invoke_custom_callback_when_configured()
     {
         var invoked = false;
         SslPolicyErrors? observedErrors = null;
 
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = Custom,
         };
@@ -99,9 +99,9 @@ public sealed class TlsSecuritySpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_respect_custom_callback_decision_when_accepting()
+    public void GaudiClientOptions_should_respect_custom_callback_decision_when_accepting()
     {
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = AlwaysAccept,
         };
@@ -117,12 +117,12 @@ public sealed class TlsSecuritySpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboClientOptions_should_bypass_custom_callback_when_dangerous_accept_any_is_true()
+    public void GaudiClientOptions_should_bypass_custom_callback_when_dangerous_accept_any_is_true()
     {
         // Verify that DangerousAcceptAnyServerCertificate takes precedence over
         // a custom callback that would reject.
         var customInvoked = false;
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             DangerousAcceptAnyServerCertificate = true,
             ServerCertificateValidationCallback = (_, _, _, _) =>
@@ -143,7 +143,7 @@ public sealed class TlsSecuritySpec
     {
         var invoked = false;
 
-        var options = new TurboClientOptions
+        var options = new GaudiClientOptions
         {
             ServerCertificateValidationCallback = Custom,
         };

@@ -11,7 +11,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class HandlerBidiStageSpec : StreamTestBase
 {
-    private sealed class RequestHeaderHandler : TurboHandler
+    private sealed class RequestHeaderHandler : GaudiHandler
     {
         private readonly string _name;
         private readonly string _value;
@@ -29,7 +29,7 @@ public sealed class HandlerBidiStageSpec : StreamTestBase
         }
     }
 
-    private sealed class ResponseHeaderHandler : TurboHandler
+    private sealed class ResponseHeaderHandler : GaudiHandler
     {
         private readonly string _name;
         private readonly string _value;
@@ -202,7 +202,7 @@ public sealed class HandlerBidiStageSpec : StreamTestBase
         Assert.True(captured.Headers.Contains("X-OriginalMarker"));
     }
 
-    private sealed class CapturingResponseHandler : TurboHandler
+    private sealed class CapturingResponseHandler : GaudiHandler
     {
         private readonly TaskCompletionSource<HttpRequestMessage> _tcs;
 
@@ -272,7 +272,7 @@ public sealed class HandlerBidiStageSpec : StreamTestBase
         }
     }
 
-    private sealed class ThrowOnUriRequestHandler : TurboHandler
+    private sealed class ThrowOnUriRequestHandler : GaudiHandler
     {
         private readonly string _marker;
         private readonly Exception _toThrow;
@@ -294,7 +294,7 @@ public sealed class HandlerBidiStageSpec : StreamTestBase
         }
     }
 
-    private sealed class ThrowOnUriResponseHandler : TurboHandler
+    private sealed class ThrowOnUriResponseHandler : GaudiHandler
     {
         private readonly string _marker;
         private readonly Exception _toThrow;

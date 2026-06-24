@@ -87,7 +87,7 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
         int connectionWindowSize = 65535)
     {
         var ops = new FakeServerOps();
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 =
             {

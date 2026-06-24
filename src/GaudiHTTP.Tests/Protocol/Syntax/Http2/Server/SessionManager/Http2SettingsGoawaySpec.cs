@@ -10,7 +10,7 @@ public sealed class Http2SettingsGoawaySpec
 {
     private static Http2ServerSessionManager CreateSessionManager(FakeServerOps ops)
     {
-        var options = new TurboServerOptions();
+        var options = new GaudiServerOptions();
         var h2Options = options.ToHttp2Options();
         return new Http2ServerSessionManager(h2Options, ops);
     }
@@ -205,7 +205,7 @@ public sealed class Http2SettingsGoawaySpec
     {
         var ops = new FakeServerOps();
         const int customStreamWindow = 256 * 1024;
-        var options = new TurboServerOptions
+        var options = new GaudiServerOptions
         {
             Http2 = { InitialStreamWindowSize = customStreamWindow }
         };

@@ -14,7 +14,7 @@ public sealed class ConnectionPoolingSpec : End2EndSpecBase
 
     protected override Version ProtocolVersion => HttpVersion.Version11;
 
-    protected override void ConfigureClientOptions(TurboClientOptions options)
+    protected override void ConfigureClientOptions(GaudiClientOptions options)
     {
         // Cap the pool at MaxConnections and disable pipelining so each in-flight request
         // needs its own connection slot — making the cap observable under concurrency.

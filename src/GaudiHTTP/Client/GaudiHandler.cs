@@ -7,7 +7,7 @@ namespace GaudiHTTP.Client;
 /// Register handlers via <c>AddHandler&lt;T&gt;</c> or <c>UseRequest</c>/<c>UseResponse</c>
 /// on an <see cref="IGaudiHttpClientBuilder"/>; handlers run in FIFO registration order.
 /// </summary>
-public abstract class TurboHandler
+public abstract class GaudiHandler
 {
     /// <summary>
     /// Inspects or transforms <paramref name="request"/> before it is sent.

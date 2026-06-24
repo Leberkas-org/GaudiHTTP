@@ -6,13 +6,13 @@ using static Servus.Senf;
 namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
-public sealed class TurboServerMetricsSpec : IDisposable
+public sealed class GaudiServerMetricsSpec : IDisposable
 {
     private readonly MeterListener _listener;
     private readonly ConcurrentBag<MetricMeasurement<long>> _longMeasurements = [];
     private readonly ConcurrentBag<MetricMeasurement<double>> _doubleMeasurements = [];
 
-    public TurboServerMetricsSpec()
+    public GaudiServerMetricsSpec()
     {
         var meterName = Metrics.Meter.Name;
         _listener = new MeterListener();
@@ -53,7 +53,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("turbo.server.active_connections");
+        var measurements = GetLongMeasurements("gaudi.server.active_connections");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
@@ -70,7 +70,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetDoubleMeasurements("turbo.server.connection.duration"));
+        var m = Assert.Single(GetDoubleMeasurements("gaudi.server.connection.duration"));
         Assert.Equal(1.5, m.Value);
     }
 
@@ -85,7 +85,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetLongMeasurements("turbo.server.rejected_connections"));
+        var m = Assert.Single(GetLongMeasurements("gaudi.server.rejected_connections"));
         Assert.Equal(1, m.Value);
     }
 
@@ -100,7 +100,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetDoubleMeasurements("turbo.server.tls_handshake.duration"));
+        var m = Assert.Single(GetDoubleMeasurements("gaudi.server.tls_handshake.duration"));
         Assert.Equal(0.05, m.Value);
     }
 
@@ -119,7 +119,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("turbo.server.active_tls_handshakes");
+        var measurements = GetLongMeasurements("gaudi.server.active_tls_handshakes");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
@@ -198,7 +198,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("turbo.server.pipeline.inflight");
+        var measurements = GetLongMeasurements("gaudi.server.pipeline.inflight");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
@@ -214,7 +214,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetLongMeasurements("turbo.server.pipeline.pending"));
+        var m = Assert.Single(GetLongMeasurements("gaudi.server.pipeline.pending"));
         Assert.Equal(1, m.Value);
     }
 
@@ -228,7 +228,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetLongMeasurements("turbo.server.handler.timeouts"));
+        var m = Assert.Single(GetLongMeasurements("gaudi.server.handler.timeouts"));
         Assert.Equal(1, m.Value);
     }
 
@@ -242,7 +242,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("turbo.server.drain.active");
+        var measurements = GetLongMeasurements("gaudi.server.drain.active");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
@@ -257,7 +257,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetDoubleMeasurements("turbo.server.protocol_negotiation.duration"));
+        var m = Assert.Single(GetDoubleMeasurements("gaudi.server.protocol_negotiation.duration"));
         Assert.Equal(0.002, m.Value);
         Assert.Equal("2", GetTag(m.Tags, "network.protocol.version"));
     }
