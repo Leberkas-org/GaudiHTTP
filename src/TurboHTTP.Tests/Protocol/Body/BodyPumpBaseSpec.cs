@@ -584,4 +584,233 @@ public sealed class BodyPumpBaseSpec
         pump.Register(1, new MemoryStream([]), 0, CancellationToken.None);
         Assert.Equal(2, target.Completed.Count);
     }
+
+    // Edge case: stale DrainReadComplete after CancelAll
+
+    [Fact(Timeout = 5000)]
+    public void HandleReadComplete_should_be_silently_ignored_after_CancelAll()
+    {
+        // Arrange: register a body so a slot exists, then CancelAll clears _activeSlots.
+        // A stale DrainReadComplete message (e.g. in-flight before CancelAll) arrives afterward.
+        // HandleReadComplete guards with TryGetValue and returns early when no slot is found.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var cts = new CancellationTokenSource();
+        var pump = new TestPump(target, new ConnectionPoolContext(), cts);
+
+        pump.Register(0, MakeBody(100), 100, CancellationToken.None);
+        pump.CancelAll();
+
+        // Act: stale completion arrives for streamId 0 — must not throw.
+        var ex = Record.Exception(() => pump.HandleReadComplete(0, 50));
+        Assert.Null(ex);
+
+        // No data should have been emitted after CancelAll.
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleReadFailed_should_be_silently_ignored_after_CancelAll()
+    {
+        // Arrange: same as above but for the failure path.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var cts = new CancellationTokenSource();
+        var pump = new TestPump(target, new ConnectionPoolContext(), cts);
+
+        pump.Register(0, MakeBody(100), 100, CancellationToken.None);
+        pump.CancelAll();
+
+        // Act: stale failure arrives — must not throw or call OnDrainFailed.
+        var error = new IOException("stale error");
+        var ex = Record.Exception(() => pump.HandleReadFailed(0, error));
+        Assert.Null(ex);
+
+        Assert.Empty(target.Failed);
+    }
+
+    // Edge case: single-byte body
+
+    [Fact(Timeout = 5000)]
+    public void Register_should_drain_single_byte_body_with_one_data_and_endStream()
+    {
+        // A 1-byte body must produce exactly 1 data emission (endStream=false) and
+        // 1 endStream emission (endStream=true, zero bytes), then OnDrainComplete.
+        // Two credits are needed: one for the data read, one for the EOF read.
+        // HasPendingDemand=false so we control when reads fire via AddCredit.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        var body = new MemoryStream([42]);
+
+        pump.Register(0, body, 1, CancellationToken.None);
+        Assert.Empty(target.Emitted);
+
+        // First credit → data read (1 byte). Second credit → EOF read (0 bytes).
+        pump.AddCredit();
+        pump.AddCredit();
+
+        // Verify exactly: [data frame, endStream frame]
+        var dataFrame = Assert.Single(target.Emitted.Where(e => !e.EndStream).ToList());
+        var eofFrame = Assert.Single(target.Emitted.Where(e => e.EndStream).ToList());
+        var singleByte = Assert.Single(dataFrame.Data);
+        Assert.Equal(42, singleByte);
+        Assert.Empty(eofFrame.Data);
+        Assert.Single(target.Completed);
+    }
+
+    // Edge case: body exactly equal to chunkSize
+
+    [Fact(Timeout = 5000)]
+    public void Register_should_produce_exactly_one_data_and_one_endStream_when_body_equals_chunkSize()
+    {
+        // A body exactly chunkSize (16 KB) should emit 1 data frame (full chunk)
+        // followed by 1 endStream frame from the EOF read.
+        // Two credits: one for the data read, one for the EOF read.
+        var target = new FakeTarget { HasPendingDemand = false, PreferredChunkSize = 16 * 1024 };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        var body = MakeBody(16 * 1024);
+
+        pump.Register(0, body, 16 * 1024, CancellationToken.None);
+        Assert.Empty(target.Emitted);
+
+        // Drive exactly 2 reads: data + EOF.
+        pump.AddCredit();
+        pump.AddCredit();
+
+        // Exactly 1 data emit (non-endStream) + 1 endStream emit.
+        var dataEmits = target.Emitted.Where(e => !e.EndStream).ToList();
+        var eofEmits = target.Emitted.Where(e => e.EndStream).ToList();
+        Assert.Single(dataEmits);
+        Assert.Single(eofEmits);
+        Assert.Equal(16 * 1024, dataEmits[0].Data.Length);
+        Assert.Single(target.Completed);
+    }
+
+    // Edge case: multiple cancellations leave queue clean
+
+    [Fact(Timeout = 5000)]
+    public void Cancel_three_of_five_streams_should_leave_only_two_active_and_serve_only_them()
+    {
+        // Register 5 streams (no demand so nothing reads immediately), cancel 3.
+        // Adding credits must serve only the 2 remaining streams and not trip on cancelled ones.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+
+        for (var id = 0; id < 5; id++)
+        {
+            pump.Register(id, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
+        }
+
+        pump.Cancel(1);
+        pump.Cancel(3);
+        pump.Cancel(4);
+
+        Assert.Equal(2, pump.ActiveStreamCount);
+
+        // Drive reads with plenty of credits.
+        for (var i = 0; i < 48; i++)
+        {
+            pump.AddCredit();
+        }
+
+        // All emitted stream IDs must be from the non-cancelled set {0, 2}.
+        var emittedIds = target.Emitted.Select(e => e.StreamId).Distinct().ToHashSet();
+        Assert.DoesNotContain(1, emittedIds);
+        Assert.DoesNotContain(3, emittedIds);
+        Assert.DoesNotContain(4, emittedIds);
+    }
+
+    // Edge case: cancel during sync read chain
+
+    private sealed class CancelMidDrainTarget : IBodyDrainTarget<int>
+    {
+        private TestPump? _pump;
+        private int _emitCount;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand { get; set; }
+        public int PreferredChunkSize { get; set; } = 16 * 1024;
+        public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
+        public List<int> Completed { get; } = [];
+        public List<(int StreamId, Exception Reason)> Failed { get; } = [];
+
+        public void SetPump(TestPump pump) => _pump = pump;
+
+        public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+        {
+            Emitted.Add((streamId, data.ToArray(), endStream));
+            // Cancel the stream on the first data emission to interrupt the drain chain.
+            if (!endStream && Interlocked.Increment(ref _emitCount) == 1)
+            {
+                _pump?.Cancel(streamId);
+            }
+        }
+
+        public void OnDrainComplete(int streamId) => Completed.Add(streamId);
+        public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cancel_during_sync_drain_should_stop_pump_cleanly()
+    {
+        // A large body (8 chunks) is registered with a target that cancels the stream
+        // after the first data emission. The pump must stop emitting after cancellation —
+        // no double-cleanup, no throws, no further emissions for that stream.
+        var target = new CancelMidDrainTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        var bodySize = 8 * 16 * 1024;
+        pump.Register(0, MakeBody(bodySize), bodySize, CancellationToken.None);
+
+        // Seed one credit to start the drain; the target cancels on first emit.
+        pump.AddCredit();
+
+        // The pump must have stopped: active stream count should be 0.
+        Assert.Equal(0, pump.ActiveStreamCount);
+        // No exception was thrown (implicit — if we reach here, it didn't throw).
+        // At most 2 emissions before cancel (1 data + possibly 1 re-enqueue attempt).
+        Assert.True(target.Emitted.Count <= 2,
+            $"Expected at most 2 emits before cancel stopped the drain, got {target.Emitted.Count}.");
+    }
+
+    // Edge case: ReadAsync throws synchronously (not via faulted ValueTask)
+
+    private sealed class SynchronousThrowStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => throw new IOException("sync throw from ReadAsync");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ReadAsync_that_throws_synchronously_should_propagate_as_exception()
+    {
+        // BodyPumpHelper.StartRead calls ReadAsync inside PerformRead.
+        // If ReadAsync throws synchronously (not via a faulted ValueTask), the exception
+        // propagates out of PerformRead → TryReadNextEligible → AddCredit → caller.
+        // This test documents the current behavior: the pump does NOT catch synchronous throws
+        // from ReadAsync; the caller receives the exception directly.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        var body = new SynchronousThrowStream();
+
+        pump.Register(0, body, 100, CancellationToken.None);
+
+        // AddCredit triggers a read, which calls ReadAsync → throws synchronously.
+        var ex = Record.Exception(() => pump.AddCredit());
+
+        // The exception propagates to the caller (no catch in PerformRead).
+        Assert.NotNull(ex);
+        Assert.IsType<IOException>(ex);
+        Assert.Equal("sync throw from ReadAsync", ex.Message);
+    }
 }
