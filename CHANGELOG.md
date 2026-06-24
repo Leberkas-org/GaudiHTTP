@@ -1,5 +1,77 @@
 # Changelog
 
+## [3.0.0-alpha.6](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.5...v3.0.0-alpha.6) (2026-06-24)
+
+
+### Features
+
+* **body:** implement BodyPumpBase with credit system and adaptive budget ([bc18b6a](https://github.com/Leberkas-org/TurboHTTP/commit/bc18b6a615ff64b21b8092a3ef599108dae16fdc))
+* **body:** unseal BodyDrainSlot, add FlowControlledDrainSlot ([415b81d](https://github.com/Leberkas-org/TurboHTTP/commit/415b81d1bef37f160034d92c009bb8b09c1d3692))
+* **body:** update IBodyDrainTarget interface and remove DrainContinue ([9919a88](https://github.com/Leberkas-org/TurboHTTP/commit/9919a88330160934a99e6f18e185c62c794534b4))
+* **body:** wire OnOutboundFlushed → AddCredit across all protocols ([4b80d6a](https://github.com/Leberkas-org/TurboHTTP/commit/4b80d6a2b68bdbbde1dd4957849bef2b7fbb444f))
+* **client:** forward 1xx informational responses to caller ([0f4627e](https://github.com/Leberkas-org/TurboHTTP/commit/0f4627e9e32992357efafc9be406b6d4f5571aae))
+* **h1-server:** add chunked trailer section encoding to ChunkedFramingHelper ([da0b1ba](https://github.com/Leberkas-org/TurboHTTP/commit/da0b1ba58dac21890894d35825fb2b69c2550dac))
+* **h1-server:** integrate trailer emission into Http11ServerStateMachine ([c175b18](https://github.com/Leberkas-org/TurboHTTP/commit/c175b18db9f0400da9df54aed2d54f60458ec4a7))
+* **h1-server:** support 1xx informational responses via SendInformational ([ae4aa17](https://github.com/Leberkas-org/TurboHTTP/commit/ae4aa1792b214a769978a7166e3458bd85759c7e))
+* **h2-server:** support 1xx informational responses ([a104f9c](https://github.com/Leberkas-org/TurboHTTP/commit/a104f9ceef165813d5e6e8f839ce091a71286cad))
+* **h2:** add Reserve/Refund to FlowController for window reservation ([e395b09](https://github.com/Leberkas-org/TurboHTTP/commit/e395b09c9ef93e312c312c545f60f7b1f9f1ef54))
+* **h3-server:** add EncodeTrailers to Http3ServerEncoder ([ba7d586](https://github.com/Leberkas-org/TurboHTTP/commit/ba7d5867691efc44cafc0707ed45818d24cff91f))
+* **h3-server:** integrate trailer emission into Http3ServerSessionManager ([8a50fd2](https://github.com/Leberkas-org/TurboHTTP/commit/8a50fd2dddd6b2b899c4f3cb6393de5248b603b3))
+* **h3-server:** support 1xx informational responses ([9b4caab](https://github.com/Leberkas-org/TurboHTTP/commit/9b4caab62a10a6874f407dbfc9c99f6b37c25b75))
+* Improve HTTP trailers and informational responses ([816cbf7](https://github.com/Leberkas-org/TurboHTTP/commit/816cbf79532effab9ee6328b3c1f2f139c10ad6a))
+* Rename TurboResponseHeaderDictionary to TurboHeaderDictionary ([b69079d](https://github.com/Leberkas-org/TurboHTTP/commit/b69079d22d21c9cfe7fda6a5e754d6d0f177cd62))
+* **server:** add IHttpRequestTrailersFeature support ([f3fca70](https://github.com/Leberkas-org/TurboHTTP/commit/f3fca70a1487204f1a142ae1ed661bfe14bb0cbb))
+* **server:** add SetReadOnly freeze semantics to TurboResponseHeaderDictionary ([366de03](https://github.com/Leberkas-org/TurboHTTP/commit/366de03318ec87edc5f70c0f872fb060e7d26bfb))
+* **server:** add TurboInformationalResponseFeature for 1xx responses ([985ee8e](https://github.com/Leberkas-org/TurboHTTP/commit/985ee8e4908fbb4272e5c11c0941e6dc19ecafe8))
+* **server:** auto-send 100 Continue for Expect: 100-continue requests ([0b0c00f](https://github.com/Leberkas-org/TurboHTTP/commit/0b0c00f8a3bd0a28263b3caca58f5a22a46bf456))
+
+
+### Bug Fixes
+
+* **body:** add inline AddCredit to all EmitDataFrames implementations ([f52824b](https://github.com/Leberkas-org/TurboHTTP/commit/f52824b403f341ab4b2c4c29ede7b0568da422de))
+* **body:** fix Cancel stale-id leak and document IsStreamEligible contract ([92524fc](https://github.com/Leberkas-org/TurboHTTP/commit/92524fc8cb06d4a530c09e48d62581351b54f38a))
+* **body:** fix pump stall on async PipeReader streams ([71df2e2](https://github.com/Leberkas-org/TurboHTTP/commit/71df2e242a29d068a9489bf413b81a938277fb47))
+* **body:** prevent double slot cleanup on drain complete + fix test ([5e09c43](https://github.com/Leberkas-org/TurboHTTP/commit/5e09c4306fd954817ec087f12defb872497953dc))
+* **body:** reclaim credit after synchronous read completion ([26368c1](https://github.com/Leberkas-org/TurboHTTP/commit/26368c152812743f4afdf1cc52ac5ef1456f9560))
+* **body:** restore client-side backpressure and remove sync credit reclaim ([85fcb87](https://github.com/Leberkas-org/TurboHTTP/commit/85fcb8753be6f2703907e95aa15ad1e5e34783e6))
+* **client:** add MaxConcurrentStreams defense-in-depth warning in H2/H3 EncodeRequest ([98b9ac7](https://github.com/Leberkas-org/TurboHTTP/commit/98b9ac7bbc0ca95fc718989afeb376973df84523))
+* **client:** dispose response when PendingRequest version has advanced ([d476f97](https://github.com/Leberkas-org/TurboHTTP/commit/d476f972ff7f019b8d8d343a48feb9bfc46b5375))
+* **client:** revert response dispose — BroadcastHub shares objects ([4cc2306](https://github.com/Leberkas-org/TurboHTTP/commit/4cc23066575087b42c44e74402826d83c1b7ee79))
+* **cookies:** enforce __Host- and __Secure- prefix rules (RFC 6265bis) ([9abed3a](https://github.com/Leberkas-org/TurboHTTP/commit/9abed3aa6a25d5d4e68a1675c19b40e61e434da1))
+* **h1-client:** consume 101 in 1xx block instead of delivering as final response ([4f7a0d8](https://github.com/Leberkas-org/TurboHTTP/commit/4f7a0d8a3415a67ee2121e2b4e960982641deea9))
+* **h1-client:** exclude 101 Switching Protocols from 1xx forwarding ([2541222](https://github.com/Leberkas-org/TurboHTTP/commit/25412228478962252883a09d1666c8bd8970f059))
+* **h2-server:** prevent stream hang when all trailers are filtered + add SetReadOnly freeze ([4455ac8](https://github.com/Leberkas-org/TurboHTTP/commit/4455ac8e401354af5f90bf805644d9ed84105826))
+* **h2/h3:** guard StackStreamStatePool against double-return ([abba72d](https://github.com/Leberkas-org/TurboHTTP/commit/abba72d3436e7c96b986edb2b156111f5a5356d0))
+* **h2:** fix FlowControlledBodyPump OnWindowUpdate deadlock + window leak ([dff4cec](https://github.com/Leberkas-org/TurboHTTP/commit/dff4cec756268da8e26c649b3f516b0174796527))
+* **h3-client:** handle 1xx informational responses without closing stream ([68423e5](https://github.com/Leberkas-org/TurboHTTP/commit/68423e5ccdd61750e8e872d77cfea5d8dea615f2))
+* **h3-client:** update edge-case tests for 1xx behavior + status validation ([a3af20b](https://github.com/Leberkas-org/TurboHTTP/commit/a3af20bf1fa117486d77e389b0cfea25fd74b2af))
+* **quic:** only flush streams that actually wrote to the pipe (not opening-buffer) ([01fcde9](https://github.com/Leberkas-org/TurboHTTP/commit/01fcde9f8b9af7bfc1a3678181559eae589ebf5c))
+* **quic:** return pooled MultiplexedData after write + treat QuicException as graceful close ([5af56a5](https://github.com/Leberkas-org/TurboHTTP/commit/5af56a51feb416ef4f0e7674f669e7dfce69d053))
+* **server:** cap _pendingSources queue in GroupByRequestEndpointStage ([c44a6fe](https://github.com/Leberkas-org/TurboHTTP/commit/c44a6fe9f488c2aca81b0bc516ec09e9e1d6e8c1))
+* **test:** tighten Trailer announcement header assertion in Http11ServerTrailerSpec ([e482e5c](https://github.com/Leberkas-org/TurboHTTP/commit/e482e5c4e3a51d5bbe915b387e3c32c77eb20f59))
+* **test:** update H1.1 stage test for 1xx forwarding behavior ([fea9d9d](https://github.com/Leberkas-org/TurboHTTP/commit/fea9d9d1c50483287971bc5970b58ae93cb4fed3))
+* **test:** update Http3ServerTrailerSpec to use MultiplexedData.Rent() ([af9f6ca](https://github.com/Leberkas-org/TurboHTTP/commit/af9f6ca94ab10611130aa1dbc935412a09bd1104))
+* **test:** update starvation guard tests after removal ([105307f](https://github.com/Leberkas-org/TurboHTTP/commit/105307f2f8cafd510d0a5ebb00968cf6a0fe805b))
+
+
+### Performance
+
+* **h3:** batch DATA frames into single TransportBuffer (match H2 pattern) ([c8d88fc](https://github.com/Leberkas-org/TurboHTTP/commit/c8d88fc67dc9c847adb021d02b2182e94658bead))
+* **h3:** eliminate timer key strings, skip LinkedCTS, deduplicate correlation map ([44a492c](https://github.com/Leberkas-org/TurboHTTP/commit/44a492c4e340fc9dfa248a478b08477fdc7f48dc))
+* **h3:** pool MultiplexedData like TransportData (ObjectPool&lt;256&gt;) ([39f3e86](https://github.com/Leberkas-org/TurboHTTP/commit/39f3e864419fb9b81c23513bc32a31f25e6bd43e))
+* **quic:** adaptive read buffer 4KB-128KB for QUIC direct reads ([5d9642c](https://github.com/Leberkas-org/TurboHTTP/commit/5d9642c2196498650183850636de726233276ab3))
+* **quic:** cache read failure/success lambdas and body pump delegates ([550254f](https://github.com/Leberkas-org/TurboHTTP/commit/550254fb1e16ecbcc5414713fe6bb26bf0c663c9))
+* **quic:** defer PipeWriter flush until batch complete (write coalescing) ([508a27d](https://github.com/Leberkas-org/TurboHTTP/commit/508a27df7e3a8e4d9b787428f98af7838d062b36))
+* **quic:** pool QuicStreamState objects (ObjectPool&lt;256&gt;) ([4951b73](https://github.com/Leberkas-org/TurboHTTP/commit/4951b7317dff20b9346e849c526a6e8a110bd013))
+
+
+### Refactoring
+
+* **body:** rewrite FlowControlledBodyPump on BodyPumpBase ([66e024e](https://github.com/Leberkas-org/TurboHTTP/commit/66e024e0847e2e3429afd765b34ac09b763cfe79))
+* **body:** rewrite MultiplexedBodyPump on BodyPumpBase ([1f07721](https://github.com/Leberkas-org/TurboHTTP/commit/1f07721cdabe1a01f406ef1282cbcdb10a3f75cf))
+* **body:** rewrite SerialBodyPump on BodyPumpBase ([338c467](https://github.com/Leberkas-org/TurboHTTP/commit/338c467a7039c6e0700e8d454f3a0ce0eda45b45))
+* **body:** simplify pump architecture ([0f1523b](https://github.com/Leberkas-org/TurboHTTP/commit/0f1523b1d32050cb24cd5c39bc24a39bf027c193))
+
 ## [3.0.0-alpha.5](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.4...v3.0.0-alpha.5) (2026-06-22)
 
 
