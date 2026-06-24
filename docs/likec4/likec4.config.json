@@ -1,5 +1,5 @@
 {
   "$schema": "https://unpkg.com/likec4/likec4.schema.json",
-  "name": "turbohttp",
-  "title": "TurboHTTP Architecture"
+  "name": "gaudihttp",
+  "title": "GaudiHTTP Architecture"
 }

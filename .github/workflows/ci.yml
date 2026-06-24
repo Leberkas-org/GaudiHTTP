@@ -18,7 +18,7 @@ concurrency:
 
 env:
   GLOBAL_JSON_PATH: "./src/global.json"
-  PROJECT_PATH: "./src/TurboHTTP.slnx"
+  PROJECT_PATH: "./src/GaudiHTTP.slnx"
   TEST_OUTPUT_DIRECTORY: "${{ github.workspace }}/testresults"
   COVERAGE_REPORT_DIRECTORY: "./coveragereport"
 
@@ -69,7 +69,7 @@ jobs:
       - name: Run tests (backend=${{ matrix.backend }})
         working-directory: "./src"
         env:
-          TURBOHTTP_TEST_BACKEND: ${{ matrix.backend }}
+          GAUDIHTTP_TEST_BACKEND: ${{ matrix.backend }}
         run: >
           dotnet test
           --configuration Release

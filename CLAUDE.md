@@ -7,29 +7,29 @@ High-performance HTTP client and server for .NET built on Akka.Streams. Implemen
 All commands run from `src/` (where `global.json` lives).
 
 ```bash
-dotnet restore TurboHTTP.slnx
-dotnet build --configuration Release TurboHTTP.slnx
+dotnet restore GaudiHTTP.slnx
+dotnet build --configuration Release GaudiHTTP.slnx
 
 # Tests (xUnit v3 — use dotnet run, not dotnet test)
-dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj                                        # all unit + stage (~5660)
+dotnet run --project GaudiHTTP.Tests/GaudiHTTP.Tests.csproj                                        # all unit + stage (~5660)
 
-# Integration (network) — three runnable suites (TurboHTTP.IntegrationTests.Shared is a support lib, not runnable):
-dotnet run --project TurboHTTP.IntegrationTests.Client/TurboHTTP.IntegrationTests.Client.csproj    # client vs real server (Docker/Kestrel)
-dotnet run --project TurboHTTP.IntegrationTests.End2End/TurboHTTP.IntegrationTests.End2End.csproj  # TurboHTTP client <-> TurboServer
-dotnet run --project TurboHTTP.IntegrationTests.Server/TurboHTTP.IntegrationTests.Server.csproj    # server vs real client
+# Integration (network) — three runnable suites (GaudiHTTP.IntegrationTests.Shared is a support lib, not runnable):
+dotnet run --project GaudiHTTP.IntegrationTests.Client/GaudiHTTP.IntegrationTests.Client.csproj    # client vs real server (Docker/Kestrel)
+dotnet run --project GaudiHTTP.IntegrationTests.End2End/GaudiHTTP.IntegrationTests.End2End.csproj  # GaudiHTTP client <-> GaudiServer
+dotnet run --project GaudiHTTP.IntegrationTests.Server/GaudiHTTP.IntegrationTests.Server.csproj    # server vs real client
 
 # Single class (preferred for integration — full suite is slow)
-dotnet run --project TurboHTTP.IntegrationTests.End2End/TurboHTTP.IntegrationTests.End2End.csproj -- -class "TurboHTTP.IntegrationTests.End2End.H2.ConcurrentLargePostSpec"
+dotnet run --project GaudiHTTP.IntegrationTests.End2End/GaudiHTTP.IntegrationTests.End2End.csproj -- -class "GaudiHTTP.IntegrationTests.End2End.H2.ConcurrentLargePostSpec"
 
 # Single class / filter
-dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj -- -class "TurboHTTP.Tests.Protocol.Syntax.Http2.Frames.Http2DecoderErrorCodeSpec"
+dotnet run --project GaudiHTTP.Tests/GaudiHTTP.Tests.csproj -- -class "GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames.Http2DecoderErrorCodeSpec"
 
 # Integration tests with specific backend (default: auto-detect Docker, fallback Kestrel)
-$env:TURBOHTTP_TEST_BACKEND = "kestrel"   # force Kestrel (no Docker needed)
-$env:TURBOHTTP_TEST_BACKEND = "docker"    # force Docker (fails if unavailable)
+$env:GAUDIHTTP_TEST_BACKEND = "kestrel"   # force Kestrel (no Docker needed)
+$env:GAUDIHTTP_TEST_BACKEND = "docker"    # force Docker (fails if unavailable)
 
 # Benchmarks
-dotnet run --configuration Release --project TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj
+dotnet run --configuration Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
 
 # Docs site (Node.js 20+)
 cd ../docs && npm install && npm run docs:dev
@@ -38,13 +38,13 @@ cd ../docs && npm install && npm run docs:dev
 ## Architecture
 
 ```
-Client Surface  (TurboHTTP/Client/)          - ITurboHttpClient, factory, builder, DI, options
-Server Surface  (TurboHTTP/Server/)          - TurboServer (IServer), TurboServerOptions, Hosting, FeatureCollectionFactory
-Context         (TurboHTTP/Context/)         - Features/ (IHttp*Feature implementations), Adapters/
-Streams Layer   (TurboHTTP/Streams/)         - Engines, Stages/{Client,Server,Features}, Lifecycle, Pooling
-Protocol Layer  (TurboHTTP/Protocol/)        - Http10/, Http11/, Http2/, Http3/, Semantics/
-Features        (TurboHTTP/Features/)        - Cookies/, Caching/, AltSvc/
-Diagnostics     (TurboHTTP/Diagnostics/)     - Metrics, tracing, logging
+Client Surface  (GaudiHTTP/Client/)          - IGaudiHttpClient, factory, builder, DI, options
+Server Surface  (GaudiHTTP/Server/)          - GaudiServer (IServer), GaudiServerOptions, Hosting, FeatureCollectionFactory
+Context         (GaudiHTTP/Context/)         - Features/ (IHttp*Feature implementations), Adapters/
+Streams Layer   (GaudiHTTP/Streams/)         - Engines, Stages/{Client,Server,Features}, Lifecycle, Pooling
+Protocol Layer  (GaudiHTTP/Protocol/)        - Http10/, Http11/, Http2/, Http3/, Semantics/
+Features        (GaudiHTTP/Features/)        - Cookies/, Caching/, AltSvc/
+Diagnostics     (GaudiHTTP/Diagnostics/)     - Metrics, tracing, logging
 ```
 
 ## Debugging with Senf.Tracing
@@ -90,10 +90,10 @@ sealed class XunitTraceListener(ITestOutputHelper output) : IServusTraceListener
 
 ```csharp
 // Via DI — bridges to Microsoft.Extensions.Logging
-services.AddTurboLoggerTracing(TraceLevel.Trace);
+services.AddGaudiLoggerTracing(TraceLevel.Trace);
 
 // Or with a custom listener
-services.AddTurboTracing(myListener, TraceLevel.Debug);
+services.AddGaudiTracing(myListener, TraceLevel.Debug);
 ```
 
 ### Instrumented categories

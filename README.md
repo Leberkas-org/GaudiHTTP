@@ -1,18 +1,18 @@
 <div align="center">
-  <img src="docs/logo/logo.svg" alt="TurboHTTP" width="200" />
+  <img src="docs/logo/logo.svg" alt="GaudiHTTP" width="200" />
   <p><strong>High-performance HTTP client and server for .NET — built on Akka.Streams with full protocol support from HTTP/1.0 through HTTP/3 (QUIC).</strong></p>
 
-  [![CI](https://img.shields.io/github/actions/workflow/status/Leberkas-org/TurboHTTP/ci.yml?label=CI)](https://github.com/Leberkas-org/TurboHTTP/actions/workflows/ci.yml)
-  [![Release](https://img.shields.io/github/actions/workflow/status/Leberkas-org/TurboHTTP/release.yml?label=Release)](https://github.com/Leberkas-org/TurboHTTP/actions/workflows/release.yml)
-  [![NuGet](https://img.shields.io/nuget/v/TurboHTTP.svg)](https://www.nuget.org/packages/TurboHTTP)
+  [![CI](https://img.shields.io/github/actions/workflow/status/Leberkas-org/GaudiHTTP/ci.yml?label=CI)](https://github.com/Leberkas-org/GaudiHTTP/actions/workflows/ci.yml)
+  [![Release](https://img.shields.io/github/actions/workflow/status/Leberkas-org/GaudiHTTP/release.yml?label=Release)](https://github.com/Leberkas-org/GaudiHTTP/actions/workflows/release.yml)
+  [![NuGet](https://img.shields.io/nuget/v/GaudiHTTP.svg)](https://www.nuget.org/packages/GaudiHTTP)
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 </div>
 
 ---
 
-## Why TurboHTTP?
+## Why GaudiHTTP?
 
-TurboHTTP is a reactive, backpressure-aware HTTP stack built on [Akka.Streams](https://getakka.net/). Actors manage connection lifecycle while data flows through `System.Threading.Channels` — zero bytes ever touch an actor mailbox. Both the client and the server share the same protocol layer, transport, and stream pipeline, giving you a symmetric architecture from HTTP/1.0 through HTTP/3. The result: high throughput, low allocations, and a pipeline that never dies on transient errors.
+GaudiHTTP is a reactive, backpressure-aware HTTP stack built on [Akka.Streams](https://getakka.net/). Actors manage connection lifecycle while data flows through `System.Threading.Channels` — zero bytes ever touch an actor mailbox. Both the client and the server share the same protocol layer, transport, and stream pipeline, giving you a symmetric architecture from HTTP/1.0 through HTTP/3. The result: high throughput, low allocations, and a pipeline that never dies on transient errors.
 
 ---
 
@@ -40,7 +40,7 @@ TurboHTTP is a reactive, backpressure-aware HTTP stack built on [Akka.Streams](h
 ### Server
 
 - **Standalone HTTP server** — no Kestrel dependency, built entirely on Akka.Streams
-- **ASP.NET-style middleware pipeline** — composable `TurboRequestDelegate` middleware with `Use`, `Map`, and `Run`
+- **ASP.NET-style middleware pipeline** — composable `GaudiRequestDelegate` middleware with `Use`, `Map`, and `Run`
 - **Entity gateway** — route HTTP requests to Akka.NET actors with ask/tell semantics, response mapping, and timeout support
 - **Routing and model binding** — attribute-based and fluent route registration with JSON body binding, query string binding, and parameter validation
 - **TLS/HTTPS** — SNI-based certificate selection, client certificate modes (require/allow/deny), renegotiation, and `ITlsHandshakeFeature`
@@ -56,7 +56,7 @@ TurboHTTP is a reactive, backpressure-aware HTTP stack built on [Akka.Streams](h
 
 ### Extensibility
 
-- **Handler pipeline** — custom request/response transforms via `TurboHandler` subclasses or inline delegates
+- **Handler pipeline** — custom request/response transforms via `GaudiHandler` subclasses or inline delegates
 - **Pluggable storage** — bring your own `ICookieJar` or `ICacheStore` for custom persistence backends
 - **OpenTelemetry tracing** — built-in `TracingBidiStage` for request/response lifecycle visibility
 - **DI integration** — `IServiceCollection` support with named/typed clients and `IOptionsMonitor` for runtime config changes
@@ -67,7 +67,7 @@ TurboHTTP is a reactive, backpressure-aware HTTP stack built on [Akka.Streams](h
 ## Getting Started
 
 ```bash
-dotnet add package TurboHTTP
+dotnet add package GaudiHTTP
 ```
 
 Requires **.NET 10.0** or later.
@@ -76,7 +76,7 @@ Requires **.NET 10.0** or later.
 
 ```csharp
 var services = new ServiceCollection();
-services.AddTurboHttpClient("GitHub", options =>
+services.AddGaudiHttpClient("GitHub", options =>
 {
     options.BaseAddress = new Uri("https://api.github.com");
     options.DefaultRequestVersion = HttpVersion.Version20;
@@ -86,7 +86,7 @@ services.AddTurboHttpClient("GitHub", options =>
 .WithRetry(retry => retry.MaxRetries = 3);
 
 var provider = services.BuildServiceProvider();
-var client = provider.GetRequiredService<ITurboHttpClientFactory>().CreateClient("GitHub");
+var client = provider.GetRequiredService<IGaudiHttpClientFactory>().CreateClient("GitHub");
 
 var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/users"));
 Console.WriteLine(await response.Content.ReadAsStringAsync());
@@ -96,7 +96,7 @@ Console.WriteLine(await response.Content.ReadAsStringAsync());
 
 ```csharp
 var services = new ServiceCollection();
-services.AddTurboServer(server =>
+services.AddGaudiServer(server =>
 {
     server.Listen("https://localhost:5001", listen =>
     {
@@ -105,16 +105,16 @@ services.AddTurboServer(server =>
     });
 });
 
-services.AddTurboRouting(routes =>
+services.AddGaudiRouting(routes =>
 {
-    routes.MapGet("/hello", () => Results.Ok("Hello from TurboHTTP!"));
-    routes.MapTurboEntity<OrderActor>("/orders/{id}")
+    routes.MapGet("/hello", () => Results.Ok("Hello from GaudiHTTP!"));
+    routes.MapGaudiEntity<OrderActor>("/orders/{id}")
         .Ask(HttpMethod.Get, msg => new GetOrder(msg.RouteValues["id"]))
         .Tell(HttpMethod.Post, msg => new CreateOrder(msg.Body));
 });
 ```
 
-For more examples — channel API, custom handlers, cookie jars, cache stores, entity gateway patterns — see the [documentation site](https://turbohttp.leberkas.org/).
+For more examples — channel API, custom handlers, cookie jars, cache stores, entity gateway patterns — see the [documentation site](https://gaudihttp.leberkas.org/).
 
 ---
 
@@ -123,7 +123,7 @@ For more examples — channel API, custom handlers, cookie jars, cache stores, e
 ### Client
 
 ```
-ITurboHttpClient (SendAsync / channel API)
+IGaudiHttpClient (SendAsync / channel API)
     |
 Feature Pipeline    Tracing > Handlers > Redirect > Cookie > Retry >
                     Expect-Continue > Cache > ContentEncoding > Alt-Svc
@@ -147,39 +147,39 @@ Connection          ConnectionActor > protocol negotiation (ALPN / preface detec
 Protocol            Per-version server engines
                     HTTP/1.0 | HTTP/1.1 | HTTP/2 | HTTP/3
     |
-Context             TurboHttpContext (request, response, features, connection info)
+Context             GaudiHttpContext (request, response, features, connection info)
     |
 Middleware          Pipeline stages: logging > routing > entity dispatch > handlers
     |
-Application         TurboRequestDelegate / Actor entity gateway (ask/tell)
+Application         GaudiRequestDelegate / Actor entity gateway (ask/tell)
 ```
 
-For interactive architecture diagrams, see the [documentation site](https://turbohttp.leberkas.org/).
+For interactive architecture diagrams, see the [documentation site](https://gaudihttp.leberkas.org/).
 
 ---
 
 ## Building from Source
 
 ```bash
-dotnet restore ./src/TurboHTTP.slnx
-dotnet build --configuration Release ./src/TurboHTTP.slnx
+dotnet restore ./src/GaudiHTTP.slnx
+dotnet build --configuration Release ./src/GaudiHTTP.slnx
 
 # Tests (xUnit v3 — use dotnet run, not dotnet test)
-dotnet run --project ./src/TurboHTTP.Tests/TurboHTTP.Tests.csproj
-dotnet run --project ./src/TurboHTTP.IntegrationTests.Client/TurboHTTP.IntegrationTests.Client.csproj
-dotnet run --project ./src/TurboHTTP.IntegrationTests.Server/TurboHTTP.IntegrationTests.Server.csproj
-dotnet run --project ./src/TurboHTTP.IntegrationTests.End2End/TurboHTTP.IntegrationTests.End2End.csproj
-dotnet run --project ./src/TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj
+dotnet run --project ./src/GaudiHTTP.Tests/GaudiHTTP.Tests.csproj
+dotnet run --project ./src/GaudiHTTP.IntegrationTests.Client/GaudiHTTP.IntegrationTests.Client.csproj
+dotnet run --project ./src/GaudiHTTP.IntegrationTests.Server/GaudiHTTP.IntegrationTests.Server.csproj
+dotnet run --project ./src/GaudiHTTP.IntegrationTests.End2End/GaudiHTTP.IntegrationTests.End2End.csproj
+dotnet run --project ./src/GaudiHTTP.AcceptanceTests/GaudiHTTP.AcceptanceTests.csproj
 
 # Benchmarks
-dotnet run --configuration Release --project ./src/TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj
+dotnet run --configuration Release --project ./src/GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
 ```
 
 ---
 
 ## Documentation
 
-Full documentation — including feature guides, architecture deep-dives, and API references — is available at **[turbohttp.leberkas.org](https://turbohttp.leberkas.org/)**.
+Full documentation — including feature guides, architecture deep-dives, and API references — is available at **[gaudihttp.leberkas.org](https://gaudihttp.leberkas.org/)**.
 
 ---
 
@@ -191,4 +191,4 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for br
 
 ## License
 
-TurboHTTP is licensed under the [MIT License](LICENSE).
+GaudiHTTP is licensed under the [MIT License](LICENSE).
