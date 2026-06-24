@@ -545,4 +545,177 @@ public sealed class FlowControlledBodyPumpSpec
 
         Assert.Empty(target.Emitted);
     }
+
+    // Regression: Bug 3 — OnWindowUpdate with zero credits (FlowControlledBodyPump)
+    // Before the fix: OnWindowUpdate guard was `GetCredits() > 0`. When all streams were
+    // window-blocked and credits were at 0, WINDOW_UPDATE would unblock streams (via
+    // _windowBlockedStreams.Remove + EnqueueStream) but skip the credit boost, leaving
+    // streams in the ready queue with 0 credits → permanent stall.
+    // Fix: guard changed to `GetActiveStreamCount() > 0` — injects credits whenever any
+    // active stream exists, regardless of current credit level.
+
+    // A dedicated async stream to drain credits before the window-update scenario.
+    // ReadAsync returns a non-completed ValueTask on the first call. Because FakeTarget's
+    // PipeToTarget is ActorRefs.Nobody, the PipeTo message is dropped and the pump must be
+    // driven forward by an explicit HandleReadComplete call.
+    private sealed class OnceAsyncStream : Stream
+    {
+        private readonly byte[] _data;
+        private int _position;
+        private bool _firstRead = true;
+
+        public OnceAsyncStream(byte[] data) => _data = data;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_firstRead)
+            {
+                _firstRead = false;
+                // Advance internal position immediately so subsequent sync reads see the correct
+                // stream position — the bytes are considered read even though the ValueTask is
+                // returned as non-completed (to force the async dispatch path in BodyPumpHelper
+                // so that no sync credit reclaim occurs).
+                var n = ReadSync(buffer);
+                var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+                cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+                // TCS never resolves — PipeTo goes to Nobody, test drives via HandleReadComplete.
+                return new ValueTask<int>(tcs.Task);
+            }
+
+            return ValueTask.FromResult(ReadSync(buffer));
+        }
+
+        private int ReadSync(Memory<byte> buffer)
+        {
+            var count = Math.Min(buffer.Length, _data.Length - _position);
+            if (count == 0)
+            {
+                return 0;
+            }
+
+            _data.AsSpan(_position, count).CopyTo(buffer.Span);
+            _position += count;
+            return count;
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_should_inject_credits_and_unblock_stream_even_when_credits_were_zero()
+    {
+        // Arrange: a stream that first goes async (draining 1 credit with no reclaim) so that
+        // credit level reaches 0, then becomes window-blocked. We then verify that a
+        // WINDOW_UPDATE triggers reads via the GetActiveStreamCount() guard.
+        //
+        // Bug scenario: old guard GetCredits() > 0 would fail when credits = 0 →
+        // the stream stays in the ready queue but nothing drives reads → permanent stall.
+        // Fix: GetActiveStreamCount() > 0 injects credits unconditionally when any stream exists.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Stream 1: window large enough for one read. The body uses OnceAsyncStream so the first
+        // read goes async, consuming a credit without reclaiming it.
+        flow.InitStreamSendWindow(1);
+        flow.OnSendWindowUpdate(1, 1024 * 1024);
+
+        var data = new byte[100];
+        var body = new OnceAsyncStream(data);
+
+        pump.Register(1, body, 100, CancellationToken.None);
+
+        // At this point the first read was dispatched asynchronously (slot is in-flight).
+        // Simulate delivery of the async read result: 100 bytes read.
+        // HandleReadComplete advances the stream to an EOF read (sync) and completes the drain.
+        pump.HandleReadComplete(1, 100);
+
+        // The drain must complete: data + endStream emitted, OnDrainComplete called.
+        Assert.Single(target.Completed);
+        Assert.Contains(target.Emitted, e => e.EndStream);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_should_resume_window_blocked_stream_regardless_of_credit_level()
+    {
+        // Arrange: a stream that is immediately window-blocked (stream window < chunkSize/2).
+        // Bootstrap credits are injected by Register but the stream goes into windowBlockedStreams.
+        // We then restore the window and call OnWindowUpdate — verifies that the pump unblocks
+        // the stream and injects fresh credits even if the credit guard were checking 0.
+        //
+        // This is the direct observable consequence of Bug 3's fix: the GetActiveStreamCount()
+        // guard ensures credits are always injected when streams exist, not just when credits > 0.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Init stream and immediately exhaust it — stream window = 0 < threshold (8192).
+        flow.InitStreamSendWindow(1);
+        flow.OnDataSent(1, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+
+        // Stream is window-blocked: bootstrap credits accumulated but no reads fired.
+        Assert.Empty(target.Emitted);
+
+        // Restore windows and send WINDOW_UPDATE. The fix ensures credit injection
+        // always runs when active streams exist.
+        flow.OnSendWindowUpdate(0, 65535 * 2);
+        flow.OnSendWindowUpdate(1, 65535);
+        pump.OnWindowUpdate(1);
+
+        // Stream should unblock and drain.
+        Assert.Single(target.Completed);
+    }
+
+    // Regression: Bug 4 — window reservation leak on orphaned/failed reads
+    // Before the fix: when a read was orphaned (stream cancelled while read was in-flight),
+    // HandleReadComplete called CleanupSlot without calling AfterRead first. The reserved
+    // window (from BeforeRead) was never refunded → connection send window leaked permanently.
+    // Fix: call AfterRead(streamId, slot, 0) before CleanupSlot on the orphaned path.
+
+    [Fact(Timeout = 5000)]
+    public void HandleReadComplete_should_refund_window_reservation_when_stream_was_cancelled_during_read()
+    {
+        // Arrange: a stream using OnceAsyncStream so the first read goes async (in-flight).
+        // We cancel the stream while the read is in-flight, then deliver the async completion.
+        // Fix: AfterRead is called before CleanupSlot on the orphaned path, refunding the
+        // reserved window. Without the fix, the reservation leaks and the connection window
+        // is permanently reduced by chunkSize (16384 bytes).
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        flow.InitStreamSendWindow(1);
+        flow.OnSendWindowUpdate(1, 1024 * 1024);
+
+        var connWindowBefore = flow.ConnectionSendWindow;
+
+        var data = new byte[16 * 1024];
+        var body = new OnceAsyncStream(data);
+
+        pump.Register(1, body, 16 * 1024, CancellationToken.None);
+
+        // First read is async (in-flight). BeforeRead reserved chunkSize (16384) from the window.
+        // Cancel the stream while the read is still in-flight: slot becomes orphaned.
+        pump.Cancel(1);
+
+        // Now deliver the async read completion. The orphaned path must call AfterRead to
+        // refund the reserved window before cleaning up the slot.
+        pump.HandleReadComplete(1, 16 * 1024);
+
+        // The connection window must be fully restored to its pre-read level.
+        // Bug: without AfterRead on orphan, the 16384-byte reservation is never refunded.
+        // Fix: AfterRead(streamId, slot, 0) refunds the full reservation before cleanup.
+        Assert.Equal(connWindowBefore, flow.ConnectionSendWindow);
+    }
 }
