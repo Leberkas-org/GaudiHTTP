@@ -272,6 +272,19 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         if (result.Outcome == BodyPumpHelper.ReadOutcome.CompletedSynchronously)
         {
             ProcessReadResult(streamId, slot, result.BytesRead);
+
+            // Synchronous reads that produced data reclaim their credit. The emitted frame was
+            // queued in the outbound buffer (not pushed — the output port is typically consumed
+            // by an earlier frame). When that queued frame is eventually pushed by a downstream
+            // Pull, OnOutboundFlushed will add a *bonus* credit. Without this reclaim, the pump
+            // stalls: each credit produces exactly one frame that re-enters the queue, so the
+            // queue never shrinks and forward progress is gated by the Pull rate. Reclaiming
+            // lets the pump self-drive through synchronous pipe data without waiting for each
+            // frame to be individually flushed.
+            if (result.BytesRead > 0)
+            {
+                _credits = Math.Min(_credits + 1, MaxBudget);
+            }
         }
     }
 
