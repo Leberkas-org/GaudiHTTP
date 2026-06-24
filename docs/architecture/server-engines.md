@@ -51,7 +51,7 @@ With TLS, ALPN negotiation happens during the TLS handshake. The client sends ad
 - Connections persist after each response (`Connection: keep-alive`)
 - Supports pipelining — multiple requests queued for sequential processing
 - Chunked transfer encoding for streaming responses
-- Keep-alive timeout configurable via `TurboServerOptions.Http1.KeepAliveTimeout`
+- Keep-alive timeout configurable via `GaudiServerOptions.Http1.KeepAliveTimeout`
 
 **Transport:**
 - `TcpListenerFactory` — TCP listener binds to configured port
@@ -97,7 +97,7 @@ After encoding each response, `Http11ServerEngine` evaluates the `Connection` he
 **Configuration:**
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.Http2.MaxFrameSize = 16 * 1024;
     options.Http2.MaxHeaderListSize = 32 * 1024;
@@ -136,7 +136,7 @@ builder.Host.UseTurboHttp(options =>
 **Configuration:**
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.Http3.MaxHeaderListSize = 32 * 1024;
     options.Http3.QpackMaxTableCapacity = 4 * 1024;
@@ -147,10 +147,10 @@ builder.Host.UseTurboHttp(options =>
 
 ## Per-Protocol Configuration
 
-Each protocol has its own configuration section on `TurboServerOptions`:
+Each protocol has its own configuration section on `GaudiServerOptions`:
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000);
     options.ListenLocalhost(5001, listen =>

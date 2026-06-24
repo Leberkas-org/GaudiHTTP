@@ -1,6 +1,6 @@
 # How It Works
 
-TurboHTTP handles HTTP requests through a simple pipeline. You send a request, and the library automatically handles cookies, caching, retries, redirects, and connection reuse — all transparently.
+GaudiHTTP handles HTTP requests through a simple pipeline. You send a request, and the library automatically handles cookies, caching, retries, redirects, and connection reuse — all transparently.
 
 <ClientOnly>
   <LikeC4Diagram viewId="index" :height="300" />
@@ -63,7 +63,7 @@ Each stage does one thing well. Most of the time you don't think about them — 
 
 ## The Server Pipeline
 
-When a request arrives at TurboHTTP Server, it passes through a complementary pipeline:
+When a request arrives at GaudiHTTP Server, it passes through a complementary pipeline:
 
 ```
 Incoming TCP/QUIC Connection

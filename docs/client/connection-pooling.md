@@ -1,10 +1,10 @@
 # Connection Pooling
 
-TurboHTTP automatically manages a pool of connections for each host, so you never need to open, close, or track connections yourself.
+GaudiHTTP automatically manages a pool of connections for each host, so you never need to open, close, or track connections yourself.
 
 ## How It Works
 
-Each unique host (scheme + hostname + port + HTTP version) gets its own connection pool. When a request arrives, TurboHTTP tries to reuse an existing open connection. If all connections are busy and the per-host limit has not been reached, a new connection is established. If the limit is already reached, the request waits until a connection becomes free.
+Each unique host (scheme + hostname + port + HTTP version) gets its own connection pool. When a request arrives, GaudiHTTP tries to reuse an existing open connection. If all connections are busy and the per-host limit has not been reached, a new connection is established. If the limit is already reached, the request waits until a connection becomes free.
 
 ```
 Request → ClientStreamManager (global router)
@@ -33,7 +33,7 @@ The idle timeout is measured from the moment a connection returns to the pool wi
 
 ## Automatic Reconnect
 
-If a connection is dropped unexpectedly (network interruption, server-side timeout, or RST), TurboHTTP detects the failure and reconnects automatically. While reconnecting, queued requests wait for the connection to recover. Once reconnected, TurboHTTP replays the queue.
+If a connection is dropped unexpectedly (network interruption, server-side timeout, or RST), GaudiHTTP detects the failure and reconnects automatically. While reconnecting, queued requests wait for the connection to recover. Once reconnected, GaudiHTTP replays the queue.
 
 ::: tip Backoff timing
 Reconnect attempts use exponential backoff — each failed attempt waits progressively longer before the next try (100 ms → 200 ms → 400 ms → 800 ms → 1.6 s → 3.2 s → 6.4 s → 12.8 s → 25.6 s → 30 s cap).
@@ -54,7 +54,7 @@ These defaults are chosen conservatively to avoid overwhelming servers.
 Connection pool behaviour is controlled via properties on `TurboClientOptions`:
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2);
@@ -82,7 +82,7 @@ options.Http1.MaxConnectionsPerServer = 2;
 options.PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30);
 ```
 
-**HTTP/2 server** — each connection multiplexes many concurrent streams. TurboHTTP opens additional connections when a connection reaches its stream limit:
+**HTTP/2 server** — each connection multiplexes many concurrent streams. GaudiHTTP opens additional connections when a connection reaches its stream limit:
 
 ```csharp
 var client = factory.CreateClient("http2-api");
@@ -99,7 +99,7 @@ options.Http3.IdleTimeout = TimeSpan.FromSeconds(60);
 
 ## Pool Lifecycle
 
-The pool is created lazily when the first request to a host is made, and torn down when the `TurboHttpClient` is disposed. All idle connections are closed on disposal. In-flight requests complete before their connections are closed.
+The pool is created lazily when the first request to a host is made, and torn down when the `GaudiHttpClient` is disposed. All idle connections are closed on disposal. In-flight requests complete before their connections are closed.
 
 ```csharp
 var client = factory.CreateClient("my-api");

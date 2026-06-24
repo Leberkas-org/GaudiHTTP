@@ -8,26 +8,26 @@
 ## Install the Package
 
 ```bash
-dotnet add package TurboHTTP
+dotnet add package GaudiHTTP
 ```
 
 Or add it to your `.csproj`:
 
 ```xml
-<PackageReference Include="TurboHTTP" Version="3.0.0-alpha.*" />
+<PackageReference Include="GaudiHTTP" Version="3.0.0-alpha.*" />
 ```
 
 ## Dependency Injection (Recommended)
 
-Register TurboHTTP in your `IServiceCollection`:
+Register GaudiHTTP in your `IServiceCollection`:
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Register a default client
-builder.Services.AddTurboHttpClient(options =>
+builder.Services.AddGaudiHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -35,14 +35,14 @@ builder.Services.AddTurboHttpClient(options =>
 var app = builder.Build();
 ```
 
-Inject `ITurboHttpClientFactory` into your services:
+Inject `IGaudiHttpClientFactory` into your services:
 
 ```csharp
 public sealed class OrderService
 {
-    private readonly ITurboHttpClient _client;
+    private readonly IGaudiHttpClient _client;
 
-    public OrderService(ITurboHttpClientFactory factory)
+    public OrderService(IGaudiHttpClientFactory factory)
     {
         _client = factory.CreateClient();
     }
@@ -63,14 +63,14 @@ Register multiple clients with different configurations:
 
 ```csharp
 // Public API — caching enabled
-builder.Services.AddTurboHttpClient("public-api", options =>
+builder.Services.AddGaudiHttpClient("public-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithCache();
 
 // Internal service — aggressive retries
-builder.Services.AddTurboHttpClient("internal", options =>
+builder.Services.AddGaudiHttpClient("internal", options =>
 {
     options.BaseAddress = new Uri("http://internal-service:8080");
 })
@@ -82,10 +82,10 @@ Resolve by name:
 ```csharp
 public sealed class GatewayService
 {
-    private readonly ITurboHttpClient _publicApi;
-    private readonly ITurboHttpClient _internal;
+    private readonly IGaudiHttpClient _publicApi;
+    private readonly IGaudiHttpClient _internal;
 
-    public GatewayService(ITurboHttpClientFactory factory)
+    public GatewayService(IGaudiHttpClientFactory factory)
     {
         _publicApi = factory.CreateClient("public-api");
         _internal = factory.CreateClient("internal");
@@ -95,24 +95,24 @@ public sealed class GatewayService
 
 ## Typed Clients
 
-Register a named client and resolve it directly as a typed `ITurboHttpClient` subtype:
+Register a named client and resolve it directly as a typed `IGaudiHttpClient` subtype:
 
 ```csharp
-builder.Services.AddTurboHttpClient<OrderClient>(options =>
+builder.Services.AddGaudiHttpClient<OrderClient>(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithRetry();
 ```
 
-`TClient` must be a class with a constructor that accepts `ITurboHttpClient` — the registration uses `ActivatorUtilities.CreateInstance<TClient>(sp, client)` to inject the named client at resolution time. Any class meeting this constructor requirement works (the generic constraint is `where TClient : class`, not `ITurboHttpClient`).
+`TClient` must be a class with a constructor that accepts `IGaudiHttpClient` — the registration uses `ActivatorUtilities.CreateInstance<TClient>(sp, client)` to inject the named client at resolution time. Any class meeting this constructor requirement works (the generic constraint is `where TClient : class`, not `IGaudiHttpClient`).
 
 ## Fluent Builder API
 
 Use the builder pattern to compose features:
 
 ```csharp
-builder.Services.AddTurboHttpClient("full-featured", options =>
+builder.Services.AddGaudiHttpClient("full-featured", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -128,17 +128,17 @@ builder.Services.AddTurboHttpClient("full-featured", options =>
 A complete console application using the DI-based approach:
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddTurboHttpClient(options =>
+services.AddGaudiHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://jsonplaceholder.typicode.com");
 });
 
 var provider = services.BuildServiceProvider();
-var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+var factory = provider.GetRequiredService<IGaudiHttpClientFactory>();
 using var client = factory.CreateClient();
 
 var request = new HttpRequestMessage(HttpMethod.Get, "/posts/1");

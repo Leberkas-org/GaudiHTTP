@@ -1,6 +1,6 @@
 # Real-World Client Scenarios
 
-This page shows how to combine multiple TurboHTTP features to solve common application challenges. Each scenario includes complete DI registration and usage examples.
+This page shows how to combine multiple GaudiHTTP features to solve common application challenges. Each scenario includes complete DI registration and usage examples.
 
 ## Authenticated REST API Client
 
@@ -10,7 +10,7 @@ This page shows how to combine multiple TurboHTTP features to solve common appli
 
 ```csharp
 // DI Registration
-builder.Services.AddTurboHttpClient("rest-api", options =>
+builder.Services.AddGaudiHttpClient("rest-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.ConnectTimeout = TimeSpan.FromSeconds(5);
@@ -36,7 +36,7 @@ builder.Services.AddTurboHttpClient("rest-api", options =>
 Usage:
 
 ```csharp
-public class ApiService(ITurboHttpClientFactory factory, ITokenProvider tokenProvider)
+public class ApiService(IGaudiHttpClientFactory factory, ITokenProvider tokenProvider)
 {
     private readonly ITokenProvider _tokenProvider = tokenProvider;
 
@@ -65,7 +65,7 @@ public class ApiService(ITurboHttpClientFactory factory, ITokenProvider tokenPro
 
 - **Request injection:** `UseRequest()` runs first, adding your Bearer token to every outgoing request before any feature processes it.
 - **Retries:** If a GET fails due to transient error (503, connection drop, timeout), `.WithRetry()` automatically reattempts up to 5 times. The Bearer token is re-injected on each attempt via `UseRequest()`.
-- **Caching:** GET responses that include freshness headers (e.g. `Cache-Control: max-age=300`) are stored. The next request for the same URL returns the cached response without a network round-trip. Once stale, TurboHTTP sends a conditional request (`If-None-Match`, `If-Modified-Since`) to avoid re-downloading unchanged content.
+- **Caching:** GET responses that include freshness headers (e.g. `Cache-Control: max-age=300`) are stored. The next request for the same URL returns the cached response without a network round-trip. Once stale, GaudiHTTP sends a conditional request (`If-None-Match`, `If-Modified-Since`) to avoid re-downloading unchanged content.
 
 ::: tip Use cases
 Microservice-to-API calls, third-party API integrations, data fetching in background jobs.
@@ -81,7 +81,7 @@ Microservice-to-API calls, third-party API integrations, data fetching in backgr
 
 ```csharp
 // DI Registration
-builder.Services.AddTurboHttpClient("scraper", options =>
+builder.Services.AddGaudiHttpClient("scraper", options =>
 {
     options.BaseAddress = new Uri("https://example.com");
     options.ConnectTimeout = TimeSpan.FromSeconds(10);
@@ -97,7 +97,7 @@ builder.Services.AddTurboHttpClient("scraper", options =>
 Usage:
 
 ```csharp
-public class ScraperService(ITurboHttpClientFactory factory)
+public class ScraperService(IGaudiHttpClientFactory factory)
 {
     public async Task ScrapeSiteAsync(CancellationToken ct)
     {
@@ -129,7 +129,7 @@ public class ScraperService(ITurboHttpClientFactory factory)
 
 **How they interact:**
 
-- **Cookies:** After the POST request, the server responds with `Set-Cookie: session=abc123; Domain=example.com; Path=/`. TurboHTTP stores this automatically. All subsequent requests to `example.com` (at any path) now include `Cookie: session=abc123` in the request header.
+- **Cookies:** After the POST request, the server responds with `Set-Cookie: session=abc123; Domain=example.com; Path=/`. GaudiHTTP stores this automatically. All subsequent requests to `example.com` (at any path) now include `Cookie: session=abc123` in the request header.
 - **Redirects:** If the server responds with a 301/302 (e.g. `Location: /profile/dashboard`), `.WithRedirect()` automatically follows it. The cookie from login is carried forward to the redirect target.
 - **Decompression:** If the response includes `Content-Encoding: gzip`, `.WithDecompression()` transparently decompresses it. Your code reads the plain text HTML without worrying about compression.
 
@@ -151,7 +151,7 @@ Web scraping, automated testing against web apps, session-based client applicati
 
 ```csharp
 // DI Registration
-builder.Services.AddTurboHttpClient("batch-processor", options =>
+builder.Services.AddGaudiHttpClient("batch-processor", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.Http2.MaxConcurrentStreams = 100;  // up to 100 concurrent streams per connection
@@ -167,7 +167,7 @@ builder.Services.AddTurboHttpClient("batch-processor", options =>
 Usage:
 
 ```csharp
-public class BatchProcessor(ITurboHttpClientFactory factory)
+public class BatchProcessor(IGaudiHttpClientFactory factory)
 {
     public async Task ProcessUrlsAsync(List<string> urls, CancellationToken ct)
     {
@@ -211,9 +211,9 @@ public class BatchProcessor(ITurboHttpClientFactory factory)
 
 **How they interact:**
 
-- **Channel API:** The producer writes 10,000 requests to `client.Requests` (a bounded channel) as fast as it can, without waiting. The consumer reads from `client.Responses` in parallel. TurboHTTP ensures requests are sent and responses are processed concurrently.
+- **Channel API:** The producer writes 10,000 requests to `client.Requests` (a bounded channel) as fast as it can, without waiting. The consumer reads from `client.Responses` in parallel. GaudiHTTP ensures requests are sent and responses are processed concurrently.
 - **Backpressure:** If the producer writes faster than the connection can send requests, the channel fills. `WriteAsync()` blocks until there is room, preventing memory exhaustion.
-- **HTTP/2 multiplexing:** With `MaxConcurrentStreams = 100` and `MaxConnectionsPerServer = 2`, TurboHTTP reuses 2 TCP connections and multiplexes up to 100 requests at a time over each connection. This is far more efficient than HTTP/1.1's 6 connections × 1 request per connection = 6 concurrent requests.
+- **HTTP/2 multiplexing:** With `MaxConcurrentStreams = 100` and `MaxConnectionsPerServer = 2`, GaudiHTTP reuses 2 TCP connections and multiplexes up to 100 requests at a time over each connection. This is far more efficient than HTTP/1.1's 6 connections × 1 request per connection = 6 concurrent requests.
 - **Retries:** If a GET fails transiently, `.WithRetry()` automatically reattempts up to 3 times without blocking the consumer loop. Retried responses are enqueued like any other, preserving order of completion.
 
 ::: warning Thread safety
@@ -234,7 +234,7 @@ Batch URL fetching, parallel API polling, high-throughput data ingestion, distri
 
 ```csharp
 // DI Registration
-builder.Services.AddTurboHttpClient("internal-service", options =>
+builder.Services.AddGaudiHttpClient("internal-service", options =>
 {
     options.BaseAddress = new Uri("http://internal-service:8080");
     options.ConnectTimeout = TimeSpan.FromSeconds(5);    // TCP connect timeout
@@ -258,7 +258,7 @@ client.DefaultRequestVersion = HttpVersion.Version20;  // default to HTTP/2 (set
 Usage:
 
 ```csharp
-public class OrderService(ITurboHttpClientFactory factory)
+public class OrderService(IGaudiHttpClientFactory factory)
 {
     public async Task<OrderDto> GetOrderAsync(string orderId, CancellationToken ct)
     {
@@ -277,9 +277,9 @@ public class OrderService(ITurboHttpClientFactory factory)
 
 **How they interact:**
 
-- **Connect timeout:** When TurboHTTP establishes a TCP connection to `internal-service:8080`, it waits at most 5 seconds. If the connection is not established in that time, the request fails immediately.
-- **Request timeout:** Once connected, TurboHTTP sends the request and waits up to 10 seconds for a response. If the server is slow to respond, the request is cancelled after 10 seconds.
-- **Retry with respect for Retry-After:** If the service responds with `503 Service Unavailable` and includes `Retry-After: 2`, TurboHTTP automatically waits 2 seconds and retries (up to 2 times). This is transparent to your code.
+- **Connect timeout:** When GaudiHTTP establishes a TCP connection to `internal-service:8080`, it waits at most 5 seconds. If the connection is not established in that time, the request fails immediately.
+- **Request timeout:** Once connected, GaudiHTTP sends the request and waits up to 10 seconds for a response. If the server is slow to respond, the request is cancelled after 10 seconds.
+- **Retry with respect for Retry-After:** If the service responds with `503 Service Unavailable` and includes `Retry-After: 2`, GaudiHTTP automatically waits 2 seconds and retries (up to 2 times). This is transparent to your code.
 - **HTTP/2:** The connection is kept alive and reused for subsequent requests over the same underlying TCP socket. HTTP/2 multiplexing allows multiple in-flight requests at once.
 - **Decompression:** If responses are gzip-compressed, `.WithDecompression()` transparently decompresses them.
 
@@ -291,11 +291,11 @@ Internal service-to-service communication, calling backend APIs from frontend se
 
 ## Direct Channel-Based Processing
 
-**The problem:** You want to drive request/response processing yourself without `SendAsync()` — perhaps to implement custom backpressure logic, or to coordinate TurboHTTP with other async systems.
+**The problem:** You want to drive request/response processing yourself without `SendAsync()` — perhaps to implement custom backpressure logic, or to coordinate GaudiHTTP with other async systems.
 
 **Features in play:** `client.Requests` (a `ChannelWriter<HttpRequestMessage>`) and `client.Responses` (a `ChannelReader<HttpResponseMessage>`).
 
-TurboHTTP's channel API lets you:
+GaudiHTTP's channel API lets you:
 
 1. Write requests directly to `client.Requests.WriteAsync(request)` instead of calling `SendAsync()`
 2. Read responses from `client.Responses.ReadAllAsync()` in a loop

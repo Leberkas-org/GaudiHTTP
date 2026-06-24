@@ -93,7 +93,7 @@ When a new connection arrives, `ServerSupervisorActor` uses `ProtocolRouter` to 
 
 ## ASP.NET Core Integration
 
-After `ApplicationBridgeStage` creates the `TContext` from the `IFeatureCollection`, ASP.NET Core's standard middleware pipeline takes over — routing, model binding, authentication, and handler execution are all handled by ASP.NET Core, not by TurboHTTP.
+After `ApplicationBridgeStage` creates the `TContext` from the `IFeatureCollection`, ASP.NET Core's standard middleware pipeline takes over — routing, model binding, authentication, and handler execution are all handled by ASP.NET Core, not by GaudiHTTP.
 
 ---
 

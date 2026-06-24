@@ -1,13 +1,13 @@
 # Performance Tuning
 
-TurboHTTP's defaults work well for most applications. This page explains when and how to tune server options for specific workloads.
+GaudiHTTP's defaults work well for most applications. This page explains when and how to tune server options for specific workloads.
 
 ## Concurrency
 
 ### Connection Limits
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.Limits.MaxConcurrentConnections = 1000;
 });
@@ -76,7 +76,7 @@ options.HandlerTimeout = TimeSpan.FromSeconds(60);
 options.HandlerGracePeriod = TimeSpan.FromSeconds(10);
 ```
 
-The handler timeout starts when `IHttpApplication.ProcessRequestAsync()` begins. If the handler doesn't complete within `HandlerTimeout`, the request's `CancellationToken` is cancelled. After an additional `HandlerGracePeriod`, TurboHTTP returns a 503 response.
+The handler timeout starts when `IHttpApplication.ProcessRequestAsync()` begins. If the handler doesn't complete within `HandlerTimeout`, the request's `CancellationToken` is cancelled. After an additional `HandlerGracePeriod`, GaudiHTTP returns a 503 response.
 
 - **Short (5-10s)**: API endpoints with fast handlers
 - **Medium (30s, default)**: General web applications
@@ -100,7 +100,7 @@ Default is 30s. Time to drain active connections during shutdown. Set this longe
 
 ## Backpressure
 
-TurboHTTP uses Akka.Streams reactive backpressure throughout the pipeline. When a slow client can't consume response data fast enough, backpressure propagates:
+GaudiHTTP uses Akka.Streams reactive backpressure throughout the pipeline. When a slow client can't consume response data fast enough, backpressure propagates:
 
 1. Response body writer blocks (async wait, not thread block)
 2. `ApplicationBridgeStage` stops pulling new requests from the protocol engine
@@ -114,5 +114,5 @@ This prevents memory buildup from buffering responses for slow clients. No confi
 Run the included benchmarks:
 
 ```bash
-dotnet run --configuration Release --project src/TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj
+dotnet run --configuration Release --project src/GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
 ```

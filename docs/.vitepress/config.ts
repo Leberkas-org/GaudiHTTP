@@ -7,7 +7,7 @@ export default defineConfig({
             LikeC4VitePlugin({ workspace: './likec4' }),
         ],
     },
-    title: 'TurboHTTP',
+    title: 'GaudiHTTP',
     description: 'High-performance HTTP client and server for .NET built on Akka.Streams — HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC). The client adds automatic retries, caching, cookies, and connection pooling; the server is a drop-in ASP.NET Core IServer (a Kestrel replacement).',
     base: '/',
     srcExclude: ['superpowers/**', '**/CLAUDE.md'],
@@ -48,7 +48,7 @@ export default defineConfig({
                     text: 'Scenarios',
                     items: [
                         { text: 'Overview', link: '/scenarios' },
-                        { text: 'When to Use TurboHTTP', link: '/when-to-use' },
+                        { text: 'When to Use GaudiHTTP', link: '/when-to-use' },
                     ],
                 },
             ],
@@ -57,7 +57,7 @@ export default defineConfig({
                     text: 'Scenarios',
                     items: [
                         { text: 'Overview', link: '/scenarios' },
-                        { text: 'When to Use TurboHTTP', link: '/when-to-use' },
+                        { text: 'When to Use GaudiHTTP', link: '/when-to-use' },
                     ],
                 },
             ],
@@ -135,12 +135,12 @@ export default defineConfig({
         },
 
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/leberkas-org/TurboHTTP' },
+            { icon: 'github', link: 'https://github.com/leberkas-org/GaudiHTTP' },
         ],
 
         footer: {
             message: 'Released under the MIT License.',
-            copyright: 'Copyright © TurboHTTP Contributors',
+            copyright: 'Copyright © GaudiHTTP Contributors',
         },
     },
 })

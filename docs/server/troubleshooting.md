@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and solutions when running TurboHTTP Server.
+Common issues and solutions when running GaudiHTTP Server.
 
 ## Server Doesn't Start
 
@@ -61,10 +61,10 @@ options.ListenLocalhost(5000, listen =>
 
 ### Requests Time Out with 503
 
-TurboHTTP enforces a handler timeout (default 30s). If your handler takes longer:
+GaudiHTTP enforces a handler timeout (default 30s). If your handler takes longer:
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.HandlerTimeout = TimeSpan.FromSeconds(120);
     options.HandlerGracePeriod = TimeSpan.FromSeconds(15);
@@ -118,7 +118,7 @@ HTTP/3 uses QUIC (UDP). Ensure:
 
 ### Using Your Own ActorSystem
 
-If you use Akka.Hosting, TurboHTTP reuses your `ActorSystem`:
+If you use Akka.Hosting, GaudiHTTP reuses your `ActorSystem`:
 
 ```csharp
 builder.Services.AddAkka("my-system", configurationBuilder =>
@@ -126,17 +126,17 @@ builder.Services.AddAkka("my-system", configurationBuilder =>
     // your config
 });
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000);
 });
 ```
 
-If no `ActorSystem` is registered, TurboHTTP creates one named `turbo-server`.
+If no `ActorSystem` is registered, GaudiHTTP creates one named `gaudi-server`.
 
 ### Logging
 
-TurboHTTP routes Akka.NET logs through `ILoggerFactory`. To see connection-level logs:
+GaudiHTTP routes Akka.NET logs through `ILoggerFactory`. To see connection-level logs:
 
 ```csharp
 options.ListenLocalhost(5000, listen =>
@@ -151,7 +151,7 @@ Set the log level in `appsettings.json`:
 {
   "Logging": {
     "LogLevel": {
-      "TurboHTTP.Server.ConnectionLogging": "Debug"
+      "GaudiHTTP.Server.ConnectionLogging": "Debug"
     }
   }
 }

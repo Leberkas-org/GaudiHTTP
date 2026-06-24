@@ -1,5 +1,5 @@
 {
-   "Title":"TurboHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark-20260510-081247",
+   "Title":"GaudiHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark-20260510-081247",
    "HostEnvironmentInfo":{
       "BenchmarkDotNetCaption":"BenchmarkDotNet",
       "BenchmarkDotNetVersion":"0.15.8",
@@ -22,12 +22,12 @@
    "Benchmarks":[
       {
          "DisplayInfo":"FeedbackBufferBenchmark.DirectResponse: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Pipeline",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Pipeline",
          "Type":"FeedbackBufferBenchmark",
          "Method":"DirectResponse",
          "MethodTitle":"DirectResponse",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark.DirectResponse",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark.DirectResponse",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -1786,12 +1786,12 @@
          ]
       },{
          "DisplayInfo":"FeedbackBufferBenchmark.SingleRedirect: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Pipeline",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Pipeline",
          "Type":"FeedbackBufferBenchmark",
          "Method":"SingleRedirect",
          "MethodTitle":"SingleRedirect",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark.SingleRedirect",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Pipeline.FeedbackBufferBenchmark.SingleRedirect",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[

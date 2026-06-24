@@ -1,5 +1,5 @@
 {
-   "Title":"TurboHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark-20260510-081940",
+   "Title":"GaudiHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark-20260510-081940",
    "HostEnvironmentInfo":{
       "BenchmarkDotNetCaption":"BenchmarkDotNet",
       "BenchmarkDotNetVersion":"0.15.8",
@@ -22,12 +22,12 @@
    "Benchmarks":[
       {
          "DisplayInfo":"VersionDispatchBenchmark.DispatchRequest: Job-UFXZUX(Server=True) [HttpVersion=1.0]",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Pipeline",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Pipeline",
          "Type":"VersionDispatchBenchmark",
          "Method":"DispatchRequest",
          "MethodTitle":"DispatchRequest",
          "Parameters":"HttpVersion=1.0",
-         "FullName":"TurboHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark.DispatchRequest(HttpVersion: \"1.0\")",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark.DispatchRequest(HttpVersion: \"1.0\")",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -1786,12 +1786,12 @@
          ]
       },{
          "DisplayInfo":"VersionDispatchBenchmark.DispatchRequest: Job-UFXZUX(Server=True) [HttpVersion=1.1]",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Pipeline",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Pipeline",
          "Type":"VersionDispatchBenchmark",
          "Method":"DispatchRequest",
          "MethodTitle":"DispatchRequest",
          "Parameters":"HttpVersion=1.1",
-         "FullName":"TurboHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark.DispatchRequest(HttpVersion: \"1.1\")",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Pipeline.VersionDispatchBenchmark.DispatchRequest(HttpVersion: \"1.1\")",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[

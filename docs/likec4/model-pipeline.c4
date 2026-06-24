@@ -1,4 +1,4 @@
-// TurboHTTP — Pipeline Flow Relationships (Client & Server)
+// GaudiHTTP — Pipeline Flow Relationships (Client & Server)
 // Extends model.c4 with ordered flow and feedback relationships
 // for both client and server request processing pipelines.
 //
@@ -23,47 +23,47 @@
 
 model {
   // Request chain (outermost -> innermost)
-  turbohttp.client.TurboHttpClient -[flows]-> turbohttp.streams.RequestEnricher 'request'
-  turbohttp.streams.RequestEnricher -[flows]-> turbohttp.streams.TracingBidiStage 'request'
-  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.HandlerBidiStage 'request (defaults applied)'
-  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'request'
-  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'request'
-  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'request (cookies injected)'
-  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.ExpectContinueBidiStage 'request'
-  turbohttp.streams.ExpectContinueBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'request'
-  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
-  turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.AltSvcBidiStage 'request (body compressed)'
-  turbohttp.streams.AltSvcBidiStage -[flows]-> turbohttp.streams.Engine 'request (version resolved)'
+  gaudihttp.client.GaudiHttpClient -[flows]-> gaudihttp.streams.RequestEnricher 'request'
+  gaudihttp.streams.RequestEnricher -[flows]-> gaudihttp.streams.TracingBidiStage 'request'
+  gaudihttp.streams.TracingBidiStage -[flows]-> gaudihttp.streams.HandlerBidiStage 'request (defaults applied)'
+  gaudihttp.streams.HandlerBidiStage -[flows]-> gaudihttp.streams.RedirectBidiStage 'request'
+  gaudihttp.streams.RedirectBidiStage -[flows]-> gaudihttp.streams.CookieBidiStage 'request'
+  gaudihttp.streams.CookieBidiStage -[flows]-> gaudihttp.streams.RetryBidiStage 'request (cookies injected)'
+  gaudihttp.streams.RetryBidiStage -[flows]-> gaudihttp.streams.ExpectContinueBidiStage 'request'
+  gaudihttp.streams.ExpectContinueBidiStage -[flows]-> gaudihttp.streams.CacheBidiStage 'request'
+  gaudihttp.streams.CacheBidiStage -[flows]-> gaudihttp.streams.ContentEncodingBidiStage 'request (cache miss)'
+  gaudihttp.streams.ContentEncodingBidiStage -[flows]-> gaudihttp.streams.AltSvcBidiStage 'request (body compressed)'
+  gaudihttp.streams.AltSvcBidiStage -[flows]-> gaudihttp.streams.Engine 'request (version resolved)'
 
   // Engine dispatch
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http10ClientEngine 'HTTP/1.0'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http11ClientEngine 'HTTP/1.1'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http20ClientEngine 'HTTP/2'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http30ClientEngine 'HTTP/3'
+  gaudihttp.streams.Engine -[flows]-> gaudihttp.streams.Http10ClientEngine 'HTTP/1.0'
+  gaudihttp.streams.Engine -[flows]-> gaudihttp.streams.Http11ClientEngine 'HTTP/1.1'
+  gaudihttp.streams.Engine -[flows]-> gaudihttp.streams.Http20ClientEngine 'HTTP/2'
+  gaudihttp.streams.Engine -[flows]-> gaudihttp.streams.Http30ClientEngine 'HTTP/3'
 
   // HTTP/1.0: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http10ClientEngine -[flows]-> turbohttp.streams.Http10ClientConnectionStage 'request'
-  turbohttp.streams.Http10ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http10ClientConnectionStage 'inbound bytes'
-  turbohttp.streams.Http10ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  gaudihttp.streams.Http10ClientEngine -[flows]-> gaudihttp.streams.Http10ClientConnectionStage 'request'
+  gaudihttp.streams.Http10ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> gaudihttp.streams.Http10ClientConnectionStage 'inbound bytes'
+  gaudihttp.streams.Http10ClientConnectionStage -[flows]-> gaudihttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/1.1: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http11ClientEngine -[flows]-> turbohttp.streams.Http11ClientConnectionStage 'request'
-  turbohttp.streams.Http11ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http11ClientConnectionStage 'inbound bytes'
-  turbohttp.streams.Http11ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  gaudihttp.streams.Http11ClientEngine -[flows]-> gaudihttp.streams.Http11ClientConnectionStage 'request'
+  gaudihttp.streams.Http11ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> gaudihttp.streams.Http11ClientConnectionStage 'inbound bytes'
+  gaudihttp.streams.Http11ClientConnectionStage -[flows]-> gaudihttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/2: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http20ClientEngine -[flows]-> turbohttp.streams.Http20ClientConnectionStage 'request'
-  turbohttp.streams.Http20ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http20ClientConnectionStage 'inbound bytes'
-  turbohttp.streams.Http20ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  gaudihttp.streams.Http20ClientEngine -[flows]-> gaudihttp.streams.Http20ClientConnectionStage 'request'
+  gaudihttp.streams.Http20ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> gaudihttp.streams.Http20ClientConnectionStage 'inbound bytes'
+  gaudihttp.streams.Http20ClientConnectionStage -[flows]-> gaudihttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/3: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http30ClientEngine -[flows]-> turbohttp.streams.Http30ClientConnectionStage 'request'
-  turbohttp.streams.Http30ClientConnectionStage -[flows]-> servus.QuicConnectionStage 'outbound bytes'
-  servus.QuicConnectionStage -[flows]-> turbohttp.streams.Http30ClientConnectionStage 'inbound bytes'
-  turbohttp.streams.Http30ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  gaudihttp.streams.Http30ClientEngine -[flows]-> gaudihttp.streams.Http30ClientConnectionStage 'request'
+  gaudihttp.streams.Http30ClientConnectionStage -[flows]-> servus.QuicConnectionStage 'outbound bytes'
+  servus.QuicConnectionStage -[flows]-> gaudihttp.streams.Http30ClientConnectionStage 'inbound bytes'
+  gaudihttp.streams.Http30ClientConnectionStage -[flows]-> gaudihttp.streams.ContentEncodingBidiStage 'response'
 
   // Transport -> Network
   servus.TcpConnectionStage -[flows]-> servus.TcpConnectionManagerActor 'connection lease'
@@ -77,52 +77,52 @@ model {
   network -[flows]-> servus.QuicConnectionStage 'QUIC bytes'
 
   // Response chain (innermost -> outermost)
-  turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'response (decompressed)'
-  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.ExpectContinueBidiStage 'response (stored if cacheable)'
-  turbohttp.streams.ExpectContinueBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'response'
-  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'response'
-  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'response (cookies stored)'
-  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.HandlerBidiStage 'response'
-  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'response (traced)'
-  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.client.TurboHttpClient 'response'
+  gaudihttp.streams.ContentEncodingBidiStage -[flows]-> gaudihttp.streams.CacheBidiStage 'response (decompressed)'
+  gaudihttp.streams.CacheBidiStage -[flows]-> gaudihttp.streams.ExpectContinueBidiStage 'response (stored if cacheable)'
+  gaudihttp.streams.ExpectContinueBidiStage -[flows]-> gaudihttp.streams.RetryBidiStage 'response'
+  gaudihttp.streams.RetryBidiStage -[flows]-> gaudihttp.streams.CookieBidiStage 'response'
+  gaudihttp.streams.CookieBidiStage -[flows]-> gaudihttp.streams.RedirectBidiStage 'response (cookies stored)'
+  gaudihttp.streams.RedirectBidiStage -[flows]-> gaudihttp.streams.HandlerBidiStage 'response'
+  gaudihttp.streams.HandlerBidiStage -[flows]-> gaudihttp.streams.TracingBidiStage 'response (traced)'
+  gaudihttp.streams.TracingBidiStage -[flows]-> gaudihttp.client.GaudiHttpClient 'response'
 
   // Feedback: cache hit bypasses engine, re-enters at Retry
-  turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'cached response (bypasses network)'
+  gaudihttp.streams.CacheBidiStage -[feedback]-> gaudihttp.streams.RetryBidiStage 'cached response (bypasses network)'
 
   // Feedback: redirect re-enters at Cookie (new URL needs cookie injection)
-  turbohttp.streams.RedirectBidiStage -[feedback]-> turbohttp.streams.CookieBidiStage 'redirect (re-enters at cookies)'
+  gaudihttp.streams.RedirectBidiStage -[feedback]-> gaudihttp.streams.CookieBidiStage 'redirect (re-enters at cookies)'
 
   // Feedback: retry re-enters at ExpectContinue (same URL, cookies already set)
-  turbohttp.streams.RetryBidiStage -[feedback]-> turbohttp.streams.ExpectContinueBidiStage 'retry (re-enters below cookies)'
+  gaudihttp.streams.RetryBidiStage -[feedback]-> gaudihttp.streams.ExpectContinueBidiStage 'retry (re-enters below cookies)'
 
   // ─── Server: Inbound — Network → ConnectionStage (wire decode) ────
 
-  network -[flows]-> turbohttp.serverStages.Http10ServerConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.Http11ServerConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.Http20ServerConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.Http30ServerConnectionStage 'inbound bytes'
+  network -[flows]-> gaudihttp.serverStages.Http10ServerConnectionStage 'inbound bytes'
+  network -[flows]-> gaudihttp.serverStages.Http11ServerConnectionStage 'inbound bytes'
+  network -[flows]-> gaudihttp.serverStages.Http20ServerConnectionStage 'inbound bytes'
+  network -[flows]-> gaudihttp.serverStages.Http30ServerConnectionStage 'inbound bytes'
 
   // ─── Server: ConnectionStage → ApplicationBridgeStage (decoded request as IFeatureCollection)
 
-  turbohttp.serverStages.Http10ServerConnectionStage -[flows]-> turbohttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
-  turbohttp.serverStages.Http11ServerConnectionStage -[flows]-> turbohttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
-  turbohttp.serverStages.Http20ServerConnectionStage -[flows]-> turbohttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
-  turbohttp.serverStages.Http30ServerConnectionStage -[flows]-> turbohttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
+  gaudihttp.serverStages.Http10ServerConnectionStage -[flows]-> gaudihttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
+  gaudihttp.serverStages.Http11ServerConnectionStage -[flows]-> gaudihttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
+  gaudihttp.serverStages.Http20ServerConnectionStage -[flows]-> gaudihttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
+  gaudihttp.serverStages.Http30ServerConnectionStage -[flows]-> gaudihttp.serverStages.ApplicationBridgeStage 'IFeatureCollection'
 
   // ─── Server: ApplicationBridgeStage dispatches to ASP.NET Core ────
   // ApplicationBridgeStage calls IHttpApplication.CreateContext(features) → ProcessRequestAsync() → DisposeContext()
 
   // ─── Server: Response — ApplicationBridgeStage → ConnectionStage → Network
 
-  turbohttp.serverStages.ApplicationBridgeStage -[flows]-> turbohttp.serverStages.Http10ServerConnectionStage 'response IFeatureCollection'
-  turbohttp.serverStages.ApplicationBridgeStage -[flows]-> turbohttp.serverStages.Http11ServerConnectionStage 'response IFeatureCollection'
-  turbohttp.serverStages.ApplicationBridgeStage -[flows]-> turbohttp.serverStages.Http20ServerConnectionStage 'response IFeatureCollection'
-  turbohttp.serverStages.ApplicationBridgeStage -[flows]-> turbohttp.serverStages.Http30ServerConnectionStage 'response IFeatureCollection'
+  gaudihttp.serverStages.ApplicationBridgeStage -[flows]-> gaudihttp.serverStages.Http10ServerConnectionStage 'response IFeatureCollection'
+  gaudihttp.serverStages.ApplicationBridgeStage -[flows]-> gaudihttp.serverStages.Http11ServerConnectionStage 'response IFeatureCollection'
+  gaudihttp.serverStages.ApplicationBridgeStage -[flows]-> gaudihttp.serverStages.Http20ServerConnectionStage 'response IFeatureCollection'
+  gaudihttp.serverStages.ApplicationBridgeStage -[flows]-> gaudihttp.serverStages.Http30ServerConnectionStage 'response IFeatureCollection'
 
   // ─── Server: Outbound — ConnectionStage → Network (wire encode) ───
 
-  turbohttp.serverStages.Http10ServerConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.Http11ServerConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.Http20ServerConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.Http30ServerConnectionStage -[flows]-> network 'outbound bytes'
+  gaudihttp.serverStages.Http10ServerConnectionStage -[flows]-> network 'outbound bytes'
+  gaudihttp.serverStages.Http11ServerConnectionStage -[flows]-> network 'outbound bytes'
+  gaudihttp.serverStages.Http20ServerConnectionStage -[flows]-> network 'outbound bytes'
+  gaudihttp.serverStages.Http30ServerConnectionStage -[flows]-> network 'outbound bytes'
 }

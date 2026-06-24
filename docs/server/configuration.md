@@ -1,9 +1,9 @@
 # Configuration
 
-All server configuration flows through `TurboServerOptions`, passed to `UseTurboHttp()`.
+All server configuration flows through `GaudiServerOptions`, passed to `UseGaudiHttp()`.
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // configure here
 });
@@ -137,7 +137,7 @@ See the [Server API reference](/api/server#transport-buffer-options) for details
 ## Example: Full Configuration
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // Endpoints
     options.ListenLocalhost(5000);
@@ -167,6 +167,6 @@ builder.Host.UseTurboHttp(options =>
 
 ## Next Steps
 
-- [Using with ASP.NET Core](./aspnet-core) — how TurboHTTP integrates with ASP.NET Core
+- [Using with ASP.NET Core](./aspnet-core) — how GaudiHTTP integrates with ASP.NET Core
 - [Performance Tuning](./performance) — when and how to tune these options
 - [Hosting & Lifecycle](./hosting) — shutdown behavior

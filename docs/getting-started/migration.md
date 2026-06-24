@@ -1,14 +1,14 @@
 # Migrating from HttpClient
 
-This guide shows how to migrate common `HttpClient` patterns to TurboHTTP. The API is intentionally similar — most code changes are mechanical.
+This guide shows how to migrate common `HttpClient` patterns to GaudiHTTP. The API is intentionally similar — most code changes are mechanical.
 
 ## Quick Comparison
 
-| HttpClient                 | TurboHTTP                                                |
+| HttpClient                 | GaudiHTTP                                                |
 | -------------------------- | -------------------------------------------------------- |
 | `new HttpClient()`         | `factory.CreateClient("name")` via DI                    |
-| `IHttpClientFactory`       | `ITurboHttpClientFactory`                                |
-| `services.AddHttpClient()` | `services.AddTurboHttpClient()`                          |
+| `IHttpClientFactory`       | `IGaudiHttpClientFactory`                                |
+| `services.AddHttpClient()` | `services.AddGaudiHttpClient()`                          |
 | `client.GetAsync(url)`     | `client.SendAsync(new HttpRequestMessage(Get, url), ct)` |
 | `DelegatingHandler`        | `TurboHandler` (stream-compatible)                       |
 | Polly retry policies       | Built-in `.WithRetry()`                                  |
@@ -25,11 +25,11 @@ var response = await client.GetAsync("/users/42");
 var body = await response.Content.ReadAsStringAsync();
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
 // Registration (once, at startup)
-services.AddTurboHttpClient("my-api", options =>
+services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -44,7 +44,7 @@ var body = await response.Content.ReadAsStringAsync();
 
 Key differences:
 
-- Client is obtained from `ITurboHttpClientFactory`, not constructed directly
+- Client is obtained from `IGaudiHttpClientFactory`, not constructed directly
 - Always pass `CancellationToken` explicitly
 - No shorthand methods like `GetAsync` — use `SendAsync` with `HttpRequestMessage`
 
@@ -66,25 +66,25 @@ public class MyService(IHttpClientFactory factory)
 }
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
 
 // In service:
-public class MyService(ITurboHttpClientFactory factory)
+public class MyService(IGaudiHttpClientFactory factory)
 {
-    private readonly ITurboHttpClient _client = factory.CreateClient("my-api");
+    private readonly IGaudiHttpClient _client = factory.CreateClient("my-api");
 
     // DefaultRequestHeaders are set on the client instance, not on TurboClientOptions
     // _client.DefaultRequestHeaders.Add("Accept", "application/json");
 }
 ```
 
-The pattern is nearly identical — replace `IHttpClientFactory` with `ITurboHttpClientFactory`.
+The pattern is nearly identical — replace `IHttpClientFactory` with `IGaudiHttpClientFactory`.
 
 ## Retry Policies
 
@@ -97,17 +97,17 @@ builder.Services.AddHttpClient("my-api")
             TimeSpan.FromSeconds(Math.Pow(2, attempt))));
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithRetry(); // 3 retries, respects Retry-After
 ```
 
-No Polly dependency needed. TurboHTTP automatically:
+No Polly dependency needed. GaudiHTTP automatically:
 
 - Retries only idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS, TRACE)
 - Never retries POST or PATCH
@@ -128,18 +128,18 @@ var handler = new HttpClientHandler
 using var client = new HttpClient(handler);
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
 // Cookies are automatic — no setup needed
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithCookies(); // enable automatic cookie handling
 ```
 
-TurboHTTP's `CookieJar` handles domain matching, path matching, Secure/HttpOnly attributes, and expiration automatically. Each client has its own isolated jar.
+GaudiHTTP's `CookieJar` handles domain matching, path matching, Secure/HttpOnly attributes, and expiration automatically. Each client has its own isolated jar.
 
 ## Custom Middleware
 
@@ -162,7 +162,7 @@ builder.Services.AddHttpClient("my-api")
     .AddHttpMessageHandler<LoggingHandler>();
 ```
 
-**After (TurboHTTP TurboHandler):**
+**After (GaudiHTTP TurboHandler):**
 
 ```csharp
 public sealed class LoggingHandler : TurboHandler
@@ -181,7 +181,7 @@ public sealed class LoggingHandler : TurboHandler
     }
 }
 
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -204,10 +204,10 @@ client.DefaultRequestVersion = HttpVersion.Version20;
 client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -217,7 +217,7 @@ var client = factory.CreateClient("my-api");
 client.DefaultRequestVersion = HttpVersion.Version20;
 ```
 
-TurboHTTP provides full HTTP/2 multiplexing — all requests to the same host share a single TCP connection with concurrent streams. See [HTTP/2 & Multiplexing](/client/http2).
+GaudiHTTP provides full HTTP/2 multiplexing — all requests to the same host share a single TCP connection with concurrent streams. See [HTTP/2 & Multiplexing](/client/http2).
 
 ## Timeout
 
@@ -227,7 +227,7 @@ TurboHTTP provides full HTTP/2 multiplexing — all requests to the same host sh
 client.Timeout = TimeSpan.FromSeconds(30);
 ```
 
-**After (TurboHTTP):**
+**After (GaudiHTTP):**
 
 ```csharp
 client.Timeout = TimeSpan.FromSeconds(30);
@@ -237,13 +237,13 @@ using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 var response = await client.SendAsync(request, cts.Token);
 ```
 
-Same API. TurboHTTP additionally respects `CancellationToken` at every layer.
+Same API. GaudiHTTP additionally respects `CancellationToken` at every layer.
 
 ## What You Get for Free
 
-By switching to TurboHTTP, these features work out of the box without additional libraries:
+By switching to GaudiHTTP, these features work out of the box without additional libraries:
 
-| Feature            | HttpClient Approach                 | TurboHTTP                           |
+| Feature            | HttpClient Approach                 | GaudiHTTP                           |
 | ------------------ | ----------------------------------- | ----------------------------------- |
 | Retries            | Polly + DelegatingHandler           | Built-in `.WithRetry()`             |
 | Caching            | Custom DelegatingHandler or nothing | Built-in `.WithCache()`             |
@@ -258,13 +258,13 @@ By switching to TurboHTTP, these features work out of the box without additional
 Be aware of trade-offs:
 
 - **No `GetAsync` / `PostAsync` / `PutAsync` convenience methods** — always use `SendAsync` with `HttpRequestMessage`
-- **No typed client interfaces** — if you need Refit-style interfaces, TurboHTTP isn't the right tool
+- **No typed client interfaces** — if you need Refit-style interfaces, GaudiHTTP isn't the right tool
 - **Akka.NET dependency** — adds ~5 MB to your deployment; not an issue for most apps, but worth noting for size-constrained environments
 - **Learning curve** — understanding the pipeline model requires reading the [Architecture](/architecture/) docs
 
 ## Gradual Migration
 
-You don't have to migrate everything at once. TurboHTTP and `HttpClient` can coexist in the same application:
+You don't have to migrate everything at once. GaudiHTTP and `HttpClient` can coexist in the same application:
 
 ```csharp
 // Keep existing HttpClient registrations
@@ -273,8 +273,8 @@ builder.Services.AddHttpClient("legacy-api", client =>
     client.BaseAddress = new Uri("https://old.api.com");
 });
 
-// Add TurboHTTP for new services
-builder.Services.AddTurboHttpClient("new-api", options =>
+// Add GaudiHTTP for new services
+builder.Services.AddGaudiHttpClient("new-api", options =>
 {
     options.BaseAddress = new Uri("https://new.api.com");
 })

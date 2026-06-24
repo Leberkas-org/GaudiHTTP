@@ -1,13 +1,13 @@
 # API Reference
 
-TurboHTTP's public API is organized into client, server, and feature configuration.
+GaudiHTTP's public API is organized into client, server, and feature configuration.
 
 ## Client API
 
 | Type | Description | Reference |
 |------|-------------|-----------|
-| `ITurboHttpClientFactory` | Creates named client instances | [Client API](./client) |
-| `ITurboHttpClient` | The HTTP client — `SendAsync` and channel-based API | [Client API](./client) |
+| `IGaudiHttpClientFactory` | Creates named client instances | [Client API](./client) |
+| `IGaudiHttpClient` | The HTTP client — `SendAsync` and channel-based API | [Client API](./client) |
 | `TurboClientOptions` | Connection, TLS, proxy, and protocol settings | [Client Options](./client-options) |
 | `Http1ClientOptions` / `Http2ClientOptions` / `Http3ClientOptions` | Per-protocol tuning | [Client Options](./client-options) |
 | `RetryOptions` / `CacheOptions` / `RedirectOptions` | Feature configuration | [Feature Options](./feature-options) |
@@ -17,8 +17,8 @@ TurboHTTP's public API is organized into client, server, and feature configurati
 
 | Type | Description | Reference |
 |------|-------------|-----------|
-| `UseTurboHttp()` | Server registration on `builder.Host` (standalone HTTP server) | [Server API](./server) |
-| `TurboServerOptions` | Endpoints, protocols, timeouts | [Server API](./server) |
+| `UseGaudiHttp()` | Server registration on `builder.Host` (standalone HTTP server) | [Server API](./server) |
+| `GaudiServerOptions` | Endpoints, protocols, timeouts | [Server API](./server) |
 | `Http1ServerOptions` / `Http2ServerOptions` / `Http3ServerOptions` | Per-protocol tuning | [Server API](./server) |
 | `app.MapGet/Post/Put/Delete/Patch()` | Standard ASP.NET Core route registration | [Server API](./server) |
 | ASP.NET Core middleware | Standard middleware pipeline | [Server API](./server) |
@@ -30,7 +30,7 @@ TurboHTTP's public API is organized into client, server, and feature configurati
 
 ```csharp
 // Named client
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -38,10 +38,10 @@ builder.Services.AddTurboHttpClient("api", options =>
 .WithCache();
 
 // Default (unnamed) client
-builder.Services.AddTurboHttpClient(options => { ... });
+builder.Services.AddGaudiHttpClient(options => { ... });
 
 // Typed client
-builder.Services.AddTurboHttpClient<IMyApiClient>(options => { ... });
+builder.Services.AddGaudiHttpClient<IMyApiClient>(options => { ... });
 ```
 
 ### Server
@@ -49,7 +49,7 @@ builder.Services.AddTurboHttpClient<IMyApiClient>(options => { ... });
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
 });

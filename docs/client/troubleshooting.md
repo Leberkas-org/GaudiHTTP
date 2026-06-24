@@ -4,15 +4,15 @@
 
 ### Do I need to install Akka.NET separately?
 
-No. Akka.NET is a transitive dependency of TurboHTTP — it is pulled in automatically when you install the package.
+No. Akka.NET is a transitive dependency of GaudiHTTP — it is pulled in automatically when you install the package.
 
-### Can I use TurboHTTP alongside HttpClient?
+### Can I use GaudiHTTP alongside HttpClient?
 
-Yes. Both can coexist in the same application. Use `IHttpClientFactory` for your existing services and `ITurboHttpClientFactory` for new ones. See [Gradual Migration](/getting-started/migration#gradual-migration).
+Yes. Both can coexist in the same application. Use `IHttpClientFactory` for your existing services and `IGaudiHttpClientFactory` for new ones. See [Gradual Migration](/getting-started/migration#gradual-migration).
 
-### Is TurboHTTP thread-safe?
+### Is GaudiHTTP thread-safe?
 
-Yes. `ITurboHttpClient` is fully thread-safe. Multiple threads can call `SendAsync` concurrently. The channel-based API (`Requests` / `Responses`) supports concurrent producers and consumers.
+Yes. `IGaudiHttpClient` is fully thread-safe. Multiple threads can call `SendAsync` concurrently. The channel-based API (`Requests` / `Responses`) supports concurrent producers and consumers.
 
 ### How do I disable a feature?
 
@@ -20,13 +20,13 @@ Features are opt-in via the builder API. Simply don't call the corresponding bui
 
 ```csharp
 // No retries, no caching, no redirects — just register without builder extensions
-builder.Services.AddTurboHttpClient("bare", options =>
+builder.Services.AddGaudiHttpClient("bare", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
 ```
 
-### Does TurboHTTP support HTTPS?
+### Does GaudiHTTP support HTTPS?
 
 Yes. TLS is handled automatically for `https://` URIs. Configure TLS options via `TurboClientOptions`:
 
@@ -66,12 +66,12 @@ Per-request overrides are also supported via `HttpRequestMessage.Version`.
 
 ### Too Many Redirects
 
-**Symptom:** You receive a 3xx redirect response instead of the final destination response — TurboHTTP stopped following redirects after hitting the configured limit.
+**Symptom:** You receive a 3xx redirect response instead of the final destination response — GaudiHTTP stopped following redirects after hitting the configured limit.
 
 **Fix:** The server is returning a redirect loop. Either fix the server or increase the redirect limit via the builder:
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -82,14 +82,14 @@ To debug, remove the `.WithRedirect()` call entirely and inspect the redirect re
 
 ### HTTPS to HTTP Downgrade Blocked
 
-**Symptom:** A redirect from `https://` to `http://` is not followed — TurboHTTP returns the 3xx redirect response instead of following it.
+**Symptom:** A redirect from `https://` to `http://` is not followed — GaudiHTTP returns the 3xx redirect response instead of following it.
 
-**Cause:** A server redirected from `https://` to `http://`, which TurboHTTP blocks by default for security.
+**Cause:** A server redirected from `https://` to `http://`, which GaudiHTTP blocks by default for security.
 
 **Fix (if the downgrade is intentional):**
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-api", options =>
+builder.Services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -195,7 +195,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // gracef
 
 ### Enable Akka Logging
 
-TurboHTTP uses Akka's logging infrastructure. To see connection lifecycle events:
+GaudiHTTP uses Akka's logging infrastructure. To see connection lifecycle events:
 
 ```csharp
 // In your Akka configuration

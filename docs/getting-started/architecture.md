@@ -1,6 +1,6 @@
 # Architecture Overview
 
-TurboHTTP is both an HTTP client and a high-performance ASP.NET Core `IServer` — a drop-in Kestrel replacement — built on Akka.Streams. Both sides follow the same principle: composable pipeline stages connected by backpressure-aware streams.
+GaudiHTTP is both an HTTP client and a high-performance ASP.NET Core `IServer` — a drop-in Kestrel replacement — built on Akka.Streams. Both sides follow the same principle: composable pipeline stages connected by backpressure-aware streams.
 
 <ClientOnly>
   <LikeC4Diagram viewId="index" :height="300" />
@@ -68,8 +68,8 @@ Each stage does one thing well. Most of the time you don't think about them — 
   <LikeC4Diagram viewId="clientLayer" :height="300" />
 </ClientOnly>
 
-- **ITurboHttpClient** — the public API: `SendAsync()` for single requests, `Requests`/`Responses` channels for high-throughput streaming
-- **TurboHttpClient** — concrete implementation that wraps the Akka.Streams pipeline
+- **IGaudiHttpClient** — the public API: `SendAsync()` for single requests, `Requests`/`Responses` channels for high-throughput streaming
+- **GaudiHttpClient** — concrete implementation that wraps the Akka.Streams pipeline
 - **ClientStreamManager** — materialises the full pipeline graph from the configured stages
 - **StreamOwner** — owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure
 
@@ -86,7 +86,7 @@ Each stage does one thing well. Most of the time you don't think about them — 
 
 ### Request Pipeline
 
-When a request arrives at TurboHTTP Server, it passes through a complementary pipeline:
+When a request arrives at GaudiHTTP Server, it passes through a complementary pipeline:
 
 <ClientOnly>
   <LikeC4Diagram viewId="serverPipeline" :height="500" />
@@ -118,13 +118,13 @@ Each connection is managed by a dedicated `ConnectionActor` spawned by the `List
 
 ### Server Architecture
 
-TurboHTTP Server is an ASP.NET Core `IServer` implementation that replaces Kestrel, with its own TCP/QUIC transport via Servus.Akka.Transport. Middleware, routing, and parameter binding are delegated to standard ASP.NET Core.
+GaudiHTTP Server is an ASP.NET Core `IServer` implementation that replaces Kestrel, with its own TCP/QUIC transport via Servus.Akka.Transport. Middleware, routing, and parameter binding are delegated to standard ASP.NET Core.
 
 <ClientOnly>
   <LikeC4Diagram viewId="serverHierarchy" :height="400" />
 </ClientOnly>
 
-- **TurboServer** — the `IServer` implementation registered via `builder.Host.UseTurboHttp()`; ASP.NET Core hosting calls `StartAsync<TContext>()`, which creates the ActorSystem and spawns ServerSupervisorActor
+- **GaudiServer** — the `IServer` implementation registered via `builder.Host.UseGaudiHttp()`; ASP.NET Core hosting calls `StartAsync<TContext>()`, which creates the ActorSystem and spawns ServerSupervisorActor
 - **ServerSupervisorActor** — manages all listeners and tracks connection counts
 - **ListenerActor** — binds TCP or QUIC transport, accepts incoming connections, and spawns a `ConnectionActor` per client that materialises the full protocol lifecycle graph
 

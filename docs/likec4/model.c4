@@ -1,11 +1,11 @@
-// TurboHTTP — Model
+// GaudiHTTP — Model
 // All elements (person, system, containers, components, actors) and their
 // structural relationships. Pipeline-specific flow/feedback relationships
 // for both client and server live in model-pipeline.c4.
 
 model {
   app = person 'Application' {
-    description 'Any .NET application using TurboHTTP'
+    description 'Any .NET application using GaudiHTTP'
   }
 
   network = externalSystem 'Network' {
@@ -13,7 +13,7 @@ model {
     technology 'TCP / TLS / QUIC'
   }
 
-  turbohttp = system 'TurboHTTP' {
+  gaudihttp = system 'GaudiHTTP' {
     description 'High-performance HTTP client and server for .NET built on Akka.Streams'
     technology '.NET 10 / Akka.Streams 1.5'
 
@@ -24,16 +24,16 @@ model {
       description 'Public API and Akka.Streams lifecycle management'
       technology 'C# / .NET 10'
 
-      ITurboHttpClient = component 'ITurboHttpClient' {
+      IGaudiHttpClient = component 'IGaudiHttpClient' {
         #client #api
         technology 'Interface'
         description 'Channel-based request/response API: ChannelWriter<HttpRequestMessage> / ChannelReader<HttpResponseMessage>, SendAsync, BaseAddress, DefaultRequestVersion'
       }
 
-      TurboHttpClient = component 'TurboHttpClient' {
+      GaudiHttpClient = component 'GaudiHttpClient' {
         #client
         technology 'Class'
-        description 'Concrete implementation of ITurboHttpClient: wraps the Akka.Streams pipeline, exposes SendAsync and channel-based APIs'
+        description 'Concrete implementation of IGaudiHttpClient: wraps the Akka.Streams pipeline, exposes SendAsync and channel-based APIs'
       }
 
       ClientStreamManager = component 'ClientStreamManager' {
@@ -48,7 +48,7 @@ model {
         description 'Per-client actor: materialises the Akka.Streams pipeline, registers consumers, and monitors and restarts it on failure'
       }
 
-      TurboClientOptions = component 'TurboClientOptions' {
+      GaudiClientOptions = component 'GaudiClientOptions' {
         #client
         technology 'Class'
         description 'BaseAddress, ConnectTimeout, and nested Http1/Http2/Http3 options'
@@ -173,7 +173,7 @@ model {
       HandlerBidiStage = component 'HandlerBidiStage' {
         #client #stage
         technology 'BidiStage'
-        description 'Bridge for custom TurboHandler middleware; allows user-defined request/response processing'
+        description 'Bridge for custom GaudiHandler middleware; allows user-defined request/response processing'
       }
     }
 
@@ -184,7 +184,7 @@ model {
       description 'IServer implementation with actor-based lifecycle and Akka.Streams pipeline'
       technology 'C# / Akka.NET / Servus.Akka.Transport'
 
-      TurboServer = component 'TurboServer' {
+      GaudiServer = component 'GaudiServer' {
         #server #api
         technology 'IServer'
         description 'ASP.NET Core IServer implementation: creates ActorSystem, materializer, ApplicationBridgeStage, and spawns ServerSupervisorActor on startup'
@@ -214,7 +214,7 @@ model {
         description 'Selects the server protocol engine (HTTP/1.0, 1.1, 2, or 3) based on ALPN negotiation result or configured default'
       }
 
-      TurboServerOptions = component 'TurboServerOptions' {
+      GaudiServerOptions = component 'GaudiServerOptions' {
         #server #api
         technology 'Class'
         description 'Server configuration: endpoints, protocols, timeouts, graceful shutdown, per-protocol Http1/Http2/Http3 server options'
@@ -335,53 +335,53 @@ model {
 
   // ─── Structural Relationships ─────────────────────────────────────
 
-  turbohttp.client -> network 'HTTP requests and responses'
-  turbohttp.server -> network 'Accepts HTTP connections'
-  turbohttp.streams.Engine -> network 'Routes to remote servers via transport'
+  gaudihttp.client -> network 'HTTP requests and responses'
+  gaudihttp.server -> network 'Accepts HTTP connections'
+  gaudihttp.streams.Engine -> network 'Routes to remote servers via transport'
 
-  app -> turbohttp.client.ITurboHttpClient 'Sends requests, receives responses'
-  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboHttpClient 'Implemented by'
-  turbohttp.client.TurboHttpClient -> turbohttp.client.ClientStreamManager 'Delegates to pipeline'
-  turbohttp.client.ClientStreamManager -> turbohttp.client.StreamOwner 'Manages lifecycle'
-  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientOptions 'Reads configuration'
+  app -> gaudihttp.client.IGaudiHttpClient 'Sends requests, receives responses'
+  gaudihttp.client.IGaudiHttpClient -> gaudihttp.client.GaudiHttpClient 'Implemented by'
+  gaudihttp.client.GaudiHttpClient -> gaudihttp.client.ClientStreamManager 'Delegates to pipeline'
+  gaudihttp.client.ClientStreamManager -> gaudihttp.client.StreamOwner 'Manages lifecycle'
+  gaudihttp.client.IGaudiHttpClient -> gaudihttp.client.GaudiClientOptions 'Reads configuration'
 
-  turbohttp.client.StreamOwner -> turbohttp.streams.RequestEnricher 'Enriches requests before the pipeline'
-  turbohttp.client.StreamOwner -> turbohttp.streams.HandlerBidiStage 'Wraps with handlers'
-  turbohttp.client.StreamOwner -> turbohttp.streams.TracingBidiStage 'Wraps with tracing'
-  turbohttp.client.StreamOwner -> turbohttp.streams.RedirectBidiStage 'Wraps with redirects'
-  turbohttp.client.StreamOwner -> turbohttp.streams.CookieBidiStage 'Wraps with cookies'
-  turbohttp.client.StreamOwner -> turbohttp.streams.RetryBidiStage 'Wraps with retry'
-  turbohttp.client.StreamOwner -> turbohttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
-  turbohttp.client.StreamOwner -> turbohttp.streams.CacheBidiStage 'Wraps with caching'
-  turbohttp.client.StreamOwner -> turbohttp.streams.ContentEncodingBidiStage 'Wraps with compression'
-  turbohttp.client.StreamOwner -> turbohttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
-  turbohttp.client.StreamOwner -> turbohttp.streams.Engine 'Wraps with engine'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.RequestEnricher 'Enriches requests before the pipeline'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.HandlerBidiStage 'Wraps with handlers'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.TracingBidiStage 'Wraps with tracing'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.RedirectBidiStage 'Wraps with redirects'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.CookieBidiStage 'Wraps with cookies'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.RetryBidiStage 'Wraps with retry'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.CacheBidiStage 'Wraps with caching'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.ContentEncodingBidiStage 'Wraps with compression'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
+  gaudihttp.client.StreamOwner -> gaudihttp.streams.Engine 'Wraps with engine'
 
-  turbohttp.streams.Http10ClientEngine -> servus.TcpConnectionStage 'TCP transport'
-  turbohttp.streams.Http11ClientEngine -> servus.TcpConnectionStage 'TCP transport'
-  turbohttp.streams.Http20ClientEngine -> servus.TcpConnectionStage 'TCP transport'
-  turbohttp.streams.Http30ClientEngine -> servus.QuicConnectionStage 'QUIC transport'
+  gaudihttp.streams.Http10ClientEngine -> servus.TcpConnectionStage 'TCP transport'
+  gaudihttp.streams.Http11ClientEngine -> servus.TcpConnectionStage 'TCP transport'
+  gaudihttp.streams.Http20ClientEngine -> servus.TcpConnectionStage 'TCP transport'
+  gaudihttp.streams.Http30ClientEngine -> servus.QuicConnectionStage 'QUIC transport'
 
-  turbohttp.server.TurboServer -> turbohttp.server.ServerSupervisorActor 'Creates on startup'
-  turbohttp.server.TurboServer -> turbohttp.server.TurboServerOptions 'Reads configuration'
-  turbohttp.server.ServerSupervisorActor -> turbohttp.server.ListenerActor 'Spawns per endpoint'
-  turbohttp.server.ListenerActor -> turbohttp.server.ConnectionActor 'Spawns per client'
+  gaudihttp.server.GaudiServer -> gaudihttp.server.ServerSupervisorActor 'Creates on startup'
+  gaudihttp.server.GaudiServer -> gaudihttp.server.GaudiServerOptions 'Reads configuration'
+  gaudihttp.server.ServerSupervisorActor -> gaudihttp.server.ListenerActor 'Spawns per endpoint'
+  gaudihttp.server.ListenerActor -> gaudihttp.server.ConnectionActor 'Spawns per client'
 
-  turbohttp.server.ListenerActor -> servus.TcpListenerFactory 'Binds TCP/TLS'
-  turbohttp.server.ListenerActor -> servus.QuicListenerFactory 'Binds QUIC'
+  gaudihttp.server.ListenerActor -> servus.TcpListenerFactory 'Binds TCP/TLS'
+  gaudihttp.server.ListenerActor -> servus.QuicListenerFactory 'Binds QUIC'
   servus.TcpListenerFactory -> network 'Accepts TCP connections'
   servus.QuicListenerFactory -> network 'Accepts QUIC connections'
 
-  turbohttp.server.ConnectionActor -> turbohttp.serverStages.NegotiatingServerEngine 'Materialises protocol engine'
-  turbohttp.server.ConnectionActor -> turbohttp.serverStages.ApplicationBridgeStage 'Dispatches to IHttpApplication'
+  gaudihttp.server.ConnectionActor -> gaudihttp.serverStages.NegotiatingServerEngine 'Materialises protocol engine'
+  gaudihttp.server.ConnectionActor -> gaudihttp.serverStages.ApplicationBridgeStage 'Dispatches to IHttpApplication'
 
-  turbohttp.serverStages.NegotiatingServerEngine -> turbohttp.serverStages.Http10ServerEngine 'HTTP/1.0'
-  turbohttp.serverStages.NegotiatingServerEngine -> turbohttp.serverStages.Http11ServerEngine 'HTTP/1.1'
-  turbohttp.serverStages.NegotiatingServerEngine -> turbohttp.serverStages.Http20ServerEngine 'HTTP/2'
-  turbohttp.serverStages.NegotiatingServerEngine -> turbohttp.serverStages.Http30ServerEngine 'HTTP/3'
+  gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http10ServerEngine 'HTTP/1.0'
+  gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http11ServerEngine 'HTTP/1.1'
+  gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http20ServerEngine 'HTTP/2'
+  gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http30ServerEngine 'HTTP/3'
 
-  turbohttp.serverStages.Http10ServerEngine -> turbohttp.serverStages.Http10ServerConnectionStage 'Wire protocol'
-  turbohttp.serverStages.Http11ServerEngine -> turbohttp.serverStages.Http11ServerConnectionStage 'Wire protocol'
-  turbohttp.serverStages.Http20ServerEngine -> turbohttp.serverStages.Http20ServerConnectionStage 'Wire protocol'
-  turbohttp.serverStages.Http30ServerEngine -> turbohttp.serverStages.Http30ServerConnectionStage 'Wire protocol'
+  gaudihttp.serverStages.Http10ServerEngine -> gaudihttp.serverStages.Http10ServerConnectionStage 'Wire protocol'
+  gaudihttp.serverStages.Http11ServerEngine -> gaudihttp.serverStages.Http11ServerConnectionStage 'Wire protocol'
+  gaudihttp.serverStages.Http20ServerEngine -> gaudihttp.serverStages.Http20ServerConnectionStage 'Wire protocol'
+  gaudihttp.serverStages.Http30ServerEngine -> gaudihttp.serverStages.Http30ServerConnectionStage 'Wire protocol'
 }

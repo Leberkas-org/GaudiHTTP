@@ -12,7 +12,7 @@ Here's what happens when you send a request with different HTTP versions. The de
 
 ### Request Path
 
-1. The application calls `SendAsync` on `ITurboHttpClient` with an `HttpRequestMessage` targeting HTTP/1.0.
+1. The application calls `SendAsync` on `IGaudiHttpClient` with an `HttpRequestMessage` targeting HTTP/1.0.
 2. `RequestEnricher` applies the base address and any default headers.
 3. `TracingBidiStage` starts an activity span for observability.
 4. `RedirectBidiStage` and `CookieBidiStage` inject matching cookies from `CookieJar`.

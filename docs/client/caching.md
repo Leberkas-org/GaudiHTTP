@@ -1,12 +1,12 @@
 # HTTP Caching
 
-TurboHTTP includes a built-in in-memory cache that automatically stores and reuses responses — eliminating redundant network round-trips without any configuration.
+GaudiHTTP includes a built-in in-memory cache that automatically stores and reuses responses — eliminating redundant network round-trips without any configuration.
 
 Caching is disabled by default. Enable it by calling `.WithCache()` on the builder.
 
 ## What Gets Cached
 
-TurboHTTP caches **GET and HEAD responses** that the server declares as cacheable. A response is stored when:
+GaudiHTTP caches **GET and HEAD responses** that the server declares as cacheable. A response is stored when:
 
 - The request method is `GET` or `HEAD`
 - The response has a cacheable status code:
@@ -16,7 +16,7 @@ TurboHTTP caches **GET and HEAD responses** that the server declares as cacheabl
 - The response does **not** include `Cache-Control: no-store`
 - At least one freshness indicator is present (`max-age`, `s-maxage`, `Expires`, or a heuristic lifetime can be calculated)
 
-Responses to `POST`, `PUT`, `DELETE`, and all other methods are **never cached**. `206 Partial Content` is not cached because TurboHTTP does not reassemble partial content ranges.
+Responses to `POST`, `PUT`, `DELETE`, and all other methods are **never cached**. `206 Partial Content` is not cached because GaudiHTTP does not reassemble partial content ranges.
 
 ## How Long a Response Is Cached
 
@@ -27,9 +27,9 @@ Freshness is evaluated in this priority order:
 | `s-maxage` directive | `Cache-Control: s-maxage=3600`           | Shared-cache lifetime; takes priority over `max-age`                                                                                                                                                                                                                                       |
 | `max-age` directive  | `Cache-Control: max-age=300`             | Seconds from the response date                                                                                                                                                                                                                                                             |
 | `Expires` header     | `Expires: Fri, 21 Mar 2026 12:00:00 GMT` | Absolute expiry date; ignored when `max-age` is present                                                                                                                                                                                                                                    |
-| Heuristic freshness  | _(no directive)_                         | When the server provides no explicit cache lifetime, TurboHTTP estimates one: if a resource was last changed 100 days ago, it is assumed fresh for 10 days (10% of the time since the last modification). This only applies when no `max-age`, `s-maxage`, or `Expires` header is present. |
+| Heuristic freshness  | _(no directive)_                         | When the server provides no explicit cache lifetime, GaudiHTTP estimates one: if a resource was last changed 100 days ago, it is assumed fresh for 10 days (10% of the time since the last modification). This only applies when no `max-age`, `s-maxage`, or `Expires` header is present. |
 
-Once a cached response becomes stale, TurboHTTP issues a **conditional request** to revalidate it rather than fetching the full response again (see [Conditional Requests](#conditional-requests) below).
+Once a cached response becomes stale, GaudiHTTP issues a **conditional request** to revalidate it rather than fetching the full response again (see [Conditional Requests](#conditional-requests) below).
 
 ## Cache-Control Directives
 
@@ -48,7 +48,7 @@ Once a cached response becomes stale, TurboHTTP issues a **conditional request**
 
 ## Conditional Requests
 
-When a cached response becomes stale, TurboHTTP does not immediately throw it away. Instead, it asks the server whether the content has changed. This is called **revalidation**.
+When a cached response becomes stale, GaudiHTTP does not immediately throw it away. Instead, it asks the server whether the content has changed. This is called **revalidation**.
 
 ```
 Client                                   Server
@@ -61,7 +61,7 @@ Client                                   Server
   |── GET /data                            |  (second request — stale cache)
   |   If-None-Match: "abc123" ────────────>|  (conditional request sent)
   |<─ 304 Not Modified ────────────────────|  (server confirms unchanged)
-  |                                         |  (TurboHTTP refreshes TTL, serves cached body)
+  |                                         |  (GaudiHTTP refreshes TTL, serves cached body)
   |                                         |
   |── GET /data ──────────────────────────>|  (later, content has changed)
   |   If-None-Match: "abc123" ────────────>|
@@ -75,7 +75,7 @@ Two standard mechanisms are used:
 | ETag               | `If-None-Match: "abc123"`                          | `ETag: "abc123"`                               | Opaque token identifying the specific version of the content |
 | Last-Modified date | `If-Modified-Since: Mon, 20 Mar 2026 10:00:00 GMT` | `Last-Modified: Mon, 20 Mar 2026 10:00:00 GMT` | Timestamp of the last content modification                   |
 
-When the server responds with `304 Not Modified`, TurboHTTP:
+When the server responds with `304 Not Modified`, GaudiHTTP:
 
 1. Keeps the cached response body (no data transferred)
 2. Merges any updated headers from the `304` response (e.g. a new `Cache-Control` or `ETag`)
@@ -83,7 +83,7 @@ When the server responds with `304 Not Modified`, TurboHTTP:
 
 ## Vary Header Support
 
-When a response includes a `Vary` header, TurboHTTP stores **separate cache entries** for each distinct combination of the listed request headers. This ensures that content-negotiated responses are cached correctly.
+When a response includes a `Vary` header, GaudiHTTP stores **separate cache entries** for each distinct combination of the listed request headers. This ensures that content-negotiated responses are cached correctly.
 
 ```
 Vary: Accept-Encoding
@@ -105,7 +105,7 @@ Caching is configured via `.WithCache()` on the builder:
 
 ```csharp
 // Enable caching with defaults
-builder.Services.AddTurboHttpClient(options =>
+builder.Services.AddGaudiHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -115,7 +115,7 @@ builder.Services.AddTurboHttpClient(options =>
 Customise the cache size or behaviour:
 
 ```csharp
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -154,18 +154,18 @@ request.Headers.CacheControl = new CacheControlHeaderValue
 By default each named client gets its own cache. To share a single store across multiple named clients — for example, to serve the same cached responses to parallel services — implement `ICacheStore` (which extends `IDisposable`) and pass the same instance to each client:
 
 ```csharp
-using TurboHTTP.Features.Caching;
+using GaudiHTTP.Features.Caching;
 
 // Your thread-safe ICacheStore implementation
 ICacheStore sharedStore = new MySharedCacheStore();
 
-builder.Services.AddTurboHttpClient("client-a", options =>
+builder.Services.AddGaudiHttpClient("client-a", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithCache(sharedStore);
 
-builder.Services.AddTurboHttpClient("client-b", options =>
+builder.Services.AddGaudiHttpClient("client-b", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })

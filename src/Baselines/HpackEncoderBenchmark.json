@@ -1,5 +1,5 @@
 {
-   "Title":"TurboHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark-20260510-080347",
+   "Title":"GaudiHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark-20260510-080347",
    "HostEnvironmentInfo":{
       "BenchmarkDotNetCaption":"BenchmarkDotNet",
       "BenchmarkDotNetVersion":"0.15.8",
@@ -22,12 +22,12 @@
    "Benchmarks":[
       {
          "DisplayInfo":"HpackEncoderBenchmark.EncodeTypicalHeaders: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HpackEncoderBenchmark",
          "Method":"EncodeTypicalHeaders",
          "MethodTitle":"EncodeTypicalHeaders",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark.EncodeTypicalHeaders",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark.EncodeTypicalHeaders",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -715,12 +715,12 @@
          ]
       },{
          "DisplayInfo":"HpackEncoderBenchmark.Encode34Headers: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HpackEncoderBenchmark",
          "Method":"Encode34Headers",
          "MethodTitle":"Encode34Headers",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark.Encode34Headers",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HpackEncoderBenchmark.Encode34Headers",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[

@@ -1,12 +1,12 @@
 # Scenarios
 
-TurboHTTP combines a full HTTP stack with Akka Streams, giving you streaming, backpressure, and actor integration out of the box. These scenarios show what that looks like in practice — from actor-backed REST resources to real-time event streams.
+GaudiHTTP combines a full HTTP stack with Akka Streams, giving you streaming, backpressure, and actor integration out of the box. These scenarios show what that looks like in practice — from actor-backed REST resources to real-time event streams.
 
 ---
 
 ## Standard ASP.NET Core with Actor Backends
 
-TurboHTTP is a transport layer — your application code uses standard ASP.NET Core routing and DI. Combine it with Akka.NET actors for stateful backends by injecting `ActorSystem` or typed actor references into your handlers:
+GaudiHTTP is a transport layer — your application code uses standard ASP.NET Core routing and DI. Combine it with Akka.NET actors for stateful backends by injecting `ActorSystem` or typed actor references into your handlers:
 
 ```csharp
 app.MapGet("/orders/{id}", async (int id, ActorSystem system) =>
@@ -27,14 +27,14 @@ app.MapPost("/orders", async (CreateOrderRequest req, ActorSystem system) =>
 ```
 
 ::: tip Key Insight
-TurboHTTP reuses an existing `ActorSystem` from DI if one is registered (e.g. via Akka.Hosting). Your server connections and your domain actors share the same system — no extra infrastructure.
+GaudiHTTP reuses an existing `ActorSystem` from DI if one is registered (e.g. via Akka.Hosting). Your server connections and your domain actors share the same system — no extra infrastructure.
 :::
 
 ---
 
 ## Real-Time SSE Streaming
 
-Server-Sent Events let you push data to clients over a long-lived HTTP connection. TurboHTTP makes this trivial — return an Akka Streams `Source` wrapped in `AkkaResults.ServerSentEvent`, and the framework handles SSE framing, connection lifecycle, and backpressure for you.
+Server-Sent Events let you push data to clients over a long-lived HTTP connection. GaudiHTTP makes this trivial — return an Akka Streams `Source` wrapped in `AkkaResults.ServerSentEvent`, and the framework handles SSE framing, connection lifecycle, and backpressure for you.
 
 Streaming helpers come from the `Servus.Akka.AspNetCore` package and require an `IMaterializer` instance (typically injected from DI).
 
@@ -88,7 +88,7 @@ The `chunkSize` parameter controls how much data is in flight at any moment. Whe
 
 ## Client-Side Stream Consumption
 
-The `TurboHttpClient` exposes its request/response pipeline as channels. Instead of awaiting one response at a time, you write requests into a `ChannelWriter` and read responses from a `ChannelReader` — turning HTTP into a stream you can process with `await foreach`.
+The `GaudiHttpClient` exposes its request/response pipeline as channels. Instead of awaiting one response at a time, you write requests into a `ChannelWriter` and read responses from a `ChannelReader` — turning HTTP into a stream you can process with `await foreach`.
 
 ```csharp
 var client = factory.CreateClient("api");
@@ -118,7 +118,7 @@ Over HTTP/2, all 100 requests multiplex on a single connection. Responses arrive
 
 ## Backpressure-Aware Pipeline
 
-TurboHTTP doesn't just use Akka Streams for internal plumbing — it exposes the full operator toolkit for you to shape, merge, and throttle data before it hits the wire. Every operator in the pipeline participates in backpressure, from the data source all the way to the client's TCP receive window.
+GaudiHTTP doesn't just use Akka Streams for internal plumbing — it exposes the full operator toolkit for you to shape, merge, and throttle data before it hits the wire. Every operator in the pipeline participates in backpressure, from the data source all the way to the client's TCP receive window.
 
 ```csharp
 using Servus.Akka.AspNetCore;
@@ -140,5 +140,5 @@ app.MapGet("/metrics/live", (HttpContext ctx, IMetricsSource metrics, IMateriali
 ```
 
 ::: tip Key Insight
-`Merge`, `Throttle`, `Buffer`, `GroupBy`, `Broadcast` — these are standard Akka Streams operators, not TurboHTTP-specific APIs. Any stream processing graph you can build with Akka Streams plugs directly into an HTTP response. The pipeline handles framing, chunked transfer, and connection lifecycle automatically.
+`Merge`, `Throttle`, `Buffer`, `GroupBy`, `Broadcast` — these are standard Akka Streams operators, not GaudiHTTP-specific APIs. Any stream processing graph you can build with Akka Streams plugs directly into an HTTP response. The pipeline handles framing, chunked transfer, and connection lifecycle automatically.
 :::

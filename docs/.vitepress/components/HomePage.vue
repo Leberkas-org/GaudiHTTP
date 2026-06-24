@@ -37,7 +37,7 @@ const comparison = [
     { feature: 'Channel-based API', httpClient: 'No', refit: 'No', flurl: 'No', turbo: 'Yes' },
 ]
 
-const clientCode = `builder.Services.AddTurboHttpClient("api", options =>
+const clientCode = `builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -49,7 +49,7 @@ const clientCode = `builder.Services.AddTurboHttpClient("api", options =>
 var client = factory.CreateClient("api");
 var response = await client.SendAsync(request, ct);`
 
-const serverCode = `builder.Host.UseTurboHttp(options =>
+const serverCode = `builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
 });
@@ -70,7 +70,7 @@ const activeTab = ref<'client' | 'server'>('client')
         <section class="hero">
             <div class="hero-content">
                 <div class="hero-text">
-                    <h1 class="hero-title"><span class="turbo">Turbo</span><span class="http">HTTP</span></h1>
+                    <h1 class="hero-title"><span class="turbo">Gaudi</span><span class="http">HTTP</span></h1>
                     <p class="hero-tagline">High-Performance HTTP Client & Server for .NET</p>
                     <div class="hero-badges">
                         <span class="badge">Zero Alloc</span>
@@ -79,7 +79,7 @@ const activeTab = ref<'client' | 'server'>('client')
                     </div>
                     <div class="hero-actions">
                         <a href="/getting-started/" class="action-btn primary">Get Started</a>
-                        <a href="https://github.com/leberkas-org/TurboHTTP" class="action-btn secondary" target="_blank">GitHub</a>
+                        <a href="https://github.com/leberkas-org/GaudiHTTP" class="action-btn secondary" target="_blank">GitHub</a>
                     </div>
                 </div>
                 <div class="hero-code">
@@ -123,7 +123,7 @@ const activeTab = ref<'client' | 'server'>('client')
                             <th>HttpClient</th>
                             <th>Refit</th>
                             <th>Flurl</th>
-                            <th class="highlight">TurboHTTP</th>
+                            <th class="highlight">GaudiHTTP</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -143,7 +143,7 @@ const activeTab = ref<'client' | 'server'>('client')
         <section class="install">
             <h2 class="section-title">Get Started</h2>
             <div class="install-code">
-                <pre><code>dotnet add package TurboHTTP</code></pre>
+                <pre><code>dotnet add package GaudiHTTP</code></pre>
             </div>
             <div class="install-links">
                 <a href="/getting-started/" class="install-link">Getting Started</a>

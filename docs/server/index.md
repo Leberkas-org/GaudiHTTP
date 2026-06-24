@@ -1,9 +1,9 @@
-# TurboHTTP Server
+# GaudiHTTP Server
 
-TurboHTTP Server is a high-performance `IServer` implementation for ASP.NET Core, built on Akka.Streams. It replaces Kestrel as the transport layer — handling TCP/QUIC connections, HTTP protocol negotiation, and wire-format encoding — while your application continues to use standard ASP.NET Core middleware, routing, and dependency injection.
+GaudiHTTP Server is a high-performance `IServer` implementation for ASP.NET Core, built on Akka.Streams. It replaces Kestrel as the transport layer — handling TCP/QUIC connections, HTTP protocol negotiation, and wire-format encoding — while your application continues to use standard ASP.NET Core middleware, routing, and dependency injection.
 
 ::: tip Drop-In Replacement
-TurboHTTP is not a framework. It's a transport. Register it with `UseTurboHttp()`, then write standard ASP.NET Core code.
+GaudiHTTP is not a framework. It's a transport. Register it with `UseGaudiHttp()`, then write standard ASP.NET Core code.
 :::
 
 ## Quick Start
@@ -11,14 +11,14 @@ TurboHTTP is not a framework. It's a transport. Register it with `UseTurboHttp()
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
 });
 
 var app = builder.Build();
 
-app.MapGet("/", () => "Hello from TurboHTTP!");
+app.MapGet("/", () => "Hello from GaudiHTTP!");
 
 await app.RunAsync();
 ```
@@ -36,9 +36,9 @@ await app.RunAsync();
 | **HTTPS & TLS** | Certificate configuration, ALPN, TLS 1.2/1.3 |
 | **TCP & QUIC transport** | Via Servus.Akka.Transport |
 
-## What TurboHTTP Is NOT
+## What GaudiHTTP Is NOT
 
-TurboHTTP does not provide its own middleware, routing, or request handling. It handles the transport layer — everything from the TCP/QUIC socket up through HTTP protocol decoding. Your application code uses:
+GaudiHTTP does not provide its own middleware, routing, or request handling. It handles the transport layer — everything from the TCP/QUIC socket up through HTTP protocol decoding. Your application code uses:
 
 - **Standard ASP.NET Core middleware** — `app.Use()`, `app.UseExceptionHandler()`, etc.
 - **Standard routing** — `app.MapGet()`, `app.MapPost()`, controllers, minimal APIs
@@ -47,7 +47,7 @@ TurboHTTP does not provide its own middleware, routing, or request handling. It 
 
 ## Supported Feature Interfaces
 
-TurboHTTP implements these ASP.NET Core feature interfaces per request:
+GaudiHTTP implements these ASP.NET Core feature interfaces per request:
 
 | Interface | Purpose |
 |-----------|---------|
@@ -57,7 +57,7 @@ TurboHTTP implements these ASP.NET Core feature interfaces per request:
 | `IHttpRequestBodyDetectionFeature` | Whether the request has a body |
 | `IHttpResponseTrailersFeature` | HTTP trailer headers |
 | `IHttpConnectionFeature` | Connection ID, local/remote addresses |
-| `ITlsHandshakeFeature` | TLS protocol, cipher suite (TurboHTTP's own interface: `TurboHTTP.Server.Context.Features.ITlsHandshakeFeature`) |
+| `ITlsHandshakeFeature` | TLS protocol, cipher suite (GaudiHTTP's own interface: `GaudiHTTP.Server.Context.Features.ITlsHandshakeFeature`) |
 | `IHttpRequestLifetimeFeature` | Request abort token |
 | `IHttpRequestIdentifierFeature` | Unique request identifier |
 | `IHttpMaxRequestBodySizeFeature` | Request body size limit |

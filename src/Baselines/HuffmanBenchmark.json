@@ -1,5 +1,5 @@
 {
-   "Title":"TurboHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark-20260510-080426",
+   "Title":"GaudiHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark-20260510-080426",
    "HostEnvironmentInfo":{
       "BenchmarkDotNetCaption":"BenchmarkDotNet",
       "BenchmarkDotNetVersion":"0.15.8",
@@ -22,12 +22,12 @@
    "Benchmarks":[
       {
          "DisplayInfo":"HuffmanBenchmark.EncodeShort: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HuffmanBenchmark",
          "Method":"EncodeShort",
          "MethodTitle":"EncodeShort",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.EncodeShort",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.EncodeShort",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -743,12 +743,12 @@
          ]
       },{
          "DisplayInfo":"HuffmanBenchmark.EncodeLong: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HuffmanBenchmark",
          "Method":"EncodeLong",
          "MethodTitle":"EncodeLong",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.EncodeLong",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.EncodeLong",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -1499,12 +1499,12 @@
          ]
       },{
          "DisplayInfo":"HuffmanBenchmark.DecodeShort: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HuffmanBenchmark",
          "Method":"DecodeShort",
          "MethodTitle":"DecodeShort",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.DecodeShort",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.DecodeShort",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -2185,12 +2185,12 @@
          ]
       },{
          "DisplayInfo":"HuffmanBenchmark.DecodeLong: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Hpack",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Hpack",
          "Type":"HuffmanBenchmark",
          "Method":"DecodeLong",
          "MethodTitle":"DecodeLong",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.DecodeLong",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Hpack.HuffmanBenchmark.DecodeLong",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[

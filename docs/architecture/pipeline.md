@@ -1,6 +1,6 @@
 # Full Pipeline Flow
 
-The pipeline view shows every stage in TurboHTTP's request/response path — the forward flow of data, the backward flow of connection-reuse signals, and the short-circuit paths for cache hits, retries, and redirects.
+The pipeline view shows every stage in GaudiHTTP's request/response path — the forward flow of data, the backward flow of connection-reuse signals, and the short-circuit paths for cache hits, retries, and redirects.
 
 <ClientOnly>
   <LikeC4Diagram viewId="pipelineFlow" :height="700" />
@@ -85,7 +85,7 @@ The pipeline uses actor-based connection managers (from Servus.Akka) to reuse TC
 - **HTTP/1.1**: Connections are kept alive and reused for multiple requests to the same host
 - **HTTP/2 & HTTP/3**: A single connection is shared by multiple concurrent requests as independent streams
 
-This all happens automatically. You don't manage connections — TurboHTTP does.
+This all happens automatically. You don't manage connections — GaudiHTTP does.
 
 See [Connection Pooling Guide](../client/connection-pooling) for tuning options.
 
@@ -93,7 +93,7 @@ See [Connection Pooling Guide](../client/connection-pooling) for tuning options.
 
 ## Server Pipeline
 
-The server pipeline is TurboHTTP's transport and protocol layer. It hands off request parsing to ASP.NET Core, which handles middleware, routing, and your handlers:
+The server pipeline is GaudiHTTP's transport and protocol layer. It hands off request parsing to ASP.NET Core, which handles middleware, routing, and your handlers:
 
 ```
 Incoming TCP/QUIC Bytes
@@ -124,7 +124,7 @@ Each listener spawns a `ConnectionActor` per incoming connection — the actor m
 | `ApplicationBridgeStage`      | Wraps the parsed protocol request as an `IFeatureCollection` (standard ASP.NET Core `HttpContext`); hands control to standard ASP.NET Core middleware                                                               |
 
 :::tip
-Everything after `ApplicationBridgeStage` is standard ASP.NET Core: middleware (Use/Run/Map/MapWhen), routing, parameter binding, and your handler code. TurboHTTP owns only the transport layer and HTTP protocol parsing.
+Everything after `ApplicationBridgeStage` is standard ASP.NET Core: middleware (Use/Run/Map/MapWhen), routing, parameter binding, and your handler code. GaudiHTTP owns only the transport layer and HTTP protocol parsing.
 :::
 
 After the handler returns a response, the response object flows back to the protocol engine, which serialises it back to wire bytes.

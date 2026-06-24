@@ -8,33 +8,33 @@
 ## Install the Package
 
 ```bash
-dotnet add package TurboHTTP
+dotnet add package GaudiHTTP
 ```
 
 Or add it to your `.csproj`:
 
 ```xml
-<PackageReference Include="TurboHTTP" Version="3.0.0-alpha.*" />
+<PackageReference Include="GaudiHTTP" Version="3.0.0-alpha.*" />
 ```
 
 ## Register the Server
 
-TurboHTTP registers as an `IServer` implementation, replacing Kestrel:
+GaudiHTTP registers as an `IServer` implementation, replacing Kestrel:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000);
 });
 
 var app = builder.Build();
-app.MapGet("/", () => "Hello from TurboHTTP!");
+app.MapGet("/", () => "Hello from GaudiHTTP!");
 await app.RunAsync();
 ```
 
-`UseTurboHttp()` removes any existing `IServer` registration (including Kestrel) and registers `TurboServer`. After this call, your application uses standard ASP.NET Core — `app.MapGet`, `app.Use`, controllers, minimal APIs.
+`UseGaudiHttp()` removes any existing `IServer` registration (including Kestrel) and registers `GaudiServer`. After this call, your application uses standard ASP.NET Core — `app.MapGet`, `app.Use`, controllers, minimal APIs.
 
 ::: tip
 `ListenLocalhost(5000)` binds to `127.0.0.1:5000`. Use `ListenAnyIP(5000)` to listen on all IPv4 addresses.
@@ -51,9 +51,9 @@ var app = builder.Build();
 app.MapGet("/", () => "Hello");
 await app.RunAsync();
 
-// After (TurboHTTP)
+// After (GaudiHTTP)
 var builder = WebApplication.CreateBuilder(args);
-builder.Host.UseTurboHttp(options =>        // <-- this is the only change
+builder.Host.UseGaudiHttp(options =>        // <-- this is the only change
 {
     options.ListenLocalhost(5000);
 });
@@ -69,7 +69,7 @@ Everything else — middleware, routing, DI, configuration — stays exactly the
 ### Multiple Endpoints
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000);
     options.ListenAnyIP(8080);
@@ -85,7 +85,7 @@ builder.Host.UseTurboHttp(options =>
 ```csharp
 using System.Net;
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.Listen(IPAddress.Loopback, 5000);
     options.Listen(IPAddress.Parse("192.168.1.100"), 8080);
@@ -97,7 +97,7 @@ builder.Host.UseTurboHttp(options =>
 Endpoints default to HTTP/1.1 and HTTP/2. Override per endpoint:
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000, listen =>
     {
@@ -174,7 +174,7 @@ options.ListenLocalhost(443, listen =>
 Apply settings to all HTTPS endpoints:
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ConfigureHttpsDefaults(https =>
     {
@@ -217,12 +217,12 @@ options.ListenLocalhost(5000, listen =>
 
 ## Configuration via Code
 
-TurboHTTP is configured imperatively through `UseTurboHttp()`. All endpoint and TLS settings are passed as `Action<TurboServerOptions>`:
+GaudiHTTP is configured imperatively through `UseGaudiHttp()`. All endpoint and TLS settings are passed as `Action<GaudiServerOptions>`:
 
 ```csharp
 var config = builder.Configuration;
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // Read from IConfiguration if desired
     var port = config.GetValue<int>("Server:Port") ?? 5000;
@@ -235,7 +235,7 @@ builder.Host.UseTurboHttp(options =>
 });
 ```
 
-There is no automatic binding from `appsettings.json` — you control which config values feed into `TurboServerOptions` at startup.
+There is no automatic binding from `appsettings.json` — you control which config values feed into `GaudiServerOptions` at startup.
 
 ## Next Steps
 

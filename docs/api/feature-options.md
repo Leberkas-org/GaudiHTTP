@@ -19,10 +19,10 @@ public sealed class RetryOptions
 
 ```csharp
 // Default retries (3 attempts)
-builder.Services.AddTurboHttpClient("api", ...).WithRetry();
+builder.Services.AddGaudiHttpClient("api", ...).WithRetry();
 
 // Aggressive retry
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .WithRetry(r => { r.MaxRetries = 5; r.RespectRetryAfter = false; });
 ```
 
@@ -51,15 +51,15 @@ public sealed class CacheOptions
 
 ```csharp
 // Enable caching with defaults
-builder.Services.AddTurboHttpClient("api", ...).WithCache();
+builder.Services.AddGaudiHttpClient("api", ...).WithCache();
 
 // Smaller cache for constrained environments
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .WithCache(c => { c.MaxEntries = 100; c.MaxBodySize = 5 * 1024 * 1024; });
 
 // Custom store shared across clients
 var sharedStore = new MyCustomCacheStore();  // implement ICacheStore
-builder.Services.AddTurboHttpClient("api", ...).WithCache(sharedStore);
+builder.Services.AddGaudiHttpClient("api", ...).WithCache(sharedStore);
 ```
 
 See [HTTP Caching guide](/client/caching) for freshness rules and conditional requests.
@@ -83,10 +83,10 @@ public sealed class RedirectOptions
 
 ```csharp
 // Follow redirects with defaults
-builder.Services.AddTurboHttpClient("api", ...).WithRedirect();
+builder.Services.AddGaudiHttpClient("api", ...).WithRedirect();
 
 // Custom limit
-builder.Services.AddTurboHttpClient("api", ...).WithRedirect(r => { r.MaxRedirects = 3; });
+builder.Services.AddGaudiHttpClient("api", ...).WithRedirect(r => { r.MaxRedirects = 3; });
 
 // Disable redirect following (don't call .WithRedirect())
 ```
@@ -116,12 +116,12 @@ public sealed class CompressionOptions
 
 ```csharp
 // Request compression with Brotli for large bodies
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySize = 4096; });
 
 // Response decompression is enabled by default (AutomaticDecompression = true).
 // WithDecompression() is only needed to explicitly disable it:
-// builder.Services.AddTurboHttpClient("api", ...).WithDecompression(enabled: false);
+// builder.Services.AddGaudiHttpClient("api", ...).WithDecompression(enabled: false);
 ```
 
 See [Content Encoding guide](/client/content-encoding) for request compression and Expect: 100-continue.
@@ -143,7 +143,7 @@ public sealed class Expect100Options
 
 ```csharp
 // Enable 100-continue for bodies > 8 KiB
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .WithExpectContinue(e => { e.MinBodySize = 8 * 1024; });
 ```
 
@@ -157,11 +157,11 @@ Cookies are configured via the builder, not through an options class:
 
 ```csharp
 // Enable cookies with the built-in CookieJar
-builder.Services.AddTurboHttpClient("api", ...).WithCookies();
+builder.Services.AddGaudiHttpClient("api", ...).WithCookies();
 
 // Custom cookie storage
 var customStore = new MyCookieStore();
-builder.Services.AddTurboHttpClient("api", ...).WithCookies(customStore);
+builder.Services.AddGaudiHttpClient("api", ...).WithCookies(customStore);
 ```
 
 Cookies are automatically extracted from `Set-Cookie` headers, stored by domain, and injected into subsequent requests. See [Cookies guide](/client/cookies) for domain matching and expiration rules.
@@ -170,32 +170,32 @@ Cookies are automatically extracted from `Set-Cookie` headers, stored by domain,
 
 ## Builder Extension Methods
 
-All feature options are configured via the `ITurboHttpClientBuilder` interface:
+All feature options are configured via the `IGaudiHttpClientBuilder` interface:
 
 ```csharp
-public static class TurboHttpClientBuilderExtensions
+public static class GaudiHttpClientBuilderExtensions
 {
-    ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder);
-    ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieStore store);
+    IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder);
+    IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder, ICookieStore store);
     
-    ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, Action<CacheOptions>? configure = null);
-    ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, ICacheStore store, Action<CacheOptions>? configure = null);
+    IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder, Action<CacheOptions>? configure = null);
+    IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder, ICacheStore store, Action<CacheOptions>? configure = null);
     
-    ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder, Action<RetryOptions>? configure = null);
+    IGaudiHttpClientBuilder WithRetry(this IGaudiHttpClientBuilder builder, Action<RetryOptions>? configure = null);
     
-    ITurboHttpClientBuilder WithRedirect(this ITurboHttpClientBuilder builder, Action<RedirectOptions>? configure = null);
+    IGaudiHttpClientBuilder WithRedirect(this IGaudiHttpClientBuilder builder, Action<RedirectOptions>? configure = null);
     
-    ITurboHttpClientBuilder WithDecompression(this ITurboHttpClientBuilder builder, bool enabled = true);
+    IGaudiHttpClientBuilder WithDecompression(this IGaudiHttpClientBuilder builder, bool enabled = true);
     
-    ITurboHttpClientBuilder WithRequestCompression(this ITurboHttpClientBuilder builder, Action<CompressionOptions>? configure = null);
+    IGaudiHttpClientBuilder WithRequestCompression(this IGaudiHttpClientBuilder builder, Action<CompressionOptions>? configure = null);
     
-    ITurboHttpClientBuilder WithExpectContinue(this ITurboHttpClientBuilder builder, Action<Expect100Options>? configure = null);
+    IGaudiHttpClientBuilder WithExpectContinue(this IGaudiHttpClientBuilder builder, Action<Expect100Options>? configure = null);
     
-    ITurboHttpClientBuilder AddHandler<T>(this ITurboHttpClientBuilder builder) where T : TurboHandler;
+    IGaudiHttpClientBuilder AddHandler<T>(this IGaudiHttpClientBuilder builder) where T : TurboHandler;
     
-    ITurboHttpClientBuilder UseRequest(this ITurboHttpClientBuilder builder, Func<HttpRequestMessage, HttpRequestMessage> transform);
+    IGaudiHttpClientBuilder UseRequest(this IGaudiHttpClientBuilder builder, Func<HttpRequestMessage, HttpRequestMessage> transform);
     
-    ITurboHttpClientBuilder UseResponse(this ITurboHttpClientBuilder builder, Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform);
+    IGaudiHttpClientBuilder UseResponse(this IGaudiHttpClientBuilder builder, Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform);
 }
 ```
 
@@ -227,14 +227,14 @@ public class AuthHeaderHandler : TurboHandler
 }
 
 // Register it
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .AddHandler<AuthHeaderHandler>();
 ```
 
 For request/response transformations, use `UseRequest` and `UseResponse` for inline lambdas:
 
 ```csharp
-builder.Services.AddTurboHttpClient("api", ...)
+builder.Services.AddGaudiHttpClient("api", ...)
     .UseRequest(req => { req.Headers.Add("X-Custom", "value"); return req; });
 ```
 

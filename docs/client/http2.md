@@ -1,6 +1,6 @@
 # HTTP/2 & Multiplexing
 
-HTTP/2 is the recommended protocol for high-throughput workloads. TurboHTTP enables it with a single property change — everything else is handled automatically.
+HTTP/2 is the recommended protocol for high-throughput workloads. GaudiHTTP enables it with a single property change — everything else is handled automatically.
 
 ## When to Use HTTP/2
 
@@ -33,24 +33,24 @@ HTTP/2 (1 connection, 4 streams):
   stream 7: ──────── req D ─────────
 ```
 
-The server can also respond out of order — if response B is ready before response A, TurboHTTP routes it to the correct caller automatically.
+The server can also respond out of order — if response B is ready before response A, GaudiHTTP routes it to the correct caller automatically.
 
 ## Header Compression
 
 HTTP/2 compresses request and response headers automatically. Repeated headers (like `Authorization`, `Content-Type`, or `User-Agent`) are not retransmitted in full — only the difference from the previous request is sent. On APIs where headers dwarf the body, this alone can cut wire size significantly.
 
-Header compression is fully transparent. You set headers the same way as with HTTP/1.1; TurboHTTP handles compression and decompression for you.
+Header compression is fully transparent. You set headers the same way as with HTTP/1.1; GaudiHTTP handles compression and decompression for you.
 
 ## Flow Control
 
-HTTP/2 has built-in flow control to prevent a fast sender from overwhelming a slow receiver. TurboHTTP manages flow control windows automatically — you never need to interact with it directly.
+HTTP/2 has built-in flow control to prevent a fast sender from overwhelming a slow receiver. GaudiHTTP manages flow control windows automatically — you never need to interact with it directly.
 
 ## Enabling HTTP/2
 
 Set `DefaultRequestVersion` on the client after obtaining it from the factory:
 
 ```csharp
-builder.Services.AddTurboHttpClient("http2-api", options =>
+builder.Services.AddGaudiHttpClient("http2-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -61,7 +61,7 @@ var client = factory.CreateClient("http2-api");
 client.DefaultRequestVersion = HttpVersion.Version20;
 ```
 
-All requests will now use HTTP/2. If the server does not support HTTP/2, TurboHTTP will establish the connection and the server will reject or downgrade — no automatic fallback to HTTP/1.1 is performed when you explicitly request HTTP/2.
+All requests will now use HTTP/2. If the server does not support HTTP/2, GaudiHTTP will establish the connection and the server will reject or downgrade — no automatic fallback to HTTP/1.1 is performed when you explicitly request HTTP/2.
 
 To allow graceful fallback to HTTP/1.1 when the server doesn't support HTTP/2:
 
@@ -72,10 +72,10 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
 ## Multiplexing Configuration
 
-By default, TurboHTTP opens up to 6 HTTP/2 connections per host, each carrying up to 100 concurrent streams. Tune these values on the nested `Http2` options:
+By default, GaudiHTTP opens up to 6 HTTP/2 connections per host, each carrying up to 100 concurrent streams. Tune these values on the nested `Http2` options:
 
 ```csharp
-builder.Services.AddTurboHttpClient("http2-api", options =>
+builder.Services.AddGaudiHttpClient("http2-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.Http2.MaxConnectionsPerServer = 4;    // default: 6
@@ -83,11 +83,11 @@ builder.Services.AddTurboHttpClient("http2-api", options =>
 });
 ```
 
-When a connection reaches its stream limit, TurboHTTP automatically opens additional connections up to `MaxConnectionsPerServer`.
+When a connection reaches its stream limit, GaudiHTTP automatically opens additional connections up to `MaxConnectionsPerServer`.
 
 ## HTTP/2 over TLS vs. Cleartext
 
-HTTP/2 is normally negotiated during the TLS handshake (the server advertises `h2` support and TurboHTTP activates it). This is the standard path for `https://` URLs — no extra configuration required.
+HTTP/2 is normally negotiated during the TLS handshake (the server advertises `h2` support and GaudiHTTP activates it). This is the standard path for `https://` URLs — no extra configuration required.
 
 HTTP/2 over cleartext (`http://` URLs, sometimes called h2c) is also supported. Set `DefaultRequestVersion = HttpVersion.Version20` and use an `http://` base address. Note that many public APIs and proxies do not support h2c, so this is mainly useful for internal service-to-service communication within a trusted network.
 
@@ -96,7 +96,7 @@ HTTP/2 over cleartext (`http://` URLs, sometimes called h2c) is also supported. 
 Each HTTP/2 request and response is broken into frames before being sent over the wire. The default maximum frame size is 64 KiB (the protocol minimum is 16 KiB). Increase it for workloads that transfer large bodies to reduce framing overhead:
 
 ```csharp
-builder.Services.AddTurboHttpClient("http2-api", options =>
+builder.Services.AddGaudiHttpClient("http2-api", options =>
 {
     options.Http2.MaxFrameSize = 4 * 1024 * 1024; // 4 MiB (default: 64 KiB, max: 16 MiB)
 });
@@ -106,7 +106,7 @@ Larger frames mean fewer round-trips for big payloads but more memory per in-fli
 
 ## Sending Parallel Requests
 
-Use standard .NET concurrency patterns — TurboHTTP multiplexes automatically:
+Use standard .NET concurrency patterns — GaudiHTTP multiplexes automatically:
 
 ```csharp
 var client = factory.CreateClient("http2-api");

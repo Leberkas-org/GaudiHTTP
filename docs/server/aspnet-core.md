@@ -1,6 +1,6 @@
 # Using with ASP.NET Core
 
-TurboHTTP replaces Kestrel as the transport layer. Everything above the transport — middleware, routing, dependency injection, authentication — is standard ASP.NET Core. This page confirms which patterns work and highlights what's different.
+GaudiHTTP replaces Kestrel as the transport layer. Everything above the transport — middleware, routing, dependency injection, authentication — is standard ASP.NET Core. This page confirms which patterns work and highlights what's different.
 
 ## The Key Idea
 
@@ -8,9 +8,9 @@ TurboHTTP replaces Kestrel as the transport layer. Everything above the transpor
 |-------|----------------|
 | **Your Application Code** | Middleware, routing, controllers, minimal APIs |
 | **ASP.NET Core Hosting** | `IHost`, `IHttpApplication`, `HostingApplication` |
-| **TurboHTTP Server** | `ApplicationBridgeStage`, protocol engines (H1/H2/H3), actor hierarchy, TCP/QUIC transport |
+| **GaudiHTTP Server** | `ApplicationBridgeStage`, protocol engines (H1/H2/H3), actor hierarchy, TCP/QUIC transport |
 
-TurboHTTP sits below the `IHttpApplication&lt;TContext&gt;` boundary. When a request arrives, TurboHTTP decodes it into an `IFeatureCollection` and hands it to ASP.NET Core's `HostingApplication`, which runs your middleware pipeline.
+GaudiHTTP sits below the `IHttpApplication&lt;TContext&gt;` boundary. When a request arrives, GaudiHTTP decodes it into an `IFeatureCollection` and hands it to ASP.NET Core's `HostingApplication`, which runs your middleware pipeline.
 
 ## Middleware
 
@@ -29,7 +29,7 @@ app.UseAuthorization();
 
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.Append("X-Powered-By", "TurboHTTP");
+    context.Response.Headers.Append("X-Powered-By", "GaudiHTTP");
     await next(context);
 });
 ```
@@ -105,7 +105,7 @@ Most things are identical. These are the differences:
 
 ### Connection Model
 
-Kestrel uses thread-pool-based connection handling. TurboHTTP creates an Akka.NET actor per connection. This means:
+Kestrel uses thread-pool-based connection handling. GaudiHTTP creates an Akka.NET actor per connection. This means:
 
 - Each connection has isolated state — no shared mutable state between connections
 - Supervision strategies handle connection failures automatically
@@ -113,10 +113,10 @@ Kestrel uses thread-pool-based connection handling. TurboHTTP creates an Akka.NE
 
 ### ActorSystem
 
-TurboHTTP creates or reuses an `ActorSystem`:
+GaudiHTTP creates or reuses an `ActorSystem`:
 
-- If your DI container already has an `ActorSystem` registered (via Akka.Hosting), TurboHTTP reuses it
-- If not, TurboHTTP creates its own `ActorSystem` named `turbo-server`
+- If your DI container already has an `ActorSystem` registered (via Akka.Hosting), GaudiHTTP reuses it
+- If not, GaudiHTTP creates its own `ActorSystem` named `gaudi-server`
 
 ```csharp
 // Share an ActorSystem with Akka.Hosting
@@ -125,19 +125,19 @@ builder.Services.AddAkka("my-system", configurationBuilder =>
     // your Akka.NET config
 });
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5000);
 });
-// TurboHTTP reuses "my-system"
+// GaudiHTTP reuses "my-system"
 ```
 
 ### Handler Timeout
 
-TurboHTTP enforces a per-request handler timeout (default 30s). If your handler doesn't complete within `HandlerTimeout + HandlerGracePeriod`, the request gets a 503 response:
+GaudiHTTP enforces a per-request handler timeout (default 30s). If your handler doesn't complete within `HandlerTimeout + HandlerGracePeriod`, the request gets a 503 response:
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.HandlerTimeout = TimeSpan.FromSeconds(60);
     options.HandlerGracePeriod = TimeSpan.FromSeconds(5); // default
@@ -146,11 +146,11 @@ builder.Host.UseTurboHttp(options =>
 
 ### Graceful Shutdown
 
-TurboHTTP uses Akka Coordinated Shutdown instead of `IHostApplicationLifetime`. See [Hosting & Lifecycle](./hosting) for details.
+GaudiHTTP uses Akka Coordinated Shutdown instead of `IHostApplicationLifetime`. See [Hosting & Lifecycle](./hosting) for details.
 
 ## Features That Work Out of the Box
 
-These ASP.NET Core features require no special configuration with TurboHTTP:
+These ASP.NET Core features require no special configuration with GaudiHTTP:
 
 - Minimal APIs and controllers
 - Model binding and validation

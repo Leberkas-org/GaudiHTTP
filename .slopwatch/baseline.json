@@ -7,7 +7,7 @@
     {
       "hash": "ffe0c7ba4c3b383f",
       "ruleId": "SW002",
-      "filePath": "src/TurboHTTP/Streams/Lifecycle/ClientStreamOwner.cs",
+      "filePath": "src/GaudiHTTP/Streams/Lifecycle/ClientStreamOwner.cs",
       "lineNumber": 10,
       "codeSnippet": "#pragma warning disable CA1416",
       "message": "#pragma warning disable for warnings CA1416 without matching restore in same scope",
@@ -16,7 +16,7 @@
     {
       "hash": "0d784fe02d92c9b1",
       "ruleId": "SW002",
-      "filePath": "src/TurboHTTP.IntegrationTests/Shared/QuicAvailability.cs",
+      "filePath": "src/GaudiHTTP.IntegrationTests/Shared/QuicAvailability.cs",
       "lineNumber": 10,
       "codeSnippet": "#pragma warning disable CA1416",
       "message": "#pragma warning disable for warnings CA1416 without matching restore in same scope",

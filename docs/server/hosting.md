@@ -1,10 +1,10 @@
 # Hosting & Lifecycle
 
-TurboHTTP Server manages connection lifetime through an actor hierarchy. When you start the server, it creates a supervisor that tracks listeners (one per endpoint) and connections, handles graceful shutdown, and ensures in-flight requests complete before the application exits.
+GaudiHTTP Server manages connection lifetime through an actor hierarchy. When you start the server, it creates a supervisor that tracks listeners (one per endpoint) and connections, handles graceful shutdown, and ensures in-flight requests complete before the application exits.
 
 ## How the Server Starts
 
-When your ASP.NET Core application starts with TurboHTTP Server configured, the hosting layer follows this sequence:
+When your ASP.NET Core application starts with GaudiHTTP Server configured, the hosting layer follows this sequence:
 
 1. **ActorSystem**: Creates or reuses an Akka.NET ActorSystem (or reuses one from the DI container if already present)
 2. **Materializer**: Creates a Streams materializer for the system
@@ -17,7 +17,7 @@ When your ASP.NET Core application starts with TurboHTTP Server configured, the 
 // In Program.cs
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);  // Creates one listener
     options.ListenLocalhost(5101);  // Creates another listener
@@ -28,7 +28,7 @@ var app = builder.Build();
 await app.RunAsync();  // Blocks until shutdown signal
 ```
 
-When `app.RunAsync()` is called, TurboServer (IServer):
+When `app.RunAsync()` is called, GaudiServer (IServer):
 - Initializes the actor system and materializer
 - Resolves all configured endpoints
 - Registers shutdown hooks with Akka Coordinated Shutdown
@@ -39,10 +39,10 @@ When `app.RunAsync()` is called, TurboServer (IServer):
   <LikeC4Diagram viewId="serverHierarchy" :height="400" />
 </ClientOnly>
 
-TurboHTTP Server uses this actor structure:
+GaudiHTTP Server uses this actor structure:
 
 ```
-ActorSystem (turbo-server)
+ActorSystem (gaudi-server)
   ├── ServerSupervisorActor
   │     ├── ListenerActor (endpoint 127.0.0.1:5100)
   │     │     ├── ConnectionActor (conn-1)
@@ -131,7 +131,7 @@ If a request handler is blocked indefinitely (e.g., waiting on unresponsive I/O)
 
 Set the timeout in configuration:
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.GracefulShutdownTimeout = TimeSpan.FromSeconds(60);
 });
@@ -145,7 +145,7 @@ Key options control server and connection behavior:
 ### Connection Limits
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // Limit concurrent connections (0 = unlimited)
     options.Limits.MaxConcurrentConnections = 1000;
@@ -161,7 +161,7 @@ builder.Host.UseTurboHttp(options =>
 ### Timeouts
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // Time to wait for the next request on keep-alive connections
     options.Limits.KeepAliveTimeout = TimeSpan.FromSeconds(130);
@@ -180,7 +180,7 @@ builder.Host.UseTurboHttp(options =>
 ### Buffer and Chunk Sizes
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // Max request body size buffered fully in memory (HTTP/1.x)
     // Larger bodies are exposed as a streaming pipe with backpressure
@@ -194,7 +194,7 @@ builder.Host.UseTurboHttp(options =>
 ### HTTP Protocol Options
 
 ```csharp
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     // HTTP/1.x settings
     options.Http1.MaxPipelinedRequests = 16;
@@ -221,7 +221,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddSingleton<RedisCache>();
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
     options.GracefulShutdownTimeout = TimeSpan.FromSeconds(30);
@@ -278,7 +278,7 @@ Load balancers query `/health` to detect when the server is draining and route n
 
 ## Transport Layer
 
-TurboHTTP uses Servus.Akka.Transport for network I/O:
+GaudiHTTP uses Servus.Akka.Transport for network I/O:
 
 - **TCP**: `TcpListenerFactory` handles HTTP/1.0, HTTP/1.1, and HTTP/2 connections
 - **QUIC**: `QuicListenerFactory` handles HTTP/3 connections

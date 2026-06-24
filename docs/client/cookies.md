@@ -1,13 +1,13 @@
 # Cookie Management
 
-TurboHTTP cookie handling is opt-in. Call `.WithCookies()` on the client builder to enable it. Once enabled, when a server sends a `Set-Cookie` header, TurboHTTP stores it and attaches it to subsequent requests that match the cookie's domain and path.
+GaudiHTTP cookie handling is opt-in. Call `.WithCookies()` on the client builder to enable it. Once enabled, when a server sends a `Set-Cookie` header, GaudiHTTP stores it and attaches it to subsequent requests that match the cookie's domain and path.
 
 ## How It Works
 
 The cookie lifecycle has two steps:
 
-1. **Store** — after every response, TurboHTTP scans for `Set-Cookie` headers and adds matching cookies to an internal `CookieJar`.
-2. **Inject** — before every outgoing request, TurboHTTP checks the jar for applicable cookies and adds them to the `Cookie` request header.
+1. **Store** — after every response, GaudiHTTP scans for `Set-Cookie` headers and adds matching cookies to an internal `CookieJar`.
+2. **Inject** — before every outgoing request, GaudiHTTP checks the jar for applicable cookies and adds them to the `Cookie` request header.
 
 Both steps happen transparently inside the request pipeline. Cookies from a login response are automatically sent on the very next request to the same domain.
 
@@ -20,8 +20,8 @@ Cookies are disabled unless `.WithCookies()` is called on the builder. When enab
 
 ```csharp
 // Enable cookies independently for each client
-builder.Services.AddTurboHttpClient("api", ...).WithCookies();
-builder.Services.AddTurboHttpClient("auth", ...).WithCookies();
+builder.Services.AddGaudiHttpClient("api", ...).WithCookies();
+builder.Services.AddGaudiHttpClient("auth", ...).WithCookies();
 
 // Each client now has its own isolated cookie jar
 var apiClient = factory.CreateClient("api");
@@ -30,7 +30,7 @@ var authClient = factory.CreateClient("auth");
 
 ## Domain Matching
 
-A cookie is only sent to the domain it was set for. TurboHTTP uses proper label-boundary matching — a cookie for `example.com` does not match `notexample.com`.
+A cookie is only sent to the domain it was set for. GaudiHTTP uses proper label-boundary matching — a cookie for `example.com` does not match `notexample.com`.
 
 - **Host-only cookies** (no `Domain` attribute) — sent only to the exact host that set them.
 - **Domain cookies** (`Domain=example.com`) — sent to `example.com` and all subdomains (`api.example.com`, `auth.example.com`, etc.).
@@ -63,7 +63,7 @@ Set-Cookie: token=abc; Secure   ← sent on https://, not http://
 
 ### `HttpOnly`
 
-Marks a cookie as server-only — it cannot be read by client-side scripts. TurboHTTP stores and sends `HttpOnly` cookies normally; the attribute is informational for browsers.
+Marks a cookie as server-only — it cannot be read by client-side scripts. GaudiHTTP stores and sends `HttpOnly` cookies normally; the attribute is informational for browsers.
 
 ```
 Set-Cookie: session=xyz; HttpOnly
@@ -73,14 +73,14 @@ Set-Cookie: session=xyz; HttpOnly
 
 ### `SameSite`
 
-Controls whether a cookie is sent with cross-site requests. Because a programmatic HTTP client has no inherent notion of "the current site", TurboHTTP treats every request as first-party (same-site) by default and sends matching cookies. To opt into `SameSite` enforcement, tell TurboHTTP which site is initiating the request:
+Controls whether a cookie is sent with cross-site requests. Because a programmatic HTTP client has no inherent notion of "the current site", GaudiHTTP treats every request as first-party (same-site) by default and sends matching cookies. To opt into `SameSite` enforcement, tell GaudiHTTP which site is initiating the request:
 
 ```csharp
 var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/transfer")
     .WithFirstPartyContext(new Uri("https://app.other.com/"));
 ```
 
-When a first-party context is set and the target is **cross-site** relative to it, TurboHTTP applies the policy below before injecting cookies:
+When a first-party context is set and the target is **cross-site** relative to it, GaudiHTTP applies the policy below before injecting cookies:
 
 | Value      | Cross-site behaviour                                             |
 | ---------- | --------------------------------------------------------------- |
@@ -89,7 +89,7 @@ When a first-party context is set and the target is **cross-site** relative to i
 | `None`     | Always sent (requires `Secure`)                                 |
 | _(absent)_ | No restriction — sent like `None`                              |
 
-Two requests are considered same-site when they share the same registrable domain (e.g. `app.example.com` and `api.example.com`). TurboHTTP does not bundle a public-suffix list, so multi-level suffixes like `co.uk` are compared on their last two labels.
+Two requests are considered same-site when they share the same registrable domain (e.g. `app.example.com` and `api.example.com`). GaudiHTTP does not bundle a public-suffix list, so multi-level suffixes like `co.uk` are compared on their last two labels.
 
 ## Expiration
 
@@ -114,7 +114,7 @@ Set-Cookie: pref=dark; Expires=Fri, 20 Jun 2026 12:00:00 GMT
 
 ### Session cookies
 
-A cookie with no `Max-Age` and no `Expires` is a **session cookie** — it lives for the duration of the current client instance and is discarded when the `TurboHttpClient` is disposed.
+A cookie with no `Max-Age` and no `Expires` is a **session cookie** — it lives for the duration of the current client instance and is discarded when the `GaudiHttpClient` is disposed.
 
 ```
 Set-Cookie: sid=abc123   ← no expiry: lasts until the client is disposed
@@ -125,18 +125,18 @@ Set-Cookie: sid=abc123   ← no expiry: lasts until the client is disposed
 When `.WithCookies()` is called without arguments, each client gets its own isolated in-memory store. To share cookies across multiple clients — for example, so that a login performed by one client is visible to another — implement `ICookieStore` and pass the same instance to each:
 
 ```csharp
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Features.Cookies;
 
 // Your thread-safe ICookieStore implementation
 ICookieStore sharedStore = new MySharedCookieStore();
 
-builder.Services.AddTurboHttpClient("auth", options =>
+builder.Services.AddGaudiHttpClient("auth", options =>
 {
     options.BaseAddress = new Uri("https://auth.example.com");
 })
 .WithCookies(sharedStore);
 
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })

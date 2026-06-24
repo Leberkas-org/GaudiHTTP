@@ -1,5 +1,5 @@
 {
-   "Title":"TurboHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark-20260510-081026",
+   "Title":"GaudiHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark-20260510-081026",
    "HostEnvironmentInfo":{
       "BenchmarkDotNetCaption":"BenchmarkDotNet",
       "BenchmarkDotNetVersion":"0.15.8",
@@ -22,12 +22,12 @@
    "Benchmarks":[
       {
          "DisplayInfo":"Http2FrameEncoderBenchmark.EncodeSimpleGet: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Http2",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Http2",
          "Type":"Http2FrameEncoderBenchmark",
          "Method":"EncodeSimpleGet",
          "MethodTitle":"EncodeSimpleGet",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark.EncodeSimpleGet",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark.EncodeSimpleGet",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[
@@ -708,12 +708,12 @@
          ]
       },{
          "DisplayInfo":"Http2FrameEncoderBenchmark.EncodePostWithBody: Job-UFXZUX(Server=True)",
-         "Namespace":"TurboHTTP.MicroBenchmarks.Http2",
+         "Namespace":"GaudiHTTP.MicroBenchmarks.Http2",
          "Type":"Http2FrameEncoderBenchmark",
          "Method":"EncodePostWithBody",
          "MethodTitle":"EncodePostWithBody",
          "Parameters":"",
-         "FullName":"TurboHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark.EncodePostWithBody",
+         "FullName":"GaudiHTTP.MicroBenchmarks.Http2.Http2FrameEncoderBenchmark.EncodePostWithBody",
          "HardwareIntrinsics":"AVX512 BITALG+VBMI2+VNNI+VPOPCNTDQ,AVX512 IFMA+VBMI,AVX512 F+BW+CD+DQ+VL,AVX2+BMI1+BMI2+F16C+FMA+LZCNT+MOVBE,AVX,SSE3+SSSE3+SSE4.1+SSE4.2+POPCNT,X86Base+SSE+SSE2,AES+PCLMUL VectorSize=256",
          "Statistics":{
             "OriginalValues":[

@@ -1,4 +1,4 @@
-# Handler Design for TurboHTTP
+# Handler Design for GaudiHTTP
 
 ## What HttpClient Provides Out of the Box
 
@@ -23,12 +23,12 @@ services.AddHttpClient("myapi", c => c.BaseAddress = new Uri("https://api.exampl
 
 ---
 
-## Configuring Clients with `ITurboHttpClientBuilder`
+## Configuring Clients with `IGaudiHttpClientBuilder`
 
-TurboHTTP follows the same builder pattern as `Microsoft.Extensions.Http` — you configure everything at DI registration time, and the pipeline is assembled for you when the client is first created:
+GaudiHTTP follows the same builder pattern as `Microsoft.Extensions.Http` — you configure everything at DI registration time, and the pipeline is assembled for you when the client is first created:
 
 ```csharp
-public interface ITurboHttpClientBuilder
+public interface IGaudiHttpClientBuilder
 {
     string Name { get; }
     IServiceCollection Services { get; }
@@ -39,22 +39,22 @@ Register named or typed clients via extension methods on `IServiceCollection`:
 
 ```csharp
 // Named Client
-services.AddTurboHttpClient("myapi", options =>
+services.AddGaudiHttpClient("myapi", options =>
 {
     options.BaseAddress    = new Uri("https://api.example.com");
     options.ConnectTimeout = TimeSpan.FromSeconds(5);
 });
 
 // Typed Client
-services.AddTurboHttpClient<IGitHubClient, GitHubClient>(options =>
+services.AddGaudiHttpClient<IGitHubClient, GitHubClient>(options =>
 {
     options.BaseAddress = new Uri("https://api.github.com");
 });
 ```
 
-The return value is `ITurboHttpClientBuilder` — all further options are registered as extension methods on it. The graph is not materialized here, but on the first `CreateClient(name)` call of the factory.
+The return value is `IGaudiHttpClientBuilder` — all further options are registered as extension methods on it. The graph is not materialized here, but on the first `CreateClient(name)` call of the factory.
 
-HTTP version and default headers are set on the `ITurboHttpClient` instance, not on `TurboClientOptions`:
+HTTP version and default headers are set on the `IGaudiHttpClient` instance, not on `TurboClientOptions`:
 
 ```csharp
 var client = factory.CreateClient("myapi");
@@ -68,7 +68,7 @@ client.DefaultRequestVersion = HttpVersion.Version20;
 Analogous to `AddStandardResilienceHandler()` / `ConfigurePrimaryHttpMessageHandler()`:
 
 ```csharp
-services.AddTurboHttpClient("myapi", options => { ... })
+services.AddGaudiHttpClient("myapi", options => { ... })
     // Redirect is off by default, opt-in
     .WithRedirect()                                  // Default: max 10 hops, no HTTPS→HTTP downgrade
     .WithRedirect(r => { r.MaxRedirects = 20; })
@@ -84,7 +84,7 @@ services.AddTurboHttpClient("myapi", options => { ... })
     .WithRetry(r => { r.MaxRetries = 3; });
 ```
 
-These methods only register their configuration in `IServiceCollection` (as `IOptions`/`IConfigureOptions`). The `TurboHttpClientFactory` reads all registered options at `CreateClient()` time and passes them to the engine.
+These methods only register their configuration in `IServiceCollection` (as `IOptions`/`IConfigureOptions`). The `GaudiHttpClientFactory` reads all registered options at `CreateClient()` time and passes them to the engine.
 
 > **Note:** Feature configuration (redirect, retry, cache, cookies) is done exclusively through the
 > builder extensions (`.WithRedirect()`, `.WithRetry()`, `.WithCache()`, `.WithCookies()`).
@@ -94,7 +94,7 @@ These methods only register their configuration in `IServiceCollection` (as `IOp
 
 ## User Middleware
 
-Instead of `DelegatingHandler`, TurboHTTP provides its own stream-compatible middleware abstraction. The interface is intentionally simple — no Akka knowledge required:
+Instead of `DelegatingHandler`, GaudiHTTP provides its own stream-compatible middleware abstraction. The interface is intentionally simple — no Akka knowledge required:
 
 ```csharp
 public abstract class TurboHandler
@@ -110,18 +110,18 @@ public abstract class TurboHandler
 }
 ```
 
-Registration via DI and `ITurboHttpClientBuilder`:
+Registration via DI and `IGaudiHttpClientBuilder`:
 
 ```csharp
 // Class — resolved via DI (can inject dependencies)
 // AddHandler<T>() automatically registers T as Transient in IServiceCollection
-services.AddTurboHttpClient("myapi", options => { ... })
+services.AddGaudiHttpClient("myapi", options => { ... })
     .AddHandler<AuthHandler>()
     .AddHandler<LoggingHandler>()
     .AddHandler<CorrelationIdHandler>();
 
 // Inline delegate for simple cases
-services.AddTurboHttpClient("myapi", options => { ... })
+services.AddGaudiHttpClient("myapi", options => { ... })
     .UseRequest((req) =>
     {
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -193,7 +193,7 @@ User handlers intentionally run **outside** the feedback loops:
 ```csharp
 // Program.cs / Startup.cs
 
-services.AddTurboHttpClient("payments", options =>
+services.AddGaudiHttpClient("payments", options =>
     {
         options.BaseAddress          = new Uri("https://api.payments.example.com");
         options.ConnectTimeout       = TimeSpan.FromSeconds(3);
@@ -204,9 +204,9 @@ services.AddTurboHttpClient("payments", options =>
     .AddHandler<ObservabilityHandler>(); // registers ObservabilityHandler as Transient
 
 // Somewhere in application code:
-public class PaymentService(ITurboHttpClientFactory factory)
+public class PaymentService(IGaudiHttpClientFactory factory)
 {
-    private readonly ITurboHttpClient _client = factory.CreateClient("payments");
+    private readonly IGaudiHttpClient _client = factory.CreateClient("payments");
 }
 ```
 
@@ -226,15 +226,15 @@ public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
 
 ## Difference from `TurboClientOptions`
 
-`TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `ITurboHttpClientBuilder` extensions.
+`TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `IGaudiHttpClientBuilder` extensions.
 
 | Configuration Type                                       | Where                                                               |
 | -------------------------------------------------------- | ------------------------------------------------------------------- |
-| Connection parameters (timeouts, TLS, HTTP/2 frame size) | `TurboClientOptions` via `AddTurboHttpClient(name, options => ...)` |
-| Redirect / Retry / Cookie / Cache                        | `ITurboHttpClientBuilder` extensions (`.WithRedirect()` etc.)       |
-| User handlers                                            | `ITurboHttpClientBuilder` (`.AddHandler<T>()`)                      |
+| Connection parameters (timeouts, TLS, HTTP/2 frame size) | `TurboClientOptions` via `AddGaudiHttpClient(name, options => ...)` |
+| Redirect / Retry / Cookie / Cache                        | `IGaudiHttpClientBuilder` extensions (`.WithRedirect()` etc.)       |
+| User handlers                                            | `IGaudiHttpClientBuilder` (`.AddHandler<T>()`)                      |
 | BaseAddress                                              | `TurboClientOptions`                                                |
-| DefaultRequestHeaders / DefaultRequestVersion            | `ITurboHttpClient` (set on the client instance after creation)      |
+| DefaultRequestHeaders / DefaultRequestVersion            | `IGaudiHttpClient` (set on the client instance after creation)      |
 
 ---
 
@@ -304,19 +304,19 @@ The engine reads this descriptor and wires up only the stages you have actually 
 
 ---
 
-## Comparison: HttpClient vs. TurboHTTP
+## Comparison: HttpClient vs. GaudiHTTP
 
-| Aspect        | HttpClient                                        | TurboHTTP                                  |
+| Aspect        | HttpClient                                        | GaudiHTTP                                  |
 | ------------- | ------------------------------------------------- | ------------------------------------------ |
-| Registration  | `services.AddHttpClient("name", ...)`             | `services.AddTurboHttpClient("name", ...)` |
+| Registration  | `services.AddHttpClient("name", ...)`             | `services.AddGaudiHttpClient("name", ...)` |
 | Handlers      | `.AddHttpMessageHandler<T>()`                     | `.AddHandler<T>()`                         |
 | Redirect      | on by default                                     | off — opt-in via `.WithRedirect()`         |
 | Retry         | off — Polly via `.AddStandardResilienceHandler()` | off — opt-in via `.WithRetry(policy)`      |
 | Cache         | not available                                     | off — opt-in via `.WithCache(policy)`      |
 | Cookies       | off (SocketsHttpHandler)                          | off — opt-in via `.WithCookies()`          |
 | Handler base  | `DelegatingHandler` (sync/async, per request)     | `TurboHandler` (async, stream-compatible)  |
-| Factory       | `IHttpClientFactory`                              | `ITurboHttpClientFactory`                  |
-| Typed Clients | `AddHttpClient<TClient>()`                        | `AddTurboHttpClient<TClient>()`            |
+| Factory       | `IHttpClientFactory`                              | `IGaudiHttpClientFactory`                  |
+| Typed Clients | `AddHttpClient<TClient>()`                        | `AddGaudiHttpClient<TClient>()`            |
 
 ## Server Request Pipeline
 

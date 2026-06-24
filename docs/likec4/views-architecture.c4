@@ -1,72 +1,72 @@
-// TurboHTTP — Architecture Views (User-focused)
+// GaudiHTTP — Architecture Views (User-focused)
 // Top-level and layer-scoped static views showing public features and behavior.
 
 views {
 
   view index {
-    title 'TurboHTTP — System Overview'
-    description 'Application, TurboHTTP client and server, and the network'
+    title 'GaudiHTTP — System Overview'
+    description 'Application, GaudiHTTP client and server, and the network'
     include app
-    include turbohttp.client
-    include turbohttp.server
+    include gaudihttp.client
+    include gaudihttp.server
     include network
-    style turbohttp { color green }
+    style gaudihttp { color green }
     style network { color muted }
     style app { color primary }
   }
 
-  view turbohttp {
-    title 'TurboHTTP — Full Architecture'
+  view gaudihttp {
+    title 'GaudiHTTP — Full Architecture'
     description 'Client API, server actors, and both request/response pipelines'
     include app
-    include turbohttp.client.*
-    include turbohttp.server.*
-    include turbohttp.streams.Engine
-    include turbohttp.streams.RequestEnricher
-    include turbohttp.streams.TracingBidiStage
-    include turbohttp.streams.HandlerBidiStage
-    include turbohttp.streams.CookieBidiStage
-    include turbohttp.streams.CacheBidiStage
-    include turbohttp.streams.ContentEncodingBidiStage
-    include turbohttp.streams.RetryBidiStage
-    include turbohttp.streams.RedirectBidiStage
-    include turbohttp.streams.ExpectContinueBidiStage
-    include turbohttp.streams.AltSvcBidiStage
-    include turbohttp.serverStages.NegotiatingServerEngine
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.client.*
+    include gaudihttp.server.*
+    include gaudihttp.streams.Engine
+    include gaudihttp.streams.RequestEnricher
+    include gaudihttp.streams.TracingBidiStage
+    include gaudihttp.streams.HandlerBidiStage
+    include gaudihttp.streams.CookieBidiStage
+    include gaudihttp.streams.CacheBidiStage
+    include gaudihttp.streams.ContentEncodingBidiStage
+    include gaudihttp.streams.RetryBidiStage
+    include gaudihttp.streams.RedirectBidiStage
+    include gaudihttp.streams.ExpectContinueBidiStage
+    include gaudihttp.streams.AltSvcBidiStage
+    include gaudihttp.serverStages.NegotiatingServerEngine
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 
-  view clientLayer of turbohttp.client {
+  view clientLayer of gaudihttp.client {
     title 'Client API'
     description 'Public interface: SendAsync, channel-based API, configuration options'
     include app
-    include turbohttp.client.*
+    include gaudihttp.client.*
   }
 
-  view pipelineFlow of turbohttp.streams {
+  view pipelineFlow of gaudihttp.streams {
     title 'Client Pipeline Flow'
     description 'All client processing stages from request entry to response delivery'
-    include turbohttp.client.TurboHttpClient
-    include turbohttp.streams.RequestEnricher
-    include turbohttp.streams.HandlerBidiStage
-    include turbohttp.streams.TracingBidiStage
-    include turbohttp.streams.RedirectBidiStage
-    include turbohttp.streams.CookieBidiStage
-    include turbohttp.streams.RetryBidiStage
-    include turbohttp.streams.ExpectContinueBidiStage
-    include turbohttp.streams.CacheBidiStage
-    include turbohttp.streams.ContentEncodingBidiStage
-    include turbohttp.streams.AltSvcBidiStage
-    include turbohttp.streams.Engine
-    include turbohttp.streams.Http10ClientEngine
-    include turbohttp.streams.Http11ClientEngine
-    include turbohttp.streams.Http20ClientEngine
-    include turbohttp.streams.Http30ClientEngine
-    include turbohttp.streams.Http10ClientConnectionStage
-    include turbohttp.streams.Http11ClientConnectionStage
-    include turbohttp.streams.Http20ClientConnectionStage
-    include turbohttp.streams.Http30ClientConnectionStage
+    include gaudihttp.client.GaudiHttpClient
+    include gaudihttp.streams.RequestEnricher
+    include gaudihttp.streams.HandlerBidiStage
+    include gaudihttp.streams.TracingBidiStage
+    include gaudihttp.streams.RedirectBidiStage
+    include gaudihttp.streams.CookieBidiStage
+    include gaudihttp.streams.RetryBidiStage
+    include gaudihttp.streams.ExpectContinueBidiStage
+    include gaudihttp.streams.CacheBidiStage
+    include gaudihttp.streams.ContentEncodingBidiStage
+    include gaudihttp.streams.AltSvcBidiStage
+    include gaudihttp.streams.Engine
+    include gaudihttp.streams.Http10ClientEngine
+    include gaudihttp.streams.Http11ClientEngine
+    include gaudihttp.streams.Http20ClientEngine
+    include gaudihttp.streams.Http30ClientEngine
+    include gaudihttp.streams.Http10ClientConnectionStage
+    include gaudihttp.streams.Http11ClientConnectionStage
+    include gaudihttp.streams.Http20ClientConnectionStage
+    include gaudihttp.streams.Http30ClientConnectionStage
     include servus.TcpConnectionStage
     include servus.TcpConnectionManagerActor
     include servus.QuicConnectionStage
@@ -74,36 +74,36 @@ views {
     include network
   }
 
-  view serverLayer of turbohttp.server {
+  view serverLayer of gaudihttp.server {
     title 'Server API'
     description 'Actor hierarchy: HostedService → Supervisor → Listeners → Connections, with configuration and protocol routing'
-    include turbohttp.server.*
+    include gaudihttp.server.*
   }
 
-  view serverHierarchy of turbohttp.server {
+  view serverHierarchy of gaudihttp.server {
     title 'Server — Actor Hierarchy & Transport'
     description 'Standalone server lifecycle: IHostedService → Supervisor → Listeners → Connections, with TCP/QUIC transport via Servus.Akka'
-    include turbohttp.server.*
+    include gaudihttp.server.*
     include servus.TcpListenerFactory
     include servus.QuicListenerFactory
     include network
   }
 
-  view serverPipeline of turbohttp.serverStages {
+  view serverPipeline of gaudihttp.serverStages {
     title 'Server — Request Pipeline'
     description 'How an incoming HTTP request flows through the server: ALPN negotiation → wire decode → ApplicationBridgeStage → ASP.NET Core'
-    include turbohttp.server.ConnectionActor
-    include turbohttp.server.ProtocolRouter
-    include turbohttp.serverStages.NegotiatingServerEngine
-    include turbohttp.serverStages.Http10ServerEngine
-    include turbohttp.serverStages.Http11ServerEngine
-    include turbohttp.serverStages.Http20ServerEngine
-    include turbohttp.serverStages.Http30ServerEngine
-    include turbohttp.serverStages.Http10ServerConnectionStage
-    include turbohttp.serverStages.Http11ServerConnectionStage
-    include turbohttp.serverStages.Http20ServerConnectionStage
-    include turbohttp.serverStages.Http30ServerConnectionStage
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.server.ConnectionActor
+    include gaudihttp.server.ProtocolRouter
+    include gaudihttp.serverStages.NegotiatingServerEngine
+    include gaudihttp.serverStages.Http10ServerEngine
+    include gaudihttp.serverStages.Http11ServerEngine
+    include gaudihttp.serverStages.Http20ServerEngine
+    include gaudihttp.serverStages.Http30ServerEngine
+    include gaudihttp.serverStages.Http10ServerConnectionStage
+    include gaudihttp.serverStages.Http11ServerConnectionStage
+    include gaudihttp.serverStages.Http20ServerConnectionStage
+    include gaudihttp.serverStages.Http30ServerConnectionStage
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 }

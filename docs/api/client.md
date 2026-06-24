@@ -1,23 +1,23 @@
-# ITurboHttpClient
+# IGaudiHttpClient
 
-TurboHTTP exposes a small, focused public API. The primary entry point is `ITurboHttpClient`, obtained via `ITurboHttpClientFactory`.
+GaudiHTTP exposes a small, focused public API. The primary entry point is `IGaudiHttpClient`, obtained via `IGaudiHttpClientFactory`.
 
-## ITurboHttpClientFactory
+## IGaudiHttpClientFactory
 
 ```csharp
-public interface ITurboHttpClientFactory
+public interface IGaudiHttpClientFactory
 {
-    ITurboHttpClient CreateClient(string name);
+    IGaudiHttpClient CreateClient(string name);
 }
 ```
 
 Registered via dependency injection. Resolve a named client by passing the name used at registration:
 
 ```csharp
-// Default (unnamed) client — registered with AddTurboHttpClient()
+// Default (unnamed) client — registered with AddGaudiHttpClient()
 var client = factory.CreateClient();          // extension method: CreateClient(string.Empty)
 
-// Named client — registered with AddTurboHttpClient("search", ...)
+// Named client — registered with AddGaudiHttpClient("search", ...)
 var searchClient = factory.CreateClient("search");
 ```
 
@@ -25,10 +25,10 @@ See [Configuration guide](/client/configuration) for DI setup and named client r
 
 ---
 
-## ITurboHttpClient
+## IGaudiHttpClient
 
 ```csharp
-public interface ITurboHttpClient : IDisposable
+public interface IGaudiHttpClient : IDisposable
 {
     Uri? BaseAddress { get; set; }
     HttpRequestHeaders DefaultRequestHeaders { get; }

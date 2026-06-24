@@ -1,22 +1,22 @@
 # Getting Started
 
-TurboHTTP is a high-performance HTTP client and server for .NET built on Akka.Streams. It supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with automatic retries, caching, cookies, connection pooling, middleware, routing, and entity gateway — all in one package.
+GaudiHTTP is a high-performance HTTP client and server for .NET built on Akka.Streams. It supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with automatic retries, caching, cookies, connection pooling, middleware, routing, and entity gateway — all in one package.
 
 ## Install
 
 ```bash
-dotnet add package TurboHTTP
+dotnet add package GaudiHTTP
 ```
 
 Or add it to your `.csproj`:
 
 ```xml
-<PackageReference Include="TurboHTTP" Version="3.0.0-alpha.*" />
+<PackageReference Include="GaudiHTTP" Version="3.0.0-alpha.*" />
 ```
 
 ## Choose Your Path
 
-TurboHTTP has two sides — use either or both:
+GaudiHTTP has two sides — use either or both:
 
 | | Client | Server |
 |---|---|---|
@@ -31,7 +31,7 @@ TurboHTTP has two sides — use either or both:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -41,7 +41,7 @@ builder.Services.AddTurboHttpClient("api", options =>
 .WithRedirect();
 
 var app = builder.Build();
-var factory = app.Services.GetRequiredService<ITurboHttpClientFactory>();
+var factory = app.Services.GetRequiredService<IGaudiHttpClientFactory>();
 var client = factory.CreateClient("api");
 
 var response = await client.SendAsync(
@@ -54,7 +54,7 @@ var response = await client.SendAsync(
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
 });
@@ -67,13 +67,13 @@ app.MapGet("/users/{id}", (int id) => new { id, name = "User " + id });
 await app.RunAsync();
 ```
 
-::: tip About UseTurboHttp
-TurboHTTP Server is a high-performance IServer implementation for ASP.NET Core built on Akka.Streams; it replaces Kestrel as the transport layer and integrates with standard ASP.NET Core middleware, routing, and DI. Register it on `builder.Host` using `UseTurboHttp()`.
+::: tip About UseGaudiHttp
+GaudiHTTP Server is a high-performance IServer implementation for ASP.NET Core built on Akka.Streams; it replaces Kestrel as the transport layer and integrates with standard ASP.NET Core middleware, routing, and DI. Register it on `builder.Host` using `UseGaudiHttp()`.
 :::
 
 ## Next Steps
 
-- [Client Quick Start](./client) — build your first TurboHTTP client
-- [Server Quick Start](./server) — build your first TurboHTTP server
+- [Client Quick Start](./client) — build your first GaudiHTTP client
+- [Server Quick Start](./server) — build your first GaudiHTTP server
 - [Architecture Overview](./architecture) — understand how the pipeline works
 - [Migration from HttpClient](./migration) — coming from `System.Net.Http`?

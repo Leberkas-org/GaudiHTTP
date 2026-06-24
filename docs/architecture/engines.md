@@ -127,7 +127,7 @@ Unlike HTTP/2 where a single lost TCP packet can stall all streams, HTTP/3's QUI
 
 ## Server Protocol Engines
 
-When a connection arrives at TurboHTTP Server, the server mirrors the client architecture with protocol-specific server engines. Each server engine handles request parsing and response encoding for a particular HTTP version.
+When a connection arrives at GaudiHTTP Server, the server mirrors the client architecture with protocol-specific server engines. Each server engine handles request parsing and response encoding for a particular HTTP version.
 
 | Engine                  | Protocol | Characteristics                                                                                                       |
 | ----------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |

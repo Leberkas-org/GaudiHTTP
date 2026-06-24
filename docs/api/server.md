@@ -1,15 +1,15 @@
 # Server API
 
-TurboHTTP Server is an `IServer` implementation for ASP.NET Core built on Akka.Streams. It replaces Kestrel as the transport layer.
+GaudiHTTP Server is an `IServer` implementation for ASP.NET Core built on Akka.Streams. It replaces Kestrel as the transport layer.
 
 ## Registration
 
 ```csharp
-public static class TurboServerWebHostBuilderExtensions
+public static class GaudiServerWebHostBuilderExtensions
 {
-    IHostBuilder UseTurboHttp(
+    IHostBuilder UseGaudiHttp(
         this IHostBuilder builder,
-        Action<TurboServerOptions>? configure = null);
+        Action<GaudiServerOptions>? configure = null);
 }
 ```
 
@@ -18,22 +18,22 @@ Register the server during application setup:
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
 });
 
 var app = builder.Build();
-app.MapGet("/", () => "Hello from TurboHTTP!");
+app.MapGet("/", () => "Hello from GaudiHTTP!");
 await app.RunAsync();
 ```
 
 ---
 
-## TurboServer
+## GaudiServer
 
 ```csharp
-public sealed class TurboServer : IServer, IDisposable
+public sealed class GaudiServer : IServer, IDisposable
 {
     IFeatureCollection Features { get; }
 
@@ -45,16 +45,16 @@ public sealed class TurboServer : IServer, IDisposable
 }
 ```
 
-`TurboServer` implements `IServer` from `Microsoft.AspNetCore.Hosting.Server`. It creates or reuses an `ActorSystem`, materializes the Akka.Streams pipeline, and spawns the actor hierarchy for connection management.
+`GaudiServer` implements `IServer` from `Microsoft.AspNetCore.Hosting.Server`. It creates or reuses an `ActorSystem`, materializes the Akka.Streams pipeline, and spawns the actor hierarchy for connection management.
 
 ---
 
 ## Server Options
 
 ```csharp
-public sealed class TurboServerOptions
+public sealed class GaudiServerOptions
 {
-    TurboServerLimits Limits { get; }
+    GaudiServerLimits Limits { get; }
 
     TimeSpan GracefulShutdownTimeout { get; set; }  // default: 30s
     TimeSpan HandlerTimeout { get; set; }            // default: 30s
@@ -81,7 +81,7 @@ public sealed class TurboServerOptions
     void Bind(TcpListenerOptions options);
     void Bind(QuicListenerOptions options);
     void Bind(ListenerOptions options, IListenerFactory factory);
-    void ConfigureHttpsDefaults(Action<TurboHttpsOptions> configure);
+    void ConfigureHttpsDefaults(Action<GaudiHttpsOptions> configure);
     void ConfigureEndpointDefaults(Action<TurboListenOptions> configure);
 
     IList<ListenerBinding> Endpoints { get; }  // read-only, populated by Bind() overloads only
@@ -94,7 +94,7 @@ public sealed class TurboServerOptions
 ## Server Limits
 
 ```csharp
-public sealed class TurboServerLimits
+public sealed class GaudiServerLimits
 {
     int MaxConcurrentConnections { get; set; }              // default: 0 (unlimited)
     long MaxRequestBodySize { get; set; }                   // default: 30,000,000 (~28.6 MiB, matching Kestrel)
@@ -127,9 +127,9 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     void UseHttps();
     void UseHttps(X509Certificate2 certificate);
     void UseHttps(string path, string? password = null);
-    void UseHttps(Action<TurboHttpsOptions> configure);
-    void UseHttps(X509Certificate2 certificate, Action<TurboHttpsOptions> configure);
-    void UseHttps(string path, string? password, Action<TurboHttpsOptions> configure);
+    void UseHttps(Action<GaudiHttpsOptions> configure);
+    void UseHttps(X509Certificate2 certificate, Action<GaudiHttpsOptions> configure);
+    void UseHttps(string path, string? password, Action<GaudiHttpsOptions> configure);
     void UseConnectionLogging();
     void UseConnectionLogging(string loggerName);
 }
@@ -180,7 +180,7 @@ options.Listen(IPAddress.Any, 8080, listen =>
 ## HTTPS Options
 
 ```csharp
-public sealed class TurboHttpsOptions
+public sealed class GaudiHttpsOptions
 {
     X509Certificate2? ServerCertificate { get; set; }
     string? CertificatePath { get; set; }

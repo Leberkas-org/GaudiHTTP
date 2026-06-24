@@ -1,6 +1,6 @@
 # Client API
 
-TurboHTTP provides a simple, familiar interface for making HTTP requests.
+GaudiHTTP provides a simple, familiar interface for making HTTP requests.
 
 ## SendAsync
 
@@ -19,7 +19,7 @@ Console.WriteLine(response.StatusCode);
 - Takes an `HttpRequestMessage`
 - Returns a `Task<HttpResponseMessage>`
 - Supports `CancellationToken` for cancellation
-- Respects the `Timeout` set on the client instance (`ITurboHttpClient.Timeout`)
+- Respects the `Timeout` set on the client instance (`IGaudiHttpClient.Timeout`)
 
 All pipeline features (cookies, caching, retries, redirects) apply automatically. You don't think about them.
 
@@ -59,7 +59,7 @@ Transport options are set via `TurboClientOptions` at registration time. Request
 
 ```csharp
 // Register via DI
-services.AddTurboHttpClient("my-api", options =>
+services.AddGaudiHttpClient("my-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -75,16 +75,16 @@ See [Configuration Guide](../client/configuration) for full options.
 
 ## Server API
 
-TurboHTTP Server provides an ASP.NET Core-style programming model for handling incoming HTTP requests through Akka actors.
+GaudiHTTP Server provides an ASP.NET Core-style programming model for handling incoming HTTP requests through Akka actors.
 
 ### Registration
 
-Register the server via `UseTurboHttp` on `builder.Host` and configure endpoints:
+Register the server via `UseGaudiHttp` on `builder.Host` and configure endpoints:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Host.UseTurboHttp(options =>
+builder.Host.UseGaudiHttp(options =>
 {
     options.ListenLocalhost(5100);
     options.ListenLocalhost(5101, listen => listen.UseHttps());

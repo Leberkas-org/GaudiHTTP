@@ -1,10 +1,10 @@
 # Redirects
 
-TurboHTTP follows redirects automatically. When a server responds with a redirect status code, TurboHTTP builds a new request to the `Location` URL and re-sends it — transparently, within the same `SendAsync` call. You always receive the final response; intermediate hops are handled for you.
+GaudiHTTP follows redirects automatically. When a server responds with a redirect status code, GaudiHTTP builds a new request to the `Location` URL and re-sends it — transparently, within the same `SendAsync` call. You always receive the final response; intermediate hops are handled for you.
 
 ## How It Works
 
-When a redirect response arrives, TurboHTTP:
+When a redirect response arrives, GaudiHTTP:
 
 1. Validates the `Location` header (resolves relative URLs against the original request URI).
 2. Checks for redirect loops and enforces the maximum hop limit.
@@ -15,9 +15,9 @@ When a redirect response arrives, TurboHTTP:
 
 ## Status Code Behaviour
 
-Each redirect status code tells TurboHTTP how to handle the follow-up request:
+Each redirect status code tells GaudiHTTP how to handle the follow-up request:
 
-| Status code              | What TurboHTTP does                                                                                                                                  |
+| Status code              | What GaudiHTTP does                                                                                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `301` Moved Permanently  | POST becomes GET for legacy compatibility; all other methods stay the same. Body is dropped.                                                         |
 | `302` Found              | Same as 301 — POST becomes GET, other methods unchanged. Body is dropped.                                                                            |
@@ -27,7 +27,7 @@ Each redirect status code tells TurboHTTP how to handle the follow-up request:
 
 **In practice:**
 
-- **301 and 302** change POST to GET because that is how browsers have behaved for decades. If you send a `PUT /resource` and get a 301, TurboHTTP re-sends it as `PUT` — only POST is affected.
+- **301 and 302** change POST to GET because that is how browsers have behaved for decades. If you send a `PUT /resource` and get a 301, GaudiHTTP re-sends it as `PUT` — only POST is affected.
 - **307 and 308** are the modern alternatives that guarantee the request is replayed exactly as-is. Use these when the body matters (file uploads, API calls).
 - **303** is designed specifically for "form submitted, now go see the result" flows.
 
@@ -35,7 +35,7 @@ Each redirect status code tells TurboHTTP how to handle the follow-up request:
 
 ### Authorization Header Stripping
 
-When a redirect crosses an origin (a different scheme, hostname, or port), TurboHTTP removes the `Authorization` header from the forwarded request. This prevents your credentials from leaking to a third-party server you didn't intend to authenticate with.
+When a redirect crosses an origin (a different scheme, hostname, or port), GaudiHTTP removes the `Authorization` header from the forwarded request. This prevents your credentials from leaking to a third-party server you didn't intend to authenticate with.
 
 ```
 Original:  POST https://api.example.com/login   Authorization: Bearer token123
@@ -48,7 +48,7 @@ Same-origin redirects preserve the `Authorization` header normally.
 
 ### HTTPS → HTTP Downgrade Protection
 
-TurboHTTP blocks redirects that would downgrade from `https://` to `http://`. If a server tries to redirect you from an encrypted connection to a cleartext one, TurboHTTP fails the request rather than following it.
+GaudiHTTP blocks redirects that would downgrade from `https://` to `http://`. If a server tries to redirect you from an encrypted connection to a cleartext one, GaudiHTTP fails the request rather than following it.
 
 ```
 Original:  GET https://secure.example.com/data
@@ -59,11 +59,11 @@ This protects your traffic from being silently moved off an encrypted channel.
 
 ### Cookie Re-evaluation
 
-The `Cookie` header is never blindly forwarded across redirects. For each redirect hop, TurboHTTP re-evaluates applicable cookies from the cookie jar using the new URL's domain, path, and security rules. This prevents cookies scoped to one site from being sent to a different one.
+The `Cookie` header is never blindly forwarded across redirects. For each redirect hop, GaudiHTTP re-evaluates applicable cookies from the cookie jar using the new URL's domain, path, and security rules. This prevents cookies scoped to one site from being sent to a different one.
 
 ## Loop Detection
 
-TurboHTTP tracks every URL visited during a redirect chain. If the same URL appears twice, it fails the request immediately rather than continuing. This prevents infinite redirect loops caused by misconfigured servers from hanging your application.
+GaudiHTTP tracks every URL visited during a redirect chain. If the same URL appears twice, it fails the request immediately rather than continuing. This prevents infinite redirect loops caused by misconfigured servers from hanging your application.
 
 ```
 GET /a → 302 → /b → 302 → /a   ← request fails (loop detected)
@@ -75,14 +75,14 @@ Redirect behaviour is controlled via `.WithRedirect()` on the builder:
 
 ```csharp
 // Enable redirects with defaults: max 10 hops, no HTTPS→HTTP downgrade
-builder.Services.AddTurboHttpClient(options =>
+builder.Services.AddGaudiHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithRedirect();
 
 // Custom limit
-builder.Services.AddTurboHttpClient("strict", options =>
+builder.Services.AddGaudiHttpClient("strict", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })

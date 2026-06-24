@@ -1,21 +1,21 @@
 # Client Quick Start
 
-Build a working TurboHTTP client in under 5 minutes.
+Build a working GaudiHTTP client in under 5 minutes.
 
 ## 1. Install
 
 ```bash
-dotnet add package TurboHTTP
+dotnet add package GaudiHTTP
 ```
 
 ## 2. Register a Client
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -26,10 +26,10 @@ var app = builder.Build();
 ## 3. Send a Request
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net.Http;
 
-var factory = app.Services.GetRequiredService<ITurboHttpClientFactory>();
+var factory = app.Services.GetRequiredService<IGaudiHttpClientFactory>();
 var client = factory.CreateClient("api");
 
 var response = await client.SendAsync(
@@ -45,9 +45,9 @@ Console.WriteLine(await response.Content.ReadAsStringAsync());
 Features are opt-in via the fluent builder:
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-builder.Services.AddTurboHttpClient("api", options =>
+builder.Services.AddGaudiHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -65,7 +65,7 @@ Each `.With*()` method adds a pipeline stage. They compose — order doesn't mat
 For batch processing, use the channel-based API instead of `SendAsync`:
 
 ```csharp
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net.Http;
 using System.Threading.Channels;
 

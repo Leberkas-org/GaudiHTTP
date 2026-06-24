@@ -1,8 +1,8 @@
 # Client
 
-TurboHTTP is a high-performance HTTP client for .NET built on Akka.Streams. It supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with automatic retries, caching, cookies, and connection pooling — all built in.
+GaudiHTTP is a high-performance HTTP client for .NET built on Akka.Streams. It supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with automatic retries, caching, cookies, and connection pooling — all built in.
 
-::: tip New to TurboHTTP?
+::: tip New to GaudiHTTP?
 Start with the [Client Quick Start](/getting-started/client) for a step-by-step setup guide.
 :::
 
@@ -11,12 +11,12 @@ See [Installation & Setup](./installation) for DI registration, named clients, a
 :::
 
 ::: info Looking for the server?
-TurboHTTP also provides a high-performance drop-in ASP.NET Core IServer (a Kestrel replacement). See the [Server Guide](/server/).
+GaudiHTTP also provides a high-performance drop-in ASP.NET Core IServer (a Kestrel replacement). See the [Server Guide](/server/).
 :::
 
 ## High-Throughput Usage
 
-In addition to `SendAsync`, TurboHTTP exposes a channel-based API for scenarios where you want to stream requests and responses without `await`-ing each one individually.
+In addition to `SendAsync`, GaudiHTTP exposes a channel-based API for scenarios where you want to stream requests and responses without `await`-ing each one individually.
 
 ```csharp
 var client = factory.CreateClient();
@@ -32,7 +32,7 @@ Use the channel API when:
 
 - You have a producer loop generating requests faster than you can await responses
 - You want to decouple request creation from response processing
-- You are integrating TurboHTTP into a pipeline that already uses `System.Threading.Channels`
+- You are integrating GaudiHTTP into a pipeline that already uses `System.Threading.Channels`
 
 ### Batch Pattern
 
@@ -77,7 +77,7 @@ The `Requests` channel is unbounded, so `WriteAsync` never pauses — requests a
 
 ## What's Included
 
-TurboHTTP works out of the box — no middleware to wire up, no Polly policies to configure.
+GaudiHTTP works out of the box — no middleware to wire up, no Polly policies to configure.
 
 | Feature                                 | Description                                                                                          |
 | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |

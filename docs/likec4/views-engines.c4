@@ -1,79 +1,79 @@
-// TurboHTTP — Engine Views
+// GaudiHTTP — Engine Views
 // Per-version engine internals for both client and server.
 // Each engine wraps a unified ConnectionStage into a BidiFlow,
 // which is then joined with the appropriate transport stage (TCP or QUIC).
 
 views {
 
-  view http10Engine of turbohttp.streams.Http10ClientEngine {
+  view http10Engine of gaudihttp.streams.Http10ClientEngine {
     title 'Client — HTTP/1.0 Engine'
     description 'Unified Http10ClientConnectionStage handles encoding, decoding, and correlation. TcpConnectionStage provides TCP transport. No keep-alive; connection closes after each response.'
-    include turbohttp.streams.Http10ClientEngine
-    include turbohttp.streams.Http10ClientConnectionStage
+    include gaudihttp.streams.Http10ClientEngine
+    include gaudihttp.streams.Http10ClientConnectionStage
     include servus.TcpConnectionStage
     include network
   }
 
-  view http11Engine of turbohttp.streams.Http11ClientEngine {
+  view http11Engine of gaudihttp.streams.Http11ClientEngine {
     title 'Client — HTTP/1.1 Engine'
     description 'Unified Http11ClientConnectionStage handles encoding, decoding, correlation, and keep-alive evaluation. TcpConnectionStage provides TCP transport with connection reuse.'
-    include turbohttp.streams.Http11ClientEngine
-    include turbohttp.streams.Http11ClientConnectionStage
+    include gaudihttp.streams.Http11ClientEngine
+    include gaudihttp.streams.Http11ClientConnectionStage
     include servus.TcpConnectionStage
     include network
   }
 
-  view http2Engine of turbohttp.streams.Http20ClientEngine {
+  view http2Engine of gaudihttp.streams.Http20ClientEngine {
     title 'Client — HTTP/2 Engine'
     description 'Unified Http20ClientConnectionStage handles stream ID allocation, HPACK compression, frame encoding/decoding, flow control, SETTINGS/PING/GOAWAY, and response assembly. TcpConnectionStage provides TCP transport.'
-    include turbohttp.streams.Http20ClientEngine
-    include turbohttp.streams.Http20ClientConnectionStage
+    include gaudihttp.streams.Http20ClientEngine
+    include gaudihttp.streams.Http20ClientConnectionStage
     include servus.TcpConnectionStage
     include network
   }
 
-  view http3Engine of turbohttp.streams.Http30ClientEngine {
+  view http3Engine of gaudihttp.streams.Http30ClientEngine {
     title 'Client — HTTP/3 Engine'
     description 'Unified Http30ClientConnectionStage handles QPACK compression, frame encoding/decoding, stream multiplexing, flow control, and GOAWAY. QuicConnectionStage provides QUIC transport.'
-    include turbohttp.streams.Http30ClientEngine
-    include turbohttp.streams.Http30ClientConnectionStage
+    include gaudihttp.streams.Http30ClientEngine
+    include gaudihttp.streams.Http30ClientConnectionStage
     include servus.QuicConnectionStage
     include network
   }
 
-  view serverHttp10Engine of turbohttp.serverStages.Http10ServerEngine {
+  view serverHttp10Engine of gaudihttp.serverStages.Http10ServerEngine {
     title 'Server — HTTP/1.0 Engine'
     description 'Server-side Http10ServerConnectionStage decodes request bytes and encodes response bytes. Connection closes after each response.'
-    include turbohttp.serverStages.Http10ServerEngine
-    include turbohttp.serverStages.Http10ServerConnectionStage
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.serverStages.Http10ServerEngine
+    include gaudihttp.serverStages.Http10ServerConnectionStage
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 
-  view serverHttp11Engine of turbohttp.serverStages.Http11ServerEngine {
+  view serverHttp11Engine of gaudihttp.serverStages.Http11ServerEngine {
     title 'Server — HTTP/1.1 Engine'
     description 'Server-side Http11ServerConnectionStage handles chunked TE, Host header validation, keep-alive evaluation, and connection reuse.'
-    include turbohttp.serverStages.Http11ServerEngine
-    include turbohttp.serverStages.Http11ServerConnectionStage
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.serverStages.Http11ServerEngine
+    include gaudihttp.serverStages.Http11ServerConnectionStage
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 
-  view serverHttp2Engine of turbohttp.serverStages.Http20ServerEngine {
+  view serverHttp2Engine of gaudihttp.serverStages.Http20ServerEngine {
     title 'Server — HTTP/2 Engine'
     description 'Server-side Http20ServerConnectionStage handles HPACK decompression, frame decoding, stream multiplexing, flow control, SETTINGS/PING/GOAWAY, and response frame encoding.'
-    include turbohttp.serverStages.Http20ServerEngine
-    include turbohttp.serverStages.Http20ServerConnectionStage
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.serverStages.Http20ServerEngine
+    include gaudihttp.serverStages.Http20ServerConnectionStage
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 
-  view serverHttp3Engine of turbohttp.serverStages.Http30ServerEngine {
+  view serverHttp3Engine of gaudihttp.serverStages.Http30ServerEngine {
     title 'Server — HTTP/3 Engine'
     description 'Server-side Http30ServerConnectionStage handles QPACK decompression, frame decoding over QUIC streams, flow control, GOAWAY, and response encoding.'
-    include turbohttp.serverStages.Http30ServerEngine
-    include turbohttp.serverStages.Http30ServerConnectionStage
-    include turbohttp.serverStages.ApplicationBridgeStage
+    include gaudihttp.serverStages.Http30ServerEngine
+    include gaudihttp.serverStages.Http30ServerConnectionStage
+    include gaudihttp.serverStages.ApplicationBridgeStage
     include network
   }
 }

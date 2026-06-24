@@ -17,7 +17,7 @@ If your server doesn't support HTTP/3, or you're on a stable, low-latency networ
 Set `DefaultRequestVersion` on the client after obtaining it from the factory:
 
 ```csharp
-builder.Services.AddTurboHttpClient("http3-api", options =>
+builder.Services.AddGaudiHttpClient("http3-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
@@ -40,7 +40,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 HTTP/3 options are configured on the nested `Http3` sub-object of `TurboClientOptions`:
 
 ```csharp
-builder.Services.AddTurboHttpClient("http3-api", options =>
+builder.Services.AddGaudiHttpClient("http3-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 
@@ -66,7 +66,7 @@ builder.Services.AddTurboHttpClient("http3-api", options =>
 
 ## Alt-Svc Discovery
 
-TurboHTTP can automatically discover HTTP/3 availability by reading `Alt-Svc` headers from HTTP/1.1 and HTTP/2 responses. When a server advertises `h3` support, subsequent requests to that host are upgraded to HTTP/3:
+GaudiHTTP can automatically discover HTTP/3 availability by reading `Alt-Svc` headers from HTTP/1.1 and HTTP/2 responses. When a server advertises `h3` support, subsequent requests to that host are upgraded to HTTP/3:
 
 ```csharp
 options.Http3.EnableAltSvcDiscovery = true;  // default: false
@@ -86,7 +86,7 @@ Hosts matched by the proxy's bypass list keep using HTTP/3 directly.
 
 ## QPACK Header Compression
 
-HTTP/3 uses QPACK for header compression (the QUIC equivalent of HPACK in HTTP/2). TurboHTTP manages QPACK encoding and decoding automatically. Tune the dynamic table size if needed:
+HTTP/3 uses QPACK for header compression (the QUIC equivalent of HPACK in HTTP/2). GaudiHTTP manages QPACK encoding and decoding automatically. Tune the dynamic table size if needed:
 
 ```csharp
 options.Http3.QpackMaxTableCapacity = 8192;  // default: 16 * 1024 (16 KiB)

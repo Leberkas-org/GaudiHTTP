@@ -1,23 +1,23 @@
 # Configuration
 
-TurboHTTP is configured through `TurboClientOptions` — a mutable class covering connection pool settings and TLS configuration. Features like caching, retries, and redirects are composed separately via the fluent builder API returned by `AddTurboHttpClient`.
+GaudiHTTP is configured through `TurboClientOptions` — a mutable class covering connection pool settings and TLS configuration. Features like caching, retries, and redirects are composed separately via the fluent builder API returned by `AddGaudiHttpClient`.
 
 ## DI Registration
 
-Register TurboHTTP in your ASP.NET Core or generic host application:
+Register GaudiHTTP in your ASP.NET Core or generic host application:
 
 ```csharp
-builder.Services.AddTurboHttpClient(options =>
+builder.Services.AddGaudiHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.ConnectTimeout = TimeSpan.FromSeconds(5);
 });
 ```
 
-Inject `ITurboHttpClientFactory` wherever you need a client:
+Inject `IGaudiHttpClientFactory` wherever you need a client:
 
 ```csharp
-public class MyService(ITurboHttpClientFactory factory)
+public class MyService(IGaudiHttpClientFactory factory)
 {
     public async Task<string> FetchAsync(CancellationToken ct)
     {
@@ -35,7 +35,7 @@ Register multiple clients with different settings, then resolve by name:
 
 ```csharp
 // Public API — caching and redirect following enabled
-builder.Services.AddTurboHttpClient("public-api", options =>
+builder.Services.AddGaudiHttpClient("public-api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -43,7 +43,7 @@ builder.Services.AddTurboHttpClient("public-api", options =>
 .WithRedirect();
 
 // Internal service — aggressive retries
-builder.Services.AddTurboHttpClient("internal", options =>
+builder.Services.AddGaudiHttpClient("internal", options =>
 {
     options.BaseAddress = new Uri("http://internal-service:8080");
 })
@@ -180,10 +180,10 @@ Setting `DangerousAcceptAnyServerCertificate = true` disables all certificate va
 
 ## Feature Configuration via Builder
 
-Features are **not** set on `TurboClientOptions`. Instead, they are composed using the builder returned by `AddTurboHttpClient`:
+Features are **not** set on `TurboClientOptions`. Instead, they are composed using the builder returned by `AddGaudiHttpClient`:
 
 ```csharp
-builder.Services.AddTurboHttpClient("full-featured", options =>
+builder.Services.AddGaudiHttpClient("full-featured", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
@@ -238,7 +238,7 @@ See [Automatic Retries guide](./retries) for which methods and status codes trig
 To share a single store across multiple named clients, implement the `ICacheStore` interface and pass it to `WithCache()`:
 
 ```csharp
-using TurboHTTP.Features.Caching;
+using GaudiHTTP.Features.Caching;
 
 public sealed class MyCacheStore : ICacheStore
 {
@@ -253,8 +253,8 @@ public sealed class MyCacheStore : ICacheStore
 
 var sharedStore = new MyCacheStore();
 
-builder.Services.AddTurboHttpClient("client-a", options => { ... }).WithCache(sharedStore);
-builder.Services.AddTurboHttpClient("client-b", options => { ... }).WithCache(sharedStore);
+builder.Services.AddGaudiHttpClient("client-a", options => { ... }).WithCache(sharedStore);
+builder.Services.AddGaudiHttpClient("client-b", options => { ... }).WithCache(sharedStore);
 ```
 
 By default, each client gets its own in-memory cache. Pass a shared `ICacheStore` to reuse cache entries across multiple clients.
@@ -273,7 +273,7 @@ See [HTTP Caching guide](./caching) for freshness evaluation and conditional req
 ### Cookie management
 
 ```csharp
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Features.Cookies;
 
 public sealed class MyCookieStore : ICookieStore
 {
@@ -292,8 +292,8 @@ public sealed class MyCookieStore : ICookieStore
 
 // Shared cookie store across multiple clients
 var sharedStore = new MyCookieStore();
-builder.Services.AddTurboHttpClient("client-a", options => { ... }).WithCookies(sharedStore);
-builder.Services.AddTurboHttpClient("client-b", options => { ... }).WithCookies(sharedStore);
+builder.Services.AddGaudiHttpClient("client-a", options => { ... }).WithCookies(sharedStore);
+builder.Services.AddGaudiHttpClient("client-b", options => { ... }).WithCookies(sharedStore);
 ```
 
 See [Cookies guide](./cookies) for session and domain handling.
@@ -320,7 +320,7 @@ See [Content Encoding guide](./content-encoding) for details.
 ## Complete Example
 
 ```csharp
-builder.Services.AddTurboHttpClient(options =>
+builder.Services.AddGaudiHttpClient(options =>
 {
     // Transport
     options.BaseAddress = new Uri("https://api.example.com");
