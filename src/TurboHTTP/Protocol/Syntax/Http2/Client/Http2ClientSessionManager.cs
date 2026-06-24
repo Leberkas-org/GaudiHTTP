@@ -521,6 +521,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         {
             EmitFrame(new DataFrame(streamId, remaining, endStream));
         }
+
+        if (!endStream && !data.IsEmpty)
+        {
+            _pump?.AddCredit();
+        }
     }
 
     void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
