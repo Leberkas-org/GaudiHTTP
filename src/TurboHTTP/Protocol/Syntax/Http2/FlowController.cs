@@ -213,6 +213,26 @@ internal sealed class FlowController : IFlowController<int>
         _streamSendWindows.Remove(streamId);
     }
 
+    public void Reserve(int streamId, int amount)
+    {
+        _connectionSendWindow -= amount;
+        if (_streamSendWindows.TryGetValue(streamId, out var current))
+        {
+            _streamSendWindows[streamId] = current - amount;
+        }
+    }
+
+    public void Refund(int streamId, int amount)
+    {
+        if (amount <= 0) return;
+
+        _connectionSendWindow += amount;
+        if (_streamSendWindows.TryGetValue(streamId, out var current))
+        {
+            _streamSendWindows[streamId] = current + amount;
+        }
+    }
+
     public void ApplyInitialWindowSizeDelta(long delta)
     {
         _initialSendStreamWindow += delta;
