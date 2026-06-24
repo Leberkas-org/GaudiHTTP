@@ -1,3 +1,4 @@
+using Akka.Actor;
 using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Protocol.Body;
@@ -40,25 +41,36 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     {
         UpdateEma();
         _credits = Math.Min(_credits + 1, MaxBudget);
-        TryStartReadRound();
-        if (_credits > 0 && _readyQueue.Count > 0)
+
+        var threshold = Math.Max(Math.Min(_budget / 2, _activeSlots.Count), 1);
+        if (_credits >= threshold)
         {
-            TryReadNextEligible();
+            DrainReady(_budget);
+        }
+        else if (_credits > 0 && _readyQueue.Count > 0)
+        {
+            DrainReady(1);
         }
     }
 
-    public void Register(TStreamId streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
+    public void Register(TStreamId streamId, Stream bodyStream, CancellationToken requestCt, int initialCredits = 0)
     {
-        var slot = RentSlot();
+        var slot = _poolContext.Rent(static () => new BodyDrainSlot<TStreamId>());
         var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(requestCt, _connectionCts.Token);
-        slot.Initialize(streamId, bodyStream, contentLength, requestCt, linkedCts);
+        slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.EnsureBuffer(_target.PreferredChunkSize);
         _activeSlots[streamId] = slot;
         EnqueueStream(streamId);
 
         if (_target.HasPendingDemand)
         {
-            TryReadNextEligible();
+            _credits++;
+            DrainReady(1);
+        }
+
+        for (var i = 0; i < initialCredits; i++)
+        {
+            AddCredit();
         }
     }
 
@@ -69,7 +81,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
             return;
         }
 
-        slot.CompleteAsyncRead();
+        slot.CompleteRead();
 
         if (slot.IsOrphaned)
         {
@@ -82,7 +94,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
         if (_credits > 0)
         {
-            TryReadNextEligible();
+            DrainReady(1);
         }
     }
 
@@ -93,7 +105,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
             return;
         }
 
-        slot.CompleteAsyncRead();
+        slot.CompleteRead();
 
         if (slot.IsOrphaned)
         {
@@ -152,7 +164,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         OnCancelAll();
     }
 
-    // Virtual hooks for subclasses
+    // H2 flow-control extension points — only FlowControlledBodyPump overrides these
     protected virtual void OnCancelAll() { }
 
     protected virtual void OnStreamCancelled(TStreamId streamId) { }
@@ -168,27 +180,14 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     protected virtual void AfterRead(TStreamId streamId, BodyDrainSlot<TStreamId> slot, int bytesRead) { }
 
-    protected virtual BodyDrainSlot<TStreamId> RentSlot()
-        => _poolContext.Rent(() => new BodyDrainSlot<TStreamId>());
-
-    protected virtual void ReturnSlot(BodyDrainSlot<TStreamId> slot)
-        => _poolContext.Return(slot);
-
     protected virtual void EnqueueStream(TStreamId streamId)
         => _readyQueue.Enqueue(streamId);
 
-    private void TryStartReadRound()
+    private void DrainReady(int maxReads)
     {
-        var threshold = Math.Max(Math.Min(_budget / 2, _activeSlots.Count), 1);
-
-        if (_credits < threshold)
-        {
-            return;
-        }
-
         var reads = 0;
         var queueSize = _readyQueue.Count;
-        while (reads < _budget && _credits > 0 && queueSize-- > 0)
+        while (reads < maxReads && _credits > 0 && queueSize-- > 0)
         {
             if (!_readyQueue.TryDequeue(out var streamId))
             {
@@ -221,42 +220,6 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         }
     }
 
-    private void TryReadNextEligible()
-    {
-        var queueSize = _readyQueue.Count;
-        while (queueSize-- > 0)
-        {
-            if (!_readyQueue.TryDequeue(out var streamId))
-            {
-                return;
-            }
-
-            if (_cancelledStreams.Remove(streamId))
-            {
-                continue;
-            }
-
-            if (!_activeSlots.TryGetValue(streamId, out var slot))
-            {
-                continue;
-            }
-
-            if (slot.IsReadInFlight)
-            {
-                _readyQueue.Enqueue(streamId);
-                continue;
-            }
-
-            if (!IsStreamEligible(streamId, slot))
-            {
-                continue;
-            }
-
-            PerformRead(streamId, slot);
-            return;
-        }
-    }
-
     private void PerformRead(TStreamId streamId, BodyDrainSlot<TStreamId> slot)
     {
         if (slot.Buffer!.Memory.Length < _target.PreferredChunkSize)
@@ -266,10 +229,10 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
         var readSize = ComputeReadSize(streamId, slot);
         BeforeRead(streamId, slot);
-        var result = BodyPumpHelper.StartRead(slot, readSize, _target.PipeToTarget);
+        var result = StartRead(slot, readSize, _target.PipeToTarget);
         _credits--;
 
-        if (result.Outcome == BodyPumpHelper.ReadOutcome.CompletedSynchronously)
+        if (result.Outcome == ReadOutcome.CompletedSynchronously)
         {
             ProcessReadResult(streamId, slot, result.BytesRead);
         }
@@ -299,13 +262,9 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     private void UpdateEma()
     {
         var nowTicks = Environment.TickCount64 * TimeSpan.TicksPerMillisecond;
-        if (_lastPullTicks > 0)
-        {
-            var interval = nowTicks - _lastPullTicks;
-            _ema = Alpha * interval + (1 - Alpha) * _ema;
-            _budget = MapBudget(_ema);
-        }
-
+        var interval = nowTicks - _lastPullTicks;
+        _ema = Alpha * interval + (1 - Alpha) * _ema;
+        _budget = MapBudget(_ema);
         _lastPullTicks = nowTicks;
     }
 
@@ -325,6 +284,28 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         return MaxBudget - (int)(ratio * (MaxBudget - MinBudget));
     }
 
+    private static ReadResult StartRead(
+        BodyDrainSlot<TStreamId> slot,
+        int chunkSize,
+        IActorRef pipeToTarget)
+    {
+        slot.BeginRead();
+        var token = slot.LinkedCts?.Token ?? slot.RequestCt;
+        var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..chunkSize], token);
+
+        if (vt.IsCompletedSuccessfully)
+        {
+            slot.CompleteRead();
+            return new ReadResult(ReadOutcome.CompletedSynchronously, vt.Result);
+        }
+
+        vt.PipeTo(
+            pipeToTarget,
+            success: slot.CachedSuccessTransform,
+            failure: slot.CachedFailureTransform);
+        return new ReadResult(ReadOutcome.Dispatched, 0);
+    }
+
     private void CleanupSlot(TStreamId streamId, BodyDrainSlot<TStreamId> slot)
     {
         _activeSlots.Remove(streamId);
@@ -335,7 +316,15 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     {
         slot.DisposeResources();
         slot.Reset();
-        ReturnSlot(slot);
+        _poolContext.Return(slot);
+    }
+
+    private readonly record struct ReadResult(ReadOutcome Outcome, int BytesRead);
+
+    private enum ReadOutcome
+    {
+        CompletedSynchronously,
+        Dispatched
     }
 
     // Protected accessors for subclasses and testing

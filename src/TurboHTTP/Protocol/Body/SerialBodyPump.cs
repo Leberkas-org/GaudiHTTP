@@ -16,13 +16,9 @@ internal sealed class SerialBodyPump : BodyPumpBase<int>
         _initialCredits = initialCredits;
     }
 
-    public void Register(Stream bodyStream, long? contentLength, CancellationToken requestCt)
+    public void Register(Stream bodyStream, CancellationToken requestCt)
     {
-        base.Register(0, bodyStream, contentLength, requestCt);
-        for (var i = 0; i < _initialCredits; i++)
-        {
-            AddCredit();
-        }
+        base.Register(0, bodyStream, requestCt, _initialCredits);
     }
 
     public void Cleanup() => CancelAll();
