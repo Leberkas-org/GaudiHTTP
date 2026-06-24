@@ -412,4 +412,189 @@ public sealed class BodyPumpBaseSpec
         // Stream 1 removed; streams 0 and 2 still active.
         Assert.Equal(2, pump.ActiveStreamCount);
     }
+
+    // Regression: Bug 1 — re-enqueue before emit (stale queueSize snapshot)
+    // Before the fix: ProcessReadResult re-enqueued AFTER EmitDataFrames. If EmitDataFrames
+    // triggered an inline AddCredit (simulating the feedback from OnOutboundFlushed), that
+    // AddCredit → TryReadNextEligible found an empty queue and did nothing. The pump stalled
+    // permanently because the stream was never re-enqueued.
+    // Fix: re-enqueue BEFORE EmitDataFrames so the inline AddCredit sees the stream.
+
+    private sealed class InlineCreditFakeTarget : IBodyDrainTarget<int>
+    {
+        private TestPump? _pump;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand { get; set; }
+        public int PreferredChunkSize { get; set; } = 16 * 1024;
+        public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
+        public List<int> Completed { get; } = [];
+        public List<(int StreamId, Exception Reason)> Failed { get; } = [];
+
+        public void SetPump(TestPump pump) => _pump = pump;
+
+        public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+        {
+            Emitted.Add((streamId, data.ToArray(), endStream));
+            // Simulate inline feedback: an outbound flush immediately gives back a credit.
+            // Bug scenario: if the stream was re-enqueued AFTER this call, TryReadNextEligible
+            // called inside AddCredit would see an empty ready queue and skip the stream.
+            if (!endStream && _pump is not null)
+            {
+                _pump.AddCredit();
+            }
+        }
+
+        public void OnDrainComplete(int streamId) => Completed.Add(streamId);
+        public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ProcessReadResult_should_complete_drain_when_AddCredit_called_inline_from_EmitDataFrames()
+    {
+        // Arrange: a FakeTarget that calls pump.AddCredit() inside EmitDataFrames.
+        // The fix ensures the stream is re-enqueued BEFORE EmitDataFrames runs, so the
+        // inline AddCredit finds the stream in the ready queue and continues draining.
+        // Without the fix (re-enqueue AFTER EmitDataFrames), the inline AddCredit sees an
+        // empty queue and the body never completes.
+        var target = new InlineCreditFakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        // Body: 3 chunks of 16 KB → 3 data frames then 1 endStream frame.
+        var body = MakeBody(3 * 16 * 1024);
+        pump.Register(0, body, 3 * 16 * 1024, CancellationToken.None);
+
+        // Seed exactly one credit — the inline AddCredit fired by each EmitDataFrames call
+        // continues the drain. The entire body must complete without external credits.
+        pump.AddCredit();
+
+        // The body should be fully drained: 3 data + 1 endStream + drain-complete.
+        Assert.Single(target.Completed);
+        Assert.Equal(0, target.Completed[0]);
+    }
+
+    // Regression: Bug 2 — threshold too high for a single stream
+    // Before the fix: threshold = min(budget/2, activeStreams * 2).
+    // With 1 stream and budget ≈ 28: threshold = min(14, 2) = 2.
+    // Adding exactly 1 credit never reached the threshold → permanent stall.
+    // Fix: threshold = max(min(budget/2, activeStreams), 1) so threshold = 1 for 1 stream.
+
+    [Fact(Timeout = 5000)]
+    public void TryStartReadRound_should_read_with_single_credit_when_only_one_stream_active()
+    {
+        // Arrange: single stream registered with no pending demand so reads only fire via credits.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        var body = MakeBody(100);
+
+        pump.Register(0, body, 100, CancellationToken.None);
+        Assert.Empty(target.Emitted);
+
+        // Act: add exactly 1 credit.
+        // Fix: threshold for 1 active stream is max(min(budget/2, 1), 1) = 1, so 1 credit is enough.
+        // Bug: threshold was min(budget/2, 1*2) = 2, so 1 credit < 2 → no read → permanent stall.
+        pump.AddCredit();
+
+        // Assert: the pump read the body (sync MemoryStream drains fully in one credit).
+        Assert.NotEmpty(target.Emitted);
+        Assert.Single(target.Completed);
+    }
+
+    // Regression: Bug 5 — sync credit starvation
+    // Before the fix: sync reads consumed a credit but the pump waited for OnOutboundFlushed
+    // (async, fires later) to replenish it. For large bodies with sync pipe data, throughput
+    // collapsed to exactly 1 frame per downstream pull.
+    // Fix: reclaim credit immediately after a sync read with bytesRead > 0.
+
+    [Fact(Timeout = 5000)]
+    public void PerformRead_should_complete_single_chunk_body_from_one_credit_via_sync_reclaim()
+    {
+        // Arrange: a 16 KB body (exactly 1 chunk) registered with no pending demand.
+        // Draining it requires 2 reads: one data read (16 KB) and one EOF read (0 bytes).
+        // Fix: the data read reclaims the consumed credit synchronously, so TryReadNextEligible
+        // can issue the EOF read within the same AddCredit call → body completes from 1 credit.
+        // Bug: without reclaim, credits = 0 after the data read, and AddCredit's
+        //      `if (_credits > 0)` guard skips TryReadNextEligible → EOF never fires →
+        //      the body stalls until a second external credit arrives.
+        var target = new FakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        var body = MakeBody(16 * 1024);
+
+        pump.Register(0, body, 16 * 1024, CancellationToken.None);
+        Assert.Empty(target.Emitted);
+
+        // Add exactly 1 credit. With the fix:
+        //   TryStartReadRound → data read (16 KB) → credit reclaimed → credits = 1
+        //   AddCredit sees credits > 0 → TryReadNextEligible → EOF read → drain complete.
+        // Without the fix: data read consumes credit (credits = 0); AddCredit guard fails;
+        // TryReadNextEligible is skipped; body never completes from this single credit.
+        pump.AddCredit();
+
+        // Assert both the data frame and the drain completion arrived in a single credit call.
+        Assert.Contains(target.Emitted, e => !e.EndStream);
+        Assert.Single(target.Completed);
+    }
+
+    // Regression: Bug 6 — double slot cleanup on drain complete
+    // Before the fix: on EOF, the order was EmitDataFrames(endStream:true) → OnDrainComplete →
+    // CloseStream → Cancel → CleanupSlot (first), then CleanupSlot again (second).
+    // Double pool return corrupts pool state (NullReferenceException on next rent).
+    // Fix: CleanupSlot BEFORE OnDrainComplete so Cancel finds no slot.
+
+    private sealed class CancelOnDrainTarget : IBodyDrainTarget<int>
+    {
+        private TestPump? _pump;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand { get; set; } = true;
+        public int PreferredChunkSize { get; set; } = 16 * 1024;
+        public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
+        public List<int> Completed { get; } = [];
+        public List<(int StreamId, Exception Reason)> Failed { get; } = [];
+
+        public void SetPump(TestPump pump) => _pump = pump;
+
+        public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+            => Emitted.Add((streamId, data.ToArray(), endStream));
+
+        public void OnDrainComplete(int streamId)
+        {
+            Completed.Add(streamId);
+            // Simulate CloseStream → _pump.Cancel(streamId) called inside OnDrainComplete.
+            // Bug: slot was still in _activeSlots at this point → Cancel would CleanupSlot again
+            // (double pool return). Fix: slot is cleaned up BEFORE OnDrainComplete fires, so
+            // Cancel here finds no slot and is a safe no-op.
+            _pump?.Cancel(streamId);
+        }
+
+        public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ProcessReadResult_should_survive_Cancel_called_inside_OnDrainComplete()
+    {
+        // Arrange: a target that calls pump.Cancel(streamId) inside OnDrainComplete, simulating
+        // the CloseStream cascade. With the fix, the slot is removed before OnDrainComplete fires
+        // so Cancel is a safe no-op. Without the fix, Cancel would find the slot still registered
+        // and call CleanupSlot a second time → double pool return → corrupted state.
+        //
+        // An empty body produces EOF on the very first read, exercising the cleanup-before-notify
+        // path directly (bytesRead = 0 → CleanupSlot → OnDrainComplete).
+        var target = new CancelOnDrainTarget();
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        // Empty body: HasPendingDemand=true → TryReadNextEligible fires → EOF immediately →
+        // CleanupSlot (fix: before notify) → OnDrainComplete → Cancel(0) → no-op.
+        pump.Register(0, new MemoryStream([]), 0, CancellationToken.None);
+
+        // Body drains to completion. The Cancel inside OnDrainComplete must be a safe no-op.
+        Assert.Single(target.Completed);
+        Assert.Equal(0, pump.ActiveStreamCount);
+
+        // Verify pool integrity: register a second body — the slot must be reusable.
+        // Without the fix, the slot would have been double-returned and the pool is corrupted,
+        // causing a NullReferenceException or corrupted state here.
+        pump.Register(1, new MemoryStream([]), 0, CancellationToken.None);
+        Assert.Equal(2, target.Completed.Count);
+    }
 }
