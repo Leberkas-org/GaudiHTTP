@@ -2,18 +2,18 @@ using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Streams.IO;
 using Servus.Akka.Sse;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Extension methods for <see cref="HttpRequestMessage"/> and <see cref="HttpResponseMessage"/>
-/// that integrate with the TurboHTTP pipeline.
+/// that integrate with the GaudiHTTP pipeline.
 /// </summary>
 public static class Extensions
 {
     /// <summary>
-    /// Sets a per-request timeout that overrides the client's global <see cref="ITurboHttpClient.Timeout"/>
+    /// Sets a per-request timeout that overrides the client's global <see cref="IGaudiHttpClient.Timeout"/>
     /// for this request only. If no response arrives within <paramref name="timeout"/>, the request is
     /// cancelled and <c>SendAsync</c> throws an <see cref="OperationCanceledException"/>.
     /// </summary>
@@ -39,7 +39,7 @@ public static class Extensions
     /// <summary>
     /// Attaches a <see cref="PendingRequest"/> correlation ticket to <paramref name="request"/> and
     /// returns a <see cref="ValueTask{TResult}"/> that completes when the pipeline delivers the matching response.
-    /// Intended for use with the channel-based <see cref="ITurboHttpClient.Requests"/> API.
+    /// Intended for use with the channel-based <see cref="IGaudiHttpClient.Requests"/> API.
     /// </summary>
     public static ValueTask<HttpResponseMessage> GetResponseAsync(this HttpRequestMessage request,
         CancellationToken ct = default)

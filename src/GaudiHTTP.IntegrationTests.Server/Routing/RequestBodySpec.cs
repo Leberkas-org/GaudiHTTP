@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Routing;
+namespace GaudiHTTP.IntegrationTests.Server.Routing;
 
 public sealed class RequestBodySpec(TurboServerFixture server) : IDisposable
 {

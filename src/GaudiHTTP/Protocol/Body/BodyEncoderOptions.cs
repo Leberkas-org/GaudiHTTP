@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal sealed record BodyEncoderOptions
 {

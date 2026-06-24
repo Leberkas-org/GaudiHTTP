@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Running;
-using TurboHTTP.Benchmarks.Internal;
-using TurboHTTP.Benchmarks.Kestrel;
+using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Benchmarks.Kestrel;
 
 var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
@@ -37,21 +37,21 @@ else
 }
 
 var kestrelServerPlaintext = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerPlaintextBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerPlaintextBenchmark>());
 var turboServerPlaintext = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerPlaintextBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerPlaintextBenchmark>());
 var kestrelServerJson = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerJsonBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerJsonBenchmark>());
 var turboServerJson = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerJsonBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerJsonBenchmark>());
 var kestrelServerFortunes = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerFortunesBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerFortunesBenchmark>());
 var turboServerFortunes = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerFortunesBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerFortunesBenchmark>());
 var kestrelServerUpload = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerUploadBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Kestrel.KestrelServerUploadBenchmark>());
 var turboServerUpload = enumerable.FirstOrDefault(s =>
-    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerUploadBenchmark>());
+    s.HasBenchmarksOf<GaudiHTTP.Benchmarks.Server.Turbo.TurboServerUploadBenchmark>());
 
 var hasAnyServerBenchmarks =
     kestrelServerPlaintext is not null || turboServerPlaintext is not null ||

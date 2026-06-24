@@ -1,14 +1,14 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H11;
+namespace GaudiHTTP.AcceptanceTests.H11;
 
 public sealed class ResilienceSpec : AcceptanceTestBase
 {

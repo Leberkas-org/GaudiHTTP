@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 internal static class ServerTestContext
 {
     internal static IFeatureCollection CreateResponse(int statusCode = 200)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = statusCode };
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = statusCode };
         features.Set<IHttpResponseFeature>(responseFeature);
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
     }

@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Streams.IO;
 using static Servus.Senf;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
+internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
 {
     private Pipe? _pipe;
     // UpgradeToPipe can be invoked from both the stage-actor thread (ApplicationBridgeStage)
@@ -20,12 +20,12 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
     private Stream? _stream;
     private Sink<ReadOnlyMemory<byte>, Task>? _bodySink;
 
-    public TurboHttpResponseBodyFeature()
+    public GaudiHttpResponseBodyFeature()
     {
         _writer = new ResponsePipeWriter(this);
     }
 
-    internal void SetResponseFeature(TurboHttpResponseFeature feature) => _writer.SetResponseFeature(feature);
+    internal void SetResponseFeature(GaudiHttpResponseFeature feature) => _writer.SetResponseFeature(feature);
 
     internal bool HasStarted => _writer.HasStarted;
 
@@ -235,12 +235,12 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     private sealed class ResponsePipeWriter : PipeWriter
     {
-        private readonly TurboHttpResponseBodyFeature _owner;
+        private readonly GaudiHttpResponseBodyFeature _owner;
         private TaskCompletionSource? _headerCommit;
         private bool _headersCommitted;
-        private TurboHttpResponseFeature? _responseFeature;
+        private GaudiHttpResponseFeature? _responseFeature;
 
-        public ResponsePipeWriter(TurboHttpResponseBodyFeature owner)
+        public ResponsePipeWriter(GaudiHttpResponseBodyFeature owner)
         {
             _owner = owner;
         }
@@ -277,7 +277,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         public bool IsCompleted { get; private set; }
         public long BytesWritten { get; private set; }
 
-        public void SetResponseFeature(TurboHttpResponseFeature feature) => _responseFeature = feature;
+        public void SetResponseFeature(GaudiHttpResponseFeature feature) => _responseFeature = feature;
 
         internal void Reset()
         {

@@ -1,9 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
-namespace TurboHTTP.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
 internal static class HeaderBuilder
 {

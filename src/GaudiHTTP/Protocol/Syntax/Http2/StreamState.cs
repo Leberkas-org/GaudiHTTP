@@ -1,9 +1,9 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 /// <summary>
 /// Per-stream header and body buffer management for HTTP/2.
@@ -15,7 +15,7 @@ internal sealed class StreamState
     private Memory<byte> _headerBuffer;
     private int _headerLength;
     private HttpResponseMessage? _response;
-    private TurboHttpRequestFeature? _requestFeature;
+    private GaudiHttpRequestFeature? _requestFeature;
     private IFeatureCollection? _features;
     private List<(string Name, string Value)>? _contentHeaders;
     private string? _pseudoMethod;
@@ -82,12 +82,12 @@ internal sealed class StreamState
         return _response ?? throw new InvalidOperationException("No response has been initialized.");
     }
 
-    public void InitRequestFeature(TurboHttpRequestFeature feature)
+    public void InitRequestFeature(GaudiHttpRequestFeature feature)
     {
         _requestFeature = feature;
     }
 
-    public TurboHttpRequestFeature? GetRequestFeature() => _requestFeature;
+    public GaudiHttpRequestFeature? GetRequestFeature() => _requestFeature;
 
     public void SetFeatures(IFeatureCollection features)
     {

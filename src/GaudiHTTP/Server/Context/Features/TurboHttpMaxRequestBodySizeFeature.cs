@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpMaxRequestBodySizeFeature : IHttpMaxRequestBodySizeFeature
+internal sealed class GaudiHttpMaxRequestBodySizeFeature : IHttpMaxRequestBodySizeFeature
 {
     public bool IsReadOnly { get; set; }
     public long? MaxRequestBodySize { get; set; }

@@ -1,8 +1,8 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerStreamResolverSpec
 {

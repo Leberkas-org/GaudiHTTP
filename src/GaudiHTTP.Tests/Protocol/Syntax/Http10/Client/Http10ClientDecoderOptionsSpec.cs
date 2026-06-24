@@ -1,6 +1,6 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientDecoderOptionsSpec
 {

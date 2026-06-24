@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Common base class shared by all benchmark suites (Kestrel and TurboServer localhost).

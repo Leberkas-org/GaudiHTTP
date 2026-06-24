@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// A blocked header block must not alias the caller's buffer: the HEADERS frame that

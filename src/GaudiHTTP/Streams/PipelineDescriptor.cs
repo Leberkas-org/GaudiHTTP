@@ -1,10 +1,10 @@
-using TurboHTTP.Client;
-using TurboHTTP.Features.AltSvc;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Client;
+using GaudiHTTP.Features.AltSvc;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal sealed record PipelineDescriptor(
     RedirectPolicy? RedirectPolicy,

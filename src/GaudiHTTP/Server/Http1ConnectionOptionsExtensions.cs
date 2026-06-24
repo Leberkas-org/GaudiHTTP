@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal static class Http1ConnectionOptionsExtensions
 {

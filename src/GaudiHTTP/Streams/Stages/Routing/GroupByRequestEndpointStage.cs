@@ -3,13 +3,13 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Routing;
+namespace GaudiHTTP.Streams.Stages.Routing;
 
 internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
 {
-    private static readonly HttpRequestOptionsKey<int> ConnectionAffinitySlot = new("TurboHTTP.ConnectionAffinitySlot");
+    private static readonly HttpRequestOptionsKey<int> ConnectionAffinitySlot = new("GaudiHTTP.ConnectionAffinitySlot");
 
     private readonly Inlet<T> _in = new("GroupByRequestKey.In");
     private readonly Outlet<Source<T, NotUsed>> _out = new("GroupByRequestKey.Out");

@@ -1,8 +1,8 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
 /// <summary>
 /// Encodes HTTP request messages as HTTP/2 frame sequences.

@@ -1,17 +1,17 @@
 using System.Diagnostics;
 using System.Net;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
-public sealed class TurboHttpInstrumentationSpec : IDisposable
+public sealed class GaudiHttpInstrumentationSpec : IDisposable
 {
     private readonly List<Activity> _activities = [];
     private readonly ActivityListener _listener;
 
-    public TurboHttpInstrumentationSpec()
+    public GaudiHttpInstrumentationSpec()
     {
         var sourceName = Tracing.Source.Name;
         _listener = new ActivityListener
@@ -43,7 +43,7 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         var activity = Tracing.StartRequest(request);
 
         Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.ClientRequest", activity.OperationName);
+        Assert.Equal("GaudiHTTP.ClientRequest", activity.OperationName);
         Assert.Equal(ActivityKind.Client, activity.Kind);
     }
 
@@ -263,7 +263,7 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
 
         Tracing.SetHttpError(activity, exception);
 
-        Assert.Equal("TurboHTTP.ClientRequest", activity.OperationName);
+        Assert.Equal("GaudiHTTP.ClientRequest", activity.OperationName);
         Assert.Equal(typeof(HttpRequestException).FullName, activity.GetTagItem("exception.type"));
         Assert.Equal("Connection reset by peer", activity.GetTagItem("exception.message"));
         Assert.Equal(ActivityStatusCode.Error, activity.Status);
@@ -334,7 +334,7 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         rootActivity.Stop();
 
         Assert.Single(_activities);
-        Assert.Equal("TurboHTTP.ClientRequest", rootActivity.OperationName);
+        Assert.Equal("GaudiHTTP.ClientRequest", rootActivity.OperationName);
         Assert.Equal(ActivityStatusCode.Error, rootActivity.Status);
         Assert.Equal("Connection refused", rootActivity.GetTagItem("exception.message"));
         Assert.True(rootActivity.IsStopped);

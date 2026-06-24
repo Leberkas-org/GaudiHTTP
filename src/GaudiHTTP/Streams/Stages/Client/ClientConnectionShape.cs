@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using Akka.Streams;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 internal sealed class ClientConnectionShape(
     Inlet<ITransportInbound> inNetwork,

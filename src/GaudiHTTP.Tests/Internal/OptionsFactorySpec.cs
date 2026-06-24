@@ -1,10 +1,10 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Net.Security;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Internal;
+namespace GaudiHTTP.Tests.Internal;
 
 public sealed class OptionsFactorySpec
 {

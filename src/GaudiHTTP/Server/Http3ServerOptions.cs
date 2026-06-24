@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// HTTP/3-specific server configuration.

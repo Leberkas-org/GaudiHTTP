@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Server.Context;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Server.Context;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2ServerTrailerEncodingSpec
 {
@@ -23,7 +23,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void TrailerFeature_should_store_and_retrieve_trailer_headers()
     {
-        var feature = new TurboHttpResponseTrailersFeature
+        var feature = new GaudiHttpResponseTrailersFeature
         {
             Trailers =
             {
@@ -40,7 +40,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9110-6.5.1")]
     public void TrailerFeature_should_reject_prohibited_trailer_fields()
     {
-        var feature = new TurboHttpResponseTrailersFeature
+        var feature = new GaudiHttpResponseTrailersFeature
         {
             Trailers =
             {
@@ -57,9 +57,9 @@ public sealed class Http2ServerTrailerEncodingSpec
     public void ResponseTrailersFeature_should_store_and_expose_trailers()
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        var trailersFeature = new TurboHttpResponseTrailersFeature();
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature());
+        var trailersFeature = new GaudiHttpResponseTrailersFeature();
         features.Set<IHttpResponseTrailersFeature>(trailersFeature);
 
         // Set trailers directly on the feature

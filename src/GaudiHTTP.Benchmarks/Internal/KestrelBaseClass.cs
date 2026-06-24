@@ -1,4 +1,4 @@
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Base class for all Kestrel localhost benchmarks. Manages a shared Kestrel

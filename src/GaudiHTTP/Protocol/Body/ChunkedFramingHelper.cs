@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 /// <summary>
 /// Static helpers for HTTP/1.1 chunked transfer-encoding framing.

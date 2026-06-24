@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Servus.Diagnostics;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
 public sealed class TurboTraceExtensionsSpec : IDisposable

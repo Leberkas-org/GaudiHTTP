@@ -1,8 +1,8 @@
 using System.Buffers;
 using System.Threading.Tasks.Sources;
-using TurboHTTP.Pooling;
+using GaudiHTTP.Pooling;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<BodyReadResult>, IResettable
 {

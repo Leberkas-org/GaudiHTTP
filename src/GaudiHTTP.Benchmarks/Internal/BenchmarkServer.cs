@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Transport.Quic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 public sealed class BenchmarkServer : IAsyncDisposable
 {

@@ -2,11 +2,11 @@ using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Connection;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Connection;
 
 public sealed class ExpectContinueStageSpec : StreamTestBase
 {

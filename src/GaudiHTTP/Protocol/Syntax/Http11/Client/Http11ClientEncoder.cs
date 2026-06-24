@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
-namespace TurboHTTP.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
 internal sealed class Http11ClientEncoder(Http11ClientEncoderOptions options)
 {

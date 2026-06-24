@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// Discriminator for decoder instruction types (RFC 9204 §4.4).

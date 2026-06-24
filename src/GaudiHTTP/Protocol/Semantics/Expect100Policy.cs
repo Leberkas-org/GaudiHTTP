@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// Configuration for automatic <c>Expect: 100-continue</c> handling.

@@ -1,27 +1,27 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class TurboClientServiceCollectionExtensionsSpec
 {
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_WithName_ReturnsBuilder()
+    public void AddGaudiHttpClient_WithName_ReturnsBuilder()
     {
         var services = new ServiceCollection();
 
-        var builder = services.AddTurboHttpClient("test");
+        var builder = services.AddGaudiHttpClient("test");
 
         Assert.NotNull(builder);
-        Assert.IsAssignableFrom<ITurboHttpClientBuilder>(builder);
+        Assert.IsAssignableFrom<IGaudiHttpClientBuilder>(builder);
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_WithName_RegistersOptionsMonitor()
+    public void AddGaudiHttpClient_WithName_RegistersOptionsMonitor()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test");
+        services.AddGaudiHttpClient("test");
 
         // Verify that builder was returned and configuration would work
         var sp = services.BuildServiceProvider();
@@ -30,10 +30,10 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_WithNameAndConfigure_RegistersConfiguration()
+    public void AddGaudiHttpClient_WithNameAndConfigure_RegistersConfiguration()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(30));
+        services.AddGaudiHttpClient("test", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(30));
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -43,10 +43,10 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_DefaultName_UsesEmptyString()
+    public void AddGaudiHttpClient_DefaultName_UsesEmptyString()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient();
+        services.AddGaudiHttpClient();
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -56,11 +56,11 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_MultipleClients_ConfiguresEachSeparately()
+    public void AddGaudiHttpClient_MultipleClients_ConfiguresEachSeparately()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test1", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(10));
-        services.AddTurboHttpClient("test2", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(20));
+        services.AddGaudiHttpClient("test1", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(10));
+        services.AddGaudiHttpClient("test2", opt => opt.ConnectTimeout = TimeSpan.FromSeconds(20));
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -72,10 +72,10 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_WithoutConfigure_AllowsBuilderConfiguration()
+    public void AddGaudiHttpClient_WithoutConfigure_AllowsBuilderConfiguration()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test")
+        services.AddGaudiHttpClient("test")
             .WithCookies();
 
         var sp = services.BuildServiceProvider();
@@ -86,21 +86,21 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_TypedClient_ReturnsBuilder()
+    public void AddGaudiHttpClient_TypedClient_ReturnsBuilder()
     {
         var services = new ServiceCollection();
 
-        var builder = services.AddTurboHttpClient<TestClient>();
+        var builder = services.AddGaudiHttpClient<TestClient>();
 
         Assert.NotNull(builder);
-        Assert.IsAssignableFrom<ITurboHttpClientBuilder>(builder);
+        Assert.IsAssignableFrom<IGaudiHttpClientBuilder>(builder);
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_TypedClient_UsesTypeNameAsClientName()
+    public void AddGaudiHttpClient_TypedClient_UsesTypeNameAsClientName()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient<TestClient>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(25));
+        services.AddGaudiHttpClient<TestClient>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(25));
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -110,21 +110,21 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_TypedClientInterface_ReturnsBuilder()
+    public void AddGaudiHttpClient_TypedClientInterface_ReturnsBuilder()
     {
         var services = new ServiceCollection();
 
-        var builder = services.AddTurboHttpClient<ITestClient, TestClientImpl>();
+        var builder = services.AddGaudiHttpClient<ITestClient, TestClientImpl>();
 
         Assert.NotNull(builder);
-        Assert.IsAssignableFrom<ITurboHttpClientBuilder>(builder);
+        Assert.IsAssignableFrom<IGaudiHttpClientBuilder>(builder);
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_TypedClientInterface_UsesInterfaceNameAsClientName()
+    public void AddGaudiHttpClient_TypedClientInterface_UsesInterfaceNameAsClientName()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient<ITestClient, TestClientImpl>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(35));
+        services.AddGaudiHttpClient<ITestClient, TestClientImpl>(opt => opt.ConnectTimeout = TimeSpan.FromSeconds(35));
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -136,17 +136,17 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     [Fact(Timeout = 5000)]
     public void CreateClient_WithNullFactory_ThrowsArgumentNullException()
     {
-        ITurboHttpClientFactory? nullFactory = null;
+        IGaudiHttpClientFactory? nullFactory = null;
 
         Assert.Throws<ArgumentNullException>(() => nullFactory!.CreateClient());
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_MultipleExtensions_AllConfigured()
+    public void AddGaudiHttpClient_MultipleExtensions_AllConfigured()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("client1", opt => opt.MaxConcurrentEndpoints = 100);
-        services.AddTurboHttpClient("client2", opt => opt.MaxConcurrentEndpoints = 200);
+        services.AddGaudiHttpClient("client1", opt => opt.MaxConcurrentEndpoints = 100);
+        services.AddGaudiHttpClient("client2", opt => opt.MaxConcurrentEndpoints = 200);
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
@@ -158,43 +158,43 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_RegistersTurboHttpClientName()
+    public void AddGaudiHttpClient_RegistersGaudiHttpClientName()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test");
+        services.AddGaudiHttpClient("test");
 
         var sp = services.BuildServiceProvider();
-        var names = sp.GetServices<TurboHttpClientName>();
+        var names = sp.GetServices<GaudiHttpClientName>();
 
         Assert.Contains(names, n => n.Name == "test");
     }
 
     [Fact(Timeout = 5000)]
-    public void AddTurboHttpClient_WithDefaultName_RegistersEmptyName()
+    public void AddGaudiHttpClient_WithDefaultName_RegistersEmptyName()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient();
+        services.AddGaudiHttpClient();
 
         var sp = services.BuildServiceProvider();
-        var names = sp.GetServices<TurboHttpClientName>();
+        var names = sp.GetServices<GaudiHttpClientName>();
 
         Assert.Contains(names, n => n.Name == string.Empty);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientName_RecordType_HasName()
+    public void GaudiHttpClientName_RecordType_HasName()
     {
-        var name = new TurboHttpClientName("test");
+        var name = new GaudiHttpClientName("test");
 
         Assert.Equal("test", name.Name);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientName_Equality_ComparesName()
+    public void GaudiHttpClientName_Equality_ComparesName()
     {
-        var name1 = new TurboHttpClientName("test");
-        var name2 = new TurboHttpClientName("test");
-        var name3 = new TurboHttpClientName("other");
+        var name1 = new GaudiHttpClientName("test");
+        var name2 = new GaudiHttpClientName("test");
+        var name3 = new GaudiHttpClientName("other");
 
         Assert.Equal(name1, name2);
         Assert.NotEqual(name1, name3);

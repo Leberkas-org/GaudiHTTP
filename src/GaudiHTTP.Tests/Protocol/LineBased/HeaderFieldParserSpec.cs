@@ -1,7 +1,7 @@
 using System.Text;
-using TurboHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.LineBased;
 
-namespace TurboHTTP.Tests.Protocol.LineBased;
+namespace GaudiHTTP.Tests.Protocol.LineBased;
 
 public sealed class HeaderFieldParserSpec
 {

@@ -5,7 +5,7 @@ using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
 using Servus.Akka.Sse;
 
-namespace TurboHTTP.Tests.Features.Sse;
+namespace GaudiHTTP.Tests.Features.Sse;
 
 public sealed class SseFormatterFlowSpec : TestKit
 {

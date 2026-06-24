@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Range;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Range;
 
 public sealed class RangeParserSpec
 {

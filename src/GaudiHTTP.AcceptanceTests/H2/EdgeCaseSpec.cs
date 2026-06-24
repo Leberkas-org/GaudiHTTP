@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H2;
+namespace GaudiHTTP.AcceptanceTests.H2;
 
 public sealed class EdgeCaseSpec : AcceptanceTestBase
 {

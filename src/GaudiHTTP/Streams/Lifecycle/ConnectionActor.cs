@@ -5,9 +5,9 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Streams.Lifecycle;
+namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class ConnectionActor : ReceiveActor
 {

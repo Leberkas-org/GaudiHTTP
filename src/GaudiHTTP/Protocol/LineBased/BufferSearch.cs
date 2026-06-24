@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.LineBased;
+namespace GaudiHTTP.Protocol.LineBased;
 
 internal static class BufferSearch
 {

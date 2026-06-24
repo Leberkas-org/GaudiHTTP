@@ -1,7 +1,7 @@
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Tests.Protocol;
+namespace GaudiHTTP.Tests.Protocol;
 
 public sealed class RequestFaultSpec
 {

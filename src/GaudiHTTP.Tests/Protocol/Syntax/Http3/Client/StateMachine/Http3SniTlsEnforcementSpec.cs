@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Security;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3SniTlsEnforcementSpec
 {

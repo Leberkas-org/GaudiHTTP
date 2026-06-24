@@ -2,10 +2,10 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 [Collection("Infrastructure")]
 public sealed class SniCertSelectionSpec : ServerSpecBase
@@ -20,7 +20,7 @@ public sealed class SniCertSelectionSpec : ServerSpecBase
         _certB = CreateSelfSignedCertificate("host-b.local");
         _selectorCallCount = 0;
 
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.ListenLocalhost(port, listen =>
             {

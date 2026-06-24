@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Servus.Diagnostics;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
 public sealed class LoggerTraceListenerSpec : IDisposable
@@ -24,7 +24,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Warning(this, "test message");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Single(logger.LogEntries);
         Assert.Equal(LogLevel.Warning, logger.LogEntries[0].Level);
     }
@@ -37,7 +37,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Info(this, "msg");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Single(logger.LogEntries);
         Assert.Equal(LogLevel.Information, logger.LogEntries[0].Level);
     }
@@ -50,7 +50,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Debug(this, "msg");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Equal(LogLevel.Debug, logger.LogEntries[0].Level);
     }
 
@@ -62,7 +62,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Warning(this, "msg");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Equal(LogLevel.Warning, logger.LogEntries[0].Level);
     }
 
@@ -74,7 +74,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Error(this, "msg");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Equal(LogLevel.Error, logger.LogEntries[0].Level);
     }
 
@@ -86,7 +86,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Trace(this, "msg");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Equal(LogLevel.Trace, logger.LogEntries[0].Level);
     }
 
@@ -98,7 +98,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Debug(this, "hello");
 
-        var logger = _factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = _factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         var entry = Assert.Single(logger.LogEntries);
         Assert.Contains("LoggerTraceListenerSpec", entry.Message);
     }
@@ -112,7 +112,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
 
         Tracing.For("Protocol").Debug(this, "msg");
 
-        var logger = factory.CreatedLoggers["TurboHTTP.Trace.Protocol"];
+        var logger = factory.CreatedLoggers["GaudiHTTP.Trace.Protocol"];
         Assert.Empty(logger.LogEntries);
     }
 
@@ -131,8 +131,8 @@ public sealed class LoggerTraceListenerSpec : IDisposable
         Tracing.For("Protocol").Debug(this, "test");
         Tracing.For("Request").Debug(this, "test");
 
-        Assert.True(_factory.CreatedLoggers.ContainsKey("TurboHTTP.Trace.Protocol"));
-        Assert.True(_factory.CreatedLoggers.ContainsKey("TurboHTTP.Trace.Request"));
+        Assert.True(_factory.CreatedLoggers.ContainsKey("GaudiHTTP.Trace.Protocol"));
+        Assert.True(_factory.CreatedLoggers.ContainsKey("GaudiHTTP.Trace.Request"));
     }
 
     [Fact(Timeout = 5000)]

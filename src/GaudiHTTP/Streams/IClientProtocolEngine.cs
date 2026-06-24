@@ -2,7 +2,7 @@ using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal interface IClientProtocolEngine
 {

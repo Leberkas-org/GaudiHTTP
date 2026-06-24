@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 internal static class CriticalStreamId
 {

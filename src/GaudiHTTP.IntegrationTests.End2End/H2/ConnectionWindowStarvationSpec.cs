@@ -2,11 +2,11 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.End2End.H2;
 
 [Collection("H2")]
 public sealed class ConnectionWindowStarvationSpec : End2EndSpecBase

@@ -5,11 +5,11 @@ using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class ListenerActorSpec : TestKit
 {

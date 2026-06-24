@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// Represents a QPACK header field entry stored in the dynamic table.

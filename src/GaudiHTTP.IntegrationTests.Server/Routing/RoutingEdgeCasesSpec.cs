@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Routing;
+namespace GaudiHTTP.IntegrationTests.Server.Routing;
 
 public sealed class RoutingEdgeCasesSpec(TurboServerFixture server) : IDisposable
 {

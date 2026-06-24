@@ -3,12 +3,12 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages;
+namespace GaudiHTTP.Tests.Streams.Stages;
 
 public sealed class StageOrderingIntegrationSpec : EngineTestBase
 {

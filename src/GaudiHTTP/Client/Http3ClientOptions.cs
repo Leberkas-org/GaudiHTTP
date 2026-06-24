@@ -1,4 +1,4 @@
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// HTTP/3-specific client configuration.

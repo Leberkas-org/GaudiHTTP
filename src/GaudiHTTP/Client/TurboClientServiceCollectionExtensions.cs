@@ -7,10 +7,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// Extension methods for registering TurboHttp services with <see cref="IServiceCollection"/>.
+/// Extension methods for registering GaudiHttp services with <see cref="IServiceCollection"/>.
 /// </summary>
 public static class TurboClientServiceCollectionExtensions
 {
@@ -18,15 +18,15 @@ public static class TurboClientServiceCollectionExtensions
         """akka.loggers = ["Akka.Hosting.Logging.LoggerFactoryLogger, Akka.Hosting"]""");
 
     /// <summary>
-    /// Registers a named TurboHttp client and returns an <see cref="ITurboHttpClientBuilder"/>
-    /// for further configuration. <see cref="ITurboHttpClientFactory"/> is registered as a
+    /// Registers a named GaudiHttp client and returns an <see cref="IGaudiHttpClientBuilder"/>
+    /// for further configuration. <see cref="IGaudiHttpClientFactory"/> is registered as a
     /// singleton the first time this method is called — subsequent calls are idempotent.
     /// </summary>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="name">The logical name of the client.</param>
     /// <param name="configure">Optional delegate to configure <see cref="TurboClientOptions"/> for this named client.</param>
-    /// <returns>An <see cref="ITurboHttpClientBuilder"/> for further configuration.</returns>
-    public static ITurboHttpClientBuilder AddTurboHttpClient(this IServiceCollection services,
+    /// <returns>An <see cref="IGaudiHttpClientBuilder"/> for further configuration.</returns>
+    public static IGaudiHttpClientBuilder AddGaudiHttpClient(this IServiceCollection services,
         string name, Action<TurboClientOptions>? configure = null)
     {
         services.AddOptions();
@@ -36,7 +36,7 @@ public static class TurboClientServiceCollectionExtensions
             services.Configure(name, configure);
         }
 
-        services.TryAddSingleton<ITurboHttpClientFactory>(provider =>
+        services.TryAddSingleton<IGaudiHttpClientFactory>(provider =>
         {
             var system = provider.GetService<ActorSystem>();
             if (system is null)
@@ -48,12 +48,12 @@ public static class TurboClientServiceCollectionExtensions
                     var setup = BootstrapSetup.Create()
                         .WithConfig(LoggingHocon)
                         .And(new LoggerFactorySetup(loggerFactory));
-                    system = ActorSystem.Create("turbohttp", setup);
+                    system = ActorSystem.Create("GaudiHttp", setup);
                 }
                 else
                 {
                     // Standalone usage — fallback to Akka's default logger
-                    system = ActorSystem.Create("turbohttp", LoggingHocon);
+                    system = ActorSystem.Create("GaudiHttp", LoggingHocon);
                 }
 
                 system.Log.Info("Created ActorSystem {0}", system.Name);
@@ -61,62 +61,62 @@ public static class TurboClientServiceCollectionExtensions
 
             var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
             var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
-            return new TurboHttpClientFactory(options, descriptors, provider, system);
+            return new GaudiHttpClientFactory(options, descriptors, provider, system);
         });
 
         // Register client name so the factory can resolve MaxEndpointSubstreams at startup.
-        services.AddSingleton(new TurboHttpClientName(name));
+        services.AddSingleton(new GaudiHttpClientName(name));
 
-        return new TurboHttpClientBuilder(name, services);
+        return new GaudiHttpClientBuilder(name, services);
     }
 
     /// <summary>
-    /// Registers the default (unnamed) TurboHttp client. Delegates to
-    /// <see cref="AddTurboHttpClient(IServiceCollection, string, Action{TurboClientOptions}?)"/>
+    /// Registers the default (unnamed) GaudiHttp client. Delegates to
+    /// <see cref="AddGaudiHttpClient(IServiceCollection, string, Action{TurboClientOptions}?)"/>
     /// with <see cref="string.Empty"/> as the name.
     /// </summary>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configure">Optional delegate to configure <see cref="TurboClientOptions"/>.</param>
-    /// <returns>An <see cref="ITurboHttpClientBuilder"/> for further configuration.</returns>
-    public static ITurboHttpClientBuilder AddTurboHttpClient(this IServiceCollection services,
+    /// <returns>An <see cref="IGaudiHttpClientBuilder"/> for further configuration.</returns>
+    public static IGaudiHttpClientBuilder AddGaudiHttpClient(this IServiceCollection services,
         Action<TurboClientOptions>? configure = null)
-        => services.AddTurboHttpClient(string.Empty, configure);
+        => services.AddGaudiHttpClient(string.Empty, configure);
 
     /// <summary>
-    /// Registers a typed TurboHttp client where <typeparamref name="TClient"/> is both the service
+    /// Registers a typed GaudiHttp client where <typeparamref name="TClient"/> is both the service
     /// and implementation type. The client name is <c>typeof(TClient).Name</c>.
     /// <typeparamref name="TClient"/> is registered as a Transient service resolved via
-    /// <see cref="ITurboHttpClientFactory"/>.
+    /// <see cref="IGaudiHttpClientFactory"/>.
     /// </summary>
     /// <typeparam name="TClient">The typed client type.</typeparam>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configure">Optional delegate to configure <see cref="TurboClientOptions"/> for this client.</param>
-    /// <returns>An <see cref="ITurboHttpClientBuilder"/> for further configuration.</returns>
-    public static ITurboHttpClientBuilder AddTurboHttpClient<TClient>(this IServiceCollection services,
+    /// <returns>An <see cref="IGaudiHttpClientBuilder"/> for further configuration.</returns>
+    public static IGaudiHttpClientBuilder AddGaudiHttpClient<TClient>(this IServiceCollection services,
         Action<TurboClientOptions>? configure = null)
         where TClient : class
     {
         var name = typeof(TClient).Name;
         services.AddTransient(sp =>
         {
-            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            var client = sp.GetRequiredService<IGaudiHttpClientFactory>().CreateClient(name);
             return ActivatorUtilities.CreateInstance<TClient>(sp, client);
         });
-        return services.AddTurboHttpClient(name, configure);
+        return services.AddGaudiHttpClient(name, configure);
     }
 
     /// <summary>
-    /// Registers a typed TurboHttp client with a separate interface and implementation.
+    /// Registers a typed GaudiHttp client with a separate interface and implementation.
     /// The client name is <c>typeof(TClient).Name</c>.
     /// Both <typeparamref name="TClient"/> and <typeparamref name="TImpl"/> are registered as
-    /// Transient services resolved via <see cref="ITurboHttpClientFactory"/>.
+    /// Transient services resolved via <see cref="IGaudiHttpClientFactory"/>.
     /// </summary>
     /// <typeparam name="TClient">The service/interface type.</typeparam>
     /// <typeparam name="TImpl">The implementation type; must implement <typeparamref name="TClient"/>.</typeparam>
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configure">Optional delegate to configure <see cref="TurboClientOptions"/> for this client.</param>
-    /// <returns>An <see cref="ITurboHttpClientBuilder"/> for further configuration.</returns>
-    public static ITurboHttpClientBuilder AddTurboHttpClient<TClient, TImpl>(this IServiceCollection services,
+    /// <returns>An <see cref="IGaudiHttpClientBuilder"/> for further configuration.</returns>
+    public static IGaudiHttpClientBuilder AddGaudiHttpClient<TClient, TImpl>(this IServiceCollection services,
         Action<TurboClientOptions>? configure = null)
         where TClient : class
         where TImpl : class, TClient
@@ -124,22 +124,22 @@ public static class TurboClientServiceCollectionExtensions
         var name = typeof(TClient).Name;
         services.AddTransient<TClient>(sp =>
         {
-            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            var client = sp.GetRequiredService<IGaudiHttpClientFactory>().CreateClient(name);
             return ActivatorUtilities.CreateInstance<TImpl>(sp, client);
         });
         services.AddTransient(sp =>
         {
-            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            var client = sp.GetRequiredService<IGaudiHttpClientFactory>().CreateClient(name);
             return ActivatorUtilities.CreateInstance<TImpl>(sp, client);
         });
-        return services.AddTurboHttpClient(name, configure);
+        return services.AddGaudiHttpClient(name, configure);
     }
 
     /// <summary>
-    /// Creates the default (unnamed) <see cref="ITurboHttpClient"/> from <paramref name="factory"/>.
+    /// Creates the default (unnamed) <see cref="IGaudiHttpClient"/> from <paramref name="factory"/>.
     /// Equivalent to calling <c>factory.CreateClient(string.Empty)</c>.
     /// </summary>
-    public static ITurboHttpClient CreateClient(this ITurboHttpClientFactory factory)
+    public static IGaudiHttpClient CreateClient(this IGaudiHttpClientFactory factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
         return factory.CreateClient(string.Empty);
@@ -147,9 +147,9 @@ public static class TurboClientServiceCollectionExtensions
 }
 
 /// <summary>
-/// DI marker registered once per <c>AddTurboHttpClient()</c> call.
-/// Resolved via <c>IServiceProvider.GetServices&lt;TurboHttpClientName&gt;()</c>
+/// DI marker registered once per <c>AddGaudiHttpClient()</c> call.
+/// Resolved via <c>IServiceProvider.GetServices&lt;GaudiHttpClientName&gt;()</c>
 /// to determine the maximum <see cref="TurboClientOptions.MaxConcurrentEndpoints"/>
 /// across all registered clients for dispatcher thread sizing.
 /// </summary>
-internal sealed record TurboHttpClientName(string Name);
+internal sealed record GaudiHttpClientName(string Name);

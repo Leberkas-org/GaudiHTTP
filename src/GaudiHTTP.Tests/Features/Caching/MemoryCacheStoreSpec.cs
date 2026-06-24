@@ -1,8 +1,8 @@
 using System.Buffers;
 using System.Net;
-using TurboHTTP.Features.Caching;
+using GaudiHTTP.Features.Caching;
 
-namespace TurboHTTP.Tests.Features.Caching;
+namespace GaudiHTTP.Tests.Features.Caching;
 
 public sealed class MemoryCacheStoreSpec
 {

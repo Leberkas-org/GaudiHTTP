@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Headers;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Headers;
 
 public sealed class HeaderCollectionSpec
 {

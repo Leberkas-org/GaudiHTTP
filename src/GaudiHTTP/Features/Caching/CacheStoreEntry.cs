@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// Mutable store record that owns a cached HTTP response and its body buffer.

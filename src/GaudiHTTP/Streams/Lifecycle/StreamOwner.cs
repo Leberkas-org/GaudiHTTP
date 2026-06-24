@@ -1,4 +1,4 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Threading.Channels;
 using Akka;
@@ -7,11 +7,11 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Pooling;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Pooling;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Lifecycle;
+namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 {

@@ -1,8 +1,8 @@
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
 [assembly: AssemblyFixture(typeof(TurboServerFixture))]
 
-namespace TurboHTTP.IntegrationTests.Server.Shared;
+namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
 [CollectionDefinition("ServerStress", DisableParallelization = true)]
 public sealed class ServerStressCollection;

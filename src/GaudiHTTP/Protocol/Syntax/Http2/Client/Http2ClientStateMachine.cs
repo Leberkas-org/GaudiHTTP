@@ -1,11 +1,11 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
 internal sealed class Http2ClientStateMachine : IClientStateMachine
 {

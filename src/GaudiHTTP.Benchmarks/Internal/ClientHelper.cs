@@ -1,14 +1,14 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka.Actor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
-/// Lightweight factory helper that creates <see cref="ITurboHttpClient"/> instances
-/// for benchmark use. Wraps the DI setup required by <see cref="TurboHttpClientFactory"/>.
+/// Lightweight factory helper that creates <see cref="IGaudiHttpClient"/> instances
+/// for benchmark use. Wraps the DI setup required by <see cref="GaudiHttpClientFactory"/>.
 /// Each instance owns its own <see cref="ActorSystem"/> and terminates it on disposal,
 /// preventing stale PinnedDispatcher threads from accumulating across BDN parameter combinations.
 /// </summary>
@@ -17,18 +17,18 @@ internal sealed class ClientHelper : IAsyncDisposable
     private readonly ServiceProvider _provider;
     private readonly ActorSystem _system;
 
-    private ClientHelper(ServiceProvider provider, ITurboHttpClient client, ActorSystem system)
+    private ClientHelper(ServiceProvider provider, IGaudiHttpClient client, ActorSystem system)
     {
         _provider = provider;
         Client = client;
         _system = system;
     }
 
-    /// <summary>The configured <see cref="ITurboHttpClient"/> instance.</summary>
-    public ITurboHttpClient Client { get; }
+    /// <summary>The configured <see cref="IGaudiHttpClient"/> instance.</summary>
+    public IGaudiHttpClient Client { get; }
 
     /// <summary>
-    /// Creates a new <see cref="ClientHelper"/> with a fully configured TurboHttp client
+    /// Creates a new <see cref="ClientHelper"/> with a fully configured GaudiHttp client
     /// targeting the benchmark server for SendAsync benchmarks.
     /// </summary>
     /// <param name="baseAddress">The remote base URI (scheme + host).</param>
@@ -114,7 +114,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         var services = new ServiceCollection();
 
         // Create and register the ActorSystem explicitly so it can be terminated on disposal.
-        // Without this, TurboHttpClientFactory creates an untracked ActorSystem that is never
+        // Without this, GaudiHttpClientFactory creates an untracked ActorSystem that is never
         // terminated, causing PinnedDispatcher threads to accumulate across BDN combinations.
         //
         // exit-clr = off: do not call Environment.Exit after CoordinatedShutdown completes.
@@ -128,16 +128,16 @@ internal sealed class ClientHelper : IAsyncDisposable
             akka.coordinated-shutdown.exit-clr = off
             akka.coordinated-shutdown.run-by-clr-shutdown = off
         ");
-        var system = ActorSystem.Create($"turbohttp-bench-{Guid.NewGuid():N}", hocon);
+        var system = ActorSystem.Create($"GaudiHttp-bench-{Guid.NewGuid():N}", hocon);
         services.AddSingleton(system);
 
-        services.AddTurboHttpClient();
+        services.AddGaudiHttpClient();
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
             new FixedOptionsFactory(options)));
 
         var provider = services.BuildServiceProvider();
 
-        var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = provider.GetRequiredService<IGaudiHttpClientFactory>();
         var client = factory.CreateClient(string.Empty);
         client.BaseAddress = baseAddress;
         client.DefaultRequestVersion = version;

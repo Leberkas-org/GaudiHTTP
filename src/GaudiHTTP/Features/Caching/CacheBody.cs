@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// A pooled byte buffer holding the body of a cached HTTP response.

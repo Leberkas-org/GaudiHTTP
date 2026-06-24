@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Projects the public <see cref="TurboClientOptions"/> onto the per-protocol decoder/encoder

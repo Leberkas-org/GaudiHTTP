@@ -3,7 +3,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 /// <summary>
 /// Protocol-level BidiFlow fake that maps <see cref="HttpRequestMessage"/> to

@@ -7,23 +7,23 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Server;
+using GaudiHTTP.Client;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 [Collection("H11")]
 public sealed class CookieSameSiteSpec : IAsyncLifetime
 {
     private WebApplication? _app;
-    private ITurboHttpClient? _client;
+    private IGaudiHttpClient? _client;
     private Microsoft.Extensions.DependencyInjection.ServiceProvider? _clientProvider;
 
     private string BaseUri { get; set; } = string.Empty;
 
     private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
-    private ITurboHttpClient Client => _client!;
+    private IGaudiHttpClient Client => _client!;
 
     public async ValueTask InitializeAsync()
     {
@@ -32,7 +32,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
         // Bind port 0 and read the real port back after start — probing for a free
         // port and rebinding it races with parallel tests (and parallel test modules).
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.Bind(new TcpListenerOptions
             {
@@ -83,7 +83,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
         var system = ActorSystem.Create($"e2e-cookie-samesite-{Guid.NewGuid():N}", bootstrap.And(diSetup));
         services.AddSingleton(system);
 
-        var clientBuilder = services.AddTurboHttpClient(string.Empty, options =>
+        var clientBuilder = services.AddGaudiHttpClient(string.Empty, options =>
         {
             options.BaseAddress = new Uri(BaseUri);
             options.DangerousAcceptAnyServerCertificate = false;
@@ -92,7 +92,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
         _clientProvider = services.BuildServiceProvider();
 
-        var factory = _clientProvider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = _clientProvider.GetRequiredService<IGaudiHttpClientFactory>();
         _client = factory.CreateClient(string.Empty);
         _client.DefaultRequestVersion = HttpVersion.Version11;
         _client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;

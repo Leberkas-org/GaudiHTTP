@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.AltSvc;
+namespace GaudiHTTP.Features.AltSvc;
 
 /// <summary>
 /// Represents a single Alt-Svc directive parsed from an Alt-Svc header (RFC 7838 §3).

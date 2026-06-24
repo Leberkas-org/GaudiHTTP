@@ -1,8 +1,8 @@
 using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H3;
+namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class ErrorHandlingSpec : AcceptanceTestBase
 {

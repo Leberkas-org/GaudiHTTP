@@ -1,8 +1,8 @@
 using System.Buffers;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
 public sealed class HpackFuzzSpec
 {

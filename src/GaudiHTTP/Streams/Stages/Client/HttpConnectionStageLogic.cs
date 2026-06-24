@@ -2,11 +2,11 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IClientStageOperations
     where TSM : IClientStateMachine

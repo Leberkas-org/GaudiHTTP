@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http10.Options;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Options;
 
 internal sealed record Http10ClientDecoderOptions
 {

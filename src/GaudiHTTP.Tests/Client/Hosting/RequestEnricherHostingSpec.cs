@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
-using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Client.Hosting;
+namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class RequestEnricherHostingSpec
 {

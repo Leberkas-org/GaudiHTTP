@@ -1,10 +1,10 @@
 using System.Text;
 using Akka.TestKit.Xunit;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Protocol.Syntax.Http10.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.Syntax.Http10.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10ServerEncoderSpec : TestKit
 {

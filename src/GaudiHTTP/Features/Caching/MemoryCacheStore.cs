@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 internal sealed class MemoryCacheStore : ICacheStore
 {

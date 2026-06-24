@@ -2,7 +2,7 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Akka.Routing;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Configures a single server listen endpoint: the IP address, port, HTTP protocols, and
@@ -18,24 +18,24 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     public HttpProtocols Protocols { get; set; } = HttpProtocols.Http1AndHttp2;
 
     internal bool IsHttps => HttpsOptions is not null;
-    internal TurboHttpsOptions? HttpsOptions { get; private set; }
+    internal GaudiHttpsOptions? HttpsOptions { get; private set; }
 
-    /// <summary>Enables HTTPS using the default <see cref="TurboHttpsOptions"/> (certificate must be supplied via <see cref="TurboServerOptions.ConfigureHttpsDefaults"/>).</summary>
+    /// <summary>Enables HTTPS using the default <see cref="GaudiHttpsOptions"/> (certificate must be supplied via <see cref="TurboServerOptions.ConfigureHttpsDefaults"/>).</summary>
     public void UseHttps()
     {
-        HttpsOptions = new TurboHttpsOptions();
+        HttpsOptions = new GaudiHttpsOptions();
     }
 
     /// <summary>Enables HTTPS using the provided <paramref name="certificate"/>.</summary>
     public void UseHttps(X509Certificate2 certificate)
     {
-        HttpsOptions = new TurboHttpsOptions { ServerCertificate = certificate };
+        HttpsOptions = new GaudiHttpsOptions { ServerCertificate = certificate };
     }
 
     /// <summary>Enables HTTPS by loading the certificate from the file at <paramref name="path"/>, optionally decrypting with <paramref name="password"/>.</summary>
     public void UseHttps(string path, string? password = null)
     {
-        HttpsOptions = new TurboHttpsOptions
+        HttpsOptions = new GaudiHttpsOptions
         {
             CertificatePath = path,
             CertificatePassword = password
@@ -43,23 +43,23 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     }
 
     /// <summary>Enables HTTPS and applies additional TLS settings via <paramref name="configure"/>.</summary>
-    public void UseHttps(Action<TurboHttpsOptions> configure)
+    public void UseHttps(Action<GaudiHttpsOptions> configure)
     {
-        HttpsOptions = new TurboHttpsOptions();
+        HttpsOptions = new GaudiHttpsOptions();
         configure(HttpsOptions);
     }
 
     /// <summary>Enables HTTPS with <paramref name="certificate"/> and applies additional TLS settings via <paramref name="configure"/>.</summary>
-    public void UseHttps(X509Certificate2 certificate, Action<TurboHttpsOptions> configure)
+    public void UseHttps(X509Certificate2 certificate, Action<GaudiHttpsOptions> configure)
     {
-        HttpsOptions = new TurboHttpsOptions { ServerCertificate = certificate };
+        HttpsOptions = new GaudiHttpsOptions { ServerCertificate = certificate };
         configure(HttpsOptions);
     }
 
     /// <summary>Enables HTTPS from a certificate file at <paramref name="path"/> and applies additional TLS settings via <paramref name="configure"/>.</summary>
-    public void UseHttps(string path, string? password, Action<TurboHttpsOptions> configure)
+    public void UseHttps(string path, string? password, Action<GaudiHttpsOptions> configure)
     {
-        HttpsOptions = new TurboHttpsOptions
+        HttpsOptions = new GaudiHttpsOptions
         {
             CertificatePath = path,
             CertificatePassword = password
@@ -78,10 +78,10 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
 
     internal string? ConnectionLoggingCategory { get; private set; }
 
-    /// <summary>Enables per-connection logging under the default category <c>TurboHTTP.Server.ConnectionLogging</c>.</summary>
+    /// <summary>Enables per-connection logging under the default category <c>GaudiHTTP.Server.ConnectionLogging</c>.</summary>
     public void UseConnectionLogging()
     {
-        ConnectionLoggingCategory = "TurboHTTP.Server.ConnectionLogging";
+        ConnectionLoggingCategory = "GaudiHTTP.Server.ConnectionLogging";
     }
 
     /// <summary>Enables per-connection logging under the specified <paramref name="loggerName"/> category.</summary>

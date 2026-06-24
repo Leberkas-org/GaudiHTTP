@@ -1,4 +1,4 @@
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 internal interface ITestBackend : IAsyncDisposable
 {

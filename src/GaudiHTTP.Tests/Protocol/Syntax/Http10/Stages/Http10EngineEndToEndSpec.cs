@@ -1,12 +1,12 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
 using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Stages;
 
 public sealed class Http10EngineEndToEndSpec : EngineTestBase
 {

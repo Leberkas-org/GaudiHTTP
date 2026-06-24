@@ -1,10 +1,10 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Configuration for the <c>Expect: 100-continue</c> handshake applied to large request bodies.
-/// Pass to <c>WithExpectContinue</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// Pass to <c>WithExpectContinue</c> on an <see cref="IGaudiHttpClientBuilder"/>.
 /// </summary>
 public sealed class Expect100Options
 {

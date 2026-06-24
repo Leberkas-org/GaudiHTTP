@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Shared;
+namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
 public sealed class TurboServerFixture : IAsyncLifetime
 {
@@ -26,7 +26,7 @@ public sealed class TurboServerFixture : IAsyncLifetime
         // port and rebinding it races with parallel tests (and parallel test modules).
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = 0 });
         });
@@ -50,7 +50,7 @@ public sealed class TurboServerFixture : IAsyncLifetime
     {
         app.Use(async (ctx, next) =>
         {
-            ctx.Response.Headers.XPoweredBy = "TurboHTTP";
+            ctx.Response.Headers.XPoweredBy = "GaudiHTTP";
             await next(ctx);
         });
 
@@ -67,7 +67,7 @@ public sealed class TurboServerFixture : IAsyncLifetime
 
         // Basic
         app.MapGet("/ping", () => Results.Content("pong", "text/plain"));
-        app.MapGet("/hello", () => Results.Ok("Hello from TurboHTTP Server"));
+        app.MapGet("/hello", () => Results.Ok("Hello from GaudiHTTP Server"));
         app.MapGet("/other", () => Results.Ok("other"));
         app.MapGet("/ok", () => Results.Ok("fine"));
         app.MapGet("/echo", () => Results.Ok("ok"));

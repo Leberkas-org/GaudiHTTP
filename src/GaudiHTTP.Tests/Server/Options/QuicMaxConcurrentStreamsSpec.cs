@@ -2,9 +2,9 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Server.Options;
+namespace GaudiHTTP.Tests.Server.Options;
 
 /// <summary>
 /// The QUIC listener must bound concurrent request streams at the configured

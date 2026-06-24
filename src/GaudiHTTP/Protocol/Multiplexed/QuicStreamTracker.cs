@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal sealed class QuicStreamTracker(long initialNextStreamId, int maxConcurrentStreams)
     : IStreamTracker<long>

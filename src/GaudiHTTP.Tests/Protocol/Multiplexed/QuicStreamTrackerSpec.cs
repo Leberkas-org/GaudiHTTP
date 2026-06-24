@@ -1,6 +1,6 @@
-namespace TurboHTTP.Tests.Protocol.Multiplexed;
+namespace GaudiHTTP.Tests.Protocol.Multiplexed;
 
-using TurboHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Multiplexed;
 
 public sealed class QuicStreamTrackerSpec
 {

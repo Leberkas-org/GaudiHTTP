@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 /// <summary>
 /// Result of processing a remote SETTINGS frame.

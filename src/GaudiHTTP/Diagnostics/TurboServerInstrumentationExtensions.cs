@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using Servus.Diagnostics;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Diagnostics;
+namespace GaudiHTTP.Diagnostics;
 
 internal static class TurboServerInstrumentationExtensions
 {
@@ -27,7 +27,7 @@ internal static class TurboServerInstrumentationExtensions
         }
 
         var activity = trace.Source.StartActivity(
-            "TurboHTTP.Connection",
+            "GaudiHTTP.Connection",
             ActivityKind.Server);
 
         if (activity is null)
@@ -68,8 +68,8 @@ internal static class TurboServerInstrumentationExtensions
         }
 
         var activity = parentContext != default
-            ? trace.Source.StartActivity("TurboHTTP.ServerRequest", ActivityKind.Server, parentContext)
-            : trace.Source.StartActivity("TurboHTTP.ServerRequest", ActivityKind.Server);
+            ? trace.Source.StartActivity("GaudiHTTP.ServerRequest", ActivityKind.Server, parentContext)
+            : trace.Source.StartActivity("GaudiHTTP.ServerRequest", ActivityKind.Server);
 
         if (activity is null)
         {

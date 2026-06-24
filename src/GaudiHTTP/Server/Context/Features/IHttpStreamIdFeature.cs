@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
 internal interface IHttpStreamIdFeature
 {

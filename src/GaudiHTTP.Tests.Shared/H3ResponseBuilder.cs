@@ -1,10 +1,10 @@
 using System.Buffers;
 using System.Text;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 /// <summary>
 /// Fluent builder for constructing HTTP/3 frame-level byte arrays.

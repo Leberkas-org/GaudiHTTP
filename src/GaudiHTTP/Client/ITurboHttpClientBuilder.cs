@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// Configuration builder for a named TurboHttp client.
-/// Returned by <c>AddTurboHttpClient</c> extension methods and passed to fluent configuration
+/// Configuration builder for a named GaudiHttp client.
+/// Returned by <c>AddGaudiHttpClient</c> extension methods and passed to fluent configuration
 /// extensions such as <c>WithCookies</c>, <c>WithRetry</c>, and <c>AddHandler</c>.
 /// </summary>
-public interface ITurboHttpClientBuilder
+public interface IGaudiHttpClientBuilder
 {
     /// <summary>Gets the logical name of the client being configured.</summary>
     string Name { get; }

@@ -1,7 +1,7 @@
 using System.IO.Compression;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Encoding;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Encoding;
 
 public sealed class ContentEncodingSpec
 {

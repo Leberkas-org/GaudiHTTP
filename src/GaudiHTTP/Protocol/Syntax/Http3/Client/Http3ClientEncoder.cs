@@ -1,8 +1,8 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 /// <summary>
 /// RFC 9114 §4.1 - Encodes HTTP request messages as HTTP/3 frame sequences.

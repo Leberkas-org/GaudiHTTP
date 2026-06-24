@@ -4,7 +4,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Servus.Diagnostics;
 
-namespace TurboHTTP.Diagnostics;
+namespace GaudiHTTP.Diagnostics;
 
 /// <summary>
 /// Extension methods for registering TurboTrace services with <see cref="IServiceCollection"/>.
@@ -48,28 +48,28 @@ public static class TurboTraceExtensions
         return services;
     }
 
-    /// <summary>Adds the TurboHTTP client activity source to the OpenTelemetry tracer provider.</summary>
-    public static TracerProviderBuilder AddTurboHttpInstrumentation(this TracerProviderBuilder builder)
+    /// <summary>Adds the GaudiHTTP client activity source to the OpenTelemetry tracer provider.</summary>
+    public static TracerProviderBuilder AddGaudiHttpInstrumentation(this TracerProviderBuilder builder)
     {
         return builder
             .AddSource(Servus.Senf.Tracing.Source.Name);
     }
 
-    /// <summary>Adds the TurboHTTP client meter to the OpenTelemetry meter provider.</summary>
-    public static MeterProviderBuilder AddTurboHttpInstrumentation(this MeterProviderBuilder builder)
+    /// <summary>Adds the GaudiHTTP client meter to the OpenTelemetry meter provider.</summary>
+    public static MeterProviderBuilder AddGaudiHttpInstrumentation(this MeterProviderBuilder builder)
     {
         return builder
             .AddMeter(Servus.Senf.Metrics.Meter.Name);
     }
 
-    /// <summary>Adds the TurboHTTP server activity source to the OpenTelemetry tracer provider.</summary>
+    /// <summary>Adds the GaudiHTTP server activity source to the OpenTelemetry tracer provider.</summary>
     public static TracerProviderBuilder AddTurboServerInstrumentation(this TracerProviderBuilder builder)
     {
         return builder
             .AddSource(Servus.Senf.Tracing.Source.Name);
     }
 
-    /// <summary>Adds the TurboHTTP server meter to the OpenTelemetry meter provider.</summary>
+    /// <summary>Adds the GaudiHTTP server meter to the OpenTelemetry meter provider.</summary>
     public static MeterProviderBuilder AddTurboServerInstrumentation(this MeterProviderBuilder builder)
     {
         return builder

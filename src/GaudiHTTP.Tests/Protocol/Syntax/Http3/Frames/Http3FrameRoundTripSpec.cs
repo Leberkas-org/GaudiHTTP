@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Frames;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
 
 public sealed class Http3FrameRoundTripSpec
 {

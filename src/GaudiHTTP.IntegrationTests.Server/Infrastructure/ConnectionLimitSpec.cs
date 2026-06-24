@@ -2,10 +2,10 @@ using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Infrastructure;
+namespace GaudiHTTP.IntegrationTests.Server.Infrastructure;
 
 [Collection("Infrastructure")]
 public sealed class ConnectionLimitSpec : ServerSpecBase
@@ -15,7 +15,7 @@ public sealed class ConnectionLimitSpec : ServerSpecBase
 
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = port });
             options.Limits.MaxConcurrentConnections = 2;

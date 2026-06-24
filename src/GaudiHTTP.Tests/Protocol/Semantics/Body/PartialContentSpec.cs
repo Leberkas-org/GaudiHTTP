@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Body;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Body;
 
 public sealed class PartialContentSpec
 {

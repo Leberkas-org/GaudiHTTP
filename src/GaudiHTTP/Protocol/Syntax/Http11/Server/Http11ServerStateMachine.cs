@@ -3,18 +3,18 @@ using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http11.Server;
 
 internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
 {
@@ -402,7 +402,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         // The body is already materialized and copied synchronously on the existing path too, so
         // buffer ownership is unchanged. Streamed bodies report false here; chunked bodies keep the
         // framed EmitBufferedBody path below.
-        var turboBody = responseBody as TurboHttpResponseBodyFeature;
+        var turboBody = responseBody as GaudiHttpResponseBodyFeature;
         ReadOnlyMemory<byte> bufferedBody = default;
         var hasBufferedBody = !suppressBody
             && turboBody is not null

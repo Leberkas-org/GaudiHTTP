@@ -1,10 +1,10 @@
 using System.Text;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11ClientDecoderSpec
 {
@@ -33,7 +33,7 @@ public sealed class Http11ClientDecoderSpec
         const string response = "HTTP/1.1 200 OK\r\n" +
                                 "Content-Type: text/plain\r\n" +
                                 "Content-Length: 0\r\n" +
-                                "Server: TurboHTTP\r\n\r\n";
+                                "Server: GaudiHTTP\r\n\r\n";
         var bytes = Encoding.ASCII.GetBytes(response);
 
         var outcome = _decoder.Feed(bytes, requestMethodWasHead: false, out var consumed);

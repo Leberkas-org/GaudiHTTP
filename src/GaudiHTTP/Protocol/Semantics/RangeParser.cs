@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// A byte range as parsed from a Range header per RFC 9110 §14.1.1.

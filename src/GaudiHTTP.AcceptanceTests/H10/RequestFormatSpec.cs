@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H10;
+namespace GaudiHTTP.AcceptanceTests.H10;
 
 public sealed class RequestFormatSpec : AcceptanceTestBase
 {

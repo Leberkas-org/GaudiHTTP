@@ -1,4 +1,4 @@
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 public abstract class TurboServerBaseClass : BenchmarkSuiteBase
 {
@@ -8,15 +8,15 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
 
     protected static readonly byte[] HeavyPayload = GeneratePayload(1 * 1024 * 1024);
 
-    protected int TurboHttp11Port { get; private set; }
-    protected int TurboHttp20Port { get; private set; }
-    protected int TurboHttp30Port { get; private set; }
+    protected int GaudiHttp11Port { get; private set; }
+    protected int GaudiHttp20Port { get; private set; }
+    protected int GaudiHttp30Port { get; private set; }
 
     protected int TurboPort => HttpVersion switch
     {
-        "3.0" => TurboHttp30Port,
-        "2.0" => TurboHttp20Port,
-        _ => TurboHttp11Port,
+        "3.0" => GaudiHttp30Port,
+        "2.0" => GaudiHttp20Port,
+        _ => GaudiHttp11Port,
     };
 
     private string Scheme => HttpVersion == "3.0" ? "https" : "http";
@@ -51,9 +51,9 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
             }
 
             _serverRefCount++;
-            TurboHttp11Port = _sharedServer.Http11Port;
-            TurboHttp20Port = _sharedServer.Http20Port;
-            TurboHttp30Port = _sharedServer.Http30Port;
+            GaudiHttp11Port = _sharedServer.Http11Port;
+            GaudiHttp20Port = _sharedServer.Http20Port;
+            GaudiHttp30Port = _sharedServer.Http30Port;
         }
         finally
         {

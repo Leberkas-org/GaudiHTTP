@@ -1,7 +1,7 @@
 using System.Globalization;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Connection;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Connection;
 
 public sealed class ResponseContextSpec
 {
@@ -74,8 +74,8 @@ public sealed class ResponseContextSpec
     [Trait("RFC", "RFC9110-6.7.5")]
     public void Should_Have_Server_Header_Format()
     {
-        const string serverValue = "TurboHTTP/1.0";
-        Assert.Contains("TurboHTTP", serverValue);
+        const string serverValue = "GaudiHTTP/1.0";
+        Assert.Contains("GaudiHTTP", serverValue);
     }
 
     [Fact(Timeout = 5000)]

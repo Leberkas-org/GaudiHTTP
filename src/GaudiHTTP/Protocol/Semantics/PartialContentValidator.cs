@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §15.3.7 — validates 206 Partial Content responses.

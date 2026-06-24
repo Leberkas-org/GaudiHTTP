@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Controls backpressure thresholds on the read/write pipes between the OS socket

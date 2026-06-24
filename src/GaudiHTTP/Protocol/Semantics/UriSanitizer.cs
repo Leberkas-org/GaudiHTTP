@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// URI sanitization utilities per RFC 9110 §4.2.4:

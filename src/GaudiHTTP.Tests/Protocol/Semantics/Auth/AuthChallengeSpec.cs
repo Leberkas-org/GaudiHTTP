@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Auth;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Auth;
 
 public sealed class AuthChallengeSpec
 {

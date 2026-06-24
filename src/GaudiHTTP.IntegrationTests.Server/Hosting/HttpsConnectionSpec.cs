@@ -2,10 +2,10 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting;
 
 [Collection("Infrastructure")]
 public sealed class HttpsConnectionSpec : ServerSpecBase
@@ -13,7 +13,7 @@ public sealed class HttpsConnectionSpec : ServerSpecBase
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
         var certificate = CreateSelfSignedCertificate("localhost");
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.ListenLocalhost(port, listen =>
             {

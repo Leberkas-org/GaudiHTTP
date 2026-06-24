@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Streams.Stages.Client;
+namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class RequestEnricherProxySpec
 {

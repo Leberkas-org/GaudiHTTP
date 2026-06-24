@@ -2,12 +2,12 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerBufferedResponseCoalesceSpec
 {
@@ -26,9 +26,9 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     private static IFeatureCollection BufferedResponse(byte[] body, bool withContentLength)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Method = "GET" });
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = "GET" });
 
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         if (withContentLength)
         {
             responseFeature.Headers["Content-Length"] = new StringValues(body.Length.ToString());
@@ -39,7 +39,7 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
         // A fully-buffered, completed response body (the dominant Plaintext/Json case): written to
         // the buffer writer and completed without ever upgrading to a pipe, so TryGetBufferedBody
         // hands the bytes back synchronously.
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         var span = bodyFeature.Writer.GetSpan(body.Length);
         body.CopyTo(span);
         bodyFeature.Writer.Advance(body.Length);

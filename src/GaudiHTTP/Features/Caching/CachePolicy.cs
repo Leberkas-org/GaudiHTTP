@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §3 — Configuration for the HTTP cache store behaviour.

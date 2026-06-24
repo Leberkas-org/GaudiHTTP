@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Server-wide limits applied to all connections and protocols. Individual protocol options

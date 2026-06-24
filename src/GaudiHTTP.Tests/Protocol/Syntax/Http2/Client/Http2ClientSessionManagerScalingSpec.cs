@@ -2,12 +2,12 @@ using Akka.Actor;
 using Akka.Event;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client;
 
 public sealed class Http2ClientSessionManagerScalingSpec
 {

@@ -1,7 +1,7 @@
 using System.Buffers;
-using TurboHTTP.Pooling;
+using GaudiHTTP.Pooling;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
 {

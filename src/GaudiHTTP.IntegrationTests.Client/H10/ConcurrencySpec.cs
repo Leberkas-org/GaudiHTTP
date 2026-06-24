@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H10;
+namespace GaudiHTTP.IntegrationTests.Client.H10;
 
 [Collection("H10")]
 public sealed class ConcurrencySpec : IntegrationSpecBase

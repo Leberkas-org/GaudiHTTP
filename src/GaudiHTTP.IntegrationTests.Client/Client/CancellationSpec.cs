@@ -1,9 +1,9 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Client;
+namespace GaudiHTTP.IntegrationTests.Client.Client;
 
 [Collection("Cancellation")]
 public sealed class CancellationSpec : IntegrationSpecBase

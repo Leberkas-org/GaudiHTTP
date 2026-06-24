@@ -1,9 +1,9 @@
 using System.Buffers;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 internal sealed class QpackStreamManager(
     IClientStageOperations ops,

@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Protocol.Syntax.Http11;
+using GaudiHTTP.Protocol.Syntax.Http11;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11;
 
 [Trait("RFC", "RFC9112")]
 public sealed class ConnectionReuseEvaluatorSpec

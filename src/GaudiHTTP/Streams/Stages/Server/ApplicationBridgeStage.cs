@@ -6,11 +6,11 @@ using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Server.Context.Features;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Server;
+namespace GaudiHTTP.Streams.Stages.Server;
 
 internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IFeatureCollection, IFeatureCollection>>
     where TContext : notnull
@@ -164,7 +164,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             DisposeAppContext(seq, null);
 
-            var alreadyStarted = features.Get<IHttpResponseBodyFeature>() is TurboHttpResponseBodyFeature
+            var alreadyStarted = features.Get<IHttpResponseBodyFeature>() is GaudiHttpResponseBodyFeature
             {
                 HasStarted: true
             };
@@ -290,7 +290,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 _activeFeatures[seq] = features;
                 ScheduleOnce(softKey, _stage._handlerTimeout);
 
-                var bodyFeature = features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                var bodyFeature = features.Get<IHttpResponseBodyFeature>() as GaudiHttpResponseBodyFeature;
                 var headersReady = bodyFeature?.WhenHeadersReady;
 
                 if (headersReady is not null)
@@ -314,7 +314,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 case ResponseReady(var seq, var features, var handlerTask):
                     if (handlerTask.IsFaulted &&
-                        features.Get<IHttpResponseBodyFeature>() is not TurboHttpResponseBodyFeature
+                        features.Get<IHttpResponseBodyFeature>() is not GaudiHttpResponseBodyFeature
                         {
                             HasStarted: true
                         })
@@ -535,13 +535,13 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private static void CompleteResponseBody(IFeatureCollection features)
         {
-            var bodyFeature = features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+            var bodyFeature = features.Get<IHttpResponseBodyFeature>() as GaudiHttpResponseBodyFeature;
             bodyFeature?.Complete();
         }
 
         private static void FireOnCompleted(IFeatureCollection features)
         {
-            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature
+            if (features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature responseFeature
                 && responseFeature.HasOnCompletedCallbacks)
             {
                 responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
@@ -573,7 +573,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         {
             foreach (var (_, features) in _activeFeatures)
             {
-                if (features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature lifetime)
+                if (features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)
                 {
                     lifetime.Abort();
                 }

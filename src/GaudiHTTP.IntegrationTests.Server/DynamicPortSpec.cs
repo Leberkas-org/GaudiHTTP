@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server;
+namespace GaudiHTTP.IntegrationTests.Server;
 
 public sealed class DynamicPortSpec : IAsyncLifetime
 {
@@ -21,7 +21,7 @@ public sealed class DynamicPortSpec : IAsyncLifetime
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
 
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.Listen(IPAddress.Loopback, 0, lo =>
                 lo.Protocols = HttpProtocols.Http1);

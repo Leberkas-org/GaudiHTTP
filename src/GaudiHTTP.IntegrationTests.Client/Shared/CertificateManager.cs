@@ -2,11 +2,11 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 internal static class CertificateManager
 {
-    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "turbohttp-nginx-ssl");
+    private static readonly string TempDir = Path.Combine(Path.GetTempPath(), "GaudiHttp-nginx-ssl");
 
     public static string SslDir => Path.Combine(TempDir, "ssl");
 

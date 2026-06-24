@@ -1,12 +1,12 @@
 using System.Net;
 using System.Threading.Channels;
 using Akka.Streams.Dsl;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// Repro for the high-concurrency client collapse observed in the 2026-06-19 benchmark run

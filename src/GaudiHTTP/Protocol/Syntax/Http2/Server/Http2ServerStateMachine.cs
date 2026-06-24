@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams.Stages.Server;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 internal sealed class Http2ServerStateMachine : IServerStateMachine
 {

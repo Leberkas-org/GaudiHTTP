@@ -1,6 +1,6 @@
 using Akka.Actor;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal interface IBodyDrainTarget<TStreamId>
 {

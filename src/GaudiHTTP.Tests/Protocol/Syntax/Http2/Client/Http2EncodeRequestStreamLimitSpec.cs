@@ -1,8 +1,8 @@
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client;
 
 public sealed class Http2EncodeRequestStreamLimitSpec
 {

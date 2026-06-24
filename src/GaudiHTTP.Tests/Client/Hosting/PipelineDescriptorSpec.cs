@@ -1,6 +1,6 @@
-using TurboHTTP.Streams;
+using GaudiHTTP.Streams;
 
-namespace TurboHTTP.Tests.Client.Hosting;
+namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class PipelineDescriptorSpec
 {

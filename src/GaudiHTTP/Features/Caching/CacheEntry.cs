@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 internal sealed class CacheEntry : ICacheEntry
 {

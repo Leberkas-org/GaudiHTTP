@@ -1,8 +1,8 @@
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
 {

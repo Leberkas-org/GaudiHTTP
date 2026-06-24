@@ -1,8 +1,8 @@
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 internal sealed class TurboClientDescriptor
 {

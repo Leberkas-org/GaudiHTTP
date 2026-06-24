@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §11 — Represents an HTTP authentication challenge from a server.

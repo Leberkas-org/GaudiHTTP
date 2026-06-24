@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Server.Context.Features;
+namespace GaudiHTTP.Tests.Server.Context.Features;
 
-public sealed class TurboHttpRequestTrailersFeatureSpec
+public sealed class GaudiHttpRequestTrailersFeatureSpec
 {
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-6.5")]
     public void Available_should_be_false_initially()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
 
         Assert.False(feature.Available);
     }
@@ -19,7 +19,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
     [Trait("RFC", "RFC9110-6.5")]
     public void Trailers_should_throw_when_not_available()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
         {
@@ -32,7 +32,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
     [Trait("RFC", "RFC9110-6.5")]
     public void SetAvailable_should_make_trailers_accessible()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
         var trailers = new List<(string Name, string Value)>
         {
             ("x-checksum", "abc123"),
@@ -50,7 +50,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
     [Trait("RFC", "RFC9110-6.5")]
     public void SetAvailable_should_filter_prohibited_fields()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
         var trailers = new List<(string Name, string Value)>
         {
             ("x-checksum", "abc123"),
@@ -67,7 +67,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
     [Trait("RFC", "RFC9110-6.5")]
     public void SetAvailable_with_empty_list_should_set_available_true()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
 
         feature.SetAvailable([]);
 
@@ -78,7 +78,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
     [Fact(Timeout = 5000)]
     public void Reset_should_clear_state()
     {
-        var feature = new TurboHttpRequestTrailersFeature();
+        var feature = new GaudiHttpRequestTrailersFeature();
         feature.SetAvailable([("x-test", "value")]);
 
         feature.Reset();

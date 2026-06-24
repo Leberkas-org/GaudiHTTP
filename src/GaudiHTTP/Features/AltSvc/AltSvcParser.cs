@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.AltSvc;
+namespace GaudiHTTP.Features.AltSvc;
 
 /// <summary>
 /// Parses Alt-Svc header values per RFC 7838 §3.

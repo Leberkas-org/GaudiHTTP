@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Retry;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Retry;
 
 /// <summary>
 /// Parked (Retry-After) retries must not backpressure new-request intake: when many requests on a

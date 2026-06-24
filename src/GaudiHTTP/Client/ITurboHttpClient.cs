@@ -1,13 +1,13 @@
 using System.Net.Http.Headers;
 using System.Threading.Channels;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// The primary TurboHttp client interface. Provides a channel-based API for high-throughput
+/// The primary GaudiHttp client interface. Provides a channel-based API for high-throughput
 /// request/response streaming and a conventional <see cref="SendAsync"/> method for single-request use.
 /// </summary>
-public interface ITurboHttpClient : IDisposable
+public interface IGaudiHttpClient : IDisposable
 {
     /// <summary>Gets or sets the base address used to resolve relative request URIs.</summary>
     Uri? BaseAddress { get; set; }

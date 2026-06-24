@@ -3,11 +3,11 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Servus.Akka.Sse;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class ExtensionsSpec : TestKit
 {

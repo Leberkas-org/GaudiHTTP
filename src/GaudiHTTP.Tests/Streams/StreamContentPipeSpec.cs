@@ -1,8 +1,8 @@
 using System.IO.Pipelines;
 using System.Text;
-using TurboHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax;
 
-namespace TurboHTTP.Tests.Streams;
+namespace GaudiHTTP.Tests.Streams;
 
 public sealed class StreamContentPipeSpec
 {

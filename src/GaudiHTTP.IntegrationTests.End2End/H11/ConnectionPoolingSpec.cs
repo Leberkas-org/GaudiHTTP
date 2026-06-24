@@ -2,10 +2,10 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 [Collection("H11")]
 public sealed class ConnectionPoolingSpec : End2EndSpecBase

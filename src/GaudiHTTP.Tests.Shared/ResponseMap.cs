@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 /// <summary>
 /// Fluent builder for mapping request paths to HTTP responses.

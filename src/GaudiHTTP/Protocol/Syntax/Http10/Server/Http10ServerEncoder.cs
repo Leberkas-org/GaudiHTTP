@@ -1,11 +1,11 @@
 using System.Net;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
 
-namespace TurboHTTP.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Server;
 
 internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
 {

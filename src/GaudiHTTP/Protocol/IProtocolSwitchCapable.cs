@@ -1,6 +1,6 @@
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Streams.Stages.Server;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal interface IProtocolSwitchCapable
 {

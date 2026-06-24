@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// Result of evaluating whether an HTTP request should be retried.

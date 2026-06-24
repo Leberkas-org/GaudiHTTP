@@ -4,12 +4,12 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Protocol.Semantics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that performs cache lookup on the request path and cache storage
@@ -51,7 +51,7 @@ internal sealed class CacheBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
     internal static readonly HttpRequestOptionsKey<bool> RevalidationKey
-        = new("TurboHTTP.CacheRevalidation");
+        = new("GaudiHTTP.CacheRevalidation");
 
     private readonly Cache? _store;
     private readonly CachePolicy _policy;

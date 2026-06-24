@@ -1,13 +1,13 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Streams.Stages.Client;
-using TurboHTTP.Tests.Shared;
-using static TurboHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Streams.Stages.Client;
+using GaudiHTTP.Tests.Shared;
+using static GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
 public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
 {

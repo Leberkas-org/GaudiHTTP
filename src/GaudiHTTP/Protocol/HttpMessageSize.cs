@@ -1,10 +1,10 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal static class HttpMessageSize
 {

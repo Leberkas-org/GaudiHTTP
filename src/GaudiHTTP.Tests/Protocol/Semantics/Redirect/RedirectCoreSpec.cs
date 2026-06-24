@@ -3,11 +3,11 @@ using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Redirect;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Redirect;
 
 public sealed class RedirectCoreSpec : StreamTestBase
 {

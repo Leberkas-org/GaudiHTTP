@@ -1,6 +1,6 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Options;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Options;
 
 public sealed class Http3ClientEncoderOptionsSpec
 {

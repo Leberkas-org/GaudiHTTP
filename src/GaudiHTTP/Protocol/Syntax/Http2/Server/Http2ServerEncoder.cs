@@ -1,11 +1,11 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 /// <summary>
 /// Encodes HTTP/2 response messages into HEADERS frame sequences.

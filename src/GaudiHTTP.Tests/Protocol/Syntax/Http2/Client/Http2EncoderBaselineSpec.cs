@@ -1,8 +1,8 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client;
 
 public sealed class Http2EncoderBaselineSpec
 {

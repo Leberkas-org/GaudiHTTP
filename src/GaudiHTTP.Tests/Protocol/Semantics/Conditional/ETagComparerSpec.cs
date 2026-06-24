@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Conditional;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Conditional;
 
 public sealed class ETagComparerSpec
 {

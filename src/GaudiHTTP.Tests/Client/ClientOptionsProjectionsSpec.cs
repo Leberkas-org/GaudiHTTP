@@ -1,6 +1,6 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class ClientOptionsProjectionsSpec
 {

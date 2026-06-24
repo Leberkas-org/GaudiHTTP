@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Multiplexed;
 
-namespace TurboHTTP.Tests.Protocol.Multiplexed;
+namespace GaudiHTTP.Tests.Protocol.Multiplexed;
 
 /// <summary>
 /// Double-returning the same state to the pool must not create duplicate entries.

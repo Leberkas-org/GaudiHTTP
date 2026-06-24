@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.Shared;
+namespace GaudiHTTP.AcceptanceTests.Shared;
 
 public sealed class H2ResponseBuilderSpec
 {

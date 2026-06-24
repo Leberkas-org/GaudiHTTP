@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Connection;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Connection;
 
 public sealed class ConnectionHeaderSpec
 {

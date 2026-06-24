@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpRequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
+internal sealed class GaudiHttpRequestBodyDetectionFeature : IHttpRequestBodyDetectionFeature
 {
     public bool CanHaveBody { get; private set; }
 
-    public TurboHttpRequestBodyDetectionFeature(bool canHaveBody)
+    public GaudiHttpRequestBodyDetectionFeature(bool canHaveBody)
     {
         CanHaveBody = canHaveBody;
     }

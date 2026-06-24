@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal readonly struct WellKnownHeader : IEquatable<WellKnownHeader>
 {

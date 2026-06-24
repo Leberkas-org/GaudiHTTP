@@ -1,14 +1,14 @@
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
-internal sealed class TestTurboHttpException : TurboHttpException
+internal sealed class TestGaudiHttpException : GaudiHttpException
 {
-    public TestTurboHttpException(string message) : base(message)
+    public TestGaudiHttpException(string message) : base(message)
     {
     }
 
-    public TestTurboHttpException(string message, Exception innerException)
+    public TestGaudiHttpException(string message, Exception innerException)
         : base(message, innerException)
     {
     }
@@ -28,12 +28,12 @@ internal sealed class TestTurboProtocolException : TurboProtocolException
 
 internal sealed class TestTurboTransportException(string message) : TurboTransportException(message);
 
-public sealed class TurboHttpExceptionSpec
+public sealed class GaudiHttpExceptionSpec
 {
     [Fact(Timeout = 5000)]
-    public void TurboHttpException_WithMessage_CreatesException()
+    public void GaudiHttpException_WithMessage_CreatesException()
     {
-        var exception = new TestTurboHttpException("test message");
+        var exception = new TestGaudiHttpException("test message");
 
         Assert.NotNull(exception);
         Assert.Equal("test message", exception.Message);
@@ -41,10 +41,10 @@ public sealed class TurboHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpException_WithMessageAndInner_CreatesException()
+    public void GaudiHttpException_WithMessageAndInner_CreatesException()
     {
         var innerException = new InvalidOperationException("inner");
-        var exception = new TestTurboHttpException("test message", innerException);
+        var exception = new TestGaudiHttpException("test message", innerException);
 
         Assert.NotNull(exception);
         Assert.Equal("test message", exception.Message);
@@ -52,9 +52,9 @@ public sealed class TurboHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpException_IsException()
+    public void GaudiHttpException_IsException()
     {
-        var exception = new TestTurboHttpException("test");
+        var exception = new TestGaudiHttpException("test");
 
         Assert.IsAssignableFrom<Exception>(exception);
     }
@@ -80,11 +80,11 @@ public sealed class TurboHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_IsTurboHttpException()
+    public void TurboProtocolException_IsGaudiHttpException()
     {
         var exception = new TestTurboProtocolException("test");
 
-        Assert.IsAssignableFrom<TurboHttpException>(exception);
+        Assert.IsAssignableFrom<GaudiHttpException>(exception);
     }
 
     [Fact(Timeout = 5000)]
@@ -106,21 +106,21 @@ public sealed class TurboHttpExceptionSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboTransportException_IsTurboHttpException()
+    public void TurboTransportException_IsGaudiHttpException()
     {
         var exception = new TestTurboTransportException("test");
 
-        Assert.IsAssignableFrom<TurboHttpException>(exception);
+        Assert.IsAssignableFrom<GaudiHttpException>(exception);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpException_CanBeCaughtAsException()
+    public void GaudiHttpException_CanBeCaughtAsException()
     {
         Exception? caughtException;
 
         try
         {
-            throw new TestTurboHttpException("test");
+            throw new TestGaudiHttpException("test");
         }
         catch (Exception ex)
         {
@@ -128,19 +128,19 @@ public sealed class TurboHttpExceptionSpec
         }
 
         Assert.NotNull(caughtException);
-        Assert.IsType<TestTurboHttpException>(caughtException);
+        Assert.IsType<TestGaudiHttpException>(caughtException);
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboProtocolException_CanBeCaughtAsTurboHttpException()
+    public void TurboProtocolException_CanBeCaughtAsGaudiHttpException()
     {
-        TurboHttpException? caughtException;
+        GaudiHttpException? caughtException;
 
         try
         {
             throw new TestTurboProtocolException("protocol");
         }
-        catch (TurboHttpException ex)
+        catch (GaudiHttpException ex)
         {
             caughtException = ex;
         }
@@ -152,28 +152,28 @@ public sealed class TurboHttpExceptionSpec
     [Fact(Timeout = 5000)]
     public void MultipleExceptions_HaveIndependentStates()
     {
-        var ex1 = new TestTurboHttpException("message 1");
-        var ex2 = new TestTurboHttpException("message 2");
+        var ex1 = new TestGaudiHttpException("message 1");
+        var ex2 = new TestGaudiHttpException("message 2");
 
         Assert.NotEqual(ex1.Message, ex2.Message);
     }
 
     [Fact(Timeout = 5000)]
-    public void ExceptionHierarchy_AllInheritFromTurboHttpException()
+    public void ExceptionHierarchy_AllInheritFromGaudiHttpException()
     {
-        var httpEx = new TestTurboHttpException("http");
+        var httpEx = new TestGaudiHttpException("http");
         var protocolEx = new TestTurboProtocolException("protocol");
         var transportEx = new TestTurboTransportException("transport");
 
-        Assert.IsAssignableFrom<TurboHttpException>(httpEx);
-        Assert.IsAssignableFrom<TurboHttpException>(protocolEx);
-        Assert.IsAssignableFrom<TurboHttpException>(transportEx);
+        Assert.IsAssignableFrom<GaudiHttpException>(httpEx);
+        Assert.IsAssignableFrom<GaudiHttpException>(protocolEx);
+        Assert.IsAssignableFrom<GaudiHttpException>(transportEx);
     }
 
     [Fact(Timeout = 5000)]
     public void ExceptionToString_ContainsMessage()
     {
-        var exception = new TestTurboHttpException("test message");
+        var exception = new TestGaudiHttpException("test message");
 
         var exceptionString = exception.ToString();
 
@@ -184,7 +184,7 @@ public sealed class TurboHttpExceptionSpec
     public void ExceptionWithInnerException_ToStringContainsBoth()
     {
         var inner = new InvalidOperationException("inner message");
-        var exception = new TestTurboHttpException("outer message", inner);
+        var exception = new TestGaudiHttpException("outer message", inner);
 
         var exceptionString = exception.ToString();
 

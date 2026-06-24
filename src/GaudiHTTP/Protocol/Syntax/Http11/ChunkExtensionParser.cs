@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax.Http11;
+namespace GaudiHTTP.Protocol.Syntax.Http11;
 
 /// <summary>
 /// RFC 9112 §7.1.1: Validates chunk-ext syntax.

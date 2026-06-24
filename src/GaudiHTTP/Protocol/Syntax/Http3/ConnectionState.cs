@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// Encapsulates all HTTP/3 connection-level state in a single class.

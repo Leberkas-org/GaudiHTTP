@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Tests.Protocol;
+namespace GaudiHTTP.Tests.Protocol;
 
 public sealed class WellKnownHeadersSpec
 {

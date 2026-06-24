@@ -1,12 +1,12 @@
 using System.Buffers.Binary;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.SessionManager;
 
 /// <summary>
 /// RFC 9113 §5.1: once a peer sends END_STREAM the stream is half-closed(remote). Any subsequent

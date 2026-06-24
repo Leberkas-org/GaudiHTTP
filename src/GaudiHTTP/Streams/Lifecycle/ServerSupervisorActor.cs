@@ -4,9 +4,9 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Streams.Lifecycle;
+namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
 {

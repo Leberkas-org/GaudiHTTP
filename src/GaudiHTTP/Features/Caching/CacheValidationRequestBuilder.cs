@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §4.3 — Builds conditional revalidation requests and merges 304 responses.

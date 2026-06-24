@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// RFC 9204 §4.5 — QPACK Header Block Decoder.

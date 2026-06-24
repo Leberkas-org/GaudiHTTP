@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// RFC 9204 §3.2 — QPACK Dynamic Table.

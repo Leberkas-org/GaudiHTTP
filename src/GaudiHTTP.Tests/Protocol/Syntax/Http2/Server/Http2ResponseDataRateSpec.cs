@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol;
-using TurboHTTP.Server;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2ResponseDataRateSpec
 {

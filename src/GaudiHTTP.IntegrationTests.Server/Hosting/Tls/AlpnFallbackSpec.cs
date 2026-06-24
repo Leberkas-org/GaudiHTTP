@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
 /// Server advertises only HTTP/1.1. A client that prefers HTTP/2 must gracefully fall back

@@ -1,7 +1,7 @@
-using TurboHTTP.Server;
-using TurboHTTP.Streams;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams;
 
-namespace TurboHTTP.Tests.Streams;
+namespace GaudiHTTP.Tests.Streams;
 
 public sealed class ProtocolRouterSpec
 {

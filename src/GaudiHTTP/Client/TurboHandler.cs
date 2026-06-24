@@ -1,11 +1,11 @@
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Base class for pipeline handlers that inspect or transform requests and responses.
 /// Override <see cref="ProcessRequest"/> and/or <see cref="ProcessResponse"/> to add
 /// cross-cutting behavior such as authentication, logging, or header injection.
 /// Register handlers via <c>AddHandler&lt;T&gt;</c> or <c>UseRequest</c>/<c>UseResponse</c>
-/// on an <see cref="ITurboHttpClientBuilder"/>; handlers run in FIFO registration order.
+/// on an <see cref="IGaudiHttpClientBuilder"/>; handlers run in FIFO registration order.
 /// </summary>
 public abstract class TurboHandler
 {

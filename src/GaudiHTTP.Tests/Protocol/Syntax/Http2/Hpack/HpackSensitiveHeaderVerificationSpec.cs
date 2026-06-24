@@ -1,8 +1,8 @@
-﻿using System.Text;
-using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using System.Text;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Hpack;
 
 public sealed class HpackSensitiveHeaderVerificationSpec
 {

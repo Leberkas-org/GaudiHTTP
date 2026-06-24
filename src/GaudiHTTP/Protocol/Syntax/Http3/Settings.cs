@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 // HTTP/3 Settings  -  RFC 9114 §7.2.4
 //

@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Frames;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
 /// <summary>
 /// <see cref="FrameDecoder.Decode"/> returns the decoder's reused frame list (no per-call array

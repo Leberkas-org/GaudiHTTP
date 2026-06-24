@@ -2,10 +2,10 @@ using System.Net;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that automatically adds <c>Expect: 100-continue</c> for requests

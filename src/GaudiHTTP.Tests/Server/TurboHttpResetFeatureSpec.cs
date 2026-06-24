@@ -1,14 +1,14 @@
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Server;
+namespace GaudiHTTP.Tests.Server;
 
-public sealed class TurboHttpResetFeatureSpec
+public sealed class GaudiHttpResetFeatureSpec
 {
     [Fact(Timeout = 5000)]
     public void Reset_should_invoke_callback_with_error_code()
     {
         var capturedCode = -1;
-        var feature = new TurboHttpResetFeature(code => capturedCode = code);
+        var feature = new GaudiHttpResetFeature(code => capturedCode = code);
 
         feature.Reset(8);
 
@@ -19,7 +19,7 @@ public sealed class TurboHttpResetFeatureSpec
     public void Reset_should_pass_zero_error_code()
     {
         var capturedCode = -1;
-        var feature = new TurboHttpResetFeature(code => capturedCode = code);
+        var feature = new GaudiHttpResetFeature(code => capturedCode = code);
 
         feature.Reset(0);
 

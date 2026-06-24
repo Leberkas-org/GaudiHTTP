@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Qpack;
 
 public sealed class QpackRoundTripSpec
 {
@@ -197,7 +197,7 @@ public sealed class QpackRoundTripSpec
             ("x-forwarded-for", "10.0.0.1"), // dynamic insert
             ("x-correlation-id", "corr-98765"), // dynamic insert
             ("authorization", "Bearer secret-token"), // NEVERINDEX
-            ("user-agent", "TurboHttp/1.0"), // literal with static name
+            ("user-agent", "GaudiHttp/1.0"), // literal with static name
             ("x-custom-flag", "enabled"), // dynamic insert
         };
 

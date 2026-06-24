@@ -1,8 +1,8 @@
 using System.IO.Compression;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 using static System.Text.Encoding;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Encoding;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Encoding;
 
 public sealed class DecompressingContentSpec
 {

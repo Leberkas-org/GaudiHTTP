@@ -3,9 +3,9 @@ using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Routing;
+namespace GaudiHTTP.Streams.Stages.Routing;
 
 /// <summary>
 /// Lazily materializes a version-specific connection flow based on the first request's

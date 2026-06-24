@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §12.5 — Provides content negotiation matching for Accept, Accept-Encoding, and Accept-Language headers.

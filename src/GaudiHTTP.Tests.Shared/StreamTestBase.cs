@@ -2,7 +2,7 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.TestKit.Xunit;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public abstract class StreamTestBase : TestKit
 {

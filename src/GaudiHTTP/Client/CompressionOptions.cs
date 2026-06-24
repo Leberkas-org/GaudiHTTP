@@ -1,11 +1,11 @@
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Configuration for request body compression applied by the client before sending.
-/// Pass to <c>WithRequestCompression</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// Pass to <c>WithRequestCompression</c> on an <see cref="IGaudiHttpClientBuilder"/>.
 /// </summary>
 public sealed class CompressionOptions
 {

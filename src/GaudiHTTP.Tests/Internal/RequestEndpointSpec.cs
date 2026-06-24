@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Internal;
+namespace GaudiHTTP.Tests.Internal;
 
 public sealed class RequestEndpointSpec
 {

@@ -1,14 +1,14 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams.Stages.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Stages;
 
 public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
 {

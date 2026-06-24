@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 internal sealed class FrameDecoder : IDisposable
 {

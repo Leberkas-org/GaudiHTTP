@@ -1,6 +1,6 @@
 using System.Net.Http.Headers;
 
-namespace TurboHTTP.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
 /// <summary>
 /// RFC 9112 compliant HTTP/1.1 request validator.

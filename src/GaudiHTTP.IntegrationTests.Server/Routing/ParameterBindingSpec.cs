@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Routing;
+namespace GaudiHTTP.IntegrationTests.Server.Routing;
 
 public sealed class ParameterBindingSpec(TurboServerFixture server) : IDisposable
 {
@@ -28,12 +28,12 @@ public sealed class ParameterBindingSpec(TurboServerFixture server) : IDisposabl
     public async Task Query_string_should_bind_string_param()
     {
         var response = await _client.GetAsync(
-            new Uri($"http://127.0.0.1:{server.Port}/search?q=turbohttp"), CancellationToken);
+            new Uri($"http://127.0.0.1:{server.Port}/search?q=GaudiHttp"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = JsonDocument.Parse(
             await response.Content.ReadAsStringAsync(CancellationToken));
-        Assert.Equal("turbohttp", json.RootElement.GetProperty("query").GetString());
+        Assert.Equal("GaudiHttp", json.RootElement.GetProperty("query").GetString());
     }
 
     [Fact(Timeout = 15000)]

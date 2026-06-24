@@ -10,15 +10,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Streams.Stages.Server;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
-/// TurboHTTP's ASP.NET Core <see cref="IServer"/> implementation. Manages an Akka actor system,
+/// GaudiHTTP's ASP.NET Core <see cref="IServer"/> implementation. Manages an Akka actor system,
 /// resolves configured endpoints, and routes incoming connections through the application pipeline.
-/// Register via <see cref="TurboServerWebHostBuilderExtensions.UseTurboHttp"/>.
+/// Register via <see cref="TurboServerWebHostBuilderExtensions.UseGaudiHttp"/>.
 /// </summary>
 public sealed class TurboServer : IServer
 {

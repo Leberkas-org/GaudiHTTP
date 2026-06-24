@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerResponseHeaderScanSpec
 {
     private static IHttpResponseFeature Feature(params (string Name, string Value)[] headers)
     {
-        var feature = new TurboHttpResponseFeature { StatusCode = 200 };
+        var feature = new GaudiHttpResponseFeature { StatusCode = 200 };
         foreach (var (name, value) in headers)
         {
             feature.Headers[name] = new StringValues(value);

@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// QUIC variable-length integer encoding and decoding per RFC 9000 §16.

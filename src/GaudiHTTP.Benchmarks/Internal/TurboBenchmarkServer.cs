@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 public sealed class TurboBenchmarkServer : IAsyncDisposable
 {
@@ -27,7 +27,7 @@ public sealed class TurboBenchmarkServer : IAsyncDisposable
         builder.Logging.ClearProviders();
 
         var cert = _cert;
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.Listen(IPAddress.Loopback, 0, lo =>
                 lo.Protocols = HttpProtocols.Http1);

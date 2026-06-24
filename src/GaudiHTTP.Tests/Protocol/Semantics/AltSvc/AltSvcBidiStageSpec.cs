@@ -2,11 +2,11 @@ using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Features.AltSvc;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.AltSvc;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.AltSvc;
+namespace GaudiHTTP.Tests.Protocol.Semantics.AltSvc;
 
 public sealed class AltSvcBidiStageSpec : StreamTestBase
 {

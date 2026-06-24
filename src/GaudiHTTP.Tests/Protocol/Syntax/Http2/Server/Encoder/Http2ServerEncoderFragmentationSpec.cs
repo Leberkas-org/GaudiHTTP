@@ -1,11 +1,11 @@
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
 public sealed class Http2ServerEncoderFragmentationSpec
 {

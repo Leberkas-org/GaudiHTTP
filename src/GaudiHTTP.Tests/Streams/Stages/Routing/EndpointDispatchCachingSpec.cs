@@ -2,11 +2,11 @@ using System.Collections.Concurrent;
 using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Routing;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Stages.Routing;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Routing;
+namespace GaudiHTTP.Tests.Streams.Stages.Routing;
 
 public sealed class EndpointDispatchCachingSpec : StreamTestBase
 {

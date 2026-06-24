@@ -1,6 +1,6 @@
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Server.Options;
+namespace GaudiHTTP.Tests.Server.Options;
 
 public sealed class ProtocolOptionsNullableOverrideSpec
 {

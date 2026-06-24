@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Text;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
 /// <summary>
 /// RFC 7541-compliant HPACK encoder.

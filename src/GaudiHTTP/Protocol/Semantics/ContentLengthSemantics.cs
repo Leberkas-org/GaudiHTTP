@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9112 §6.2-6.3: Content-Length Header Semantics

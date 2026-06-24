@@ -2,12 +2,12 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerTrailerSpec
 {
@@ -25,18 +25,18 @@ public sealed class Http11ServerTrailerSpec
 
     private static IFeatureCollection ChunkedResponseWithTrailers(
         byte[] body,
-        TurboHttpResponseTrailersFeature trailerFeature)
+        GaudiHttpResponseTrailersFeature trailerFeature)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Method = "GET" });
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = "GET" });
 
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         // No Content-Length → state machine will use chunked transfer encoding
         features.Set<IHttpResponseFeature>(responseFeature);
         features.Set<IHttpResponseTrailersFeature>(trailerFeature);
 
         // Fully buffered, completed response body (no Content-Length → EmitBufferedBody path with chunked)
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         var span = bodyFeature.Writer.GetSpan(body.Length);
         body.CopyTo(span);
         bodyFeature.Writer.Advance(body.Length);
@@ -54,7 +54,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
@@ -78,7 +78,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         // No trailers added
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
@@ -100,7 +100,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
         trailerFeature.Trailers["transfer-encoding"] = new StringValues("chunked");
         trailerFeature.Trailers["content-length"] = new StringValues("5");
@@ -126,7 +126,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
@@ -142,7 +142,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
         trailerFeature.Trailers["x-timing"] = new StringValues("42ms");
 
@@ -171,7 +171,7 @@ public sealed class Http11ServerTrailerSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var trailerFeature = new TurboHttpResponseTrailersFeature();
+        var trailerFeature = new GaudiHttpResponseTrailersFeature();
         // No trailers
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));

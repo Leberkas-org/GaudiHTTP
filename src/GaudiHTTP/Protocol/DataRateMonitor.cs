@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal sealed class DataRateMonitor(double minDataRate, TimeSpan gracePeriod)
 {

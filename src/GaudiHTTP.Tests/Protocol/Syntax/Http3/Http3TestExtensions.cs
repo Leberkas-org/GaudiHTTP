@@ -1,7 +1,7 @@
 using System.Buffers;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Protocol.Syntax.Http3
+namespace GaudiHTTP.Protocol.Syntax.Http3
 {
     internal static class Http3TestExtensions
     {
@@ -37,7 +37,7 @@ namespace TurboHTTP.Protocol.Syntax.Http3
     }
 }
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack
 {
     internal static class QpackTestExtensions
     {

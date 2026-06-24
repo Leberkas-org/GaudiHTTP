@@ -2,10 +2,10 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 [Collection("H11")]
 public sealed class ConnectionReuseSpec : End2EndSpecBase
@@ -36,7 +36,7 @@ public sealed class ConnectionReuseSpec : End2EndSpecBase
         var remotePort3 = await GetRemotePort();
 
         // H1.1 with keep-alive (default) reuses the TCP connection, so all requests should come from the same ephemeral port.
-        // All requests through the same ITurboHttpClient instance should originate from a single, pooled connection.
+        // All requests through the same IGaudiHttpClient instance should originate from a single, pooled connection.
         Assert.Equal(remotePort1, remotePort2);
         Assert.Equal(remotePort2, remotePort3);
     }

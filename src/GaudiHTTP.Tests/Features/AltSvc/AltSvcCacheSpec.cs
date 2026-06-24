@@ -1,6 +1,6 @@
-using TurboHTTP.Features.AltSvc;
+using GaudiHTTP.Features.AltSvc;
 
-namespace TurboHTTP.Tests.Features.AltSvc;
+namespace GaudiHTTP.Tests.Features.AltSvc;
 
 public sealed class AltSvcCacheSpec
 {

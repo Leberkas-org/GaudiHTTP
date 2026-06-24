@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax;
+namespace GaudiHTTP.Protocol.Syntax;
 
 internal static class HttpMessageExtensions
 {

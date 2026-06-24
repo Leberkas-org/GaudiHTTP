@@ -1,10 +1,10 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder;
 
 /// <summary>
 /// RFC 7541 §4.2 / RFC 9113 §6.5.2: the server's HPACK decoder must enforce the

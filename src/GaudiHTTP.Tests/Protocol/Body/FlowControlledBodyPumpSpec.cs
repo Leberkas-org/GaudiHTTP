@@ -1,9 +1,9 @@
 using Akka.Actor;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Body;
+namespace GaudiHTTP.Tests.Protocol.Body;
 
 public sealed class FlowControlledBodyPumpSpec
 {

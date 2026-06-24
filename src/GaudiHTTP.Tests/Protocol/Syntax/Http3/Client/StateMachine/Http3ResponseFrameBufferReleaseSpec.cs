@@ -1,11 +1,11 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 /// <summary>
 /// Regression spec for the HTTP/3 inbound frame buffer leak on the client: decoded

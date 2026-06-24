@@ -3,13 +3,13 @@ using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Abstractions;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Pooling;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Server;
+namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
 {
@@ -55,7 +55,7 @@ public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
         => new(app, 10, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
 
     private IFeatureCollection Request()
-        => FeatureCollectionFactory.Create(_pool, new TurboHttpRequestFeature { Protocol = "HTTP/1.1" }, hasBody: false);
+        => FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature { Protocol = "HTTP/1.1" }, hasBody: false);
 
     [Fact(Timeout = 5000)]
     public void CreateContext_should_reuse_host_context_across_requests_on_pooled_collection()

@@ -1,8 +1,8 @@
 using System.Net;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Server.Options;
+namespace GaudiHTTP.Tests.Server.Options;
 
 /// <summary>
 /// TurboServerLimits.MaxRequestBufferSize must actually bound the TCP read-pipe input buffer.

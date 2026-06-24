@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Features;
+namespace GaudiHTTP.IntegrationTests.Client.Features;
 
 [Collection("Compression")]
 public sealed class CompressionFeatureSpec : FeatureSpecBase

@@ -1,11 +1,11 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 internal sealed class DockerTestBackend : ITestBackend
 {
-    private const string NetworkName = "turbohttp-v2";
+    private const string NetworkName = "GaudiHttp-v2";
     private const int NginxInternalPort = 443;
 
     private INetwork? _network;
@@ -36,7 +36,7 @@ internal sealed class DockerTestBackend : ITestBackend
         HttpPort = _httpbin.HttpPort;
 
         _nginxH2 = new NginxTlsContainer(new NginxContainerOptions(
-            Name: "turbohttp-nginx-h2",
+            Name: "GaudiHttp-nginx-h2",
             InternalPort: NginxInternalPort,
             EnableQuic: false,
             SslDir: CertificateManager.SslDir,
@@ -46,7 +46,7 @@ internal sealed class DockerTestBackend : ITestBackend
         HttpsPort = _nginxH2.Port;
 
         _nginxH3 = new NginxTlsContainer(new NginxContainerOptions(
-            Name: "turbohttp-nginx-h3",
+            Name: "GaudiHttp-nginx-h3",
             InternalPort: NginxInternalPort,
             EnableQuic: true,
             SslDir: CertificateManager.SslDir,
@@ -82,7 +82,7 @@ internal sealed class DockerTestBackend : ITestBackend
 
     private static async Task RemoveStaleResourcesAsync()
     {
-        var containerNames = new[] { "turbohttp-nginx-h3", "turbohttp-nginx-h2", HttpbinContainer.ContainerName };
+        var containerNames = new[] { "GaudiHttp-nginx-h3", "GaudiHttp-nginx-h2", HttpbinContainer.ContainerName };
         foreach (var name in containerNames)
         {
             await RunDockerQuietAsync($"rm -f {name}");

@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// HTTP/2-specific server configuration.

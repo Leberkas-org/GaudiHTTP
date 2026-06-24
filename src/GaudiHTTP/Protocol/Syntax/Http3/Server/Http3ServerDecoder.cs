@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
 internal sealed class Http3ServerDecoder
 {
@@ -25,7 +25,7 @@ internal sealed class Http3ServerDecoder
         _maxHeaderCount = options.MaxHeaderCount;
     }
 
-    public TurboHttpRequestFeature? DecodeHeadersToFeature(HeadersFrame frame, StreamState state, bool endStream)
+    public GaudiHttpRequestFeature? DecodeHeadersToFeature(HeadersFrame frame, StreamState state, bool endStream)
     {
         ArgumentNullException.ThrowIfNull(frame);
         ArgumentNullException.ThrowIfNull(state);
@@ -45,7 +45,7 @@ internal sealed class Http3ServerDecoder
     /// <see cref="DecodeHeadersToFeature"/> and by the QPACK blocked-stream resolution path,
     /// which decodes the header block out-of-band once the dynamic table catches up.
     /// </summary>
-    public TurboHttpRequestFeature? AssembleHeadersToFeature(
+    public GaudiHttpRequestFeature? AssembleHeadersToFeature(
         IReadOnlyList<(string Name, string Value)> headers, StreamState state, bool endStream)
     {
         ArgumentNullException.ThrowIfNull(headers);
@@ -54,7 +54,7 @@ internal sealed class Http3ServerDecoder
         ValidateRequestHeaders(headers);
         ValidateFieldSectionSize(headers, state.StreamId);
 
-        var feature = new TurboHttpRequestFeature
+        var feature = new GaudiHttpRequestFeature
         {
             Protocol = WellKnownHeaders.Http30
         };

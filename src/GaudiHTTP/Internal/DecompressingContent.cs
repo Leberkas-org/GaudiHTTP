@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Internal;
+namespace GaudiHTTP.Internal;
 
 internal sealed class DecompressingContent(HttpContent inner, string encoding) : HttpContent
 {

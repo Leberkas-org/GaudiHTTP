@@ -3,7 +3,7 @@ using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Stages.Server;
+namespace GaudiHTTP.Streams.Stages.Server;
 
 internal sealed class ServerConnectionShape(
     Inlet<ITransportInbound> inNetwork,

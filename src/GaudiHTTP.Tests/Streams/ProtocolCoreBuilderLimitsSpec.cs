@@ -1,7 +1,7 @@
-using TurboHTTP.Internal;
-using TurboHTTP.Streams;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams;
 
-namespace TurboHTTP.Tests.Streams;
+namespace GaudiHTTP.Tests.Streams;
 
 public sealed class ProtocolCoreBuilderLimitsSpec
 {

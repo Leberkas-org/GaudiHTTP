@@ -1,6 +1,6 @@
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal static class ProtocolRouter
 {

@@ -1,8 +1,8 @@
 using Akka.Actor;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 internal sealed class FakeClientOps : IClientStageOperations
 {

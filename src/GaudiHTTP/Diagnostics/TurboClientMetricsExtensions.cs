@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Servus.Diagnostics;
 
-namespace TurboHTTP.Diagnostics;
+namespace GaudiHTTP.Diagnostics;
 
 internal static class TurboClientMetricsExtensions
 {

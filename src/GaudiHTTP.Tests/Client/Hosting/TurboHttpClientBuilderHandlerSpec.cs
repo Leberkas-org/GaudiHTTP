@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Client.Hosting;
+namespace GaudiHTTP.Tests.Client.Hosting;
 
-public sealed class TurboHttpClientBuilderHandlerSpec
+public sealed class GaudiHttpClientBuilderHandlerSpec
 {
     private sealed class TestHandler : TurboHandler;
 
@@ -19,10 +19,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_add_type_to_handler_types()
+    public void GaudiHttpClientBuilderHandler_should_add_type_to_handler_types()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddHandler<TestHandler>();
+        services.AddGaudiHttpClient("test").AddHandler<TestHandler>();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -30,10 +30,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_add_factory_to_handler_factories()
+    public void GaudiHttpClientBuilderHandler_should_add_factory_to_handler_factories()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddHandler<TestHandler>();
+        services.AddGaudiHttpClient("test").AddHandler<TestHandler>();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -41,10 +41,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_register_transient_service()
+    public void GaudiHttpClientBuilderHandler_should_register_transient_service()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddHandler<TestHandler>();
+        services.AddGaudiHttpClient("test").AddHandler<TestHandler>();
 
         Assert.Contains(services, sd =>
             sd.ServiceType == typeof(TestHandler) &&
@@ -52,10 +52,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_add_one_factory_with_no_type_entry()
+    public void GaudiHttpClientBuilderHandler_should_add_one_factory_with_no_type_entry()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").UseRequest(req => req);
+        services.AddGaudiHttpClient("test").UseRequest(req => req);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -64,10 +64,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_preserve_fifo_order_in_types()
+    public void GaudiHttpClientBuilderHandler_should_preserve_fifo_order_in_types()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test")
+        services.AddGaudiHttpClient("test")
             .AddHandler<AlphaHandler>()
             .AddHandler<BetaHandler>();
 
@@ -78,10 +78,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_preserve_fifo_order_in_factories()
+    public void GaudiHttpClientBuilderHandler_should_preserve_fifo_order_in_factories()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test")
+        services.AddGaudiHttpClient("test")
             .AddHandler<AlphaHandler>()
             .AddHandler<BetaHandler>();
 
@@ -94,10 +94,10 @@ public sealed class TurboHttpClientBuilderHandlerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderHandler_should_resolve_from_service_provider()
+    public void GaudiHttpClientBuilderHandler_should_resolve_from_service_provider()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddHandler<TestHandler>();
+        services.AddGaudiHttpClient("test").AddHandler<TestHandler>();
 
         var sp = services.BuildServiceProvider();
         var descriptor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get("test");

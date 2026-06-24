@@ -1,10 +1,10 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 internal sealed class Http11ClientConnectionStage(TurboClientOptions options) : GraphStage<ClientConnectionShape>
 {

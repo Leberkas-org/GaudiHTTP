@@ -1,9 +1,9 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Redirect;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Redirect;
 
 public sealed class UriRedirectSpec
 {

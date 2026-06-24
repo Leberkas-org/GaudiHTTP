@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3StreamLifecycleSpec
 {
@@ -35,10 +35,10 @@ public sealed class Http3StreamLifecycleSpec
     private static IFeatureCollection CreateResponseContext(long streamId = 999)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
@@ -97,7 +97,7 @@ public sealed class Http3StreamLifecycleSpec
         var streamIdFeature = context.Get<IHttpStreamIdFeature>();
         Assert.NotNull(streamIdFeature);
         Assert.Equal(streamId, streamIdFeature.StreamId);
-        var requestFeature = context.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature = context.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature);
         Assert.Equal("GET", requestFeature.Method);
         Assert.Equal("https", requestFeature.Scheme);
@@ -130,8 +130,8 @@ public sealed class Http3StreamLifecycleSpec
         Assert.Equal(streamId1, streamIdFeature1.StreamId);
         Assert.Equal(streamId2, streamIdFeature2.StreamId);
 
-        var requestFeature1 = ctx1.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
-        var requestFeature2 = ctx2.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature1 = ctx1.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
+        var requestFeature2 = ctx2.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature1);
         Assert.NotNull(requestFeature2);
         Assert.Equal("GET", requestFeature1.Method);

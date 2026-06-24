@@ -2,29 +2,29 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Features.AltSvc;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Features.AltSvc;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
-internal sealed class TurboHttpClientFactory(
+internal sealed class GaudiHttpClientFactory(
     IOptionsMonitor<TurboClientOptions> options,
     IOptionsMonitor<TurboClientDescriptor> descriptors,
     IServiceProvider provider,
     ActorSystem system)
-    : ITurboHttpClientFactory, IDisposable
+    : IGaudiHttpClientFactory, IDisposable
 {
     private readonly IActorRef _manager =
         system.ActorOf(ClientStreamManager.Props(), $"stream-manager-{Guid.NewGuid():N}");
 
     private int _disposed;
 
-    public ITurboHttpClient CreateClient(string name) => CreateClient(name, transportOverride: null);
+    public IGaudiHttpClient CreateClient(string name) => CreateClient(name, transportOverride: null);
 
-    internal ITurboHttpClient CreateClient(string name, TransportRegistry? transportOverride)
+    internal IGaudiHttpClient CreateClient(string name, TransportRegistry? transportOverride)
     {
         ThrowIfDisposed();
 
@@ -40,7 +40,7 @@ internal sealed class TurboHttpClientFactory(
 
         var registration = new NamedClientConsumerRegistration(_manager, name, consumerId);
 
-        var client = new TurboHttpClient(
+        var client = new GaudiHttpClient(
             consumerRequests.Writer,
             consumerResponses.Reader,
             CreateRequestOptions(clientOptions),
@@ -120,7 +120,7 @@ internal sealed class TurboHttpClientFactory(
     {
         if (Volatile.Read(ref _disposed) != 0)
         {
-            throw new ObjectDisposedException(nameof(TurboHttpClientFactory));
+            throw new ObjectDisposedException(nameof(GaudiHttpClientFactory));
         }
     }
 }

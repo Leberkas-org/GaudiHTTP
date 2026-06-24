@@ -1,7 +1,7 @@
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
 public sealed class HpackBombSpec
 {
@@ -265,8 +265,8 @@ public sealed class HpackBombSpec
         // Encode a legitimate long string via encoder, then try to decode with tight limit
         var longName = new string('a', 300); // 'a' Huffman encodes to ~5 bits
         var nameBytes = Encoding.UTF8.GetBytes(longName);
-        var huffBuf = new byte[TurboHTTP.Protocol.HuffmanCodec.GetMaxEncodedLength(nameBytes.Length)];
-        var huffLen = TurboHTTP.Protocol.HuffmanCodec.Encode(nameBytes, huffBuf);
+        var huffBuf = new byte[GaudiHTTP.Protocol.HuffmanCodec.GetMaxEncodedLength(nameBytes.Length)];
+        var huffLen = GaudiHTTP.Protocol.HuffmanCodec.Encode(nameBytes, huffBuf);
         var huffmanEncoded = huffBuf[..huffLen].ToArray();
 
         var block = new byte[huffmanEncoded.Length + 32];

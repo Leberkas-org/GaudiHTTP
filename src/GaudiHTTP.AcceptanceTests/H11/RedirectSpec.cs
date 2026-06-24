@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Client;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H11;
+namespace GaudiHTTP.AcceptanceTests.H11;
 
 public sealed class RedirectSpec : ClientAcceptanceTestBase
 {

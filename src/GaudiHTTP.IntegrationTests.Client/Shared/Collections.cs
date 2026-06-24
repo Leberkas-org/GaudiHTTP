@@ -1,10 +1,10 @@
-using TurboHTTP.Tests.Shared;
-using TurboHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
 
 [assembly: AssemblyFixture(typeof(ServerContainerFixture))]
 [assembly: AssemblyFixture(typeof(ActorSystemFixture))]
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 [CollectionDefinition("H10")]
 public sealed class H10IntegrationCollection;

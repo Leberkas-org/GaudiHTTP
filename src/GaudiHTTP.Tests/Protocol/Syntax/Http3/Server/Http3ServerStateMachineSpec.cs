@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerStateMachineSpec
 {
@@ -130,7 +130,7 @@ public sealed class Http3ServerStateMachineSpec
         Assert.Equal(streamId, streamIdFeature.StreamId);
 
         // Verify request properties
-        var requestFeature = context.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature = context.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature);
         Assert.Equal("GET", requestFeature.Method);
         Assert.Equal("https", requestFeature.Scheme);
@@ -181,7 +181,7 @@ public sealed class Http3ServerStateMachineSpec
         Assert.Equal(streamId, streamIdFeature.StreamId);
 
         // Verify request properties
-        var requestFeature = context.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature = context.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature);
         Assert.Equal("POST", requestFeature.Method);
         Assert.Equal("https", requestFeature.Scheme);
@@ -329,8 +329,8 @@ public sealed class Http3ServerStateMachineSpec
         Assert.Equal(stream2, streamIdFeature2.StreamId);
 
         // Verify different requests
-        var requestFeature1 = ctx1.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
-        var requestFeature2 = ctx2.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature1 = ctx1.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
+        var requestFeature2 = ctx2.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature1);
         Assert.NotNull(requestFeature2);
         Assert.Equal("GET", requestFeature1.Method);

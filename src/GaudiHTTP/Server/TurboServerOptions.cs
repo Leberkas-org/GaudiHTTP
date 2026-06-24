@@ -3,12 +3,12 @@ using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic.Listener;
 using Servus.Akka.Transport.Tcp.Listener;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Top-level configuration for <see cref="TurboServer"/>. Controls server-wide limits, timeouts,
 /// protocol-specific sub-options, and endpoint bindings. Configure via
-/// <see cref="TurboServerWebHostBuilderExtensions.UseTurboHttp"/> or DI options.
+/// <see cref="TurboServerWebHostBuilderExtensions.UseGaudiHttp"/> or DI options.
 /// </summary>
 public sealed class TurboServerOptions
 {
@@ -64,14 +64,14 @@ public sealed class TurboServerOptions
     public void BindTcp(string host, ushort port) => Bind(new TcpListenerOptions { Host = host, Port = port });
 
     internal IList<TurboListenOptions> ListenOptions { get; } = new List<TurboListenOptions>();
-    internal Action<TurboHttpsOptions>? HttpsDefaultsCallback { get; private set; }
+    internal Action<GaudiHttpsOptions>? HttpsDefaultsCallback { get; private set; }
     internal Action<TurboListenOptions>? EndpointDefaultsCallback { get; private set; }
 
     /// <summary>Gets the collection of URL strings (e.g. <c>"https://0.0.0.0:443"</c>) resolved to listener bindings at startup.</summary>
     public IList<string> Urls { get; } = new List<string>();
 
-    /// <summary>Registers a callback applied to the <see cref="TurboHttpsOptions"/> of every HTTPS endpoint before it is bound.</summary>
-    public void ConfigureHttpsDefaults(Action<TurboHttpsOptions> configure)
+    /// <summary>Registers a callback applied to the <see cref="GaudiHttpsOptions"/> of every HTTPS endpoint before it is bound.</summary>
+    public void ConfigureHttpsDefaults(Action<GaudiHttpsOptions> configure)
     {
         HttpsDefaultsCallback = configure;
     }

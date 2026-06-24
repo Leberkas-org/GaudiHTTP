@@ -3,10 +3,10 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Streams.Stages.Server;
+namespace GaudiHTTP.Streams.Stages.Server;
 
 internal interface IServerStageOperations
 {
@@ -18,7 +18,7 @@ internal interface IServerStageOperations
     IActorRef StageActor { get; }
     IMaterializer Materializer { get; }
     IServiceProvider? Services => null;
-    TurboHttpConnectionFeature? ConnectionFeature => null;
+    GaudiHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
     ConnectionPoolContext? PoolContext => null;
     void OnResponseBodyComplete(IFeatureCollection features) { }

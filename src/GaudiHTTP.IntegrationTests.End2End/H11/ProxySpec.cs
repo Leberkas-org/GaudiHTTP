@@ -2,10 +2,10 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 /// <summary>
 /// Verifies the client actually routes through a configured proxy: a transparent in-process

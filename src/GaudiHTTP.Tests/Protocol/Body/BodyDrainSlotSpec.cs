@@ -1,7 +1,7 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Body;
 
-namespace TurboHTTP.Tests.Protocol.Body;
+namespace GaudiHTTP.Tests.Protocol.Body;
 
 public sealed class BodyDrainSlotSpec
 {

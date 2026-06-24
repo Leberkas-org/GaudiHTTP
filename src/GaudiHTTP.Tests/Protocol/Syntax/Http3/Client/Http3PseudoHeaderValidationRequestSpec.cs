@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 public sealed class Http3PseudoHeaderValidationRequestSpec
 {
@@ -297,7 +297,7 @@ public sealed class Http3PseudoHeaderValidationRequestSpec
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         request.Headers.TryAddWithoutValidation("accept", "text/html");
-        request.Headers.TryAddWithoutValidation("user-agent", "TurboHttp");
+        request.Headers.TryAddWithoutValidation("user-agent", "GaudiHttp");
 
         var frames = encoder.Encode(request);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);

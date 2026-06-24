@@ -3,10 +3,10 @@ using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Server;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.End2End.H2;
 
 /// <summary>
 /// Regression spec for the QueuedBodyReader cross-thread race that intermittently lost,

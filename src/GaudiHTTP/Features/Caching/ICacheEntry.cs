@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// Read-only view of a cached HTTP response entry, including the response metadata,

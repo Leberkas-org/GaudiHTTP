@@ -3,10 +3,10 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams.Stages.Server;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal sealed class Http11ServerEngine(TurboServerOptions options) : IServerProtocolEngine
 {

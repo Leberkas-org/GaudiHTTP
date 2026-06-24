@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
 /// Server advertises both HTTP/1.1 and HTTP/2 over TLS; the negotiated protocol must follow

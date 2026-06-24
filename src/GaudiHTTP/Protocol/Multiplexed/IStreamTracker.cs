@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal interface IStreamTracker<T> where T : notnull
 {

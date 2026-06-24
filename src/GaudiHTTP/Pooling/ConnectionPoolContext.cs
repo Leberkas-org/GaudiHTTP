@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.ObjectPool;
 
-namespace TurboHTTP.Pooling;
+namespace GaudiHTTP.Pooling;
 
 // One per connection. Owns per-type ObjectPool instances keyed by type. Per-connection instancing
 // means no cross-connection contention; DefaultObjectPool's internal thread-safety absorbs the Akka

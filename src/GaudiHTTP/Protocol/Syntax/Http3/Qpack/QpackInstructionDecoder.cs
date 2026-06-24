@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// RFC 9204 §4.3, §4.4 — Stateful decoder for QPACK instruction streams.

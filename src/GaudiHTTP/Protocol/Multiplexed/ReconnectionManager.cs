@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal sealed class ReconnectionManager(int maxAttempts, int maxBufferSize = int.MaxValue)
 {

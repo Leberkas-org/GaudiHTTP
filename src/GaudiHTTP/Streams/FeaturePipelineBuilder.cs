@@ -1,18 +1,18 @@
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 /// <summary>
 /// Composes the BidiFlow feature stack on top of a protocol engine flow.
 /// <para><b>Stacking order (outermost → innermost):</b></para>
 /// <list type="number">
-///   <item><description>TracingBidiStage — root "TurboHTTP.ClientRequest" activity lifecycle</description></item>
+///   <item><description>TracingBidiStage — root "GaudiHTTP.ClientRequest" activity lifecycle</description></item>
 ///   <item><description>User Handlers — HandlerBidiStage per TurboHandler (FIFO: [0] outermost)</description></item>
 ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
 ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>

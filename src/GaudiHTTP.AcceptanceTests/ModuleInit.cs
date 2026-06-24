@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.AcceptanceTests;
+namespace GaudiHTTP.AcceptanceTests;
 
 public static class ModuleInit
 {

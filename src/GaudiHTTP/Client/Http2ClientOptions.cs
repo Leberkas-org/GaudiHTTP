@@ -1,4 +1,4 @@
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// HTTP/2-specific client configuration.
@@ -71,7 +71,7 @@ public sealed class Http2ClientOptions
     /// <summary>
     /// HPACK dynamic table size in bytes (RFC 7541 §4.2).
     /// Advertised via SETTINGS_HEADER_TABLE_SIZE in the connection preface.
-    /// Default is 64 KB. The RFC 7541 protocol default is 4,096; TurboHTTP uses a larger table
+    /// Default is 64 KB. The RFC 7541 protocol default is 4,096; GaudiHTTP uses a larger table
     /// for more aggressive header compression.
     /// </summary>
     public int HeaderTableSize { get; set; } = 64 * 1024;

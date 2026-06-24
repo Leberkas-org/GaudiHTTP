@@ -1,3 +1,3 @@
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal sealed record BodyResumed;

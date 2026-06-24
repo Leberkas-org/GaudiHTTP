@@ -1,6 +1,6 @@
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 public abstract class FeatureSpecBase : IntegrationSpecBase
 {

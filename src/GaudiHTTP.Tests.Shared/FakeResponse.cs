@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public static class FakeResponse
 {

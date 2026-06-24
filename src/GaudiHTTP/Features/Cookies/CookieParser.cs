@@ -1,7 +1,7 @@
 using System.Globalization;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Features.Cookies;
+namespace GaudiHTTP.Features.Cookies;
 
 /// <summary>
 /// RFC 6265 §5.2 — Parses a Set-Cookie header value into a <see cref="CookieEntry"/>.

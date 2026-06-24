@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Pooling;
+namespace GaudiHTTP.Streams.Pooling;
 
 internal sealed class Http2PoolingStrategy : IPoolingStrategy
 {

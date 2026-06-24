@@ -1,11 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerAutoContinueSpec
 {

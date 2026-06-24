@@ -1,7 +1,7 @@
 using System.Text;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Hpack;
 
 public sealed class HpackHuffmanSpec
 {

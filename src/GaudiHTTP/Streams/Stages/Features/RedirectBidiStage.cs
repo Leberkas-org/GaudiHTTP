@@ -1,11 +1,11 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Protocol.Semantics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that evaluates redirects on the response path and re-injects
@@ -37,7 +37,7 @@ internal sealed class RedirectBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
     internal static readonly HttpRequestOptionsKey<RedirectHandler> RedirectHandlerKey
-        = new("TurboHTTP.RedirectHandler");
+        = new("GaudiHTTP.RedirectHandler");
 
     private readonly RedirectPolicy? _policy;
 

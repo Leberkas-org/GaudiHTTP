@@ -1,6 +1,6 @@
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
 /// <summary>
 /// HPACK-specific exception for RFC 7541 protocol violations.

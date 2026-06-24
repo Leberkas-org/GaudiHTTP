@@ -2,11 +2,11 @@ using System.Net;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Features.AltSvc;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Features.AltSvc;
+using GaudiHTTP.Protocol;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that discovers HTTP/3 availability via Alt-Svc headers (RFC 7838).

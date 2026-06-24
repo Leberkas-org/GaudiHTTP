@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 public sealed class Http3ConnectEncodingSpec
 {

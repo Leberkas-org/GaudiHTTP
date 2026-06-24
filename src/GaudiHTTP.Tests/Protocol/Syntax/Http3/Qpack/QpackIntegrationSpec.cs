@@ -1,9 +1,9 @@
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Qpack;
 
 public sealed class QpackIntegrationSpec
 {
@@ -30,7 +30,7 @@ public sealed class QpackIntegrationSpec
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
         request.Headers.TryAddWithoutValidation("accept", "text/html");
-        request.Headers.TryAddWithoutValidation("user-agent", "TurboHttp/1.0");
+        request.Headers.TryAddWithoutValidation("user-agent", "GaudiHttp/1.0");
 
         var frames = encoder.Encode(request);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -44,7 +44,7 @@ public sealed class QpackIntegrationSpec
 
         // Verify regular headers
         Assert.Contains(headers, h => h is { Name: "accept", Value: "text/html" });
-        Assert.Contains(headers, h => h is { Name: "user-agent", Value: "TurboHttp/1.0" });
+        Assert.Contains(headers, h => h is { Name: "user-agent", Value: "GaudiHttp/1.0" });
     }
 
     [Fact(Timeout = 5000)]

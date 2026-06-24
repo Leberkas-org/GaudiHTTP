@@ -1,10 +1,10 @@
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerEncoderSpec
 {

@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11ClientEncoderSpec
 {

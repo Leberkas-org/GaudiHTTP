@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
 internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSize)
 {

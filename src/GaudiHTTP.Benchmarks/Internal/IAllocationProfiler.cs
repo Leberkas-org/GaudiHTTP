@@ -1,4 +1,4 @@
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Abstraction for in-process per-type allocation profiling via GCAllocationTick.

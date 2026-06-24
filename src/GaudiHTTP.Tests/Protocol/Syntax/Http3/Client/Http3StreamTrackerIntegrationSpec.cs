@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 /// <summary>
 /// Regression tests for the H3 StreamTracker leak bug:

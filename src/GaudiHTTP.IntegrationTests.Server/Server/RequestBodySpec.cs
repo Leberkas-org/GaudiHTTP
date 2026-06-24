@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server;
+namespace GaudiHTTP.IntegrationTests.Server;
 
 public sealed class RequestBodySpec
 {
@@ -16,7 +16,7 @@ public sealed class RequestBodySpec
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
-        builder.Host.UseTurboHttp(o =>
+        builder.Host.UseGaudiHttp(o =>
             o.Listen(IPAddress.Loopback, 0, lo => lo.Protocols = HttpProtocols.Http1));
 
         await using var app = builder.Build();

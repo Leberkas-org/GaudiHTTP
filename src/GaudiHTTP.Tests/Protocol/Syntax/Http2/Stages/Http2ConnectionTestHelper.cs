@@ -1,7 +1,7 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
 internal static class Http2ConnectionTestHelper
 {

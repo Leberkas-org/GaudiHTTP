@@ -2,17 +2,17 @@ using System.Buffers;
 using System.Net;
 using Akka.Actor;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Pooling;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
 internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 {

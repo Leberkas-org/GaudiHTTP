@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 /// <summary>
 /// Regression spec for the HTTP/3 client QPACK-blocked DATA loss: when a response's HEADERS

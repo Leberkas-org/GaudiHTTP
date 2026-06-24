@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// Unified per-stream state for HTTP/3 multiplexing (client and server).
@@ -12,7 +12,7 @@ namespace TurboHTTP.Protocol.Syntax.Http3;
 internal sealed class StreamState
 {
     private HttpResponseMessage? _response;
-    private TurboHttpRequestFeature? _requestFeature;
+    private GaudiHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
     private string? _pseudoMethod;
     private string? _pseudoPath;
@@ -77,12 +77,12 @@ internal sealed class StreamState
         return _response ?? throw new InvalidOperationException("No response has been initialized.");
     }
 
-    public void InitRequestFeature(TurboHttpRequestFeature feature)
+    public void InitRequestFeature(GaudiHttpRequestFeature feature)
     {
         _requestFeature = feature;
     }
 
-    public TurboHttpRequestFeature? GetRequestFeature()
+    public GaudiHttpRequestFeature? GetRequestFeature()
     {
         return _requestFeature;
     }

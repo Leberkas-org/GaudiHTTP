@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax;
 
-namespace TurboHTTP.Tests.Protocol.Syntax;
+namespace GaudiHTTP.Tests.Protocol.Syntax;
 
 public sealed class HeaderRouterSpec
 {

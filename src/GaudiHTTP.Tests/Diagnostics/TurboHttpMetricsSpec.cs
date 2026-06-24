@@ -1,21 +1,21 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace GaudiHTTP.Tests.Diagnostics;
 
 [CollectionDefinition("OTEL", DisableParallelization = true)]
 public sealed class OTelCollection;
 
 [Collection("OTEL")]
-public sealed class TurboHttpMetricsSpec : IDisposable
+public sealed class GaudiHttpMetricsSpec : IDisposable
 {
     private readonly MeterListener _listener;
     private readonly ConcurrentBag<MetricMeasurement<long>> _longMeasurements = [];
     private readonly ConcurrentBag<MetricMeasurement<double>> _doubleMeasurements = [];
 
-    public TurboHttpMetricsSpec()
+    public GaudiHttpMetricsSpec()
     {
         var meterName = Metrics.Meter.Name;
         _listener = new MeterListener();

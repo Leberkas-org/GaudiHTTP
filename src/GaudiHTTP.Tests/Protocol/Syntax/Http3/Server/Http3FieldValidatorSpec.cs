@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3FieldValidatorSpec
 {

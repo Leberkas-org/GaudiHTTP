@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
 public sealed class ConnectTunnelSpec
 {

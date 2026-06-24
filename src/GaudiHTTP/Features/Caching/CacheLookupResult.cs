@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 internal enum CacheLookupStatus
 {

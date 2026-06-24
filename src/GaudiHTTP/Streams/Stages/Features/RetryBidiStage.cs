@@ -1,11 +1,11 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Protocol.Semantics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that evaluates retry decisions on the response path and
@@ -250,7 +250,7 @@ internal sealed class RetryBidiStage
 
 internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy policy)
 {
-    private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("TurboHTTP.RetryAttemptCount");
+    private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("GaudiHTTP.RetryAttemptCount");
 
     private readonly Queue<HttpRequestMessage> _readyRetries = new();
     private readonly Dictionary<string, HttpRequestMessage> _waitingRetries = new();

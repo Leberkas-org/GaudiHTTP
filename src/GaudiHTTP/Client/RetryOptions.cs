@@ -1,10 +1,10 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Configuration for the automatic retry policy applied to failed or rate-limited requests.
-/// Pass to <c>WithRetry</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// Pass to <c>WithRetry</c> on an <see cref="IGaudiHttpClientBuilder"/>.
 /// </summary>
 public sealed class RetryOptions
 {

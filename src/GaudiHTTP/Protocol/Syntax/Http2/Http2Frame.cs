@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 // HTTP/2 Frame Types  -  RFC 9113 §6
 //

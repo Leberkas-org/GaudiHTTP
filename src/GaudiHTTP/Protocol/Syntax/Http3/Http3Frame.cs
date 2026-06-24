@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 // HTTP/3 Frame Types  -  RFC 9114 §7
 //

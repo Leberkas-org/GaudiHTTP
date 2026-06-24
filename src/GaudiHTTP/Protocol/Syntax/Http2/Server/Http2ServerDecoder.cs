@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 internal sealed class Http2ServerDecoder
 {
@@ -45,9 +45,9 @@ internal sealed class Http2ServerDecoder
         _hpack = CreateHpack();
     }
 
-    public TurboHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
+    public GaudiHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
     {
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         PopulateRequestFeature(streamId, state, feature);
 
         if (!endStream)
@@ -58,7 +58,7 @@ internal sealed class Http2ServerDecoder
         return feature;
     }
 
-    public void PopulateRequestFeature(int streamId, StreamState state, TurboHttpRequestFeature feature)
+    public void PopulateRequestFeature(int streamId, StreamState state, GaudiHttpRequestFeature feature)
     {
         var headers = _hpack.Decode(state.GetHeaderSpan());
         ValidateHeaderSize(headers, streamId);

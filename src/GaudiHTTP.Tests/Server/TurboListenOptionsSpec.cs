@@ -1,9 +1,9 @@
 using System.Net;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Server;
+namespace GaudiHTTP.Tests.Server;
 
 public sealed class TurboListenOptionsSpec
 {
@@ -126,7 +126,7 @@ public sealed class TurboListenOptionsSpec
     {
         var options = new TurboListenOptions(IPAddress.Loopback, 80);
         options.UseConnectionLogging();
-        Assert.Equal("TurboHTTP.Server.ConnectionLogging", options.ConnectionLoggingCategory);
+        Assert.Equal("GaudiHTTP.Server.ConnectionLogging", options.ConnectionLoggingCategory);
     }
 
     [Fact(Timeout = 5000)]

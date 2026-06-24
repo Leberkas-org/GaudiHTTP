@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server;
+namespace GaudiHTTP.IntegrationTests.Server;
 
 public sealed class SseServerSpec(TurboServerFixture server) : IDisposable
 {

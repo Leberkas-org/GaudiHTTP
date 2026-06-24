@@ -1,12 +1,12 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that handles both request body compression and response body

@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.StatusCodes;
+namespace GaudiHTTP.Tests.Protocol.Semantics.StatusCodes;
 
 public sealed class StatusCodeSemanticSpec
 {

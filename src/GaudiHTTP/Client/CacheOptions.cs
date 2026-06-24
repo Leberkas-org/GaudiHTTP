@@ -1,10 +1,10 @@
-using TurboHTTP.Features.Caching;
+using GaudiHTTP.Features.Caching;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Configuration for the HTTP response cache applied by the client pipeline.
-/// Pass to <c>WithCache</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// Pass to <c>WithCache</c> on an <see cref="IGaudiHttpClientBuilder"/>.
 /// </summary>
 public sealed class CacheOptions
 {

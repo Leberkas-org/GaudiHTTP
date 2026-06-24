@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// HTTP/3 unidirectional stream types as defined in RFC 9114 §6.2.

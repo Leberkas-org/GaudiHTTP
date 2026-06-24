@@ -1,7 +1,7 @@
 using System.Threading.Tasks.Sources;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Internal;
+namespace GaudiHTTP.Internal;
 
 internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 {
@@ -9,7 +9,7 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 
     private ManualResetValueTaskSourceCore<HttpResponseMessage> _core = new() { RunContinuationsAsynchronously = true };
 
-    // Intrusive linked-list node used by TurboHttpClient's lock-free pending-request list.
+    // Intrusive linked-list node used by GaudiHttpClient's lock-free pending-request list.
     // Written only while the request is live (between Rent and Return); cleared before Return.
     internal PendingRequest? Next;
 

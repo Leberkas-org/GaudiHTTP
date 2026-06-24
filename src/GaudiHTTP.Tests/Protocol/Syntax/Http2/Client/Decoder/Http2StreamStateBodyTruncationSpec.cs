@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
 /// <summary>
 /// RFC 9113 §8.1.1: a stream that ends before (or after) the declared Content-Length is

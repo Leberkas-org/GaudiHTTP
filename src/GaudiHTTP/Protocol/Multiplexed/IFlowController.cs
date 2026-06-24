@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal interface IFlowController<T> where T : notnull
 {

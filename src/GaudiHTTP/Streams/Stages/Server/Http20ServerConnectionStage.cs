@@ -2,10 +2,10 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Server;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Streams.Stages.Server;
+namespace GaudiHTTP.Streams.Stages.Server;
 
 internal sealed class Http20ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     : GraphStage<ServerConnectionShape>

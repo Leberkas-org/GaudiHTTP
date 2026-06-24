@@ -2,12 +2,12 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Server;
+namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageSpec : StreamTestBase
 {
@@ -25,9 +25,9 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     private static IFeatureCollection Request(string protocol = "HTTP/2")
     {
         var fc = new FeatureCollection();
-        fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Protocol = protocol });
-        fc.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        fc.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
+        fc.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Protocol = protocol });
+        fc.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature());
+        fc.Set<IHttpResponseBodyFeature>(new GaudiHttpResponseBodyFeature());
         return fc;
     }
 
@@ -185,7 +185,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         release.SetResult();
 
         var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
-        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as GaudiHttpResponseBodyFeature;
         Assert.NotNull(bodyFeature);
         Assert.False(bodyFeature!.HasPipe,
             "Buffered async handler (no FlushAsync) should not create a Pipe");
@@ -219,7 +219,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             TestContext.Current.CancellationToken);
 
         var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
-        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as GaudiHttpResponseBodyFeature;
         Assert.NotNull(bodyFeature);
         Assert.True(bodyFeature!.HasPipe,
             "Streaming async handler (explicit FlushAsync) should create a Pipe");

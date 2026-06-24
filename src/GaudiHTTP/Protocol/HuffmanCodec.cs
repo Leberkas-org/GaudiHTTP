@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal sealed class HuffmanException(string message) : Exception(message);
 

@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.LineBased;
+namespace GaudiHTTP.Protocol.LineBased;
 
 internal static class PreBakedStatusLines
 {

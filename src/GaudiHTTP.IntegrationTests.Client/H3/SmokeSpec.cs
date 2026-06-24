@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H3;
+namespace GaudiHTTP.IntegrationTests.Client.H3;
 
 [Collection("H3")]
 public sealed class SmokeSpec : IntegrationSpecBase
@@ -75,14 +75,14 @@ public sealed class SmokeSpec : IntegrationSpecBase
     public async Task Headers_should_be_forwarded_to_server()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Custom-Test", "turbohttp-h3");
+        request.Headers.Add("X-Custom-Test", "GaudiHttp-h3");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Equal("turbohttp-h3", headers.GetHeaderValue("X-Custom-Test"));
+        Assert.Equal("GaudiHttp-h3", headers.GetHeaderValue("X-Custom-Test"));
     }
 
     [Fact(Timeout = 20000)]

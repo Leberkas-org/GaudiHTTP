@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal interface IStreamStatePool<TState> where TState : class
 {

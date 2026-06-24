@@ -1,14 +1,14 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 /// <summary>
 /// Regression spec for the HTTP/3 response-body-drain teardown safety. When a stream is torn
@@ -75,10 +75,10 @@ public sealed class Http3ResponseBodyDrainTeardownSpec
     private static async Task<IFeatureCollection> StartedEmptyResponse(long streamId)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
         features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         await bodyFeature.StartAsync();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;

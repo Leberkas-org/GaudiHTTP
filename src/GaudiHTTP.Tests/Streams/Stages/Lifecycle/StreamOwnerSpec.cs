@@ -1,10 +1,10 @@
 using Akka.Actor;
 using Akka.TestKit.Xunit;
-using TurboHTTP.Client;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class StreamOwnerSpec : TestKit
 {

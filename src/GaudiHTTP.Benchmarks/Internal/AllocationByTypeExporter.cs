@@ -4,7 +4,7 @@ using BenchmarkDotNet.Reports;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Post-processes EventPipeProfiler .nettrace files to extract per-type allocation

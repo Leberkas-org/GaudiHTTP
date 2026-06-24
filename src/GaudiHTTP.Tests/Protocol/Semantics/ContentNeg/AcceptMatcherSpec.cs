@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.ContentNeg;
+namespace GaudiHTTP.Tests.Protocol.Semantics.ContentNeg;
 
 public sealed class AcceptMatcherSpec
 {

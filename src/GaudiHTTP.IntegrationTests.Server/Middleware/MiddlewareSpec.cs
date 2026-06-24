@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Middleware;
+namespace GaudiHTTP.IntegrationTests.Server.Middleware;
 
 public sealed class MiddlewareSpec(TurboServerFixture server) : IDisposable
 {
@@ -20,7 +20,7 @@ public sealed class MiddlewareSpec(TurboServerFixture server) : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.Contains("X-Powered-By"));
-        Assert.Equal("TurboHTTP", response.Headers.GetValues("X-Powered-By").First());
+        Assert.Equal("GaudiHTTP", response.Headers.GetValues("X-Powered-By").First());
     }
 
     [Fact(Timeout = 15000)]
@@ -55,6 +55,6 @@ public sealed class MiddlewareSpec(TurboServerFixture server) : IDisposable
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.Contains("X-Powered-By"));
-        Assert.Equal("TurboHTTP", response.Headers.GetValues("X-Powered-By").First());
+        Assert.Equal("GaudiHTTP", response.Headers.GetValues("X-Powered-By").First());
     }
 }

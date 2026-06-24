@@ -1,11 +1,11 @@
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Server;
 
 internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options, ConnectionPoolContext poolContext)
 {
@@ -178,14 +178,14 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options, Co
         return DecodeOutcome.Complete;
     }
 
-    public TurboHttpRequestFeature GetRequestFeature()
+    public GaudiHttpRequestFeature GetRequestFeature()
     {
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         PopulateRequestFeature(feature);
         return feature;
     }
 
-    public void PopulateRequestFeature(TurboHttpRequestFeature feature)
+    public void PopulateRequestFeature(GaudiHttpRequestFeature feature)
     {
         feature.Protocol = _version switch
         {

@@ -1,8 +1,8 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Lifecycle;
+namespace GaudiHTTP.IntegrationTests.Server.Lifecycle;
 
 public sealed class ServerSmokeSpec(TurboServerFixture server) : IDisposable
 {
@@ -22,7 +22,7 @@ public sealed class ServerSmokeSpec(TurboServerFixture server) : IDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var value = JsonSerializer.Deserialize<string>(body);
-        Assert.Equal("Hello from TurboHTTP Server", value);
+        Assert.Equal("Hello from GaudiHTTP Server", value);
     }
 
     [Fact(Timeout = 15000)]

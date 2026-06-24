@@ -2,9 +2,9 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.End2End.H2;
 
 [Collection("H2")]
 public sealed class RoundtripSpec : End2EndSpecBase

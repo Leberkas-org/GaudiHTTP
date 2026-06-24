@@ -1,12 +1,12 @@
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
-using TurboHTTP.Client;
+using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
 /// Concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
-/// <see cref="ITurboHttpClient.SendAsync"/>. This isolates pure protocol multiplexing efficiency:
+/// <see cref="IGaudiHttpClient.SendAsync"/>. This isolates pure protocol multiplexing efficiency:
 /// for H2/H3 it measures stream multiplexing + HPACK/QPACK + flow control on one connection (the
 /// core multiplexing value proposition); for H1.1 it measures pipelining/serialization on one
 /// connection. The standard concurrent suite hides this by spreading load across many connections.

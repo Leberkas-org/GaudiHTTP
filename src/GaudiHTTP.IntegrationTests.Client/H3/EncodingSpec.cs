@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H3;
+namespace GaudiHTTP.IntegrationTests.Client.H3;
 
 [Collection("H3")]
 public sealed class EncodingSpec : IntegrationSpecBase

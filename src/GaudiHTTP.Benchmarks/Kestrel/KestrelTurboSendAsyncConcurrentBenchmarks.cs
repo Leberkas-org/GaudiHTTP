@@ -1,12 +1,12 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
+using GaudiHTTP.Benchmarks.Internal;
 
-namespace TurboHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
-/// Benchmarks measuring <see cref="ITurboHttpClient"/> performance using
-/// <see cref="ITurboHttpClient.SendAsync"/> under concurrent load against
+/// Benchmarks measuring <see cref="IGaudiHttpClient"/> performance using
+/// <see cref="IGaudiHttpClient.SendAsync"/> under concurrent load against
 /// a localhost Kestrel server.
 /// </summary>
 [MemoryDiagnoser]

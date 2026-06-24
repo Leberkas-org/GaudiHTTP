@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal class Http11ClientEngine(TurboClientOptions options) : IClientProtocolEngine
 {

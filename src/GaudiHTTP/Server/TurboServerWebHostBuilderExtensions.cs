@@ -3,16 +3,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
-/// <summary>Extension methods for <see cref="IHostBuilder"/> to register TurboHTTP as the ASP.NET Core server.</summary>
+/// <summary>Extension methods for <see cref="IHostBuilder"/> to register GaudiHTTP as the ASP.NET Core server.</summary>
 public static class TurboServerWebHostBuilderExtensions
 {
     /// <summary>
     /// Replaces the registered <see cref="IServer"/> with <see cref="TurboServer"/> and optionally
     /// applies <paramref name="configure"/> to <see cref="TurboServerOptions"/>.
     /// </summary>
-    public static IHostBuilder UseTurboHttp(
+    public static IHostBuilder UseGaudiHttp(
         this IHostBuilder builder,
         Action<TurboServerOptions>? configure = null)
     {

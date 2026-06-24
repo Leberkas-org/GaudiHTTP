@@ -1,10 +1,10 @@
 using System.Text;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Security;
 
 public sealed class Http11NegativePathSpec
 {

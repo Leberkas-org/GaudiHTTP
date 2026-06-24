@@ -2,9 +2,9 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Shared;
+namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
 /// <summary>
 /// Base for tests that drive TurboServer over TLS with one or more negotiated protocols,
@@ -21,7 +21,7 @@ public abstract class MultiProtocolTlsServerSpecBase : ServerSpecBase
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
         var certificate = CreateSelfSignedCertificate("localhost");
-        builder.Host.UseTurboHttp(options => ConfigureListener(options, port, certificate));
+        builder.Host.UseGaudiHttp(options => ConfigureListener(options, port, certificate));
     }
 
     /// <summary>

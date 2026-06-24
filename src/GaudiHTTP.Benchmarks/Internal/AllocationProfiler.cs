@@ -1,7 +1,7 @@
 using System.Diagnostics.Tracing;
 using System.Text;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// In-process allocation profiler. Subscribes to the runtime's GCAllocationTick events

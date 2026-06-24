@@ -2,24 +2,24 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http10.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http10.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10DataRateSpec
 {
     private static IFeatureCollection CreateStreamingResponseContext(long contentLength)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         responseFeature.Headers["Content-Length"] = contentLength.ToString();
         features.Set<IHttpResponseFeature>(responseFeature);
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         bodyFeature.UpgradeToPipe();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;

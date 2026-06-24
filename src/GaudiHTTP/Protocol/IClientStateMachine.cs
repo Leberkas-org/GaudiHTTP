@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal interface IClientStateMachine
 {

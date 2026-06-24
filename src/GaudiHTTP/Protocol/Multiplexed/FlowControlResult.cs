@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal readonly record struct WindowUpdateSignal<T>(T StreamId, int Increment) where T : notnull;
 

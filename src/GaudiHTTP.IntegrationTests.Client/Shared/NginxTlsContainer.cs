@@ -4,7 +4,7 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 internal sealed record NginxContainerOptions(
     string Name,
@@ -39,7 +39,7 @@ internal sealed class NginxTlsContainer : IAsyncDisposable
         {
             var listenPort = _options.EnableQuic ? GetFreePort() : _options.InternalPort;
 
-            var confDir = Path.Combine(Path.GetTempPath(), "turbohttp-nginx-ssl", _options.Name);
+            var confDir = Path.Combine(Path.GetTempPath(), "GaudiHttp-nginx-ssl", _options.Name);
             Directory.CreateDirectory(confDir);
             var confPath = Path.Combine(confDir, "nginx.conf");
             await File.WriteAllTextAsync(confPath, BuildNginxConf(listenPort));

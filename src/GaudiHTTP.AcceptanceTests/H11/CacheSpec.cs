@@ -1,17 +1,17 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H11;
+namespace GaudiHTTP.AcceptanceTests.H11;
 
 public sealed class CacheSpec : ClientAcceptanceTestBase
 {
     private async Task<List<HttpResponseMessage>> SendMultipleAsync(
         IReadOnlyList<(HttpRequestMessage Request, string? ExpectedCachePath)> requests,
         Func<int, byte[], byte[]?> responseFactory,
-        Action<ITurboHttpClientBuilder>? configure = null)
+        Action<IGaudiHttpClientBuilder>? configure = null)
     {
         var stage = CreateScriptedConnection(responseFactory);
         var transports = new TransportRegistry()

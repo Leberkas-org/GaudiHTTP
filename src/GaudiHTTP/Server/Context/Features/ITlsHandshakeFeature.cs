@@ -1,7 +1,7 @@
 using System.Net.Security;
 using System.Security.Authentication;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
 /// <summary>
 /// Exposes TLS handshake details for a connection: the negotiated protocol version,

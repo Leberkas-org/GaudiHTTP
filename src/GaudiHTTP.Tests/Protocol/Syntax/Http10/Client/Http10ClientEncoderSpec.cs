@@ -1,7 +1,7 @@
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http10.Client;
+using GaudiHTTP.Protocol.Syntax.Http10.Client;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientEncoderSpec
 {
@@ -83,13 +83,13 @@ public sealed class Http10ClientEncoderSpec
     public void Encode_should_include_user_agent_when_set()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        request.Headers.TryAddWithoutValidation("User-Agent", "TurboHTTP/1.0");
+        request.Headers.TryAddWithoutValidation("User-Agent", "GaudiHTTP/1.0");
 
         var buf = new byte[256];
         var written = MakeEncoder().Encode(buf, request, out _);
         var text = Encoding.ASCII.GetString(buf, 0, written);
 
-        Assert.Contains("User-Agent: TurboHTTP/1.0", text);
+        Assert.Contains("User-Agent: GaudiHTTP/1.0", text);
     }
 
     [Fact(Timeout = 5000)]

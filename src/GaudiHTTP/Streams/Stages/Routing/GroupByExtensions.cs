@@ -2,9 +2,9 @@ using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Implementation;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Routing;
+namespace GaudiHTTP.Streams.Stages.Routing;
 
 internal static class GroupByExtensions
 {

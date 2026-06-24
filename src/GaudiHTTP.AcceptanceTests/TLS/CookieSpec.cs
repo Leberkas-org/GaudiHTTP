@@ -1,11 +1,11 @@
 using System.Net;
 using System.Text.Json;
 using Akka.Streams.Dsl;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.TLS;
+namespace GaudiHTTP.AcceptanceTests.TLS;
 
 public sealed class CookieSpec : AcceptanceTestBase
 {

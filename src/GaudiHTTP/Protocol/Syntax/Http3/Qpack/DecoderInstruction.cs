@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
 /// <summary>
 /// Parsed decoder instruction (RFC 9204 §4.4).

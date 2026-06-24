@@ -1,4 +1,4 @@
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal static class ServerOptionsProjections
 {

@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Cookies;
+namespace GaudiHTTP.Features.Cookies;
 
 /// <summary>
 /// Specifies the SameSite attribute of a cookie, controlling cross-site send behavior (RFC 6265bis §5.4).

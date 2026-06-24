@@ -1,12 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 /// <summary>
 /// RFC 9110 §9.3.2 / RFC 9112 §6.3: a response to a HEAD request carries the same header fields a
@@ -33,9 +33,9 @@ public sealed class Http11ServerHeadResponseSpec
     private static IFeatureCollection BuildResponse(string method, string body)
     {
         var fc = new TurboFeatureCollection();
-        fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Method = method });
+        fc.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = method });
 
-        var responseFeature = new TurboHttpResponseFeature
+        var responseFeature = new GaudiHttpResponseFeature
         {
             StatusCode = 200,
             Headers =
@@ -44,7 +44,7 @@ public sealed class Http11ServerHeadResponseSpec
             }
         };
 
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         bodyFeature.SetResponseFeature(responseFeature);
         var bytes = Encoding.ASCII.GetBytes(body);
         var mem = bodyFeature.Writer.GetMemory(bytes.Length);

@@ -2,12 +2,12 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Server;
+namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStagePostStopSpec : StreamTestBase
 {
@@ -37,10 +37,10 @@ public sealed class ApplicationBridgeStagePostStopSpec : StreamTestBase
     private static IFeatureCollection RequestWithLifetime()
     {
         var fc = new FeatureCollection();
-        fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Protocol = "HTTP/2" });
-        fc.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        fc.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
-        fc.Set<IHttpRequestLifetimeFeature>(new TurboHttpRequestLifetimeFeature());
+        fc.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Protocol = "HTTP/2" });
+        fc.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature());
+        fc.Set<IHttpResponseBodyFeature>(new GaudiHttpResponseBodyFeature());
+        fc.Set<IHttpRequestLifetimeFeature>(new GaudiHttpRequestLifetimeFeature());
         fc.Set(new TestCompletionFeature());
         return fc;
     }

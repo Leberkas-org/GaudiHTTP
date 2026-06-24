@@ -1,12 +1,12 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class ClientStreamManagerSpec : StreamTestBase
 {

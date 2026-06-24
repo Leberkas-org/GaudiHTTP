@@ -2,11 +2,11 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 [Collection("Infrastructure")]
 public sealed class TlsHandshakeFeatureSpec : ServerSpecBase
@@ -14,7 +14,7 @@ public sealed class TlsHandshakeFeatureSpec : ServerSpecBase
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
         var certificate = CreateSelfSignedCertificate("localhost");
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.ListenLocalhost(port, listen =>
             {

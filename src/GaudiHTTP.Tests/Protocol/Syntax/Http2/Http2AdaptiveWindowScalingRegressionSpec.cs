@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Time.Testing;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2;
 
 /// <summary>
 /// Regression guard for HTTP/2 adaptive receive-window scaling (feature/h2-adaptive-window-scaling).
@@ -124,7 +124,7 @@ public sealed class Http2AdaptiveWindowScalingRegressionSpec
     {
         // Fast, deterministic UNIT repro for the H2 single-connection large-download deadlock — the
         // mechanism behind the resource-heavy integration repro
-        // (TurboHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec).
+        // (GaudiHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec).
         //
         // The adaptive scaler grows the GLOBAL per-stream WINDOW_UPDATE threshold, but a freshly opened
         // stream's *server* send window is still the advertised SETTINGS_INITIAL_WINDOW_SIZE (Start) —

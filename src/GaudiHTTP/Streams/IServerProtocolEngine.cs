@@ -3,7 +3,7 @@ using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal interface IServerProtocolEngine
 {

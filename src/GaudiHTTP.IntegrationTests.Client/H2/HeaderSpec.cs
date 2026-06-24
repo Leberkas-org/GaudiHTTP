@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H2;
+namespace GaudiHTTP.IntegrationTests.Client.H2;
 
 [Collection("H2")]
 public sealed class HeaderSpec : IntegrationSpecBase
@@ -19,14 +19,14 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_custom_header()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Custom-Test", "turbohttp-h2");
+        request.Headers.Add("X-Custom-Test", "GaudiHttp-h2");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Equal("turbohttp-h2", headers.GetHeaderValue("X-Custom-Test"));
+        Assert.Equal("GaudiHttp-h2", headers.GetHeaderValue("X-Custom-Test"));
     }
 
     [Fact(Timeout = 15000)]
@@ -55,14 +55,14 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_user_agent()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.UserAgent.ParseAdd("TurboHTTP/2.0 IntegrationTest");
+        request.Headers.UserAgent.ParseAdd("GaudiHTTP/2.0 IntegrationTest");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Contains("TurboHTTP/2.0", headers.GetHeaderValue("User-Agent"));
+        Assert.Contains("GaudiHTTP/2.0", headers.GetHeaderValue("User-Agent"));
     }
 
     [Fact(Timeout = 15000)]

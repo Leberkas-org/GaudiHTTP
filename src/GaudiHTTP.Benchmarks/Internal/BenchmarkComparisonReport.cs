@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Represents the measured result of a single benchmark scenario.
@@ -20,15 +20,15 @@ public sealed record BenchmarkResult(
     long AllocatedBytes);
 
 /// <summary>
-/// Generates human-readable markdown reports comparing TurboHttp (SendAsync and Streaming)
+/// Generates human-readable markdown reports comparing GaudiHttp (SendAsync and Streaming)
 /// against standard <see cref="System.Net.Http.HttpClient"/> benchmark results.
 /// Results are split into single-request (CL=1) and concurrent (CL&gt;1) sections automatically.
 /// </summary>
 public static class BenchmarkComparisonReport
 {
     /// <summary>
-    /// Generates a three-way markdown report comparing HttpClient, TurboHttp SendAsync, and
-    /// TurboHttp Streaming. Results with CL=1 are shown as single-request benchmarks;
+    /// Generates a three-way markdown report comparing HttpClient, GaudiHttp SendAsync, and
+    /// GaudiHttp Streaming. Results with CL=1 are shown as single-request benchmarks;
     /// results with CL&gt;1 are shown as concurrent benchmarks.
     /// </summary>
     public static string GenerateReport(
@@ -134,7 +134,7 @@ public static class BenchmarkComparisonReport
 
     private static void AppendKestrelClientHeader(StringBuilder sb, DateTime reportDate)
     {
-        sb.AppendLine("# TurboHttp vs HttpClient — Kestrel Localhost");
+        sb.AppendLine("# GaudiHttp vs HttpClient — Kestrel Localhost");
         sb.AppendLine();
         sb.AppendLine("| | |");
         sb.AppendLine("|---|---|");
@@ -166,7 +166,7 @@ public static class BenchmarkComparisonReport
 
     private static void AppendKestrelHeader(StringBuilder sb, DateTime reportDate)
     {
-        sb.AppendLine("# TurboHttp vs HttpClient — Localhost Kestrel (Loopback)");
+        sb.AppendLine("# GaudiHttp vs HttpClient — Localhost Kestrel (Loopback)");
         sb.AppendLine();
         sb.AppendLine("| | |");
         sb.AppendLine("|---|---|");

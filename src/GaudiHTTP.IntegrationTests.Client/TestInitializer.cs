@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace TurboHTTP.IntegrationTests.Client;
+namespace GaudiHTTP.IntegrationTests.Client;
 
 internal static class TestInitializer
 {

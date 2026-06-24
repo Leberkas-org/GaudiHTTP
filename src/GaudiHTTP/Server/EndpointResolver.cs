@@ -6,7 +6,7 @@ using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic.Listener;
 using Servus.Akka.Transport.Tcp.Listener;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal sealed class EndpointResolver
 {
@@ -127,14 +127,14 @@ internal sealed class EndpointResolver
         return listenOptions;
     }
 
-    private static void ApplyHttpsDefaults(TurboHttpsOptions httpsOptions, Action<TurboHttpsOptions>? defaultsCallback)
+    private static void ApplyHttpsDefaults(GaudiHttpsOptions httpsOptions, Action<GaudiHttpsOptions>? defaultsCallback)
     {
         if (defaultsCallback is null)
         {
             return;
         }
 
-        var defaults = new TurboHttpsOptions();
+        var defaults = new GaudiHttpsOptions();
         defaultsCallback(defaults);
 
         httpsOptions.ServerCertificate ??= defaults.ServerCertificate;
@@ -161,7 +161,7 @@ internal sealed class EndpointResolver
         }
     }
 
-    private static X509Certificate2? ResolveCertificate(TurboHttpsOptions httpsOptions)
+    private static X509Certificate2? ResolveCertificate(GaudiHttpsOptions httpsOptions)
     {
         if (httpsOptions.ServerCertificate is not null)
         {

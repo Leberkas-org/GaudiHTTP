@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Multiplexed;
 
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 internal sealed class FlowController : IFlowController<int>
 {
@@ -181,7 +181,7 @@ internal sealed class FlowController : IFlowController<int>
                             // server send window would be exhausted before the client ever accumulated enough to
                             // emit a WINDOW_UPDATE, deadlocking the stream after the first ~1 MB. Keeping it at
                             // advertised/4 keeps replenishment ahead of the server on every stream.
-                            // Repro: TurboHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec.
+                            // Repro: GaudiHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec.
                         }
                     }
 

@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10;
 
 public sealed class HeaderRouterSpec
 {

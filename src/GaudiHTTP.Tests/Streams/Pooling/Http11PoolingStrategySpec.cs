@@ -1,7 +1,7 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Pooling;
+using GaudiHTTP.Streams.Pooling;
 
-namespace TurboHTTP.Tests.Streams.Pooling;
+namespace GaudiHTTP.Tests.Streams.Pooling;
 
 public sealed class Http11PoolingStrategySpec
 {

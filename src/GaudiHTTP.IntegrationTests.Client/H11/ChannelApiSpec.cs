@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H11;
+namespace GaudiHTTP.IntegrationTests.Client.H11;
 
 [Collection("H11")]
 public sealed class ChannelApiSpec : IntegrationSpecBase

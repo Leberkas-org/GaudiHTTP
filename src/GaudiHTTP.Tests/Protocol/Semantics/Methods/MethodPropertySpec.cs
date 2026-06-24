@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Methods;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Methods;
 
 public sealed class MethodPropertySpec
 {

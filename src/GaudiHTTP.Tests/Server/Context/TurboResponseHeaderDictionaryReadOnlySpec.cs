@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Primitives;
-using TurboHTTP.Server.Context;
+using GaudiHTTP.Server.Context;
 
-namespace TurboHTTP.Tests.Server.Context;
+namespace GaudiHTTP.Tests.Server.Context;
 
 public sealed class TurboResponseHeaderDictionaryReadOnlySpec
 {

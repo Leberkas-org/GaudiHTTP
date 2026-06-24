@@ -2,7 +2,7 @@ using System.Collections;
 using Microsoft.AspNetCore.Hosting.Server.Abstractions;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
 /// <summary>
 /// A thin generic view over a pooled <see cref="TurboFeatureCollection"/> that adds

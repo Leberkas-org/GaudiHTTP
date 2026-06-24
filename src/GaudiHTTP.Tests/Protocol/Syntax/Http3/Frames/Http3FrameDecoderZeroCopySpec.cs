@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Frames;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
 
 /// <summary>
 /// Contract of the zero-copy <c>DecodeAll(ReadOnlyMemory&lt;byte&gt;)</c> overload: payloads of

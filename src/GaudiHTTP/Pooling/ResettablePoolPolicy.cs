@@ -1,6 +1,6 @@
 using Microsoft.Extensions.ObjectPool;
 
-namespace TurboHTTP.Pooling;
+namespace GaudiHTTP.Pooling;
 
 // Creates instances via an injected factory (handles ctor args) and resets them on return. One
 // policy type serves every pooled object kind.

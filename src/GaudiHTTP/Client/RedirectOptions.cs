@@ -1,10 +1,10 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
 /// Configuration for the automatic redirect-following policy applied to HTTP responses
-/// with 3xx status codes. Pass to <c>WithRedirect</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// with 3xx status codes. Pass to <c>WithRedirect</c> on an <see cref="IGaudiHttpClientBuilder"/>.
 /// </summary>
 public sealed class RedirectOptions
 {

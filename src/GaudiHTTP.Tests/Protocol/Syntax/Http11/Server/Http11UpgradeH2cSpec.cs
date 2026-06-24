@@ -4,14 +4,14 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11UpgradeH2CSpec
 {

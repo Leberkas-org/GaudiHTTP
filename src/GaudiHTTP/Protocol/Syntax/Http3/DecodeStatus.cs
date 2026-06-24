@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// Result of a frame decode attempt.

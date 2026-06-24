@@ -1,11 +1,11 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Internal;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Internal;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
 /// Bidirectional stage that injects cookies into outgoing requests (RFC 6265 §5.4)

@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Features;
+namespace GaudiHTTP.IntegrationTests.Client.Features;
 
 [Collection("Range")]
 public sealed class RangeFeatureSpec : FeatureSpecBase

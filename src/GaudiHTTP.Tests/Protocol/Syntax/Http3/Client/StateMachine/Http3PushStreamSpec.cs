@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3PushStreamSpec
 {

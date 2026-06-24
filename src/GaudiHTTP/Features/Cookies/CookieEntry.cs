@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Cookies;
+namespace GaudiHTTP.Features.Cookies;
 
 internal sealed record CookieEntry(
     string Name,

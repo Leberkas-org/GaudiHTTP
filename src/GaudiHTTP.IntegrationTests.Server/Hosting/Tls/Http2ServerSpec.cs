@@ -1,10 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
 /// Real HTTP/2 requests against TurboServer over TLS, driven by a neutral .NET HttpClient.

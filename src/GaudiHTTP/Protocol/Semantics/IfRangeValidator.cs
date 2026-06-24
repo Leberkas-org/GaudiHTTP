@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §13.1.5 — validates the If-Range request header.

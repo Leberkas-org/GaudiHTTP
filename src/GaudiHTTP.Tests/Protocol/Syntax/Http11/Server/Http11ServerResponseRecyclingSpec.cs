@@ -1,12 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 /// <summary>
 /// Body-suppressed responses (1xx/204/304 and responses to HEAD) emit headers only and never run
@@ -32,9 +32,9 @@ public sealed class Http11ServerResponseRecyclingSpec
     private static IFeatureCollection ResponseFeatures(int statusCode, string requestMethod = "GET")
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Method = requestMethod });
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = statusCode });
-        features.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = requestMethod });
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = statusCode });
+        features.Set<IHttpResponseBodyFeature>(new GaudiHttpResponseBodyFeature());
         return features;
     }
 

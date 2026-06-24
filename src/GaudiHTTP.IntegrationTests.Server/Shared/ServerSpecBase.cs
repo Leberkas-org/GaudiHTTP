@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace TurboHTTP.IntegrationTests.Server.Shared;
+namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
 public abstract class ServerSpecBase : IAsyncLifetime
 {

@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.TLS;
+namespace GaudiHTTP.AcceptanceTests.TLS;
 
 public sealed class ConnectionSpec : AcceptanceTestBase
 {

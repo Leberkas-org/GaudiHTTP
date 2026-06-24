@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal interface IServerStateMachine
 {

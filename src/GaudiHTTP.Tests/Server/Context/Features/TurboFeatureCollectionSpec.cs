@@ -1,8 +1,8 @@
 using System.Net;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Server.Context.Features;
+namespace GaudiHTTP.Tests.Server.Context.Features;
 
 public sealed class TurboFeatureCollectionSpec
 {
@@ -17,7 +17,7 @@ public sealed class TurboFeatureCollectionSpec
     public void Set_and_Get_should_round_trip_for_request_feature()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         collection.Set<IHttpRequestFeature>(feature);
         Assert.Same(feature, collection.Get<IHttpRequestFeature>());
     }
@@ -26,7 +26,7 @@ public sealed class TurboFeatureCollectionSpec
     public void Set_and_Get_should_round_trip_for_response_feature()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpResponseFeature();
+        var feature = new GaudiHttpResponseFeature();
         collection.Set<IHttpResponseFeature>(feature);
         Assert.Same(feature, collection.Get<IHttpResponseFeature>());
     }
@@ -35,7 +35,7 @@ public sealed class TurboFeatureCollectionSpec
     public void Set_and_Get_should_round_trip_for_connection_feature()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpConnectionFeature
+        var feature = new GaudiHttpConnectionFeature
         {
             ConnectionId = "test-connection",
             RemoteIpAddress = IPAddress.Loopback,
@@ -51,7 +51,7 @@ public sealed class TurboFeatureCollectionSpec
     public void Set_null_should_clear_feature()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         collection.Set<IHttpRequestFeature>(feature);
         collection.Set<IHttpRequestFeature>(null);
         Assert.Null(collection.Get<IHttpRequestFeature>());
@@ -70,7 +70,7 @@ public sealed class TurboFeatureCollectionSpec
     public void IFeatureCollection_Get_should_work_for_aspnet_interfaces()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         collection.Set<IHttpRequestFeature>(feature);
         IFeatureCollection fc = collection;
         Assert.Same(feature, fc.Get<IHttpRequestFeature>());
@@ -80,7 +80,7 @@ public sealed class TurboFeatureCollectionSpec
     public void IFeatureCollection_indexer_should_work()
     {
         var collection = new TurboFeatureCollection();
-        var feature = new TurboHttpRequestFeature();
+        var feature = new GaudiHttpRequestFeature();
         IFeatureCollection fc = collection;
         fc[typeof(IHttpRequestFeature)] = feature;
         Assert.Same(feature, fc[typeof(IHttpRequestFeature)]);

@@ -1,7 +1,7 @@
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
 {

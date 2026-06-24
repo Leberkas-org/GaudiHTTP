@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 [Trait("RFC", "RFC9112")]
 public sealed class RequestValidatorSpec

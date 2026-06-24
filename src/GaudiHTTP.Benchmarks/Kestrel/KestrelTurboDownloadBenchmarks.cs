@@ -1,11 +1,11 @@
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
-using TurboHTTP.Client;
+using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
-/// Large-download throughput for <see cref="ITurboHttpClient.SendAsync"/> against a localhost
+/// Large-download throughput for <see cref="IGaudiHttpClient.SendAsync"/> against a localhost
 /// Kestrel server. Exercises the response receive path (framing decode → QueuedBodyReader →
 /// transport reads) that the upload/light suites never touch. Each request fully drains the
 /// response body into <see cref="Stream.Null"/> so only receive-path cost is measured.

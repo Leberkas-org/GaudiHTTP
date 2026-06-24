@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Syntax.Http3;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Frames;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
 
 /// <summary>
 /// A frame whose declared length is satisfied but whose body is shorter than the frame type

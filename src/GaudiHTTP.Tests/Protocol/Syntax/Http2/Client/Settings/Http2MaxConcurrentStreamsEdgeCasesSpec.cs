@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.Settings;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Settings;
 
 public sealed class Http2MaxConcurrentStreamsEdgeCasesSpec
 {

@@ -1,11 +1,11 @@
 using System.Net;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
 
-namespace TurboHTTP.Protocol.Syntax.Http10.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
 internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, ConnectionPoolContext poolContext)
 {

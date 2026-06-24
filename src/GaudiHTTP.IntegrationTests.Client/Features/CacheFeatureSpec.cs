@@ -1,9 +1,9 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Features;
+namespace GaudiHTTP.IntegrationTests.Client.Features;
 
 [Collection("Cache")]
 public sealed class CacheFeatureSpec : FeatureSpecBase

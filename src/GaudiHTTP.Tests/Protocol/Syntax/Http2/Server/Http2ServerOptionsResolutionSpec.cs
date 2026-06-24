@@ -1,6 +1,6 @@
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2ServerOptionsResolutionSpec
 {

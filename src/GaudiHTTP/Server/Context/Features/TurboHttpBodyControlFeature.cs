@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpBodyControlFeature : IHttpBodyControlFeature
+internal sealed class GaudiHttpBodyControlFeature : IHttpBodyControlFeature
 {
     public bool AllowSynchronousIO { get; set; }
 

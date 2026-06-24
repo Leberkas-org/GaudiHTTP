@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 internal sealed class Http3ClientDecoder
 {

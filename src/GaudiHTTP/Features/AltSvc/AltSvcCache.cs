@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 
-namespace TurboHTTP.Features.AltSvc;
+namespace GaudiHTTP.Features.AltSvc;
 
 /// <summary>
 /// Thread-safe per-host cache of Alt-Svc directives with TTL-based expiration.

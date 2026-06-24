@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Hpack;
 
 public sealed class HpackDecoderEdgeCasesSpec
 {

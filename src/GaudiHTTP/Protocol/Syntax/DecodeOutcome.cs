@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax;
+namespace GaudiHTTP.Protocol.Syntax;
 
 internal enum DecodeOutcome
 {

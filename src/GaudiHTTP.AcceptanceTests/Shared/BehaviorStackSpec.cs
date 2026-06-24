@@ -1,6 +1,6 @@
 using Servus.Akka.TestKit;
 
-namespace TurboHTTP.AcceptanceTests.Shared;
+namespace GaudiHTTP.AcceptanceTests.Shared;
 
 public sealed class BehaviorStackSpec
 {

@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder.Security;
 
 /// <summary>
 /// HTTP/2 cross-component security tests exercising the Http2ServerDecoder

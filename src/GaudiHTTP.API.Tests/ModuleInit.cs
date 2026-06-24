@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace TurboHTTP.API.Tests;
+namespace GaudiHTTP.API.Tests;
 
 public static class ModuleInit
 {

@@ -3,11 +3,11 @@ using System.Net.Sockets;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 /// <summary>
 /// Verifies HTTPS requests tunnel through a forward proxy via CONNECT: an in-process

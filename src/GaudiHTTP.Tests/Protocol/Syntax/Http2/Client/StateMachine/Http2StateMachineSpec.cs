@@ -1,12 +1,12 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineSpec
 {

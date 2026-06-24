@@ -2,16 +2,16 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Channels;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// Default <see cref="ITurboHttpClient"/> implementation backed by an Akka Streams pipeline.
-/// Instances are created by <see cref="ITurboHttpClientFactory.CreateClient"/> — do not instantiate directly.
+/// Default <see cref="IGaudiHttpClient"/> implementation backed by an Akka Streams pipeline.
+/// Instances are created by <see cref="IGaudiHttpClientFactory.CreateClient"/> — do not instantiate directly.
 /// </summary>
-public sealed class TurboHttpClient : ITurboHttpClient
+public sealed class GaudiHttpClient : IGaudiHttpClient
 {
     private static readonly int MaxPooledCts = Math.Max(Environment.ProcessorCount * 4, 64);
 
@@ -109,7 +109,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
             _proxy);
     }
 
-    internal TurboHttpClient(
+    internal GaudiHttpClient(
         ChannelWriter<HttpRequestMessage> requests,
         ChannelReader<HttpResponseMessage> responses,
         TurboRequestOptions options,
@@ -340,7 +340,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
     private static ObjectDisposedException CreateClientDisposedException()
     {
-        return new ObjectDisposedException(nameof(TurboHttpClient),
+        return new ObjectDisposedException(nameof(GaudiHttpClient),
             "Cannot send request because the client has been disposed.");
     }
 }

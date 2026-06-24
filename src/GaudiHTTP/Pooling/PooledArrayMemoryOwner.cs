@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Pooling;
+namespace GaudiHTTP.Pooling;
 
 // An IMemoryOwner backed by a rented array from a caller-supplied ArrayPool. Returns the array
 // to that pool exactly once on Dispose. Used for body buffers that are rented on the connection-

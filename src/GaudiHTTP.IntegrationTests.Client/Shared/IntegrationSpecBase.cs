@@ -1,8 +1,8 @@
 using Akka.Actor;
-using TurboHTTP.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 {
@@ -19,7 +19,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     protected virtual ProtocolVariant? Variant => null;
 
-    protected ITurboHttpClient Client => _helper!.Client;
+    protected IGaudiHttpClient Client => _helper!.Client;
 
     protected ActorSystem ActorSystem => _systemFixture.System;
 
@@ -48,7 +48,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     protected ClientHelper CreateClient(
         ProtocolVariant variant,
-        Action<ITurboHttpClientBuilder>? configure = null,
+        Action<IGaudiHttpClientBuilder>? configure = null,
         Action<TurboClientOptions>? configureOptions = null)
     {
         SkipIfUnavailable(variant);
@@ -80,7 +80,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     private ClientHelper BuildClient(
         ProtocolVariant variant,
-        Action<ITurboHttpClientBuilder>? configure = null,
+        Action<IGaudiHttpClientBuilder>? configure = null,
         Action<TurboClientOptions>? configureOptions = null)
     {
         var (port, scheme, host) = variant switch

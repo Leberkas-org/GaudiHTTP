@@ -3,13 +3,13 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// TLS/HTTPS configuration applied to a single server endpoint. Specifies the server
 /// certificate, optional client-certificate policy, and TLS handshake parameters.
 /// </summary>
-public sealed class TurboHttpsOptions
+public sealed class GaudiHttpsOptions
 {
     /// <summary>Gets or sets the in-memory server certificate. Takes precedence over <see cref="CertificatePath"/> when both are set.</summary>
     public X509Certificate2? ServerCertificate { get; set; }

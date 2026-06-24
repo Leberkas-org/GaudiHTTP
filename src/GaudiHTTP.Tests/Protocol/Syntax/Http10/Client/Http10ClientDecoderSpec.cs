@@ -1,10 +1,10 @@
 using System.Net;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http10.Client;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax.Http10.Client;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientDecoderSpec
 {

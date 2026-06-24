@@ -1,13 +1,13 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Collections.Immutable;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Stages.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Client;
+namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class HandlerBidiStageSpec : StreamTestBase
 {

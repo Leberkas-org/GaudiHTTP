@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal static class Http2ConnectionOptionsExtensions
 {

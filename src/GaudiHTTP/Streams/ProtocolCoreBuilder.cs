@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Routing;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Stages.Routing;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 /// <summary>
 /// Builds the protocol engine core: <see cref="GroupByExtensions.GroupByRequestEndpoint{T,TMat}"/>

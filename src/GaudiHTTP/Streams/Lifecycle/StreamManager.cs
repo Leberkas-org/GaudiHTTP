@@ -1,9 +1,9 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
 
-namespace TurboHTTP.Streams.Lifecycle;
+namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class ClientStreamManager : ReceiveActor
 {

@@ -1,11 +1,11 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
 /// <summary>
 /// Encodes HTTP/3 response messages into HEADERS and DATA frame sequences.

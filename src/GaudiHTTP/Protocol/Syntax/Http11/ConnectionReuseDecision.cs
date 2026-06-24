@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace TurboHTTP.Protocol.Syntax.Http11;
+namespace GaudiHTTP.Protocol.Syntax.Http11;
 
 /// <summary>
 /// Result of evaluating whether an HTTP/1.x connection can be reused for subsequent requests.

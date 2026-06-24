@@ -1,11 +1,11 @@
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H10;
+namespace GaudiHTTP.AcceptanceTests.H10;
 
 public sealed class RedirectSpec : AcceptanceTestBase
 {

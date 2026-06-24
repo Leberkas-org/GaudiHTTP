@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H11;
+namespace GaudiHTTP.IntegrationTests.Client.H11;
 
 [Collection("H11")]
 public sealed class HeaderSpec : IntegrationSpecBase
@@ -19,14 +19,14 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_custom_header()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Custom-Test", "turbohttp-h11");
+        request.Headers.Add("X-Custom-Test", "GaudiHttp-h11");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Equal("turbohttp-h11", headers.GetHeaderValue("X-Custom-Test"));
+        Assert.Equal("GaudiHttp-h11", headers.GetHeaderValue("X-Custom-Test"));
     }
 
     [Fact(Timeout = 15000)]
@@ -51,14 +51,14 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_user_agent()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.UserAgent.ParseAdd("TurboHTTP/1.1 IntegrationTest");
+        request.Headers.UserAgent.ParseAdd("GaudiHTTP/1.1 IntegrationTest");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Contains("TurboHTTP/1.1", headers.GetHeaderValue("User-Agent"));
+        Assert.Contains("GaudiHTTP/1.1", headers.GetHeaderValue("User-Agent"));
     }
 
     [Fact(Timeout = 15000)]

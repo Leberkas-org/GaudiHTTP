@@ -1,15 +1,15 @@
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Server;
 
 internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
 {
@@ -229,7 +229,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _deferredFeatures = features;
 
         var responseBody = features.Get<IHttpResponseBodyFeature>();
-        if (responseBody is TurboHttpResponseBodyFeature turboBody)
+        if (responseBody is GaudiHttpResponseBodyFeature turboBody)
         {
             if (turboBody.TryGetBufferedBody(out var bufferedBody))
             {

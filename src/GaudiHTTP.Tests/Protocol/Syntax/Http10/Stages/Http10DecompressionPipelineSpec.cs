@@ -1,15 +1,15 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Stages;
 
 public sealed class Http10DecompressionPipelineSpec : EngineTestBase
 {

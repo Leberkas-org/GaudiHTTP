@@ -1,6 +1,6 @@
 using System.Net.Security;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Flags enumeration of HTTP protocol versions that a server endpoint may negotiate.

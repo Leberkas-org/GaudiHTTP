@@ -3,9 +3,9 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.Shared;
+namespace GaudiHTTP.AcceptanceTests.Shared;
 
 public sealed class ResponseMapFakeSpec : TestKit
 {

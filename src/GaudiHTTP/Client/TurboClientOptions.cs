@@ -4,17 +4,17 @@ using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// Immutable snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
+/// Immutable snapshot of <see cref="GaudiHttpClient"/> configuration captured at request-submission time.
 /// Passed into the pipeline so per-request options always reflect the client state at the moment of submission.
 /// </summary>
 /// <param name="BaseAddress">The base URI used to resolve relative request URIs.</param>
 /// <param name="DefaultRequestHeaders">Default headers that are added to every outgoing request.</param>
 /// <param name="DefaultRequestVersion">The default HTTP version for new requests.</param>
 /// <param name="DefaultVersionPolicy">The policy that determines which HTTP version is negotiated.</param>
-/// <param name="Timeout">The per-request timeout applied by <see cref="ITurboHttpClient.SendAsync"/>.</param>
+/// <param name="Timeout">The per-request timeout applied by <see cref="IGaudiHttpClient.SendAsync"/>.</param>
 /// <param name="Credentials">Optional credentials for server authentication.</param>
 /// <param name="PreAuthenticate">When <see langword="true"/>, the Authorization header is sent proactively without waiting for a 401.</param>
 /// <param name="UseProxy">Whether requests are routed through <paramref name="Proxy"/> when one is configured.</param>
@@ -31,8 +31,8 @@ public record TurboRequestOptions(
     IWebProxy? Proxy = null);
 
 /// <summary>
-/// Top-level configuration for a named TurboHTTP client.
-/// Set via <c>AddTurboHttpClient(name, o => { … })</c> in <see cref="TurboClientServiceCollectionExtensions"/>.
+/// Top-level configuration for a named GaudiHTTP client.
+/// Set via <c>AddGaudiHttpClient(name, o => { … })</c> in <see cref="TurboClientServiceCollectionExtensions"/>.
 /// Contains per-protocol sub-options (<see cref="Http1"/>, <see cref="Http2"/>, <see cref="Http3"/>)
 /// as well as shared transport, TLS, proxy, and pool settings.
 /// </summary>
@@ -85,7 +85,7 @@ public sealed class TurboClientOptions
     /// <summary>
     /// Maximum number of distinct endpoints (identified by <c>(scheme, host, port, version)</c>)
     /// that may be active concurrently. Controls the ceiling for per-endpoint multiplexing and connection pooling.
-    /// Must be at least 1. Default is 256. TurboHTTP-specific.
+    /// Must be at least 1. Default is 256. GaudiHTTP-specific.
     /// </summary>
     public uint MaxConcurrentEndpoints { get; set; } = 256;
 

@@ -6,9 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public sealed class ClientHelper : IAsyncDisposable
 {
@@ -18,7 +18,7 @@ public sealed class ClientHelper : IAsyncDisposable
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _provider;
     private readonly bool _ownsSystem;
 
-    private ClientHelper(Microsoft.Extensions.DependencyInjection.ServiceProvider provider, ITurboHttpClient client,
+    private ClientHelper(Microsoft.Extensions.DependencyInjection.ServiceProvider provider, IGaudiHttpClient client,
         bool ownsSystem)
     {
         _provider = provider;
@@ -26,14 +26,14 @@ public sealed class ClientHelper : IAsyncDisposable
         _ownsSystem = ownsSystem;
     }
 
-    public ITurboHttpClient Client { get; }
+    public IGaudiHttpClient Client { get; }
 
     public static ClientHelper CreateClient(
         int port,
         Version version,
         string scheme = "http",
         ILoggerFactory? loggerFactory = null,
-        Action<ITurboHttpClientBuilder>? configure = null,
+        Action<IGaudiHttpClientBuilder>? configure = null,
         ActorSystem? system = null,
         Action<TurboClientOptions>? configureOptions = null,
         string host = "127.0.0.1")
@@ -59,13 +59,13 @@ public sealed class ClientHelper : IAsyncDisposable
                 ? bootstrap.And(diSetup).And(new LoggerFactorySetup(loggerFactory))
                 : bootstrap.And(diSetup);
 
-            system = ActorSystem.Create($"turbohttp-{Guid.NewGuid()}", setup);
+            system = ActorSystem.Create($"GaudiHttp-{Guid.NewGuid()}", setup);
             ownsSystem = true;
         }
 
         services.AddSingleton(system);
 
-        var builder = services.AddTurboHttpClient();
+        var builder = services.AddGaudiHttpClient();
 
         var options = new TurboClientOptions
         {
@@ -80,7 +80,7 @@ public sealed class ClientHelper : IAsyncDisposable
 
         var provider = services.BuildServiceProvider();
 
-        var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = provider.GetRequiredService<IGaudiHttpClientFactory>();
         var client = factory.CreateClient(string.Empty);
         client.BaseAddress = options.BaseAddress;
         client.DefaultRequestVersion = version;

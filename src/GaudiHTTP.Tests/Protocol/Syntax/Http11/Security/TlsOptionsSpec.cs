@@ -1,13 +1,13 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Security;
 
 public sealed class TlsOptionsSpec
 {

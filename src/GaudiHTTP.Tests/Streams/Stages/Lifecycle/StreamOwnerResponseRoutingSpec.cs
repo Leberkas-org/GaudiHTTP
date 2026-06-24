@@ -1,6 +1,6 @@
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// A response must route to the PartitionHub slot of the consumer that issued it. The slot is the

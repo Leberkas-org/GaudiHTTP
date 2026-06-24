@@ -2,15 +2,15 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
-public sealed class TurboHttpClientSpec
+public sealed class GaudiHttpClientSpec
 {
-    private static readonly ConstructorInfo TurboHttpClientCtor = typeof(TurboHttpClient)
+    private static readonly ConstructorInfo GaudiHttpClientCtor = typeof(GaudiHttpClient)
         .GetConstructor(
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
@@ -22,7 +22,7 @@ public sealed class TurboHttpClientSpec
             ],
             null)!;
 
-    private static TurboHttpClient CreateTestClient(
+    private static GaudiHttpClient CreateTestClient(
         Channel<HttpRequestMessage>? requests = null,
         Channel<HttpResponseMessage>? responses = null,
         Guid? consumerId = null,
@@ -45,7 +45,7 @@ public sealed class TurboHttpClientSpec
             Credentials: null,
             PreAuthenticate: false);
 
-        var client = (TurboHttpClient)TurboHttpClientCtor.Invoke(
+        var client = (GaudiHttpClient)GaudiHttpClientCtor.Invoke(
             [requests.Writer, responses.Reader, options, registration]);
 
         return client;
@@ -127,7 +127,7 @@ public sealed class TurboHttpClientSpec
             Credentials: null,
             PreAuthenticate: false);
 
-        using var client = (TurboHttpClient)TurboHttpClientCtor.Invoke(
+        using var client = (GaudiHttpClient)GaudiHttpClientCtor.Invoke(
             [capturing, responses.Reader, options, registration]);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");

@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 /// <summary>
 /// Pure decision function for HTTP/2 adaptive receive-window growth.

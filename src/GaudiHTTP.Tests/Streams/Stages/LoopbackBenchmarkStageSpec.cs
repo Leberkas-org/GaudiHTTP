@@ -2,10 +2,10 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages;
+namespace GaudiHTTP.Tests.Streams.Stages;
 
 public sealed class LoopbackBenchmarkStageSpec : EngineTestBase
 {

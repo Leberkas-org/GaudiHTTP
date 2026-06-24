@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Streaming;
+namespace GaudiHTTP.IntegrationTests.Server.Streaming;
 
 public sealed class ResponseBodySpec(TurboServerFixture server) : IDisposable
 {

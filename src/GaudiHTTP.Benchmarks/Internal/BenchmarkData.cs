@@ -1,4 +1,4 @@
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 public static class BenchmarkData
 {

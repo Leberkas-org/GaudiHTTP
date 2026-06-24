@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
 internal readonly record struct ResolvedStream(long LogicalStreamId, TransportBuffer? Buffer);
 

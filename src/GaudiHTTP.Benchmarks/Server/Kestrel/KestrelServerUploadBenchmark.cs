@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
+using GaudiHTTP.Benchmarks.Internal;
 
-namespace TurboHTTP.Benchmarks.Server.Kestrel;
+namespace GaudiHTTP.Benchmarks.Server.Kestrel;
 
 [MemoryDiagnoser]
 [WarmupCount(3)]

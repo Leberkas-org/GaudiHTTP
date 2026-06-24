@@ -1,13 +1,13 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H2;
+namespace GaudiHTTP.AcceptanceTests.H2;
 
 public sealed class ExpectContinueSpec : AcceptanceTestBase
 {

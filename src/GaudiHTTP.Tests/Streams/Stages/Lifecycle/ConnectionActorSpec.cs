@@ -6,11 +6,11 @@ using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using System.Net;
-using TurboHTTP.Server;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Lifecycle;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Lifecycle;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class ConnectionActorSpec : TestKit
 {

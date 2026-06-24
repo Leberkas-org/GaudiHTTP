@@ -1,7 +1,7 @@
-﻿using System.Net;
-using TurboHTTP.Tests.Shared;
+using System.Net;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H11;
+namespace GaudiHTTP.AcceptanceTests.H11;
 
 public sealed class SmokeSpec : ClientAcceptanceTestBase
 {

@@ -2,11 +2,11 @@ using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Features.Caching.Stages;
+namespace GaudiHTTP.Tests.Features.Caching.Stages;
 
 public sealed class CacheBidiAsyncBodySpec : StreamTestBase
 {

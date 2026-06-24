@@ -1,12 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http10.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http10.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 /// <summary>
 /// Verifies that the H1.0 server handles the streaming response body path correctly,
@@ -16,12 +16,12 @@ public sealed class Http10ServerBodyPumpStallSpec
 {
     private const int ChunkSize = 16 * 1024;
 
-    private static (IFeatureCollection Features, TurboHttpResponseBodyFeature BodyFeature)
+    private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
         CreateStreamingResponseContext(int bodySize, bool setContentLength = false)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         if (setContentLength)
         {
             responseFeature.Headers["Content-Length"] = bodySize.ToString();
@@ -29,7 +29,7 @@ public sealed class Http10ServerBodyPumpStallSpec
 
         features.Set<IHttpResponseFeature>(responseFeature);
 
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         var writer = bodyFeature.Writer;
         var remaining = bodySize;
         while (remaining > 0)

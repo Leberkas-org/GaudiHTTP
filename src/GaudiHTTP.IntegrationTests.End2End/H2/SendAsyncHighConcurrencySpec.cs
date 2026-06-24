@@ -11,11 +11,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using TraceLevel = Servus.Diagnostics.TraceLevel;
 using static Servus.Senf;
 
-namespace TurboHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.End2End.H2;
 
 /// <summary>
 /// Reproduces the benchmark showstopper: SendAsync stalls at 512+ concurrent requests
@@ -25,7 +25,7 @@ namespace TurboHTTP.IntegrationTests.End2End.H2;
 public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 {
     private WebApplication? _kestrelApp;
-    private ITurboHttpClient? _client;
+    private IGaudiHttpClient? _client;
     private Microsoft.Extensions.DependencyInjection.ServiceProvider? _clientProvider;
     private string _baseUri = string.Empty;
 
@@ -74,7 +74,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
             .Features.Get<IServerAddressesFeature>()!.Addresses.First()).Port;
         _baseUri = $"http://127.0.0.1:{port}";
 
-        // --- TurboHTTP client (matches benchmark ClientHelper config) ---
+        // --- GaudiHTTP client (matches benchmark ClientHelper config) ---
         ConfigureTracing();
 
         var services = new ServiceCollection();
@@ -95,13 +95,13 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
             },
         };
 
-        services.AddTurboHttpClient();
+        services.AddGaudiHttpClient();
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         _clientProvider = services.BuildServiceProvider();
 
-        var factory = _clientProvider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = _clientProvider.GetRequiredService<IGaudiHttpClientFactory>();
         _client = factory.CreateClient(string.Empty);
         _client.BaseAddress = new Uri(_baseUri);
         _client.DefaultRequestVersion = HttpVersion.Version20;

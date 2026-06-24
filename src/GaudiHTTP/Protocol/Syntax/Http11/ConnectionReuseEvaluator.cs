@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax.Http11;
+namespace GaudiHTTP.Protocol.Syntax.Http11;
 
 /// <summary>
 /// RFC 9112 §9 — Evaluates whether an HTTP connection can be reused after receiving a response.

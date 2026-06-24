@@ -1,6 +1,6 @@
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Features.Cookies;
 
-namespace TurboHTTP.Tests.Features.Cookies;
+namespace GaudiHTTP.Tests.Features.Cookies;
 
 public sealed class CookieParserSpec
 {

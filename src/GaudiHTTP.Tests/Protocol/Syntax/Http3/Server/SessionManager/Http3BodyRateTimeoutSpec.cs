@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3BodyRateTimeoutSpec
 {
@@ -171,7 +171,7 @@ public sealed class Http3BodyRateTimeoutSpec
         Assert.Single(ops.Requests);
         var context = ops.Requests[0];
 
-        var requestFeature = context.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature = context.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature);
         Assert.Equal("GET", requestFeature.Method);
         Assert.Equal("https", requestFeature.Scheme);

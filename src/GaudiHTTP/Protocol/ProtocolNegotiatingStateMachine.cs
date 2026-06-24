@@ -3,14 +3,14 @@ using Akka.Actor;
 using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http10.Server;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Protocol.Syntax.Http2.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Protocol.Syntax.Http10.Server;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Protocol.Syntax.Http2.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 {
@@ -279,9 +279,9 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IActorRef StageActor => real.StageActor;
         public Akka.Streams.IMaterializer Materializer => real.Materializer;
         public IServiceProvider? Services => real.Services;
-        public TurboHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
+        public GaudiHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
         public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
-        public TurboHTTP.Pooling.ConnectionPoolContext? PoolContext => real.PoolContext;
+        public GaudiHTTP.Pooling.ConnectionPoolContext? PoolContext => real.PoolContext;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {

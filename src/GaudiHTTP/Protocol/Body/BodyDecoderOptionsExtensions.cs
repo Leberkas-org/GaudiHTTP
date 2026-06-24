@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal static class BodyDecoderOptionsExtensions
 {

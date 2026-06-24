@@ -3,15 +3,15 @@ using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Retry;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Retry;
 
 public sealed class RetryCoreSpec : StreamTestBase
 {
-    private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("TurboHTTP.RetryAttemptCount");
+    private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("GaudiHTTP.RetryAttemptCount");
 
     private Task<IImmutableList<HttpRequestMessage>> RunRequestAsync(
         RetryBidiStage stage,

@@ -1,9 +1,9 @@
 using System.Text;
 using Microsoft.Extensions.Primitives;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Server.Context;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Server.Context;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerTrailerEncodingSpec
 {

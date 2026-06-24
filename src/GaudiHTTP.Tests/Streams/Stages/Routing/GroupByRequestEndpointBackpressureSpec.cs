@@ -2,11 +2,11 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using Akka.Streams.Dsl;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Routing;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Stages.Routing;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Routing;
+namespace GaudiHTTP.Tests.Streams.Stages.Routing;
 
 /// <summary>
 /// The routing stage must propagate backpressure when a slot's bounded channel fills: it should

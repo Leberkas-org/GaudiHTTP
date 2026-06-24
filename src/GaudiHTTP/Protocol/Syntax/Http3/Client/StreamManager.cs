@@ -1,14 +1,14 @@
 using System.Buffers;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Pooling;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 /// <summary>
 /// Manages per-stream response assembly, request-response correlation, and

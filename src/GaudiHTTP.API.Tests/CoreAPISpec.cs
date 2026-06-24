@@ -1,7 +1,7 @@
 using PublicApiGenerator;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.API.Tests;
+namespace GaudiHTTP.API.Tests;
 
 public class CoreAPISpec
 {
@@ -23,6 +23,6 @@ public class CoreAPISpec
     [Fact]
     public Task ApproveCore()
     {
-        return VerifyAssembly<ITurboHttpClient>();
+        return VerifyAssembly<IGaudiHttpClient>();
     }
 }

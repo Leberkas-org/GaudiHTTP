@@ -1,11 +1,11 @@
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
-using TurboHTTP.Client;
+using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
-/// Cold-start cost for <see cref="ITurboHttpClient"/>: each measured invocation creates a fresh
+/// Cold-start cost for <see cref="IGaudiHttpClient"/>: each measured invocation creates a fresh
 /// client (ActorSystem + pipeline materialization) and performs its FIRST request against an
 /// already-warm Kestrel server, capturing connection establishment (DNS/TCP/TLS/QUIC handshake) and
 /// actor-system spin-up. <see cref="InvocationCountAttribute"/> = 1 keeps each measurement a genuine

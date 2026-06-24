@@ -2,9 +2,9 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams;
+using GaudiHTTP.Streams;
 
-namespace TurboHTTP.Tests.Streams.Stages;
+namespace GaudiHTTP.Tests.Streams.Stages;
 
 public sealed class TransportRegistrySpec
 {

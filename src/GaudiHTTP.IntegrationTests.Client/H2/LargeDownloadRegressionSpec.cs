@@ -1,9 +1,9 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H2;
+namespace GaudiHTTP.IntegrationTests.Client.H2;
 
 /// <summary>
 /// Repro for the HTTP/2 large-download hang in the 2026-06-19 benchmark run
@@ -43,7 +43,7 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
         }
     }
 
-    private async Task DownloadAsync(ITurboHttpClient client, int size)
+    private async Task DownloadAsync(IGaudiHttpClient client, int size)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(30));

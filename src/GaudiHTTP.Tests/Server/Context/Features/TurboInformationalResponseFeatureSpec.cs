@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Server.Context.Features;
+namespace GaudiHTTP.Tests.Server.Context.Features;
 
 public sealed class TurboInformationalResponseFeatureSpec
 {

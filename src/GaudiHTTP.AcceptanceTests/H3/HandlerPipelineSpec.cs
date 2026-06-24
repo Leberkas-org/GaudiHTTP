@@ -1,14 +1,14 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.IO.Compression;
 using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Streams.Stages.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Streams.Stages.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H3;
+namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class HandlerPipelineSpec : AcceptanceTestBase
 {

@@ -3,11 +3,11 @@ using System.Net.Security;
 using System.Security.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
-using TurboHTTP.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol;
+namespace GaudiHTTP.Tests.Protocol;
 
 public sealed class ProtocolNegotiatingStateMachineSpec
 {

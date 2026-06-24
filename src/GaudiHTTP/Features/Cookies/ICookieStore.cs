@@ -1,4 +1,4 @@
-namespace TurboHTTP.Features.Cookies;
+namespace GaudiHTTP.Features.Cookies;
 
 /// <summary>
 /// Pluggable storage back-end for cookie entries used by the cookie jar.

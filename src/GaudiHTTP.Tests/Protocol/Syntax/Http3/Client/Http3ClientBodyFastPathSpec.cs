@@ -1,11 +1,11 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Tests.Shared;
-using TurboHTTP.Tests.TestSupport;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 public sealed class Http3ClientBodyFastPathSpec
 {

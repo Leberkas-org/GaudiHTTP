@@ -1,10 +1,10 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3SettingsSpec
 {

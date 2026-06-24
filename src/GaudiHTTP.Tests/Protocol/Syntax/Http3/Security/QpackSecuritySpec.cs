@@ -1,8 +1,8 @@
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Security;
 
 public sealed class QpackSecuritySpec
 {

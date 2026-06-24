@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §12.4.2 — Represents a value with an associated quality factor (q-value).

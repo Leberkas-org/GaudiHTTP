@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3;
+namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// Tracks HTTP/3 stream lifecycle - ID allocation, active stream count, and concurrency limits.

@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H3;
+namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class RequestFormatSpec : AcceptanceTestBase
 {

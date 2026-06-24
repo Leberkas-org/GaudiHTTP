@@ -1,7 +1,7 @@
 using System.IO.Compression;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Encoding;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Encoding;
 
 public sealed class DecompressingContentEdgeCasesSpec
 {

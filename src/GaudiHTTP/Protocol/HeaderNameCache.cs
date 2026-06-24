@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 /// <summary>Per-connection cache that maps UTF-8 header name bytes to interned strings via FNV-1a hashing.</summary>
 internal sealed class HeaderNameCache

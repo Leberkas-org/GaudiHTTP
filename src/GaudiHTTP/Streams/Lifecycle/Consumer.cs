@@ -4,11 +4,11 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Streams.Lifecycle;
+namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class Consumer : ReceiveActor
 {

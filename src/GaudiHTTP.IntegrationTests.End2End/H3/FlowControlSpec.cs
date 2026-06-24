@@ -1,9 +1,9 @@
 using System.Net;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H3;
+namespace GaudiHTTP.IntegrationTests.End2End.H3;
 
 [Collection("H3")]
 public sealed class FlowControlSpec : End2EndSpecBase

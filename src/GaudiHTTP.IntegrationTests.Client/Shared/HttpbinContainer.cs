@@ -2,12 +2,12 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
 
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 internal sealed class HttpbinContainer : IAsyncDisposable
 {
     private const int InternalPort = 8080;
-    public const string ContainerName = "turbohttp-httpbin";
+    public const string ContainerName = "GaudiHttp-httpbin";
     public const string NetworkAlias = "httpbin";
 
     private IContainer? _container;

@@ -1,4 +1,4 @@
-namespace TurboHTTP.IntegrationTests.End2End.Shared;
+namespace GaudiHTTP.IntegrationTests.End2End.Shared;
 
 [CollectionDefinition("H10")]
 public sealed class H10End2EndCollection;

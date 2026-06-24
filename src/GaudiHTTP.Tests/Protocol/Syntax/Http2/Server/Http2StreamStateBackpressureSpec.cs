@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2StreamStateBackpressureSpec
 {

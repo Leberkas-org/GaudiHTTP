@@ -1,4 +1,4 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
@@ -6,12 +6,12 @@ using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.TLS;
+namespace GaudiHTTP.AcceptanceTests.TLS;
 
 public sealed class RequestCompressionSpec : AcceptanceTestBase
 {

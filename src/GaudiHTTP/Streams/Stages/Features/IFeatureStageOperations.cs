@@ -1,6 +1,6 @@
 using Akka.Event;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 internal interface IFeatureStageOperations
 {

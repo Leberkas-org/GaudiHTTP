@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Servus.Akka.Transport;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Connection;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Connection;
 
 public sealed class CertificateValidationSpec
 {

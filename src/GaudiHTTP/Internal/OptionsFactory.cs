@@ -1,8 +1,8 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net.Security;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Internal;
+namespace GaudiHTTP.Internal;
 
 internal static class PoolKeys
 {

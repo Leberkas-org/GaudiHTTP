@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Net;
-using TurboHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.LineBased;
 
-namespace TurboHTTP.Protocol.Syntax.Http10.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
 internal sealed class Http10ClientEncoder
 {

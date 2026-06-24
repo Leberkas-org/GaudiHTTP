@@ -1,8 +1,8 @@
-using TurboHTTP.Client;
-using TurboHTTP.Streams;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams;
 using Xunit;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public abstract class ClientAcceptanceTestBase : AcceptanceTestBase
 {
@@ -10,7 +10,7 @@ public abstract class ClientAcceptanceTestBase : AcceptanceTestBase
         Version version,
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> responseFactory,
-        Action<ITurboHttpClientBuilder>? configure = null,
+        Action<IGaudiHttpClientBuilder>? configure = null,
         Action<TurboClientOptions>? configureOptions = null)
     {
         var stage = CreateScriptedConnection(responseFactory);

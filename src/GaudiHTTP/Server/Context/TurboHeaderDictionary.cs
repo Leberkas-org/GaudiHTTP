@@ -1,14 +1,14 @@
 using System.Collections;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Server.Context;
+namespace GaudiHTTP.Server.Context;
 
 /// <summary>
 /// Marker interface that extends <see cref="IHeaderDictionary"/> to identify header dictionaries
-/// managed by TurboHTTP (e.g. for type-safe retrieval from the feature collection).
+/// managed by GaudiHTTP (e.g. for type-safe retrieval from the feature collection).
 /// </summary>
 public interface ITurboHeaderDictionary : IHeaderDictionary;
 

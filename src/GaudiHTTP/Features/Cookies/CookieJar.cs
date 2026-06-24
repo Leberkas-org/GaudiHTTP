@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Features.Cookies;
+namespace GaudiHTTP.Features.Cookies;
 
 internal sealed class CookieJar(ICookieStore store)
 {
@@ -143,7 +143,7 @@ internal sealed class CookieJar(ICookieStore store)
     /// <summary>
     /// Two URIs are same-site when they share the same registrable domain (RFC 6265bis §5.2).
     /// Uses a last-two-labels approximation; multi-level public suffixes (e.g. <c>co.uk</c>) are not
-    /// resolved because TurboHTTP does not bundle a Public Suffix List.
+    /// resolved because GaudiHTTP does not bundle a Public Suffix List.
     /// </summary>
     internal static bool IsSameSite(Uri request, Uri firstParty)
         => string.Equals(

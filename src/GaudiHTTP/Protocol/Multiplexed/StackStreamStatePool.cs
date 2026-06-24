@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Multiplexed;
+namespace GaudiHTTP.Protocol.Multiplexed;
 
 internal sealed class StackStreamStatePool<TState>(int maxCapacity, Func<TState> factory) : IStreamStatePool<TState>
     where TState : class

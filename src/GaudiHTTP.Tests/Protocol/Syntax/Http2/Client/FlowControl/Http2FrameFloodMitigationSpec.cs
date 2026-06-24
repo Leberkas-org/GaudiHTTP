@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
 
 public sealed class Http2FrameFloodMitigationSpec
 {

@@ -1,11 +1,11 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using Http3Settings = TurboHTTP.Protocol.Syntax.Http3.Settings;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using Http3Settings = GaudiHTTP.Protocol.Syntax.Http3.Settings;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 /// <summary>
 /// Tests for HTTP/3 SETTINGS frame population during connection preface.

@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal readonly struct BodyReadResult(ReadOnlyMemory<byte> memory, bool isCompleted)
 {

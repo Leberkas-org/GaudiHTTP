@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Protocol.Syntax;
+namespace GaudiHTTP.Protocol.Syntax;
 
 internal static class HeaderRouter
 {

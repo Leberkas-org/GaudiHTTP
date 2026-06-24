@@ -1,9 +1,9 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Pooling;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal static class FeatureCollectionFactory
 {
@@ -13,7 +13,7 @@ internal static class FeatureCollectionFactory
 
     public static IFeatureCollection Create(
         ConnectionPoolContext pool,
-        TurboHttpRequestFeature requestFeature,
+        GaudiHttpRequestFeature requestFeature,
         bool hasBody,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
@@ -33,7 +33,7 @@ internal static class FeatureCollectionFactory
     public static IFeatureCollection Create(
         ConnectionPoolContext pool,
         bool hasBody,
-        out TurboHttpRequestFeature requestFeature,
+        out GaudiHttpRequestFeature requestFeature,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
@@ -41,14 +41,14 @@ internal static class FeatureCollectionFactory
         var features = pool.Rent(static () => new TurboFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
-        if (recycled && features.Get<IHttpRequestFeature>() is TurboHttpRequestFeature existingRequest)
+        if (recycled && features.Get<IHttpRequestFeature>() is GaudiHttpRequestFeature existingRequest)
         {
             existingRequest.Reset();
             requestFeature = existingRequest;
         }
         else
         {
-            requestFeature = new TurboHttpRequestFeature();
+            requestFeature = new GaudiHttpRequestFeature();
             features.Set<IHttpRequestFeature>(requestFeature);
         }
 
@@ -63,57 +63,57 @@ internal static class FeatureCollectionFactory
         TlsHandshakeFeature? tlsFeature,
         long? maxRequestBodySize)
     {
-        TurboHttpResponseFeature responseFeature;
-        if (recycled && features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature existingResponse)
+        GaudiHttpResponseFeature responseFeature;
+        if (recycled && features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature existingResponse)
         {
             existingResponse.Reset();
             responseFeature = existingResponse;
         }
         else
         {
-            responseFeature = new TurboHttpResponseFeature();
+            responseFeature = new GaudiHttpResponseFeature();
             features.Set<IHttpResponseFeature>(responseFeature);
         }
 
-        if (recycled && features.Get<IHttpRequestBodyDetectionFeature>() is TurboHttpRequestBodyDetectionFeature existingDetection)
+        if (recycled && features.Get<IHttpRequestBodyDetectionFeature>() is GaudiHttpRequestBodyDetectionFeature existingDetection)
         {
             existingDetection.Reset(hasBody);
         }
         else
         {
-            features.Set<IHttpRequestBodyDetectionFeature>(new TurboHttpRequestBodyDetectionFeature(hasBody));
+            features.Set<IHttpRequestBodyDetectionFeature>(new GaudiHttpRequestBodyDetectionFeature(hasBody));
         }
 
-        TurboHttpResponseBodyFeature responseBodyFeature;
-        if (recycled && features.Get<IHttpResponseBodyFeature>() is TurboHttpResponseBodyFeature existingBody)
+        GaudiHttpResponseBodyFeature responseBodyFeature;
+        if (recycled && features.Get<IHttpResponseBodyFeature>() is GaudiHttpResponseBodyFeature existingBody)
         {
             existingBody.Reset();
             responseBodyFeature = existingBody;
         }
         else
         {
-            responseBodyFeature = new TurboHttpResponseBodyFeature();
+            responseBodyFeature = new GaudiHttpResponseBodyFeature();
             features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
         }
 
         responseBodyFeature.SetResponseFeature(responseFeature);
 
-        if (recycled && features.Get<IHttpResponseTrailersFeature>() is TurboHttpResponseTrailersFeature existingTrailers)
+        if (recycled && features.Get<IHttpResponseTrailersFeature>() is GaudiHttpResponseTrailersFeature existingTrailers)
         {
             existingTrailers.Reset();
         }
         else
         {
-            features.Set<IHttpResponseTrailersFeature>(new TurboHttpResponseTrailersFeature());
+            features.Set<IHttpResponseTrailersFeature>(new GaudiHttpResponseTrailersFeature());
         }
 
-        if (recycled && features.Get<IHttpRequestTrailersFeature>() is TurboHttpRequestTrailersFeature existingRequestTrailers)
+        if (recycled && features.Get<IHttpRequestTrailersFeature>() is GaudiHttpRequestTrailersFeature existingRequestTrailers)
         {
             existingRequestTrailers.Reset();
         }
         else
         {
-            features.Set<IHttpRequestTrailersFeature>(new TurboHttpRequestTrailersFeature());
+            features.Set<IHttpRequestTrailersFeature>(new GaudiHttpRequestTrailersFeature());
         }
 
         if (connectionFeature is not null)
@@ -126,40 +126,40 @@ internal static class FeatureCollectionFactory
             features.Set<ITlsHandshakeFeature>(tlsFeature);
         }
 
-        if (recycled && features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature existingLifetime)
+        if (recycled && features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature existingLifetime)
         {
             existingLifetime.Reset();
         }
         else
         {
-            features.Set<IHttpRequestLifetimeFeature>(new TurboHttpRequestLifetimeFeature());
+            features.Set<IHttpRequestLifetimeFeature>(new GaudiHttpRequestLifetimeFeature());
         }
 
-        if (recycled && features.Get<IHttpRequestIdentifierFeature>() is TurboHttpRequestIdentifierFeature existingIdentifier)
+        if (recycled && features.Get<IHttpRequestIdentifierFeature>() is GaudiHttpRequestIdentifierFeature existingIdentifier)
         {
             existingIdentifier.Reset();
         }
         else
         {
-            features.Set<IHttpRequestIdentifierFeature>(new TurboHttpRequestIdentifierFeature());
+            features.Set<IHttpRequestIdentifierFeature>(new GaudiHttpRequestIdentifierFeature());
         }
 
-        if (recycled && features.Get<IHttpMaxRequestBodySizeFeature>() is TurboHttpMaxRequestBodySizeFeature existingMaxBody)
+        if (recycled && features.Get<IHttpMaxRequestBodySizeFeature>() is GaudiHttpMaxRequestBodySizeFeature existingMaxBody)
         {
             existingMaxBody.Reset(maxRequestBodySize);
         }
         else
         {
-            features.Set<IHttpMaxRequestBodySizeFeature>(new TurboHttpMaxRequestBodySizeFeature { MaxRequestBodySize = maxRequestBodySize });
+            features.Set<IHttpMaxRequestBodySizeFeature>(new GaudiHttpMaxRequestBodySizeFeature { MaxRequestBodySize = maxRequestBodySize });
         }
 
-        if (recycled && features.Get<IHttpBodyControlFeature>() is TurboHttpBodyControlFeature existingBodyControl)
+        if (recycled && features.Get<IHttpBodyControlFeature>() is GaudiHttpBodyControlFeature existingBodyControl)
         {
             existingBodyControl.Reset();
         }
         else
         {
-            features.Set<IHttpBodyControlFeature>(new TurboHttpBodyControlFeature());
+            features.Set<IHttpBodyControlFeature>(new GaudiHttpBodyControlFeature());
         }
 
         return features;
@@ -172,7 +172,7 @@ internal static class FeatureCollectionFactory
             return;
         }
 
-        if (features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature lifetime)
+        if (features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)
         {
             lifetime.Reset();
         }

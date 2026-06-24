@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Internal;
+namespace GaudiHTTP.Internal;
 
 internal readonly record struct RequestEndpoint
 {

@@ -3,10 +3,10 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Streams.Stages.Server;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 internal sealed class FakeServerOps : IServerStageOperations
 {

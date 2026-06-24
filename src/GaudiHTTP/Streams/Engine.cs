@@ -1,8 +1,8 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka;
 using Akka.Streams.Dsl;
 
-namespace TurboHTTP.Streams;
+namespace GaudiHTTP.Streams;
 
 internal sealed class Engine
 {

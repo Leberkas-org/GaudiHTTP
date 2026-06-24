@@ -1,4 +1,4 @@
-namespace TurboHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.IntegrationTests.Client.Shared;
 
 public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
 {
@@ -14,7 +14,7 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var mode = Environment.GetEnvironmentVariable("TURBOHTTP_TEST_BACKEND")?.ToLowerInvariant();
+        var mode = Environment.GetEnvironmentVariable("GaudiHttp_TEST_BACKEND")?.ToLowerInvariant();
 
         _backend = mode switch
         {
@@ -42,7 +42,7 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
             if (required)
             {
                 throw new InvalidOperationException(
-                    "TURBOHTTP_TEST_BACKEND=docker but Docker is not available.");
+                    "GaudiHttp_TEST_BACKEND=docker but Docker is not available.");
             }
 
             return null;

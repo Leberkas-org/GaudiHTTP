@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Body;
 
-namespace TurboHTTP.Tests.Protocol.Body;
+namespace GaudiHTTP.Tests.Protocol.Body;
 
 /// <summary>
 /// QueuedBodyReader is fed from the connection-stage thread while the application

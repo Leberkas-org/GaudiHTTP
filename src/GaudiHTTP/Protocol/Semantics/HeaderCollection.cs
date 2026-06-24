@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Text;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 internal readonly struct HeaderEntry(string name, string value)
 {

@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §9.2 — Evaluates whether an HTTP request should be automatically retried.

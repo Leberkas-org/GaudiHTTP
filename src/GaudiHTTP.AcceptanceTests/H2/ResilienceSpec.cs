@@ -1,8 +1,8 @@
-﻿using System.Net;
+using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H2;
+namespace GaudiHTTP.AcceptanceTests.H2;
 
 public sealed class ResilienceSpec : AcceptanceTestBase
 {

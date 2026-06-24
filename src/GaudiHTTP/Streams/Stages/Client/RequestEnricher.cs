@@ -1,11 +1,11 @@
 using System.Net;
 using System.Net.Http.Headers;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 /// <summary>
 /// Stateless request enrichment logic extracted from the former <see cref="RequestEnricher"/>.

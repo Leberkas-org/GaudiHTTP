@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Internal;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §15.4 — Redirect handling for HTTP clients.

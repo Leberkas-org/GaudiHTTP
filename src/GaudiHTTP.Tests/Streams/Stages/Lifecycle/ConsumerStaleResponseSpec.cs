@@ -2,12 +2,12 @@ using System.Net;
 using System.Threading.Channels;
 using Akka;
 using Akka.Streams.Dsl;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
+namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// When a response arrives for a request whose PendingRequest has already been completed or

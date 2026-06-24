@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Client;
-using TurboHTTP.Features.Cookies;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Features.Cookies;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Features.Cookies.Stages;
+namespace GaudiHTTP.Tests.Features.Cookies.Stages;
 
 public sealed class CookieBidiStageSpec : StreamTestBase
 {

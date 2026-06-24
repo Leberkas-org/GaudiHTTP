@@ -1,9 +1,9 @@
 using System.Buffers;
 using System.Net;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
 {

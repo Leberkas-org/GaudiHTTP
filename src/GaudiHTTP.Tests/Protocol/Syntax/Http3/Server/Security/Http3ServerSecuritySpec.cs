@@ -1,9 +1,9 @@
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.Security;
 
 public sealed class Http3ServerSecuritySpec
 {

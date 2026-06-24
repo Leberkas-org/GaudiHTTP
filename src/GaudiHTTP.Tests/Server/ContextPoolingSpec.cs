@@ -1,18 +1,18 @@
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Pooling;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
 
-namespace TurboHTTP.Tests.Server;
+namespace GaudiHTTP.Tests.Server;
 
 public sealed class ContextPoolingSpec
 {
     private readonly ConnectionPoolContext _pool = new();
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpResponseFeature_Reset_clears_status_code()
+    public void GaudiHttpResponseFeature_Reset_clears_status_code()
     {
-        var feature = new TurboHttpResponseFeature
+        var feature = new GaudiHttpResponseFeature
         {
             StatusCode = 404
         };
@@ -23,9 +23,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpResponseFeature_Reset_clears_reason_phrase()
+    public void GaudiHttpResponseFeature_Reset_clears_reason_phrase()
     {
-        var feature = new TurboHttpResponseFeature
+        var feature = new GaudiHttpResponseFeature
         {
             ReasonPhrase = "Not Found"
         };
@@ -36,9 +36,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpResponseFeature_Reset_clears_headers()
+    public void GaudiHttpResponseFeature_Reset_clears_headers()
     {
-        var feature = new TurboHttpResponseFeature
+        var feature = new GaudiHttpResponseFeature
         {
             Headers =
             {
@@ -52,9 +52,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpResponseFeature_Reset_clears_callbacks()
+    public void GaudiHttpResponseFeature_Reset_clears_callbacks()
     {
-        var feature = new TurboHttpResponseFeature();
+        var feature = new GaudiHttpResponseFeature();
         var callbackCalled = false;
 
         feature.OnStarting((_) =>
@@ -69,9 +69,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpResponseFeature_Reset_clears_has_started()
+    public void GaudiHttpResponseFeature_Reset_clears_has_started()
     {
-        var feature = new TurboHttpResponseFeature();
+        var feature = new GaudiHttpResponseFeature();
         _ = feature.HasStarted;
 
         feature.Reset();
@@ -82,13 +82,13 @@ public sealed class ContextPoolingSpec
     [Fact(Timeout = 5000)]
     public void FeatureCollectionFactory_Return_stores_context_in_pool()
     {
-        var ctx = FeatureCollectionFactory.Create(_pool, new TurboHttpRequestFeature(), hasBody: false);
+        var ctx = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
 
         FeatureCollectionFactory.Return(_pool, ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
             _pool,
-            new TurboHttpRequestFeature(),
+            new GaudiHttpRequestFeature(),
             hasBody: false,
             connectionFeature: null);
 
@@ -96,9 +96,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpRequestBodyDetectionFeature_Reset_should_update_CanHaveBody()
+    public void GaudiHttpRequestBodyDetectionFeature_Reset_should_update_CanHaveBody()
     {
-        var feature = new TurboHttpRequestBodyDetectionFeature(true);
+        var feature = new GaudiHttpRequestBodyDetectionFeature(true);
         Assert.True(feature.CanHaveBody);
 
         feature.Reset(false);
@@ -107,9 +107,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpRequestIdentifierFeature_Reset_should_clear_trace_identifier()
+    public void GaudiHttpRequestIdentifierFeature_Reset_should_clear_trace_identifier()
     {
-        var feature = new TurboHttpRequestIdentifierFeature();
+        var feature = new GaudiHttpRequestIdentifierFeature();
         var original = feature.TraceIdentifier;
 
         feature.Reset();
@@ -119,9 +119,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpMaxRequestBodySizeFeature_Reset_should_restore_defaults()
+    public void GaudiHttpMaxRequestBodySizeFeature_Reset_should_restore_defaults()
     {
-        var feature = new TurboHttpMaxRequestBodySizeFeature
+        var feature = new GaudiHttpMaxRequestBodySizeFeature
         {
             IsReadOnly = true,
             MaxRequestBodySize = 999
@@ -134,9 +134,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpBodyControlFeature_Reset_should_clear_AllowSynchronousIO()
+    public void GaudiHttpBodyControlFeature_Reset_should_clear_AllowSynchronousIO()
     {
-        var feature = new TurboHttpBodyControlFeature { AllowSynchronousIO = true };
+        var feature = new GaudiHttpBodyControlFeature { AllowSynchronousIO = true };
 
         feature.Reset();
 
@@ -144,9 +144,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpRequestLifetimeFeature_Reset_should_provide_fresh_non_cancelled_token()
+    public void GaudiHttpRequestLifetimeFeature_Reset_should_provide_fresh_non_cancelled_token()
     {
-        var feature = new TurboHttpRequestLifetimeFeature();
+        var feature = new GaudiHttpRequestLifetimeFeature();
         feature.Abort();
         Assert.True(feature.RequestAborted.IsCancellationRequested);
 
@@ -156,9 +156,9 @@ public sealed class ContextPoolingSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpRequestLifetimeFeature_Reset_without_cancel_should_not_throw()
+    public void GaudiHttpRequestLifetimeFeature_Reset_without_cancel_should_not_throw()
     {
-        var feature = new TurboHttpRequestLifetimeFeature();
+        var feature = new GaudiHttpRequestLifetimeFeature();
         var token1 = feature.RequestAborted;
         Assert.False(token1.IsCancellationRequested);
 
@@ -171,14 +171,14 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_reuse_response_feature_from_pool()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: false);
+            _pool, new GaudiHttpRequestFeature(), hasBody: false);
         var originalResponse = ctx.Get<IHttpResponseFeature>();
         originalResponse!.StatusCode = 404;
 
         FeatureCollectionFactory.Return(_pool, ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: true);
+            _pool, new GaudiHttpRequestFeature(), hasBody: true);
         var reusedResponse = ctx2.Get<IHttpResponseFeature>();
 
         Assert.Same(originalResponse, reusedResponse);
@@ -189,13 +189,13 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_reuse_lifetime_feature_from_pool()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: false);
+            _pool, new GaudiHttpRequestFeature(), hasBody: false);
         var originalLifetime = ctx.Get<IHttpRequestLifetimeFeature>();
 
         FeatureCollectionFactory.Return(_pool, ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: false);
+            _pool, new GaudiHttpRequestFeature(), hasBody: false);
         var reusedLifetime = ctx2.Get<IHttpRequestLifetimeFeature>();
 
         Assert.Same(originalLifetime, reusedLifetime);
@@ -206,27 +206,27 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_recycle_response_body_feature()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: false);
+            _pool, new GaudiHttpRequestFeature(), hasBody: false);
         var originalBody = ctx.Get<IHttpResponseBodyFeature>();
 
         FeatureCollectionFactory.Return(_pool, ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new TurboHttpRequestFeature(), hasBody: false);
+            _pool, new GaudiHttpRequestFeature(), hasBody: false);
         var recycledBody = ctx2.Get<IHttpResponseBodyFeature>();
 
         Assert.Same(originalBody, recycledBody);
-        Assert.False(((TurboHttpResponseBodyFeature)recycledBody!).HasStarted);
+        Assert.False(((GaudiHttpResponseBodyFeature)recycledBody!).HasStarted);
     }
 
     [Fact(Timeout = 5000)]
     public void FeatureCollectionFactory_should_reuse_same_TurboFeatureCollection_instance_from_pool()
     {
-        var ctx1 = FeatureCollectionFactory.Create(_pool, new TurboHttpRequestFeature(), hasBody: false);
+        var ctx1 = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
 
         FeatureCollectionFactory.Return(_pool, ctx1);
 
-        var ctx2 = FeatureCollectionFactory.Create(_pool, new TurboHttpRequestFeature(), hasBody: false);
+        var ctx2 = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
 
         Assert.Same(ctx1, ctx2);
     }

@@ -1,7 +1,7 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Body;
 
-namespace TurboHTTP.Tests.Protocol.Body;
+namespace GaudiHTTP.Tests.Protocol.Body;
 
 /// <summary>
 /// Behaviour of the <see cref="QueuedBodyReader.AsStream"/> wrapper, focused on CopyToAsync:

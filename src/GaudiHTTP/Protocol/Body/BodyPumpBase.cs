@@ -1,7 +1,7 @@
 using Akka.Actor;
-using TurboHTTP.Pooling;
+using GaudiHTTP.Pooling;
 
-namespace TurboHTTP.Protocol.Body;
+namespace GaudiHTTP.Protocol.Body;
 
 internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 {

@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Pooling;
+namespace GaudiHTTP.Pooling;
 
 // One process-wide pool for body buffers that cross the connection-stage -> application thread
 // boundary. ArrayPool<byte>.Create uses global, locked per-bucket stacks (no per-core affinity),

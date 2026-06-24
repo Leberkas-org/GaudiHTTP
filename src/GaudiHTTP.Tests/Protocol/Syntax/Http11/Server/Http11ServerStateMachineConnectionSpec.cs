@@ -1,22 +1,22 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerStateMachineConnectionSpec
 {
     private static IFeatureCollection CreateResponseContext()
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;

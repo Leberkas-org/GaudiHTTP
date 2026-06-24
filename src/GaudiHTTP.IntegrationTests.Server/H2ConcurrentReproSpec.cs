@@ -1,10 +1,10 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server;
+namespace GaudiHTTP.IntegrationTests.Server;
 
 /// <summary>
 /// Regression test for the H2 concurrent request deadlock (now fixed via per-connection bridge).
@@ -20,7 +20,7 @@ public sealed class H2ConcurrentReproSpec : MultiProtocolTlsServerSpecBase
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
         var certificate = CreateSelfSignedCertificate("localhost");
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.ListenLocalhost(port, listen =>
             {

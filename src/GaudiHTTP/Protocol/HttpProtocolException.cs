@@ -1,6 +1,6 @@
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Protocol;
+namespace GaudiHTTP.Protocol;
 
 /// <summary>
 /// A protocol violation. For the line-based protocols (HTTP/1.0, 1.1) this is connection-fatal by

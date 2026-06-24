@@ -1,9 +1,9 @@
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages;
+namespace GaudiHTTP.Tests.Streams.Stages;
 
 public sealed class StageCompletionRegressionSpec : StreamTestBase
 {

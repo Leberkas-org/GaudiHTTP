@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using TurboHTTP.Benchmarks.Internal;
+using GaudiHTTP.Benchmarks.Internal;
 
-namespace TurboHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Kestrel;
 
 /// <summary>
 /// Baseline concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for

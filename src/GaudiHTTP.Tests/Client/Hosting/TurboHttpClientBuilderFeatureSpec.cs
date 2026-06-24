@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Client;
+using GaudiHTTP.Features.Cookies;
 
-namespace TurboHTTP.Tests.Client.Hosting;
+namespace GaudiHTTP.Tests.Client.Hosting;
 
-public sealed class TurboHttpClientBuilderFeatureSpec
+public sealed class GaudiHttpClientBuilderFeatureSpec
 {
     private static TurboClientDescriptor GetDescriptor(IServiceCollection services, string name)
     {
@@ -14,10 +14,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_enable_cookies_true_when_no_jar()
+    public void GaudiHttpClientBuilderFeature_should_set_enable_cookies_true_when_no_jar()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCookies();
+        services.AddGaudiHttpClient("test").WithCookies();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -26,11 +26,11 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_custom_cookie_store()
+    public void GaudiHttpClientBuilderFeature_should_set_custom_cookie_store()
     {
         var store = new MemoryCookieStore();
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCookies(store);
+        services.AddGaudiHttpClient("test").WithCookies(store);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -39,10 +39,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_assign_cache_policy()
+    public void GaudiHttpClientBuilderFeature_should_assign_cache_policy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCache(x => x.MaxEntries = 500);
+        services.AddGaudiHttpClient("test").WithCache(x => x.MaxEntries = 500);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -50,10 +50,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_assign_retry_policy()
+    public void GaudiHttpClientBuilderFeature_should_assign_retry_policy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRetry(x => x.MaxRetries = 5);
+        services.AddGaudiHttpClient("test").WithRetry(x => x.MaxRetries = 5);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -61,10 +61,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_default_redirect_policy()
+    public void GaudiHttpClientBuilderFeature_should_set_default_redirect_policy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRedirect();
+        services.AddGaudiHttpClient("test").WithRedirect();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -72,10 +72,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_assign_redirect_policy()
+    public void GaudiHttpClientBuilderFeature_should_assign_redirect_policy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRedirect(x => x.MaxRedirects = 5);
+        services.AddGaudiHttpClient("test").WithRedirect(x => x.MaxRedirects = 5);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -83,10 +83,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_have_automatic_decompression_true()
+    public void GaudiHttpClientBuilderFeature_should_have_automatic_decompression_true()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test");
+        services.AddGaudiHttpClient("test");
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -94,10 +94,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_automatic_decompression_true()
+    public void GaudiHttpClientBuilderFeature_should_set_automatic_decompression_true()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithDecompression();
+        services.AddGaudiHttpClient("test").WithDecompression();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -105,10 +105,10 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_automatic_decompression_false()
+    public void GaudiHttpClientBuilderFeature_should_set_automatic_decompression_false()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithDecompression(false);
+        services.AddGaudiHttpClient("test").WithDecompression(false);
 
         var descriptor = GetDescriptor(services, "test");
 

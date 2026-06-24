@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Multiplexed;
+namespace GaudiHTTP.Tests.Protocol.Multiplexed;
 
 public sealed class StreamTrackerSpec
 {

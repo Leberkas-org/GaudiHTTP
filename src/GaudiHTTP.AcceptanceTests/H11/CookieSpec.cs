@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H11;
+namespace GaudiHTTP.AcceptanceTests.H11;
 
 public sealed class CookieSpec : ClientAcceptanceTestBase
 {
@@ -51,7 +51,7 @@ public sealed class CookieSpec : ClientAcceptanceTestBase
     private async Task<List<HttpResponseMessage>> SendMultipleAsync(
         IReadOnlyList<HttpRequestMessage> requests,
         Func<int, byte[], byte[]?> responseFactory,
-        Action<ITurboHttpClientBuilder>? configure = null)
+        Action<IGaudiHttpClientBuilder>? configure = null)
     {
         var stage = CreateScriptedConnection(responseFactory);
         var transports = new TransportRegistry()

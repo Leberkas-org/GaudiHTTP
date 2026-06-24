@@ -3,9 +3,9 @@ using System.Net.Sockets;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H11;
+namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
 [Collection("H11")]
 public sealed class WirePipeliningSpec : End2EndSpecBase

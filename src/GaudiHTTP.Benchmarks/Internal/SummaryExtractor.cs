@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 
-namespace TurboHTTP.Benchmarks.Internal;
+namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Extracts <see cref="BenchmarkResult"/> instances directly from a BenchmarkDotNet

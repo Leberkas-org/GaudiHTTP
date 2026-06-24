@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace GaudiHTTP.Tests.Diagnostics;
 
 [Collection("OTEL")]
 public sealed class TurboServerInstrumentationSpec : IDisposable
@@ -46,7 +46,7 @@ public sealed class TurboServerInstrumentationSpec : IDisposable
         var activity = Tracing.StartConnectionActivity("127.0.0.1", 8080, "tcp");
 
         Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.Connection", activity.OperationName);
+        Assert.Equal("GaudiHTTP.Connection", activity.OperationName);
         Assert.Equal(ActivityKind.Server, activity.Kind);
     }
 
@@ -88,7 +88,7 @@ public sealed class TurboServerInstrumentationSpec : IDisposable
 
         var reqActivity = Tracing.StartRequestActivity("GET", "/api/data", "https")!;
 
-        Assert.Equal("TurboHTTP.ServerRequest", reqActivity.OperationName);
+        Assert.Equal("GaudiHTTP.ServerRequest", reqActivity.OperationName);
         Assert.Equal(ActivityKind.Server, reqActivity.Kind);
         Assert.Equal(connActivity.TraceId, reqActivity.TraceId);
 

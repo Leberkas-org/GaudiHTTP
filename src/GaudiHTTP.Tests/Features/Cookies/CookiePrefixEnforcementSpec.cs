@@ -1,6 +1,6 @@
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Features.Cookies;
 
-namespace TurboHTTP.Tests.Features.Cookies;
+namespace GaudiHTTP.Tests.Features.Cookies;
 
 /// <summary>
 /// RFC 6265bis §4.1.3 — Cookie name prefix enforcement.

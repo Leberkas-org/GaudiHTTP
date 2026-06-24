@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Features.Caching;
+namespace GaudiHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §5.2 — Parses the Cache-Control header value into a <see cref="CacheControl"/> record.

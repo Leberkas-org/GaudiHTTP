@@ -1,7 +1,7 @@
 using Akka.Actor;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 internal interface IClientStageOperations
 {

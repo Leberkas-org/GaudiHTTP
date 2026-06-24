@@ -2,13 +2,13 @@ using System.Diagnostics;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace GaudiHTTP.Streams.Stages.Features;
 
 /// <summary>
-/// Outermost bidirectional stage that creates and manages the root "TurboHTTP.ClientRequest"
+/// Outermost bidirectional stage that creates and manages the root "GaudiHTTP.ClientRequest"
 /// <see cref="Activity"/> for each request flowing through the pipeline.
 /// <para>
 /// Request direction (In1→Out1): starts a root activity via
@@ -129,7 +129,7 @@ internal sealed class TracingBidiStage
 
 internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
 {
-    private static readonly HttpRequestOptionsKey<long> RequestTimestampKey = new("TurboHTTP.RequestTimestamp");
+    private static readonly HttpRequestOptionsKey<long> RequestTimestampKey = new("GaudiHTTP.RequestTimestamp");
 
     private Activity? _currentActivity;
     private HttpRequestMessage? _currentRequest;

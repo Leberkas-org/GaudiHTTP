@@ -1,30 +1,30 @@
 using Microsoft.Extensions.DependencyInjection;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class TypedClientRegistrationSpec
 {
-    private sealed class MyApiClient(ITurboHttpClient client)
+    private sealed class MyApiClient(IGaudiHttpClient client)
     {
-        public ITurboHttpClient Client { get; } = client;
+        public IGaudiHttpClient Client { get; } = client;
     }
 
     private interface IMyService
     {
-        ITurboHttpClient Client { get; }
+        IGaudiHttpClient Client { get; }
     }
 
-    private sealed class MyService(ITurboHttpClient client) : IMyService
+    private sealed class MyService(IGaudiHttpClient client) : IMyService
     {
-        public ITurboHttpClient Client { get; } = client;
+        public IGaudiHttpClient Client { get; } = client;
     }
 
     [Fact(Timeout = 10000)]
-    public void AddTurboHttpClient_typed_should_resolve_POCO_client()
+    public void AddGaudiHttpClient_typed_should_resolve_POCO_client()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient<MyApiClient>();
+        services.AddGaudiHttpClient<MyApiClient>();
         using var sp = services.BuildServiceProvider();
 
         var client = sp.GetRequiredService<MyApiClient>();
@@ -34,10 +34,10 @@ public sealed class TypedClientRegistrationSpec
     }
 
     [Fact(Timeout = 10000)]
-    public void AddTurboHttpClient_typed_with_interface_should_resolve_via_interface()
+    public void AddGaudiHttpClient_typed_with_interface_should_resolve_via_interface()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient<IMyService, MyService>();
+        services.AddGaudiHttpClient<IMyService, MyService>();
         using var sp = services.BuildServiceProvider();
 
         var client = sp.GetRequiredService<IMyService>();
@@ -47,10 +47,10 @@ public sealed class TypedClientRegistrationSpec
     }
 
     [Fact(Timeout = 10000)]
-    public void AddTurboHttpClient_typed_with_interface_should_resolve_impl_directly()
+    public void AddGaudiHttpClient_typed_with_interface_should_resolve_impl_directly()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient<IMyService, MyService>();
+        services.AddGaudiHttpClient<IMyService, MyService>();
         using var sp = services.BuildServiceProvider();
 
         var impl = sp.GetRequiredService<MyService>();

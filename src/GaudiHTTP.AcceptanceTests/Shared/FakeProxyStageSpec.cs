@@ -1,9 +1,9 @@
-﻿using System.Text;
+using System.Text;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.Shared;
+namespace GaudiHTTP.AcceptanceTests.Shared;
 
 public sealed class FakeProxyStageSpec : EngineTestBase
 {

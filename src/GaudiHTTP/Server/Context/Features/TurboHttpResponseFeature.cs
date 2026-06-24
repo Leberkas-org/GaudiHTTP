@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpResponseFeature : IHttpResponseFeature
+internal sealed class GaudiHttpResponseFeature : IHttpResponseFeature
 {
     private readonly TurboHeaderDictionary _headers = new();
     private List<(Func<object?, Task> callback, object? state)>? _onStartingCallbacks;

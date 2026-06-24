@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Streams.Stages;
+namespace GaudiHTTP.Tests.Streams.Stages;
 
 public sealed class RefererSanitizationSpec
 {

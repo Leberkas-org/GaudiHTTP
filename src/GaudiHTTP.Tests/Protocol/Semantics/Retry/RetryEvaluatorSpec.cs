@@ -1,8 +1,8 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Retry;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Retry;
 
 public sealed class RetryEvaluatorSpec
 {

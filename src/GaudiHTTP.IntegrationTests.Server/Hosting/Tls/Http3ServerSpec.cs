@@ -4,11 +4,11 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 using QuicListenerOptionsServus = Servus.Akka.Transport.QuicListenerOptions;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 /// <summary>
 /// Real HTTP/3 (QUIC) requests against TurboServer, driven by a neutral .NET HttpClient.

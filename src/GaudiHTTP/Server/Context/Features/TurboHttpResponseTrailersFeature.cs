@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpResponseTrailersFeature : IHttpResponseTrailersFeature
+internal sealed class GaudiHttpResponseTrailersFeature : IHttpResponseTrailersFeature
 {
     private readonly TurboHeaderDictionary _trailers = new();
 

@@ -1,8 +1,8 @@
 using Akka.Streams;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Streams.Stages.Client;
+namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class ConnectionShapeSpec
 {

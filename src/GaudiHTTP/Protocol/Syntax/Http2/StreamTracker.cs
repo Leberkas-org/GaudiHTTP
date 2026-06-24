@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Multiplexed;
 
-namespace TurboHTTP.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 internal enum StreamAcceptResult
 {

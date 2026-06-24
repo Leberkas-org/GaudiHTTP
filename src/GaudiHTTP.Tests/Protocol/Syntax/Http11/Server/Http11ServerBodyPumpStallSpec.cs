@@ -1,12 +1,12 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 /// <summary>
 /// Verifies that the SerialBodyPump drains the entire response body inline during
@@ -18,14 +18,14 @@ public sealed class Http11ServerBodyPumpStallSpec
 {
     private const int ChunkSize = 16 * 1024;
 
-    private static (IFeatureCollection Features, TurboHttpResponseBodyFeature BodyFeature)
+    private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
         CreateStreamingResponseContext(int bodySize)
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
 
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         var writer = bodyFeature.Writer;
         var remaining = bodySize;
         while (remaining > 0)

@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using Servus.Diagnostics;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Protocol;
 
-namespace TurboHTTP.Diagnostics;
+namespace GaudiHTTP.Diagnostics;
 
 internal static class TurboClientInstrumentationExtensions
 {
     internal static readonly HttpRequestOptionsKey<Activity> RequestActivityKey
-        = new("TurboHTTP.RequestActivity");
+        = new("GaudiHTTP.RequestActivity");
 
     private static readonly HashSet<string> StandardMethods = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -32,7 +32,7 @@ internal static class TurboClientInstrumentationExtensions
         var method = request.Method.Method;
 
         var activity = trace.Source.StartActivity(
-            "TurboHTTP.ClientRequest",
+            "GaudiHTTP.ClientRequest",
             ActivityKind.Client);
 
         if (activity is null)

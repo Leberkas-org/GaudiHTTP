@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http11.Options;
+namespace GaudiHTTP.Protocol.Syntax.Http11.Options;
 
 internal sealed record Http11ClientDecoderOptions
 {

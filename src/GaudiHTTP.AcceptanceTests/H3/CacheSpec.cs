@@ -1,10 +1,10 @@
 using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H3;
+namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class CacheSpec : AcceptanceTestBase
 {

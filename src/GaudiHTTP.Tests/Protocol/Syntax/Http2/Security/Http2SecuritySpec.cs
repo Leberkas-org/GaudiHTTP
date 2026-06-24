@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-using TurboHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Security;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
 public sealed class Http2SecuritySpec
 {

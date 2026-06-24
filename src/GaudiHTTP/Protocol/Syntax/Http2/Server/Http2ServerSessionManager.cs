@@ -4,19 +4,19 @@ using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Options;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http2.Server;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 {
@@ -256,7 +256,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
     private void SendInformational(int streamId, int statusCode, IHeaderDictionary headers)
     {
         var fc = new TurboFeatureCollection();
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = statusCode };
+        var responseFeature = new GaudiHttpResponseFeature { StatusCode = statusCode };
         foreach (var h in headers)
         {
             responseFeature.Headers[h.Key] = h.Value;
@@ -298,7 +298,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
         var hasBody = !isHead
                       && (contentLength is not null and not 0
-                          || (contentLength is null && responseBody is TurboHttpResponseBodyFeature
+                          || (contentLength is null && responseBody is GaudiHttpResponseBodyFeature
                           {
                               HasStarted: true
                           }));
@@ -309,7 +309,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             EmitFrame(frames[i]);
         }
 
-        if (!hasBody || responseBody is not TurboHttpResponseBodyFeature turboBody)
+        if (!hasBody || responseBody is not GaudiHttpResponseBodyFeature turboBody)
         {
             CloseStream(streamId);
             return;
@@ -834,7 +834,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
-            features.Set<IHttpResetFeature>(new TurboHttpResetFeature(errorCode =>
+            features.Set<IHttpResetFeature>(new GaudiHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
             features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
                 SendInformational(capturedStreamId, statusCode, headers)));

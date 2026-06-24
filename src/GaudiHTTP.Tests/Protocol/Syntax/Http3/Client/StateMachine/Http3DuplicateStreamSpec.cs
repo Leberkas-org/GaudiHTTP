@@ -1,10 +1,10 @@
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3DuplicateStreamSpec
 {

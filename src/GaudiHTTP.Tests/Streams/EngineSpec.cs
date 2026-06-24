@@ -1,12 +1,12 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Akka;
 using Akka.Actor;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Pooling;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Pooling;
 
-namespace TurboHTTP.Tests.Streams;
+namespace GaudiHTTP.Tests.Streams;
 
 public sealed class EngineSpec
 {

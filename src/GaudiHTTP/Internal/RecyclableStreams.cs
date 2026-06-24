@@ -1,6 +1,6 @@
 using Microsoft.IO;
 
-namespace TurboHTTP.Internal;
+namespace GaudiHTTP.Internal;
 
 /// <summary>
 /// Shared <see cref="RecyclableMemoryStreamManager"/> singleton for reducing GC pressure

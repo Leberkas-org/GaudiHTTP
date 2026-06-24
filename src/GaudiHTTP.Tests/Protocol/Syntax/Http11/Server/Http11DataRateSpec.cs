@@ -2,22 +2,22 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http11.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http11.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11DataRateSpec
 {
     private static TurboFeatureCollection CreateResponseContext()
     {
         var features = new TurboFeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new TurboHttpResponseBodyFeature();
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
@@ -237,7 +237,7 @@ public sealed class Http11DataRateSpec
         // Buffered response body: written into the feature before OnResponse, emitted
         // synchronously via EmitBufferedBody (the standard path for normal responses).
         var context = CreateResponseContext();
-        var bodyFeature = (TurboHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
+        var bodyFeature = (GaudiHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
         var span = bodyFeature.Writer.GetSpan(64);
         span[..64].Fill(0x41);
         bodyFeature.Writer.Advance(64);

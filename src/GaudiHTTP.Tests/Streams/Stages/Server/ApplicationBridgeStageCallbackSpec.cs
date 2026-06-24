@@ -2,13 +2,13 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Pooling;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Server;
+namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
 {
@@ -24,7 +24,7 @@ public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
 
     private IFeatureCollection RequestWithCallbacks()
     {
-        var requestFeature = new TurboHttpRequestFeature { Protocol = "HTTP/2" };
+        var requestFeature = new GaudiHttpRequestFeature { Protocol = "HTTP/2" };
         return FeatureCollectionFactory.Create(_pool, requestFeature, hasBody: false);
     }
 

@@ -7,14 +7,14 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Server;
+namespace GaudiHTTP.Streams.Stages.Server;
 
 internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic, IServerStageOperations
     where TSM : IServerStateMachine
@@ -39,7 +39,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
     private readonly ConnectionPoolContext _poolContext = new();
-    private TurboHttpConnectionFeature? _connectionFeature;
+    private GaudiHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
     private Activity? _connectionActivity;
@@ -250,7 +250,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var info = connected.Info;
             if (info.Remote is IPEndPoint remoteEp)
             {
-                var connectionFeature = new TurboHttpConnectionFeature
+                var connectionFeature = new GaudiHttpConnectionFeature
                 {
                     ConnectionId = Guid.NewGuid().ToString("N"),
                     RemoteIpAddress = remoteEp.Address,
@@ -424,7 +424,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void OnConnectionEstablished(TurboHttpConnectionFeature conn, string transport)
+    private void OnConnectionEstablished(GaudiHttpConnectionFeature conn, string transport)
     {
         _connectionTimestamp = Stopwatch.GetTimestamp();
         Metrics.ActiveConnections().Add(1);
@@ -474,7 +474,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     IServiceProvider? IServerStageOperations.Services => _services;
 
-    TurboHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
+    GaudiHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 

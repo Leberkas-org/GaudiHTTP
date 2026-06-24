@@ -1,1 +1,1 @@
-global using HttpProtocolException = TurboHTTP.Protocol.HttpProtocolException;
+global using HttpProtocolException = GaudiHTTP.Protocol.HttpProtocolException;

@@ -1,7 +1,7 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Hpack;
 
 public sealed class HpackSensitiveHeaderSpec
 {
@@ -131,7 +131,7 @@ public sealed class HpackSensitiveHeaderSpec
     public void HpackSensitiveHeader_should_not_encode_user_agent_as_never_indexed()
     {
         var request = MakeGetRequest();
-        request.Headers.TryAddWithoutValidation("User-Agent", "TurboHttp/1.0");
+        request.Headers.TryAddWithoutValidation("User-Agent", "GaudiHttp/1.0");
 
         var decoded = EncodeAndDecodeHeaders(request);
         var header = decoded.Find(h => h.Name == "user-agent");

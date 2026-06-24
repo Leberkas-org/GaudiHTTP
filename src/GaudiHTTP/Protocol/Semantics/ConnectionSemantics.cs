@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 internal static class ConnectionSemantics
 {

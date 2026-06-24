@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server.Context;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server.Context;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerTrailerEncodingSpec
 {

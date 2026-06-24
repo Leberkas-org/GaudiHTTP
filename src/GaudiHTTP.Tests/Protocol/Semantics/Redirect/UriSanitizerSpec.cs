@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Redirect;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Redirect;
 
 public sealed class UriSanitizerSpec
 {

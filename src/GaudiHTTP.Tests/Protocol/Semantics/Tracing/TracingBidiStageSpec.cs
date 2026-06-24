@@ -2,14 +2,14 @@ using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Diagnostics;
-using TurboHTTP.Streams.Stages.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Diagnostics;
+using GaudiHTTP.Streams.Stages.Features;
+using GaudiHTTP.Tests.Shared;
 using ActivityListener = System.Diagnostics.ActivityListener;
 using ActivitySamplingResult = System.Diagnostics.ActivitySamplingResult;
 using ActivitySource = System.Diagnostics.ActivitySource;
 
-namespace TurboHTTP.Tests.Protocol.Semantics.Tracing;
+namespace GaudiHTTP.Tests.Protocol.Semantics.Tracing;
 
 public sealed class TracingBidiStageSpec : StreamTestBase, IDisposable
 {

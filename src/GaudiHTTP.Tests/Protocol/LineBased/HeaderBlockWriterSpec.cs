@@ -1,9 +1,9 @@
 using System.Text;
-using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol;
+using GaudiHTTP.Protocol.LineBased;
+using GaudiHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Tests.Protocol.LineBased;
+namespace GaudiHTTP.Tests.Protocol.LineBased;
 
 public sealed class HeaderBlockWriterSpec
 {

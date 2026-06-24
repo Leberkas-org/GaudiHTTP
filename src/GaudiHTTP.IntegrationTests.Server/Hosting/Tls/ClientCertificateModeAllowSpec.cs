@@ -3,10 +3,10 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
-using TurboHTTP.IntegrationTests.Server.Shared;
-using TurboHTTP.Server;
+using GaudiHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
+namespace GaudiHTTP.IntegrationTests.Server.Hosting.Tls;
 
 [Collection("Infrastructure")]
 public sealed class ClientCertificateModeAllowSpec : ServerSpecBase
@@ -19,7 +19,7 @@ public sealed class ClientCertificateModeAllowSpec : ServerSpecBase
         _serverCert = CreateSelfSignedCertificate("localhost");
         _clientCert = CreateSelfSignedCertificate("client");
 
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             options.ListenLocalhost(port, listen =>
             {

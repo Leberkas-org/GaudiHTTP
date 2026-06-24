@@ -1,11 +1,11 @@
 using System.Text;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Streams;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams;
 using Xunit;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public abstract class AcceptanceTestBase : EngineTestBase
 {

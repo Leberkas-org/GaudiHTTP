@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Servus.Diagnostics;
 
-namespace TurboHTTP.Diagnostics;
+namespace GaudiHTTP.Diagnostics;
 
 internal sealed class LoggerTraceListener : IServusTraceListener
 {
@@ -38,7 +38,7 @@ internal sealed class LoggerTraceListener : IServusTraceListener
     {
         if (!_loggers.TryGetValue(category, out var logger))
         {
-            logger = _loggerFactory.CreateLogger(string.Concat("TurboHTTP.Trace.", category));
+            logger = _loggerFactory.CreateLogger(string.Concat("GaudiHTTP.Trace.", category));
             _loggers[category] = logger;
         }
 

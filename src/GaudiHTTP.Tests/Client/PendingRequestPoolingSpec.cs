@@ -1,7 +1,7 @@
 using System.Threading.Tasks.Sources;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class PendingRequestPoolingSpec
 {

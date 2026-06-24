@@ -1,19 +1,19 @@
 using Microsoft.Extensions.DependencyInjection;
-using TurboHTTP.Features.Caching;
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Features.Caching;
+using GaudiHTTP.Features.Cookies;
 
-namespace TurboHTTP.Client;
+namespace GaudiHTTP.Client;
 
 /// <summary>
-/// Fluent extension methods for configuring an <see cref="ITurboHttpClientBuilder"/> with
+/// Fluent extension methods for configuring an <see cref="IGaudiHttpClientBuilder"/> with
 /// cookies, caching, retries, redirects, compression, Expect-100-Continue, and custom handlers.
 /// </summary>
-public static class TurboHttpClientBuilderExtensions
+public static class GaudiHttpClientBuilderExtensions
 {
     /// <summary>
     /// Enables cookie handling for this client using an in-memory <see cref="CookieJar"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder)
+    public static IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
@@ -26,7 +26,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables cookie handling for this client using the provided <paramref name="store"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieStore store)
+    public static IGaudiHttpClientBuilder WithCookies(this IGaudiHttpClientBuilder builder, ICookieStore store)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
@@ -39,7 +39,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables response caching using an in-memory store. Optionally configure via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder,
+    public static IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder,
         Action<CacheOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
@@ -54,7 +54,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables response caching using the provided <paramref name="store"/>. Optionally configure via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, ICacheStore store,
+    public static IGaudiHttpClientBuilder WithCache(this IGaudiHttpClientBuilder builder, ICacheStore store,
         Action<CacheOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
@@ -70,7 +70,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables automatic request retries. Optionally configure via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder,
+    public static IGaudiHttpClientBuilder WithRetry(this IGaudiHttpClientBuilder builder,
         Action<RetryOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
@@ -85,7 +85,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables automatic redirect following. Optionally configure via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithRedirect(this ITurboHttpClientBuilder builder,
+    public static IGaudiHttpClientBuilder WithRedirect(this IGaudiHttpClientBuilder builder,
         Action<RedirectOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
@@ -101,7 +101,7 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables or disables automatic decompression of response bodies. Default is <c>true</c>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithDecompression(this ITurboHttpClientBuilder builder, bool enabled = true)
+    public static IGaudiHttpClientBuilder WithDecompression(this IGaudiHttpClientBuilder builder, bool enabled = true)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.AutomaticDecompression = enabled; });
         return builder;
@@ -110,8 +110,8 @@ public static class TurboHttpClientBuilderExtensions
     /// <summary>
     /// Enables request body compression. Optionally configure the encoding and minimum body size via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithRequestCompression(
-        this ITurboHttpClientBuilder builder, Action<CompressionOptions>? configure = null)
+    public static IGaudiHttpClientBuilder WithRequestCompression(
+        this IGaudiHttpClientBuilder builder, Action<CompressionOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
             d =>
@@ -127,8 +127,8 @@ public static class TurboHttpClientBuilderExtensions
     /// Enables <c>Expect: 100-continue</c> negotiation for large request bodies.
     /// Optionally configure the minimum body size threshold via <paramref name="configure"/>.
     /// </summary>
-    public static ITurboHttpClientBuilder WithExpectContinue(
-        this ITurboHttpClientBuilder builder, Action<Expect100Options>? configure = null)
+    public static IGaudiHttpClientBuilder WithExpectContinue(
+        this IGaudiHttpClientBuilder builder, Action<Expect100Options>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
             d =>
@@ -144,7 +144,7 @@ public static class TurboHttpClientBuilderExtensions
     /// Registers <typeparamref name="T"/> as a Transient service and appends it to the handler pipeline.
     /// Registration order is preserved (FIFO).
     /// </summary>
-    public static ITurboHttpClientBuilder AddHandler<T>(this ITurboHttpClientBuilder builder)
+    public static IGaudiHttpClientBuilder AddHandler<T>(this IGaudiHttpClientBuilder builder)
         where T : TurboHandler
     {
         builder.Services.AddTransient<T>();
@@ -160,8 +160,8 @@ public static class TurboHttpClientBuilderExtensions
     /// Wraps a request transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
     /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
-    public static ITurboHttpClientBuilder UseRequest(
-        this ITurboHttpClientBuilder builder,
+    public static IGaudiHttpClientBuilder UseRequest(
+        this IGaudiHttpClientBuilder builder,
         Func<HttpRequestMessage, HttpRequestMessage> transform)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
@@ -173,8 +173,8 @@ public static class TurboHttpClientBuilderExtensions
     /// Wraps a response transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
     /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
-    public static ITurboHttpClientBuilder UseResponse(
-        this ITurboHttpClientBuilder builder,
+    public static IGaudiHttpClientBuilder UseResponse(
+        this IGaudiHttpClientBuilder builder,
         Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,

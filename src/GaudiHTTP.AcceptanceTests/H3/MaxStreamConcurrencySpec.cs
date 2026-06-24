@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H3;
+namespace GaudiHTTP.AcceptanceTests.H3;
 
 public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
 {

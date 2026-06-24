@@ -1,9 +1,9 @@
 using System.Net;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.AcceptanceTests.H2;
+namespace GaudiHTTP.AcceptanceTests.H2;
 
 public sealed class ConcurrencySpec : AcceptanceTestBase
 {

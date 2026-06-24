@@ -1,11 +1,11 @@
-using TurboHTTP.Client;
-using TurboHTTP.Protocol;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using static Servus.Senf;
 
-namespace TurboHTTP.Streams.Stages.Client;
+namespace GaudiHTTP.Streams.Stages.Client;
 
 /// <summary>
 /// Bidirectional stage that wraps a <see cref="TurboHandler"/> instance,

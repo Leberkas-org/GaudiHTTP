@@ -1,10 +1,10 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.Net;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 using TextEncoding = System.Text.Encoding;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Stages;
 
 public sealed class Http11EngineEndToEndSpec : EngineTestBase
 {

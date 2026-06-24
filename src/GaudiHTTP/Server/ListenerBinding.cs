@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 /// <summary>
 /// Associates a set of listener configuration options with the factory that creates the

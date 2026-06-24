@@ -7,16 +7,16 @@ using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Server;
-using TurboHTTP.Streams;
-using TurboHTTP.Streams.Stages.Server;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Server;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Streams.Stages.Server;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Streams.Stages.Server;
+namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 /// <summary>
 /// RFC 9112 §9.3.2: a server MAY process pipelined requests in parallel but MUST send the
-/// corresponding responses in the same order the requests were received. TurboHTTP guarantees
+/// corresponding responses in the same order the requests were received. GaudiHTTP guarantees
 /// this by dispatching pipelined HTTP/1.1 requests to the application handler strictly
 /// one-at-a-time, so the shared (completion-ordered) ApplicationBridgeStage can never reorder
 /// or corrupt responses on a single H1.1 connection.

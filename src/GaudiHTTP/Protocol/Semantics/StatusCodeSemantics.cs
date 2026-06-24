@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// RFC 9110 §15.1: Overview of Status Codes

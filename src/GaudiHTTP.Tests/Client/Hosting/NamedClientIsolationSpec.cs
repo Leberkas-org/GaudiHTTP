@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
-using TurboHTTP.Features.Cookies;
+using GaudiHTTP.Client;
+using GaudiHTTP.Features.Cookies;
 
-namespace TurboHTTP.Tests.Client.Hosting;
+namespace GaudiHTTP.Tests.Client.Hosting;
 
 public sealed class NamedClientIsolationSpec
 {
@@ -17,8 +17,8 @@ public sealed class NamedClientIsolationSpec
     public void NamedClientIsolation_should_have_independent_descriptor_instances()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("a");
-        services.AddTurboHttpClient("b");
+        services.AddGaudiHttpClient("a");
+        services.AddGaudiHttpClient("b");
 
         var sp = services.BuildServiceProvider();
         var monitor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
@@ -36,8 +36,8 @@ public sealed class NamedClientIsolationSpec
         var storeB = new MemoryCookieStore();
 
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("a").WithCookies(storeA);
-        services.AddTurboHttpClient("b").WithCookies(storeB);
+        services.AddGaudiHttpClient("a").WithCookies(storeA);
+        services.AddGaudiHttpClient("b").WithCookies(storeB);
 
         var descriptorA = GetDescriptor(services, "a");
         var descriptorB = GetDescriptor(services, "b");
@@ -51,8 +51,8 @@ public sealed class NamedClientIsolationSpec
     public void NamedClientIsolation_should_not_affect_other_clients_when_configuring_cookies()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("a").WithCookies();
-        services.AddTurboHttpClient("b");
+        services.AddGaudiHttpClient("a").WithCookies();
+        services.AddGaudiHttpClient("b");
 
         var descriptorA = GetDescriptor(services, "a");
         var descriptorB = GetDescriptor(services, "b");
@@ -66,8 +66,8 @@ public sealed class NamedClientIsolationSpec
     public void NamedClientIsolation_should_be_independent_when_mixed_configuration()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("a").WithCookies();
-        services.AddTurboHttpClient("b");
+        services.AddGaudiHttpClient("a").WithCookies();
+        services.AddGaudiHttpClient("b");
 
         var descriptorA = GetDescriptor(services, "a");
         var descriptorB = GetDescriptor(services, "b");

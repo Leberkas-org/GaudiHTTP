@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Protocol.Syntax.Http3.Server;
-using TurboHTTP.Server;
-using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Protocol.Syntax.Http3.Server;
+using GaudiHTTP.Server;
+using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 /// <summary>
 /// Regression spec for the HTTP/3 server discarding inbound QPACK encoder-stream instructions.
@@ -93,7 +93,7 @@ public sealed class Http3QpackEncoderStreamSpec
 
         Assert.False(sm.ShouldComplete);
         var request = Assert.Single(ops.Requests);
-        var requestFeature = request.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature = request.Get<IHttpRequestFeature>() as GaudiHttpRequestFeature;
         Assert.NotNull(requestFeature);
         Assert.Equal("GET", requestFeature.Method);
         Assert.True(requestFeature.Headers.TryGetValue("x-id", out var idValue));

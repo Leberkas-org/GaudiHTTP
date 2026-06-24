@@ -4,10 +4,10 @@ using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Servus.Diagnostics;
-using TurboHTTP.Diagnostics;
+using GaudiHTTP.Diagnostics;
 using Xunit;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public sealed class ActorSystemFixture : IAsyncLifetime
 {
@@ -31,7 +31,7 @@ public sealed class ActorSystemFixture : IAsyncLifetime
         var bootstrap = BootstrapSetup.Create().WithConfig(QuietConfig);
 
         var setup = bootstrap.And(diSetup);
-        System = ActorSystem.Create($"turbohttp-v2-{Guid.NewGuid()}", setup);
+        System = ActorSystem.Create($"GaudiHttp-v2-{Guid.NewGuid()}", setup);
         return ValueTask.CompletedTask;
     }
 

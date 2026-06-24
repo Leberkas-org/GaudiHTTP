@@ -3,12 +3,12 @@ using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Protocol.Syntax.Http3;
 using Xunit;
-using FrameDecoder = TurboHTTP.Protocol.Syntax.Http2.FrameDecoder;
+using FrameDecoder = GaudiHTTP.Protocol.Syntax.Http2.FrameDecoder;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 public abstract class EngineTestBase : StreamTestBase
 {

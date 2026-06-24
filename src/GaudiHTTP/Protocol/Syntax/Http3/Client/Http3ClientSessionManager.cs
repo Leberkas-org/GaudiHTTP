@@ -1,17 +1,17 @@
 using System.Buffers;
 using Akka.Actor;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Internal;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
-namespace TurboHTTP.Protocol.Syntax.Http3.Client;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 {

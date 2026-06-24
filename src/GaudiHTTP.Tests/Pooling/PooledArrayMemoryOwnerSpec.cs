@@ -1,8 +1,8 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
-using TurboHTTP.Pooling;
+using GaudiHTTP.Pooling;
 
-namespace TurboHTTP.Tests.Pooling;
+namespace GaudiHTTP.Tests.Pooling;
 
 public sealed class PooledArrayMemoryOwnerSpec
 {

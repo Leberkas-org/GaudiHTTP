@@ -1,9 +1,9 @@
 using System.Net;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpConnectionFeature : IHttpConnectionFeature
+internal sealed class GaudiHttpConnectionFeature : IHttpConnectionFeature
 {
     public string ConnectionId { get; set; } = string.Empty;
 

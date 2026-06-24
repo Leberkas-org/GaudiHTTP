@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.H10;
+namespace GaudiHTTP.IntegrationTests.Client.H10;
 
 [Collection("H10")]
 public sealed class HeaderSpec : IntegrationSpecBase
@@ -19,7 +19,7 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_custom_header()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Custom-Test", "turbohttp-h10");
+        request.Headers.Add("X-Custom-Test", "GaudiHttp-h10");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
@@ -28,7 +28,7 @@ public sealed class HeaderSpec : IntegrationSpecBase
         var headers = json.RootElement.GetProperty("headers");
         var headerValue = headers.GetHeaderValue("X-Custom-Test");
 
-        Assert.Equal("turbohttp-h10", headerValue);
+        Assert.Equal("GaudiHttp-h10", headerValue);
     }
 
     [Fact(Timeout = 15000)]
@@ -54,7 +54,7 @@ public sealed class HeaderSpec : IntegrationSpecBase
     public async Task Header_should_forward_user_agent()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.UserAgent.ParseAdd("TurboHTTP/1.0 IntegrationTest");
+        request.Headers.UserAgent.ParseAdd("GaudiHTTP/1.0 IntegrationTest");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
@@ -63,7 +63,7 @@ public sealed class HeaderSpec : IntegrationSpecBase
         var headers = json.RootElement.GetProperty("headers");
         var ua = headers.GetHeaderValue("User-Agent");
 
-        Assert.Contains("TurboHTTP/1.0", ua);
+        Assert.Contains("GaudiHTTP/1.0", ua);
     }
 
     [Fact(Timeout = 15000)]

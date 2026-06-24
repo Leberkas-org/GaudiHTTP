@@ -1,7 +1,7 @@
-using TurboHTTP.Protocol.Body;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
+using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Syntax.Http3.Options;
 
-namespace TurboHTTP.Server;
+namespace GaudiHTTP.Server;
 
 internal static class Http3ConnectionOptionsExtensions
 {

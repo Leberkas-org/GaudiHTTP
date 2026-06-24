@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class TurboHttpRequestLifetimeFeature : IHttpRequestLifetimeFeature
+internal sealed class GaudiHttpRequestLifetimeFeature : IHttpRequestLifetimeFeature
 {
     [ThreadStatic] private static Stack<CancellationTokenSource>? _ctsPool;
 

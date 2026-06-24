@@ -3,28 +3,28 @@ using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
-using TurboHTTP.Streams;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams;
 
-namespace TurboHTTP.Tests.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 internal sealed class ClientAcceptanceHelper : IAsyncDisposable
 {
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _provider;
 
     private ClientAcceptanceHelper(Microsoft.Extensions.DependencyInjection.ServiceProvider provider,
-        ITurboHttpClient client)
+        IGaudiHttpClient client)
     {
         _provider = provider;
         Client = client;
     }
 
-    public ITurboHttpClient Client { get; }
+    public IGaudiHttpClient Client { get; }
 
     public static ClientAcceptanceHelper Create(
         TransportRegistry transports,
         Version version,
-        Action<ITurboHttpClientBuilder>? configure = null,
+        Action<IGaudiHttpClientBuilder>? configure = null,
         Action<TurboClientOptions>? configureOptions = null)
     {
         var services = new ServiceCollection();
@@ -35,7 +35,7 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
 
         services.AddSingleton(system);
 
-        var builder = services.AddTurboHttpClient();
+        var builder = services.AddGaudiHttpClient();
 
         var options = new TurboClientOptions
         {
@@ -49,7 +49,7 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
 
         var provider = services.BuildServiceProvider();
 
-        var factory = (TurboHttpClientFactory)provider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = (GaudiHttpClientFactory)provider.GetRequiredService<IGaudiHttpClientFactory>();
         var client = factory.CreateClient(string.Empty, transports);
         client.BaseAddress = options.BaseAddress;
         client.DefaultRequestVersion = version;

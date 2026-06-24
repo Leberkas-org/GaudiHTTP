@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http3.Options;
+namespace GaudiHTTP.Protocol.Syntax.Http3.Options;
 
 internal sealed record Http3ClientEncoderOptions
 {

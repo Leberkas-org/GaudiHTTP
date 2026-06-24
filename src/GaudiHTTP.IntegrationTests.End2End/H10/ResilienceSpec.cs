@@ -1,9 +1,9 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H10;
+namespace GaudiHTTP.IntegrationTests.End2End.H10;
 
 [Collection("H10")]
 public sealed class ResilienceSpec : End2EndSpecBase

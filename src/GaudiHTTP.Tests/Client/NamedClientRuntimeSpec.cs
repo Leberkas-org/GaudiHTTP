@@ -1,9 +1,9 @@
 using Akka.TestKit.Xunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 
-namespace TurboHTTP.Tests.Client;
+namespace GaudiHTTP.Tests.Client;
 
 public sealed class NamedClientRuntimeSpec : TestKit
 {
@@ -20,9 +20,9 @@ public sealed class NamedClientRuntimeSpec : TestKit
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
-        using var first = (TurboHttpClient)factory.CreateClient(name);
-        using var second = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
+        using var first = (GaudiHttpClient)factory.CreateClient(name);
+        using var second = (GaudiHttpClient)factory.CreateClient(name);
 
         Assert.NotEqual(first.ConsumerId, second.ConsumerId);
         Assert.NotSame(first.Requests, second.Requests);
@@ -42,9 +42,9 @@ public sealed class NamedClientRuntimeSpec : TestKit
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
         var tasks = Enumerable.Range(0, 32)
-            .Select(_ => Task.Run(() => (TurboHttpClient)factory.CreateClient(name),
+            .Select(_ => Task.Run(() => (GaudiHttpClient)factory.CreateClient(name),
                 TestContext.Current.CancellationToken))
             .ToArray();
         var clients = await Task.WhenAll(tasks);
@@ -80,9 +80,9 @@ public sealed class NamedClientRuntimeSpec : TestKit
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
-        using var first = (TurboHttpClient)factory.CreateClient(firstName);
-        using var second = (TurboHttpClient)factory.CreateClient(secondName);
+        using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
+        using var first = (GaudiHttpClient)factory.CreateClient(firstName);
+        using var second = (GaudiHttpClient)factory.CreateClient(secondName);
 
         Assert.NotSame(first.Requests, second.Requests);
         Assert.NotSame(first.Responses, second.Responses);
@@ -102,8 +102,8 @@ public sealed class NamedClientRuntimeSpec : TestKit
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
-        using var client = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
+        using var client = (GaudiHttpClient)factory.CreateClient(name);
 
         Assert.Equal(new Uri("https://named.example"), client.BaseAddress);
     }
@@ -121,8 +121,8 @@ public sealed class NamedClientRuntimeSpec : TestKit
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
-        using var client = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new GaudiHttpClientFactory(options, descriptors, provider, Sys);
+        using var client = (GaudiHttpClient)factory.CreateClient(name);
 
         Assert.NotEqual(Guid.Empty, client.ConsumerId);
     }

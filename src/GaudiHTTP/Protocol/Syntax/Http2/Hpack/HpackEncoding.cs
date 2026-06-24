@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
 /// <summary>
 /// Encoding strategy for a single header field.

@@ -1,6 +1,6 @@
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Protocol.Semantics;
+namespace GaudiHTTP.Protocol.Semantics;
 
 /// <summary>
 /// Error codes for redirect failures per RFC 9110 §15.4.
@@ -26,7 +26,7 @@ internal enum RedirectError
 /// <summary>
 /// Thrown when an RFC 9110 §15.4 redirect constraint is violated.
 /// </summary>
-internal sealed class RedirectException : TurboHttpException
+internal sealed class RedirectException : GaudiHttpException
 {
     /// <summary>The specific redirect error that occurred.</summary>
     public RedirectError Error { get; }

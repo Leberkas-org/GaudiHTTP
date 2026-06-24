@@ -1,10 +1,10 @@
 using System.Text;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
-using TurboHTTP.Protocol.Syntax.Http10.Server;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Syntax;
+using GaudiHTTP.Protocol.Syntax.Http10.Options;
+using GaudiHTTP.Protocol.Syntax.Http10.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10ServerDecoderSpec
 {

@@ -1,8 +1,8 @@
 using Akka.Actor;
-using TurboHTTP.Pooling;
-using TurboHTTP.Protocol.Body;
+using GaudiHTTP.Pooling;
+using GaudiHTTP.Protocol.Body;
 
-namespace TurboHTTP.Tests.Protocol.Body;
+namespace GaudiHTTP.Tests.Protocol.Body;
 
 public sealed class BodyPumpBaseSpec
 {

@@ -1,8 +1,8 @@
 using System.Net;
-using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages.Client;
+using GaudiHTTP.Client;
+using GaudiHTTP.Streams.Stages.Client;
 
-namespace TurboHTTP.Tests.Streams.Stages.Client;
+namespace GaudiHTTP.Tests.Streams.Stages.Client;
 
 public sealed class RequestEnricherUriSpec
 {
@@ -154,7 +154,7 @@ public sealed class RequestEnricherUriSpec
     public void RequestEnricher_should_add_missing_default_headers()
     {
         var msg = new HttpRequestMessage();
-        msg.Headers.Add("User-Agent", "TurboHTTP/1.0");
+        msg.Headers.Add("User-Agent", "GaudiHTTP/1.0");
         msg.Headers.Add("Accept", "application/json");
         var options = new TurboRequestOptions(
             BaseAddress: new Uri("https://example.com"),

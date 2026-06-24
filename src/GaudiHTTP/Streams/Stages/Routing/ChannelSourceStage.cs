@@ -2,7 +2,7 @@ using System.Threading.Channels;
 using Akka.Streams;
 using Akka.Streams.Stage;
 
-namespace TurboHTTP.Streams.Stages.Routing;
+namespace GaudiHTTP.Streams.Stages.Routing;
 
 /// <summary>
 /// A <see cref="GraphStage{TShape}"/> backed by a <see cref="Channel{T}"/> that delivers

@@ -5,10 +5,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Client;
-using TurboHTTP.IntegrationTests.End2End.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.IntegrationTests.End2End.Shared;
 
-namespace TurboHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.End2End.H2;
 
 [Collection("H2")]
 public sealed class HandlerMiddlewareSpec : End2EndSpecBase
@@ -107,7 +107,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         Assert.Equal(HttpStatusCode.OK, goodResponse.StatusCode);
     }
 
-    private ITurboHttpClient CreateClientWithHandler<THandler>() where THandler : TurboHandler
+    private IGaudiHttpClient CreateClientWithHandler<THandler>() where THandler : TurboHandler
     {
         var services = new ServiceCollection();
         services.AddSingleton(GetActorSystemAsync().Result);
@@ -118,14 +118,14 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
             DangerousAcceptAnyServerCertificate = true
         };
 
-        services.AddTurboHttpClient()
+        services.AddGaudiHttpClient()
             .AddHandler<THandler>();
 
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         var provider = services.BuildServiceProvider();
-        var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = provider.GetRequiredService<IGaudiHttpClientFactory>();
         var client = factory.CreateClient(string.Empty);
         client.DefaultRequestVersion = ProtocolVersion;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;

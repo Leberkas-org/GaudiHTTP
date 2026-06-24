@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Syntax.Http2.Options;
+namespace GaudiHTTP.Protocol.Syntax.Http2.Options;
 
 internal sealed record Http2ClientEncoderOptions
 {

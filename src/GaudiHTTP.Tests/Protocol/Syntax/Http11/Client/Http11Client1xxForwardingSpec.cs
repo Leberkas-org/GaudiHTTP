@@ -1,11 +1,11 @@
 using System.Net;
 using System.Text;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Client;
+using GaudiHTTP.Protocol.Syntax.Http11.Client;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11Client1xxForwardingSpec
 {

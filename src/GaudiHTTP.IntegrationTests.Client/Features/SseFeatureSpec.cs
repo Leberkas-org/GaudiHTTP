@@ -2,12 +2,12 @@ using System.Net;
 using System.Text.Json;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using Servus.Akka.Sse;
-using TurboHTTP.IntegrationTests.Client.Shared;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.IntegrationTests.Client.Shared;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.IntegrationTests.Client.Features;
+namespace GaudiHTTP.IntegrationTests.Client.Features;
 
 [Collection("Sse")]
 public sealed class SseFeatureSpec : FeatureSpecBase

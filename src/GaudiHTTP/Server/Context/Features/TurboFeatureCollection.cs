@@ -2,9 +2,9 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http.Features;
-using TurboHTTP.Pooling;
+using GaudiHTTP.Pooling;
 
-namespace TurboHTTP.Server.Context.Features;
+namespace GaudiHTTP.Server.Context.Features;
 
 internal sealed class TurboFeatureCollection : IFeatureCollection, IResettable
 {

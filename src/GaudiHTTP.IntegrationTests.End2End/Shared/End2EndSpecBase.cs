@@ -13,11 +13,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Servus.Akka.Transport;
-using TurboHTTP.Client;
-using TurboHTTP.Server;
+using GaudiHTTP.Client;
+using GaudiHTTP.Server;
 using QuicListenerOptionsServus = Servus.Akka.Transport.QuicListenerOptions;
 
-namespace TurboHTTP.IntegrationTests.End2End.Shared;
+namespace GaudiHTTP.IntegrationTests.End2End.Shared;
 
 public abstract class End2EndSpecBase : IAsyncLifetime
 {
@@ -27,7 +27,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         new(() => CreateSelfSignedCertificate("127.0.0.1"), LazyThreadSafetyMode.ExecutionAndPublication);
 
     private WebApplication? _app;
-    private ITurboHttpClient? _client;
+    private IGaudiHttpClient? _client;
     private Microsoft.Extensions.DependencyInjection.ServiceProvider? _clientProvider;
     private X509Certificate2? _cert;
 
@@ -85,7 +85,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
     /// </summary>
     protected virtual TimeSpan ClientTimeout => TimeSpan.FromSeconds(10);
 
-    protected ITurboHttpClient Client => _client!;
+    protected IGaudiHttpClient Client => _client!;
 
     protected string BaseUri { get; private set; } = string.Empty;
 
@@ -110,7 +110,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
         // Bind port 0 and read the real port back after start — probing for a free
         // port and rebinding it races with parallel tests (and parallel test modules).
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseGaudiHttp(options =>
         {
             ConfigureServer(options, 0, _cert);
         });
@@ -137,13 +137,13 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
         ConfigureClientOptions(clientOptions);
 
-        services.AddTurboHttpClient();
+        services.AddGaudiHttpClient();
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
             new FixedOptionsFactory(clientOptions)));
 
         _clientProvider = services.BuildServiceProvider();
 
-        var factory = _clientProvider.GetRequiredService<ITurboHttpClientFactory>();
+        var factory = _clientProvider.GetRequiredService<IGaudiHttpClientFactory>();
         _client = factory.CreateClient(string.Empty);
         _client.DefaultRequestVersion = ProtocolVersion;
         _client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;

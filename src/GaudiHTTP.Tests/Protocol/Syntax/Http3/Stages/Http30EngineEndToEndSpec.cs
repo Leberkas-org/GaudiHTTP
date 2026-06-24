@@ -1,13 +1,13 @@
-using TurboHTTP.Client;
+using GaudiHTTP.Client;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
-using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Streams;
-using TurboHTTP.Tests.Shared;
+using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Streams;
+using GaudiHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Stages;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Stages;
 
 public sealed class Http30EngineEndToEndSpec : EngineTestBase
 {

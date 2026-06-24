@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.Server;
+using GaudiHTTP.Server;
 
-namespace TurboHTTP.Tests.Server;
+namespace GaudiHTTP.Tests.Server;
 
 public sealed class ListenUrlParserSpec
 {

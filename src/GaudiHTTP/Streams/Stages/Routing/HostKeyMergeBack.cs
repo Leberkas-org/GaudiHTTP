@@ -1,9 +1,9 @@
-﻿using Akka;
+using Akka;
 using Akka.Streams.Dsl;
 using Akka.Streams.Implementation;
-using TurboHTTP.Internal;
+using GaudiHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Routing;
+namespace GaudiHTTP.Streams.Stages.Routing;
 
 /// <summary>
 /// Implements Akka's public <see cref="IMergeBack{TIn,TMat}"/> interface so that

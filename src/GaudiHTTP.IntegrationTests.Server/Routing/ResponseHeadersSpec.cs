@@ -1,7 +1,7 @@
 using System.Net;
-using TurboHTTP.IntegrationTests.Server.Shared;
+using GaudiHTTP.IntegrationTests.Server.Shared;
 
-namespace TurboHTTP.IntegrationTests.Server.Routing;
+namespace GaudiHTTP.IntegrationTests.Server.Routing;
 
 public sealed class ResponseHeadersSpec(TurboServerFixture server) : IDisposable
 {
