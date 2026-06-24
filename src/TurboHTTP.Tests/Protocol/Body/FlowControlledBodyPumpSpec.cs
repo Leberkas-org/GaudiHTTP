@@ -718,4 +718,126 @@ public sealed class FlowControlledBodyPumpSpec
         // Fix: AfterRead(streamId, slot, 0) refunds the full reservation before cleanup.
         Assert.Equal(connWindowBefore, flow.ConnectionSendWindow);
     }
+
+    // Edge case: multi-stream connection window contention
+
+    [Fact(Timeout = 5000)]
+    public void Register_fourth_stream_should_be_window_blocked_when_connection_window_exhausted_by_three_reads()
+    {
+        // Connection window holds exactly 48 KB. Three streams each consume 16 KB (one chunkSize
+        // reservation each). When the 4th stream tries to read, the connection window is below
+        // chunkSize/2 = 8 KB and the stream goes into _windowBlockedStreams.
+        var target = new FakeTarget();
+
+        // Set connection window to exactly 48 KB = 3 * 16 KB.
+        var flow = new FlowController(1024 * 1024, 64 * 1024);
+        flow.OnSendWindowUpdate(0, 3 * 16 * 1024 - 65535); // adjust from initial 65535 to 48 KB
+        var pump = MakePump(target, flow);
+
+        // Give each stream a large per-stream window so only the connection window is the bottleneck.
+        for (var id = 1; id <= 4; id++)
+        {
+            flow.InitStreamSendWindow(id);
+            flow.OnSendWindowUpdate(id, 1024 * 1024);
+        }
+
+        // Register 4 streams — each Register bootstraps 16 credits.
+        // The first 3 streams should each read one 16-KB chunk, consuming the full connection window.
+        // The 4th stream should be window-blocked because connection window < chunkSize/2.
+        pump.Register(1, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
+        pump.Register(2, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
+        pump.Register(3, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
+        pump.Register(4, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
+
+        // Stream 4 must not have any data emitted (window-blocked).
+        var stream4DataEmits = target.Emitted.Count(e => e.StreamId == 4 && !e.EndStream);
+        Assert.Equal(0, stream4DataEmits);
+
+        // Restore connection window and send connection-level WINDOW_UPDATE to unblock.
+        flow.OnSendWindowUpdate(0, 4 * 1024 * 1024);
+        pump.OnWindowUpdate(0);
+
+        // After unblocking, stream 4 should eventually drain.
+        Assert.Contains(4, target.Completed);
+    }
+
+    // Edge case: OnWindowUpdate for cancelled stream
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_for_cancelled_stream_should_not_throw_or_reenqueue()
+    {
+        // Block a stream, cancel it (removes from _windowBlockedStreams via OnStreamCancelled),
+        // then call OnWindowUpdate for that streamId. Must be a safe no-op.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Block stream 5 by exhausting its send window.
+        flow.InitStreamSendWindow(5);
+        flow.OnDataSent(5, 65535);
+
+        pump.Register(5, MakeBody(50), 50, CancellationToken.None);
+
+        // Stream 5 is window-blocked.
+        Assert.Empty(target.Emitted);
+
+        // Cancel the stream — this removes it from _windowBlockedStreams.
+        pump.Cancel(5);
+
+        // Restore window and signal update for the now-cancelled stream 5.
+        flow.OnSendWindowUpdate(0, 65535);
+        flow.OnSendWindowUpdate(5, 65535);
+
+        var ex = Record.Exception(() => pump.OnWindowUpdate(5));
+        Assert.Null(ex);
+
+        // The cancelled stream must not have been re-enqueued or caused any emission.
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Failed);
+    }
+
+    // Edge case: connection-level WINDOW_UPDATE with mixed blocked/cancelled streams
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_connection_level_should_unblock_only_non_cancelled_blocked_streams()
+    {
+        // Three streams are window-blocked. One is then cancelled.
+        // A connection-level WINDOW_UPDATE (streamId == 0) should unblock only the 2
+        // non-cancelled streams — the cancelled one was removed from _windowBlockedStreams
+        // by OnStreamCancelled and must not receive any emissions.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Block all three streams by exhausting per-stream send windows.
+        for (var id = 1; id <= 3; id++)
+        {
+            flow.InitStreamSendWindow(id);
+            flow.OnDataSent(id, 65535);
+        }
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(2, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+
+        // All three blocked — nothing emitted yet.
+        Assert.Empty(target.Completed);
+
+        // Cancel stream 2 while it's window-blocked.
+        pump.Cancel(2);
+
+        // Restore per-stream windows so all would be eligible after unblocking.
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(2, 65535);
+        flow.OnSendWindowUpdate(3, 65535);
+
+        // Issue a connection-level WINDOW_UPDATE (streamId == 0).
+        flow.OnSendWindowUpdate(0, 65535 * 3);
+        pump.OnWindowUpdate(0);
+
+        // Streams 1 and 3 must drain; stream 2 must not emit anything.
+        Assert.Contains(1, target.Completed);
+        Assert.Contains(3, target.Completed);
+        Assert.DoesNotContain(target.Emitted, e => e.StreamId == 2 && !e.EndStream);
+    }
 }
