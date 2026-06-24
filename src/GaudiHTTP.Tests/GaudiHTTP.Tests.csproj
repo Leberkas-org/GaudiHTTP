@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\TurboHTTP.Tests.Shared\TurboHTTP.Tests.Shared.csproj" />
+        <ProjectReference Include="..\GaudiHTTP.Tests.Shared\GaudiHTTP.Tests.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>

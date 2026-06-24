@@ -2,14 +2,14 @@
 
     <PropertyGroup>
         <Company>leberkas-org</Company>
-        <Title>TurboHTTP</Title>
+        <Title>GaudiHTTP</Title>
         <Description>High-performance HTTP client and server for .NET built on Akka.Streams. Supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with backpressure, connection pooling, retries, cookies, caching, and an actor-based entity gateway.</Description>
         <PackageTags>http;http2;http3;quic;akka;akka-streams;reactive;backpressure;httpclient;httpserver</PackageTags>
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
-        <PackageProjectUrl>https://github.com/leberkas-org/TurboHTTP</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/leberkas-org/TurboHTTP.git</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/leberkas-org/GaudiHTTP</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/leberkas-org/GaudiHTTP.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <Copyright>Copyright (c) 2025-$([System.DateTime]::Now.Year) leberkas-org</Copyright>
     </PropertyGroup>
@@ -46,14 +46,14 @@
         <PackageReference Include="Servus" />
     </ItemGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="TurboHTTP.Tests" />
-        <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests" />
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client" />
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.End2End" />
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server" />
-        <InternalsVisibleTo Include="TurboHTTP.Tests.Shared" />
-        <InternalsVisibleTo Include="TurboHTTP.Benchmarks" />
-        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
+        <InternalsVisibleTo Include="GaudiHTTP.Tests" />
+        <InternalsVisibleTo Include="GaudiHTTP.AcceptanceTests" />
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.Client" />
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.End2End" />
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.Server" />
+        <InternalsVisibleTo Include="GaudiHTTP.Tests.Shared" />
+        <InternalsVisibleTo Include="GaudiHTTP.Benchmarks" />
+        <InternalsVisibleTo Include="GaudiHTTP.StressBenchmarks" />
     </ItemGroup>
     <!-- ALPHA packaging: bundle the locally-developed Servus.Akka transport into this package
          instead of taking it from NuGet. PrivateAssets=all keeps it from becoming a package

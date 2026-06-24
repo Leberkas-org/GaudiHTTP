@@ -18,7 +18,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+      <ProjectReference Include="..\GaudiHTTP\GaudiHTTP.csproj" />
     </ItemGroup>
 
     <ItemGroup>

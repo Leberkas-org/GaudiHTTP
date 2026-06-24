@@ -17,16 +17,16 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka.TestKit\Servus.Akka.TestKit.csproj"/>
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
+        <ProjectReference Include="..\GaudiHTTP\GaudiHTTP.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="TurboHTTP.Tests"/>
-        <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests"/>
-        <InternalsVisibleTo Include="TurboHTTP.MicroBenchmarks"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.E2E"/>
+        <InternalsVisibleTo Include="GaudiHTTP.Tests"/>
+        <InternalsVisibleTo Include="GaudiHTTP.AcceptanceTests"/>
+        <InternalsVisibleTo Include="GaudiHTTP.MicroBenchmarks"/>
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.Client"/>
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.Server"/>
+        <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.E2E"/>
     </ItemGroup>
 
 </Project>

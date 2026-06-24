@@ -20,12 +20,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+        <ProjectReference Include="..\GaudiHTTP\GaudiHTTP.csproj" />
         <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
+        <InternalsVisibleTo Include="GaudiHTTP.StressBenchmarks" />
     </ItemGroup>
 
 </Project>
