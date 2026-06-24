@@ -111,13 +111,13 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         {
             slot.MarkOrphaned();
             slot.LinkedCts?.Cancel();
+            _cancelledStreams.Add(streamId);
         }
         else
         {
             CleanupSlot(streamId, slot);
         }
 
-        _cancelledStreams.Add(streamId);
         OnStreamCancelled(streamId);
     }
 
@@ -149,6 +149,8 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     protected virtual void OnStreamCancelled(TStreamId streamId) { }
 
+    // When returning false, the override is responsible for tracking the stream
+    // (e.g., moving it to a blocked set). The stream is removed from the ready queue.
     protected virtual bool IsStreamEligible(TStreamId streamId, BodyDrainSlot<TStreamId> slot) => true;
 
     protected virtual int ComputeReadSize(TStreamId streamId, BodyDrainSlot<TStreamId> slot)

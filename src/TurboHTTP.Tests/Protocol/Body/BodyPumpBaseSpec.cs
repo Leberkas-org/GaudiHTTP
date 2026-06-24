@@ -144,17 +144,15 @@ public sealed class BodyPumpBaseSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Cancel_should_mark_slot_orphaned_when_read_in_flight()
+    public void Cancel_should_cleanup_idle_slot()
     {
         var target = new FakeTarget { HasPendingDemand = false };
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        // Register with no demand so slot sits idle
         pump.Register(0, body, 100, CancellationToken.None);
         pump.Cancel(0);
 
-        // Slot should be cleaned up (not in active slots)
         Assert.Equal(0, pump.ActiveStreamCount);
     }
 
