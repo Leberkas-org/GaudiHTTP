@@ -771,6 +771,11 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         if (!data.IsEmpty)
         {
             EmitBufferedDataFrames(streamId, data, endStream);
+
+            if (!endStream)
+            {
+                _pump?.AddCredit();
+            }
         }
     }
 

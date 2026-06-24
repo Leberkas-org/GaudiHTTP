@@ -959,6 +959,11 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
         }
 
         EmitBufferedDataFrames(streamId, data, endStream: false);
+
+        if (!endStream)
+        {
+            _pump?.AddCredit();
+        }
     }
 
     void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
