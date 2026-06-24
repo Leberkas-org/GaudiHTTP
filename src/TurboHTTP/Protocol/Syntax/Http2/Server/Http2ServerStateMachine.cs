@@ -144,6 +144,11 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
         }
     }
 
+    public void OnOutboundFlushed()
+    {
+        _sessionManager.OnOutboundFlushed();
+    }
+
     public void OnBodyMessage(object msg) => _sessionManager.OnBodyMessage(msg);
 
     private void ScheduleKeepAlivePing()

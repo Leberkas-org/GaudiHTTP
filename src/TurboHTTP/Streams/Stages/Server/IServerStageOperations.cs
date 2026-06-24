@@ -22,4 +22,5 @@ internal interface IServerStageOperations
     TlsHandshakeFeature? TlsHandshakeFeature => null;
     ConnectionPoolContext? PoolContext => null;
     void OnResponseBodyComplete(IFeatureCollection features) { }
+    bool HasPendingDemand => false;
 }

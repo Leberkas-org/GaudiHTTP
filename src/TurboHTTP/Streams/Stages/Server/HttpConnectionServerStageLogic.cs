@@ -468,6 +468,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     IActorRef IServerStageOperations.StageActor => _stageActor;
 
+    bool IServerStageOperations.HasPendingDemand => _outboundQueue.Count == 0 && IsAvailable(_outNetwork);
+
     IMaterializer IServerStageOperations.Materializer => Materializer;
 
     IServiceProvider? IServerStageOperations.Services => _services;
