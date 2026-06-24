@@ -12,7 +12,9 @@ public sealed class MultiplexedBodyPumpSpec
         public List<(long StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<long> Completed { get; } = [];
         public List<(long StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand => false;
+        public int PreferredChunkSize => 16 * 1024;
 
         public void EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
         {

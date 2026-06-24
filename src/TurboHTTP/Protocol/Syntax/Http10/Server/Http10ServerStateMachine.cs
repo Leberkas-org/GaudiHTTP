@@ -69,7 +69,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
+    bool IBodyDrainTarget<int>.HasPendingDemand => false;
+    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
@@ -306,10 +308,6 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
             case DrainReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
-                break;
-
-            case DrainContinue<int>:
-                _serialPump?.HandleDrainContinue();
                 break;
         }
     }

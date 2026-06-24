@@ -268,10 +268,6 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             case DrainReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
-
-            case DrainContinue<long> cont:
-                _pump?.HandleDrainContinue(cont.StreamId);
-                break;
         }
     }
 
@@ -761,7 +757,9 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    IActorRef IBodyDrainTarget<long>.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
+    bool IBodyDrainTarget<long>.HasPendingDemand => false;
+    int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
 
     void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {

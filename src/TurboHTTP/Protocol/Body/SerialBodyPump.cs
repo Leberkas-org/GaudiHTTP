@@ -92,18 +92,8 @@ internal sealed class SerialBodyPump
             return;
         }
 
-        // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads
-        // so the actor thread can process other messages between bursts.
-        if (_slot.ConsecutiveSyncReads >= BodyPumpHelper.MaxSyncReadsPerDispatch)
-        {
-            _slot.ResetSyncReads();
-            _slot.BeginRead();
-            _target.StageActor.Tell(new DrainContinue<int>(0), ActorRefs.NoSender);
-            return;
-        }
-
         _availableCapacity--;
-        var result = BodyPumpHelper.StartRead(_slot, _chunkSize, _target.StageActor);
+        var result = BodyPumpHelper.StartRead(_slot, _chunkSize, _target.PipeToTarget);
 
         switch (result.Outcome)
         {

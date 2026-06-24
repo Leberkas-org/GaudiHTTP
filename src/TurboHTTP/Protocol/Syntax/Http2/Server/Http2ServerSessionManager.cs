@@ -421,10 +421,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
-            case DrainContinue<int> cont:
-                _pump?.HandleDrainContinue(cont.StreamId);
-                break;
-
             case StreamBodyConsumed consumed:
                 if (_deferredStreamIncrements.TryGetValue(consumed.StreamId, out var inc) && inc > 0)
                 {
@@ -946,7 +942,9 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             streamId, sent, body.Length - sent);
     }
 
-    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
+    bool IBodyDrainTarget<int>.HasPendingDemand => false;
+    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
