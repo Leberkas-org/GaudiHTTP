@@ -1,4 +1,3 @@
-using System.Buffers;
 using Akka.Actor;
 using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
@@ -40,7 +39,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void Register_should_emit_body_immediately()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(100), 100, CancellationToken.None);
 
@@ -54,7 +53,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void RoundRobin_should_interleave_streams()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 64);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(128), 128, CancellationToken.None);
         pump.Register(3L, MakeBody(128), 128, CancellationToken.None);
@@ -67,7 +66,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void Cancel_should_handle_orphan()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(100), 100, CancellationToken.None);
         pump.Cancel(1L);
@@ -77,7 +76,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void Cleanup_should_be_idempotent()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Cleanup();
         pump.Cleanup();
@@ -87,7 +86,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void SyncFastPath_should_drain_inline()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(50), 50, CancellationToken.None);
 
@@ -98,13 +97,12 @@ public sealed class MultiplexedBodyPumpSpec
     [Fact(Timeout = 5000)]
     public void Sync_reads_should_complete_without_starvation_guard()
     {
-        // Starvation guard removed — pump should drain all chunks.
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 16);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(65 * 16), 65 * 16, CancellationToken.None);
 
-        // All chunks emitted + EOF (no starvation guard)
+        // All chunks emitted + EOF
         var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(65 * 16, total);
         Assert.Single(target.Completed);
@@ -114,7 +112,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void SlotPooling_should_reuse_after_drain()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, MakeBody(10), 10, CancellationToken.None);
         Assert.Single(target.Completed);
@@ -128,7 +126,7 @@ public sealed class MultiplexedBodyPumpSpec
     public void EOF_should_emit_endStream()
     {
         var target = new FakeTarget();
-        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 1024);
+        var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         pump.Register(1L, new MemoryStream([]), 0, CancellationToken.None);
 
