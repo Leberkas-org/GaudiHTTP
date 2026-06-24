@@ -56,9 +56,15 @@ internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
             EnqueueStream(streamId);
         }
 
-        // Deadlock prevention: if credits are available and streams were just unblocked, boost credits to
-        // ensure all unblocked streams can fully drain. Each stream may need several read rounds.
-        if (GetCredits() > 0)
+        // Always inject credits when active streams exist. The pump can reach zero credits
+        // legitimately: the initial burst consumes bootstrap credits, all streams become
+        // window-blocked, and no further OnOutboundFlushed calls replenish credits because
+        // no data is being pushed. When a WINDOW_UPDATE subsequently unblocks streams (or
+        // streams are already in the ready queue from a prior re-enqueue), the pump must be
+        // able to read them. Without this unconditional boost the pump deadlocks — streams
+        // sit in the ready queue with available window but zero credits to drive reads,
+        // eventually tripping the data-rate monitor which RST_STREAMs the connection.
+        if (GetActiveStreamCount() > 0)
         {
             for (var i = 0; i < 16; i++)
             {

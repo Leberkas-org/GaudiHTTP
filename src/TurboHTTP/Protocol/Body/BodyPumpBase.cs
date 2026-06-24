@@ -73,6 +73,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
         if (slot.IsOrphaned)
         {
+            AfterRead(streamId, slot, 0);
             CleanupSlot(streamId, slot);
             return;
         }
@@ -96,9 +97,12 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
         if (slot.IsOrphaned)
         {
+            AfterRead(streamId, slot, 0);
             CleanupSlot(streamId, slot);
             return;
         }
+
+        AfterRead(streamId, slot, 0);
 
         _target.OnDrainFailed(streamId, reason);
         CleanupSlot(streamId, slot);
