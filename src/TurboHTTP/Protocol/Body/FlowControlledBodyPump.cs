@@ -18,27 +18,6 @@ internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
         _flowController = flowController;
     }
 
-    /// <summary>
-    /// Registers a body that was partially serialized synchronously and could not be fully sent
-    /// due to an exhausted send window. The remainder data is wrapped in a MemoryStream and
-    /// registered via the base pump so it drains when the window opens.
-    /// </summary>
-    public void RegisterWithLimbo(int streamId, ReadOnlyMemory<byte> remainder, CancellationToken requestCt)
-    {
-        // Copy the remainder into a byte array so the MemoryStream owns the data
-        // independently of the caller's buffer lifetime.
-        var copy = remainder.ToArray();
-        var stream = new MemoryStream(copy, writable: false);
-        base.Register(streamId, stream, copy.Length, requestCt);
-
-        // Bootstrap credits — stream starts blocked if window is zero; credits allow a read
-        // attempt once the window opens via OnWindowUpdate.
-        for (var i = 0; i < 16; i++)
-        {
-            AddCredit();
-        }
-    }
-
     public new void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         base.Register(streamId, bodyStream, contentLength, requestCt);
