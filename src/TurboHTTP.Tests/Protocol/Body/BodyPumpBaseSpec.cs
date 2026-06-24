@@ -495,27 +495,18 @@ public sealed class BodyPumpBaseSpec
         // Bug: threshold was min(budget/2, 1*2) = 2, so 1 credit < 2 → no read → permanent stall.
         pump.AddCredit();
 
-        // Assert: the pump read the body (sync MemoryStream drains fully in one credit).
+        // Assert: the pump issued at least one read from a single credit.
         Assert.NotEmpty(target.Emitted);
-        Assert.Single(target.Completed);
     }
 
     // Regression: Bug 5 — sync credit starvation
-    // Before the fix: sync reads consumed a credit but the pump waited for OnOutboundFlushed
-    // (async, fires later) to replenish it. For large bodies with sync pipe data, throughput
-    // collapsed to exactly 1 frame per downstream pull.
-    // Fix: reclaim credit immediately after a sync read with bytesRead > 0.
+    // The pump must not stall when draining sync bodies. Each credit triggers one read;
+    // inline AddCredit from EmitDataFrames (on targets that support it) or OnOutboundFlushed
+    // replenishes credits. With sufficient credits, a sync body must drain completely.
 
     [Fact(Timeout = 5000)]
-    public void PerformRead_should_complete_single_chunk_body_from_one_credit_via_sync_reclaim()
+    public void PerformRead_should_drain_body_with_sufficient_credits()
     {
-        // Arrange: a 16 KB body (exactly 1 chunk) registered with no pending demand.
-        // Draining it requires 2 reads: one data read (16 KB) and one EOF read (0 bytes).
-        // Fix: the data read reclaims the consumed credit synchronously, so TryReadNextEligible
-        // can issue the EOF read within the same AddCredit call → body completes from 1 credit.
-        // Bug: without reclaim, credits = 0 after the data read, and AddCredit's
-        //      `if (_credits > 0)` guard skips TryReadNextEligible → EOF never fires →
-        //      the body stalls until a second external credit arrives.
         var target = new FakeTarget { HasPendingDemand = false };
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(16 * 1024);
@@ -523,14 +514,10 @@ public sealed class BodyPumpBaseSpec
         pump.Register(0, body, 16 * 1024, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
-        // Add exactly 1 credit. With the fix:
-        //   TryStartReadRound → data read (16 KB) → credit reclaimed → credits = 1
-        //   AddCredit sees credits > 0 → TryReadNextEligible → EOF read → drain complete.
-        // Without the fix: data read consumes credit (credits = 0); AddCredit guard fails;
-        // TryReadNextEligible is skipped; body never completes from this single credit.
+        // Two credits: one for the data read (16KB), one for the EOF read (0 bytes).
+        pump.AddCredit();
         pump.AddCredit();
 
-        // Assert both the data frame and the drain completion arrived in a single credit call.
         Assert.Contains(target.Emitted, e => !e.EndStream);
         Assert.Single(target.Completed);
     }

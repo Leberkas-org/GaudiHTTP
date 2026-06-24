@@ -250,7 +250,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                     _closeAfterBody = true;
                 }
 
-                _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
+                _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
                 EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
                 _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
                 return;
