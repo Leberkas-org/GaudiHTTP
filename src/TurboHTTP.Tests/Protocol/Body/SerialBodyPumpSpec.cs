@@ -224,11 +224,12 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void SyncStarvationGuard_should_yield_after_max_sync_reads()
+    public void Sync_reads_should_complete_without_starvation_guard()
     {
+        // Starvation guard removed — pump should drain all chunks without yielding.
         // Use AutoResumeTarget so the pump loops without manual OnCapacityAvailable calls.
         // maxCapacity=1 + auto-resume = pump reads one chunk, emits, auto-resumes, reads next...
-        // After 64 consecutive sync reads, it yields via DrainContinue.
+        // Without the guard, it drains all 65 chunks synchronously.
         var target = new AutoResumeTarget();
         var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 16, maxCapacity: 1);
         target.SetPump(pump);
@@ -236,16 +237,9 @@ public sealed class SerialBodyPumpSpec
 
         pump.Register(body, 65 * 16, CancellationToken.None);
 
-        // 64 data chunks emitted, then guard fired (DrainContinue to Nobody = lost)
+        // All 65 data chunks emitted + EOF (no starvation guard to interrupt)
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.Equal(64 * 16, emittedBytes);
-        Assert.Empty(target.Completed);
-
-        // Resume — emits remaining 1 chunk + EOF
-        pump.HandleDrainContinue();
-
-        var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.Equal(65 * 16, totalBytes);
+        Assert.Equal(65 * 16, emittedBytes);
         Assert.Single(target.Completed);
     }
 

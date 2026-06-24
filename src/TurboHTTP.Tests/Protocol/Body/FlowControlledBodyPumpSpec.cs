@@ -182,8 +182,9 @@ public sealed class FlowControlledBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void SyncStarvationGuard_should_yield_after_64_reads()
+    public void Sync_reads_should_complete_without_starvation_guard()
     {
+        // Starvation guard removed — pump should drain all chunks.
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 1024 * 1024);
         var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 16, hardCap: 16);
@@ -192,14 +193,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnSendWindowUpdate(1, 1024 * 1024);
         pump.Register(1, MakeBody(65 * 16), 65 * 16, CancellationToken.None);
 
-        var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.Equal(64 * 16, emittedBytes);
-        Assert.Empty(target.Completed);
-
-        // Guard fires DrainContinue<int>(1) to StageActor (Nobody in tests — message dropped).
-        // Verified behaviorally: pump stops at exactly 64 chunks, proving the guard path was taken.
-        pump.HandleDrainContinue(1);
-
+        // All chunks emitted + EOF (no starvation guard)
         var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(65 * 16, totalBytes);
         Assert.Single(target.Completed);
