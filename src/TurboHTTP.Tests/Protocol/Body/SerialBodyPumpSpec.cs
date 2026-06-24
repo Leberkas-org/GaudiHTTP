@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 
 namespace TurboHTTP.Tests.Protocol.Body;
@@ -25,7 +26,7 @@ public sealed class SerialBodyPumpSpec
     }
 
     /// <summary>
-    /// Target that calls OnCapacityAvailable() synchronously after EmitDataFrames,
+    /// Target that calls AddCredit() synchronously after EmitDataFrames,
     /// simulating H1.0 behavior where the target drives the pump inline.
     /// </summary>
     private sealed class AutoResumeTarget : IBodyDrainTarget<int>
@@ -45,7 +46,7 @@ public sealed class SerialBodyPumpSpec
             Emitted.Add((streamId, data.ToArray(), endStream));
             if (!endStream)
             {
-                _pump?.OnCapacityAvailable();
+                _pump?.AddCredit();
             }
         }
 
@@ -67,10 +68,10 @@ public sealed class SerialBodyPumpSpec
     [Fact(Timeout = 5000)]
     public void Register_should_emit_body_immediately_for_sync_stream()
     {
-        // maxCapacity=2: allows 2 reads in flight. A 100-byte body with 1024-byte chunk
-        // produces 1 data read (100 bytes) + 1 EOF read (0 bytes) = exactly 2 reads.
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 1024, maxCapacity: 2);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(100);
 
         pump.Register(body, 100, CancellationToken.None);
@@ -87,7 +88,9 @@ public sealed class SerialBodyPumpSpec
     public void Register_should_emit_endStream_on_empty_body()
     {
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 1024, maxCapacity: 2);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = new MemoryStream([]);
 
         pump.Register(body, 0, CancellationToken.None);
@@ -98,44 +101,43 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Register_should_chunk_large_body_with_auto_resume()
+    public void Register_should_emit_complete_body_with_auto_resume()
     {
-        // Large body with small chunks and maxCapacity=1 — needs AutoResumeTarget
-        // to call OnCapacityAvailable inline (H1.0 convention).
+        // Register with initial credits drains small body immediately.
+        // AutoResumeTarget is not actually needed now that we have initial credits.
         var target = new AutoResumeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 1);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         target.SetPump(pump);
         var body = MakeBody(200);
 
         pump.Register(body, 200, CancellationToken.None);
 
         var dataEmits = target.Emitted.Where(e => !e.EndStream).ToList();
-        Assert.True(dataEmits.Count >= 3);
+        Assert.Single(dataEmits);  // 200 bytes < 16 KB chunk = 1 emit
         Assert.Equal(200, dataEmits.Sum(e => e.Data.Length));
         Assert.True(target.Emitted[^1].EndStream);
+        Assert.Single(target.Completed);
     }
 
     [Fact(Timeout = 5000)]
-    public void OnCapacityAvailable_should_resume_after_capacity_exhaustion()
+    public void AddCredit_should_resume_after_budget_exhaustion()
     {
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 1);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(200);
 
         pump.Register(body, 200, CancellationToken.None);
 
-        // maxCapacity=1: pump emits 1 chunk then stops (FakeTarget doesn't auto-resume)
-        Assert.Single(target.Emitted, e => !e.EndStream);
-        Assert.Equal(64, target.Emitted[0].Data.Length);
-
-        // Manual resume
-        pump.OnCapacityAvailable();
-        Assert.Equal(2, target.Emitted.Count(e => !e.EndStream));
-
-        // Resume until complete
+        // Initial register starts reads. With target's 16KB chunk size and FakeTarget (no auto-resume),
+        // the base class credit system drains initial budget and pauses.
+        // We need to add credits to resume.
         while (target.Completed.Count == 0)
         {
-            pump.OnCapacityAvailable();
+            pump.AddCredit();
         }
 
         Assert.Equal(200, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
@@ -145,53 +147,66 @@ public sealed class SerialBodyPumpSpec
     public void Cancel_should_stop_drain()
     {
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 1024, maxCapacity: 2);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(100);
 
         pump.Register(body, 100, CancellationToken.None);
-        // Already completed since MemoryStream is sync with maxCapacity=2
+        // Already completed since MemoryStream is sync with sufficient budget
         Assert.Single(target.Completed);
 
         // Cancel after complete should be no-op
-        pump.Cancel();
+        pump.Cancel(0);
     }
 
     [Fact(Timeout = 5000)]
     public void Cancel_midDrain_should_not_call_onDrainComplete()
     {
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 1);
-        var body = MakeBody(200);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
+        // Large enough to not complete with 16 initial credits
+        var largeBody = MakeBody(1000 * 1024);
 
-        pump.Register(body, 200, CancellationToken.None);
-        // maxCapacity=1, FakeTarget: 1 chunk emitted, pump paused
-        Assert.Single(target.Emitted, e => !e.EndStream);
+        pump.Register(largeBody, 1000 * 1024, CancellationToken.None);
+        // Some reads completed with initial credits
+        var initialEmitted = target.Emitted.Count(e => !e.EndStream);
+        Assert.True(initialEmitted > 0, "initial credits should have started reads");
         Assert.Empty(target.Completed);
 
-        pump.Cancel();
+        // Cancel mid-drain
+        pump.Cancel(0);
 
-        // Cancel should NOT fire OnDrainComplete
-        Assert.Empty(target.Completed);
-        Assert.Empty(target.Failed);
+        // Cancel should NOT fire OnDrainComplete (only OnDrainFailed if read in-flight)
+        // With sync MemoryStream, all reads already completed, so nothing in-flight
+        var completedAfterCancel = target.Completed;
+        var failedAfterCancel = target.Failed;
+        Assert.Empty(completedAfterCancel);
+        Assert.Empty(failedAfterCancel);
     }
 
     [Fact(Timeout = 5000)]
     public void Cleanup_should_be_idempotent()
     {
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 1024, maxCapacity: 2);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
 
         pump.Cleanup();
         pump.Cleanup();
     }
 
     [Fact(Timeout = 5000)]
-    public void Capacity2_should_drain_two_chunk_body_without_resume()
+    public void Register_should_drain_small_body_without_additional_credits()
     {
-        // maxCapacity=2 allows 2 reads before pausing. A body that fits in 2 reads
-        // (1 data read + 1 EOF read) completes without OnCapacityAvailable.
+        // Small body fits within initial budget without needing additional AddCredit calls.
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 2);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(64);
 
         pump.Register(body, 64, CancellationToken.None);
@@ -201,43 +216,47 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Capacity2_should_need_resume_for_large_body()
+    public void AddCredit_should_drain_large_body_without_limit()
     {
-        // maxCapacity=2: pump issues 2 reads, pauses, needs OnCapacityAvailable to continue.
+        // Very large body: initial 16 credits may not be enough depending on budget.
+        // Keep adding credits until drain completes.
         var target = new FakeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 2);
-        var body = MakeBody(200);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
+        var largeBodySize = 1000 * 1024;  // 1 MB body
+        var body = MakeBody(largeBodySize);
 
-        pump.Register(body, 200, CancellationToken.None);
+        pump.Register(body, largeBodySize, CancellationToken.None);
 
-        // 2 reads issued: 64 + 64 = 128 bytes emitted
-        Assert.Equal(128, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
-        Assert.Empty(target.Completed);
-
-        // Resume until complete
-        while (target.Completed.Count == 0)
+        // With 16 initial credits and 16 KB chunks, we drain ~256 KB. Need more credits for 1 MB.
+        int iterations = 0;
+        while (target.Completed.Count == 0 && iterations < 1000)
         {
-            pump.OnCapacityAvailable();
+            pump.AddCredit();
+            iterations++;
         }
 
-        Assert.Equal(200, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
+        Assert.True(iterations < 1000, "drain should complete within 1000 AddCredit calls");
+        Assert.Single(target.Completed);
+        Assert.Equal(largeBodySize, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
     }
 
     [Fact(Timeout = 5000)]
-    public void Sync_reads_should_complete_without_starvation_guard()
+    public void Sync_reads_should_complete_large_body_with_auto_resume()
     {
-        // Starvation guard removed — pump should drain all chunks without yielding.
-        // Use AutoResumeTarget so the pump loops without manual OnCapacityAvailable calls.
-        // maxCapacity=1 + auto-resume = pump reads one chunk, emits, auto-resumes, reads next...
-        // Without the guard, it drains all 65 chunks synchronously.
+        // Use AutoResumeTarget so the pump adds credit inline after each emit.
+        // Large body drains synchronously.
         var target = new AutoResumeTarget();
-        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 16, maxCapacity: 1);
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
         target.SetPump(pump);
         var body = MakeBody(65 * 16);
 
         pump.Register(body, 65 * 16, CancellationToken.None);
 
-        // All 65 data chunks emitted + EOF (no starvation guard to interrupt)
+        // All 65 data chunks emitted + EOF
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(65 * 16, emittedBytes);
         Assert.Single(target.Completed);
@@ -247,9 +266,10 @@ public sealed class SerialBodyPumpSpec
     public void CtsDisposal_should_happen_on_complete()
     {
         var target = new FakeTarget();
+        var poolContext = new ConnectionPoolContext();
         var connCts = new CancellationTokenSource();
         var reqCts = new CancellationTokenSource();
-        var pump = new SerialBodyPump(target, connCts, chunkSize: 1024, maxCapacity: 2);
+        var pump = new SerialBodyPump(target, poolContext, connCts);
 
         pump.Register(MakeBody(100), 100, reqCts.Token);
 

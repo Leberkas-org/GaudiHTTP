@@ -88,7 +88,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
 
             // H1.0 has no OnOutboundFlushed — drive the pump inline.
-            _serialPump!.OnCapacityAvailable();
+            _serialPump!.AddCredit();
         }
 
         if (endStream)
@@ -191,11 +191,11 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 break;
 
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.BytesRead);
+                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.Reason);
+                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
     }
@@ -286,7 +286,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartBodyDrain(Stream bodyStream)
     {
-        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 1);
+        _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 

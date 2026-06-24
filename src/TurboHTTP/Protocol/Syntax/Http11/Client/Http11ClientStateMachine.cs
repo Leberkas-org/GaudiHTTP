@@ -300,11 +300,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                 break;
 
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.BytesRead);
+                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.Reason);
+                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
     }
@@ -313,7 +313,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.OnCapacityAvailable();
+            _serialPump.AddCredit();
         }
     }
 
@@ -488,7 +488,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _isChunked = contentLength is null && !httpVersion.Equals(HttpVersion.Version10);
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
-        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
+        _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
         _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
     }
 

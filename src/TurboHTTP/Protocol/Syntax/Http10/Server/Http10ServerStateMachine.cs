@@ -85,7 +85,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
 
-            _serialPump!.OnCapacityAvailable();
+            _serialPump!.AddCredit();
         }
 
         if (endStream)
@@ -250,7 +250,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                     _closeAfterBody = true;
                 }
 
-                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
+                _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
                 EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
                 _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
                 return;
@@ -268,7 +268,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.OnCapacityAvailable();
+            _serialPump.AddCredit();
         }
     }
 
@@ -302,11 +302,11 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         switch (msg)
         {
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.BytesRead);
+                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.Reason);
+                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
     }
