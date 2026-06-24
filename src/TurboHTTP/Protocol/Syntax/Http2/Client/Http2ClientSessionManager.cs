@@ -488,7 +488,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         ReleaseAllStreamState();
     }
 
-    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
+    bool IBodyDrainTarget<int>.HasPendingDemand => false;
+    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
@@ -871,10 +873,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
             case DrainReadFailed<int> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
-                break;
-
-            case DrainContinue<int> cont:
-                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
     }

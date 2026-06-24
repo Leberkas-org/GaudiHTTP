@@ -13,7 +13,9 @@ public sealed class FlowControlledBodyPumpSpec
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<int> Completed { get; } = [];
         public List<(int StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand => false;
+        public int PreferredChunkSize => 16 * 1024;
 
         public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
         {
