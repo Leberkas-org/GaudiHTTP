@@ -96,18 +96,15 @@ public sealed class MultiplexedBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void SyncStarvationGuard_should_yield()
+    public void Sync_reads_should_complete_without_starvation_guard()
     {
+        // Starvation guard removed — pump should drain all chunks.
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource(), chunkSize: 16);
 
         pump.Register(1L, MakeBody(65 * 16), 65 * 16, CancellationToken.None);
 
-        var emitted = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.Equal(64 * 16, emitted);
-
-        pump.HandleDrainContinue(1L);
-
+        // All chunks emitted + EOF (no starvation guard)
         var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(65 * 16, total);
         Assert.Single(target.Completed);
