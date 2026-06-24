@@ -355,4 +355,223 @@ public sealed class FlowControlledBodyPumpSpec
         Assert.True(netConsumed >= 0, "Refund should not leave window higher than before registration.");
         Assert.Single(target.Completed);
     }
+
+    // H2 window reservation integration
+
+    [Fact(Timeout = 5000)]
+    public void Register_should_decrement_flow_controller_window_during_read()
+    {
+        // Full cycle: register body → credits → pump reads with reservation →
+        // verify FlowController windows decremented → drain complete.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        flow.InitStreamSendWindow(1);
+        var connWindowBefore = flow.ConnectionSendWindow;
+        var streamWindowBefore = flow.GetStreamSendWindow(1);
+
+        // Register and drain a 100-byte body.
+        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+
+        // Windows should have been decremented by the reservation, then refunded for the unused portion.
+        // Net: they should be <= original (refund restores unused reservation, but actual data was reserved).
+        Assert.True(flow.ConnectionSendWindow <= connWindowBefore,
+            "Connection send window should not exceed initial after reservation.");
+        Assert.True(flow.GetStreamSendWindow(1) <= streamWindowBefore,
+            "Stream send window should not exceed initial after reservation.");
+        Assert.Single(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Register_should_refund_unused_reservation_exactly()
+    {
+        // After draining a 100-byte body (< chunkSize = 16384):
+        // BeforeRead reserves 16384, AfterRead refunds (16384 - 100) = 16284.
+        // Net deduction per data read = 100.
+        // EOF read: reserves 16384, reads 0, refunds 16384. Net = 0.
+        // Total net = 100 bytes consumed from both windows.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        flow.InitStreamSendWindow(1);
+        var connWindowBefore = flow.ConnectionSendWindow;
+        var streamWindowBefore = flow.GetStreamSendWindow(1);
+
+        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+
+        var connWindowAfter = flow.ConnectionSendWindow;
+        var streamWindowAfter = flow.GetStreamSendWindow(1);
+
+        // Net deduction from each window should be exactly 100 bytes (the data read).
+        Assert.Equal(100, connWindowBefore - connWindowAfter);
+        Assert.Equal(100, streamWindowBefore - streamWindowAfter);
+        Assert.Single(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void WindowUpdate_full_cycle_should_unblock_and_complete_drain()
+    {
+        // Full integration cycle:
+        // 1. Register body
+        // 2. Block by exhausting stream window
+        // 3. Verify no reads
+        // 4. WINDOW_UPDATE arrives (both conn and stream)
+        // 5. Verify reads complete
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Exhaust the stream window
+        flow.InitStreamSendWindow(1);
+        flow.OnDataSent(1, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+
+        // No reads — stream blocked
+        Assert.Empty(target.Emitted);
+
+        // Restore windows
+        flow.OnSendWindowUpdate(0, 65535);
+        flow.OnSendWindowUpdate(1, 65535);
+        pump.OnWindowUpdate(1);
+
+        // Should now drain
+        Assert.Equal(2, target.Emitted.Count);
+        Assert.Single(target.Completed);
+    }
+
+    // WINDOW_UPDATE deadlock prevention
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_connection_level_should_unblock_all_eligible_streams()
+    {
+        // Connection-level WINDOW_UPDATE (streamId == 0) should re-evaluate ALL blocked streams
+        // and unblock those with sufficient per-stream window.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Two streams both blocked (stream window exhausted by OnDataSent).
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+        flow.OnDataSent(1, 65535);
+        flow.OnDataSent(3, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+
+        // Neither should have emitted (blocked before bootstrap credits could run, or blocked after).
+        Assert.Empty(target.Completed);
+
+        // Restore per-stream windows above threshold (chunkSize/2 = 8192).
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(3, 65535);
+
+        // Also restore connection window and issue connection-level update (streamId == 0).
+        // This triggers the bulk re-evaluation path in OnWindowUpdate.
+        flow.OnSendWindowUpdate(0, 65535 * 2);
+        pump.OnWindowUpdate(0);
+
+        // Both streams should drain.
+        Assert.Contains(1, target.Completed);
+        Assert.Contains(3, target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_all_blocked_with_credits_should_trigger_reads()
+    {
+        // All streams blocked (window-blocked), credits accumulated, WINDOW_UPDATE arrives → reads trigger.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Block two streams
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+        flow.OnDataSent(1, 65535);
+        flow.OnDataSent(3, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+
+        // Both blocked: no emits beyond bootstrap (bootstrap credits may have been spent trying to read)
+        Assert.Empty(target.Completed);
+
+        // Now give both streams and conn window enough room
+        flow.OnSendWindowUpdate(0, 65535 * 2);
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(3, 65535);
+
+        // OnWindowUpdate for stream 1 — should trigger reads for stream 1 (and potentially 3).
+        pump.OnWindowUpdate(1);
+        pump.OnWindowUpdate(3);
+
+        // Both small streams should drain.
+        Assert.Contains(1, target.Completed);
+        Assert.Contains(3, target.Completed);
+    }
+
+    // Cancellation — cancel of window-blocked stream
+
+    [Fact(Timeout = 5000)]
+    public void Cancel_window_blocked_stream_should_remove_from_blocked_set()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Block stream 1
+        flow.InitStreamSendWindow(1);
+        flow.OnDataSent(1, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+
+        // Stream is window-blocked.
+        Assert.Empty(target.Emitted);
+
+        // Cancel the stream.
+        pump.Cancel(1);
+
+        // After cancel, a WINDOW_UPDATE for stream 1 should not unblock it or emit anything.
+        flow.OnSendWindowUpdate(0, 65535);
+        flow.OnSendWindowUpdate(1, 65535);
+        pump.OnWindowUpdate(1);
+
+        // No data should have been emitted for stream 1.
+        Assert.DoesNotContain(target.Emitted, e => e.StreamId == 1 && !e.EndStream);
+        Assert.Empty(target.Failed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void CancelAll_with_window_blocked_streams_should_clear_blocked_set()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var cts = new CancellationTokenSource();
+        var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), cts);
+
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+        flow.OnDataSent(1, 65535);
+        flow.OnDataSent(3, 65535);
+
+        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+
+        // CancelAll should clean up including window-blocked streams.
+        pump.CancelAll();
+
+        Assert.True(cts.IsCancellationRequested);
+
+        // After CancelAll, restoring windows and sending updates should not trigger any reads.
+        flow.OnSendWindowUpdate(0, 65535 * 2);
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(3, 65535);
+        pump.OnWindowUpdate(1);
+        pump.OnWindowUpdate(3);
+
+        Assert.Empty(target.Emitted);
+    }
 }
