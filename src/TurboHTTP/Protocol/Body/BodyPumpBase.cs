@@ -295,8 +295,13 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         if (bytesRead == 0)
         {
             _target.EmitDataFrames(streamId, default, endStream: true);
-            _target.OnDrainComplete(streamId);
+            // Clean up the slot BEFORE notifying the target. OnDrainComplete triggers
+            // CloseStream which calls _pump.Cancel(streamId). If the slot is still in
+            // _activeSlots, Cancel will CleanupSlot a second time, double-returning it
+            // to the pool. A later rent then shares the slot with another stream, and
+            // the stale cleanup nulls its Buffer, causing a NullReferenceException.
             CleanupSlot(streamId, slot);
+            _target.OnDrainComplete(streamId);
             return;
         }
 
