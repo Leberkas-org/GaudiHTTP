@@ -490,7 +490,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             var bodyStream = turboBody.GetResponseStream();
 
             _serialPump =
-                new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
+                new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
             _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
         }
         else
