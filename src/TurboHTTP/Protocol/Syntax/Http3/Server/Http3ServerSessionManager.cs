@@ -233,7 +233,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts, _responseBodyChunkSize);
+        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
         _pump.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
