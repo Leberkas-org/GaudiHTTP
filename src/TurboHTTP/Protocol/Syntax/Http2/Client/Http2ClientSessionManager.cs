@@ -81,8 +81,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             _decoderOptions.InitialStreamWindowSize,
             scaler,
             clock);
-        var chunkSize = Math.Min(options.RequestBodyChunkSize, 16 * 1024);
-        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts, chunkSize, hardCap: 16);
+        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts);
         // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
         // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
         // is a receive-side advertisement (sent in the preface), not a send-side limit.

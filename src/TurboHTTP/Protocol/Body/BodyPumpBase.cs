@@ -163,6 +163,9 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     protected virtual BodyDrainSlot<TStreamId> RentSlot()
         => _poolContext.Rent(() => new BodyDrainSlot<TStreamId>());
 
+    protected virtual void ReturnSlot(BodyDrainSlot<TStreamId> slot)
+        => _poolContext.Return(slot);
+
     protected virtual void EnqueueStream(TStreamId streamId)
         => _readyQueue.Enqueue(streamId);
 
@@ -323,11 +326,13 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     {
         slot.DisposeResources();
         slot.Reset();
-        _poolContext.Return(slot);
+        ReturnSlot(slot);
     }
 
-    // Protected accessors for testing
+    // Protected accessors for subclasses and testing
     protected int GetCredits() => _credits;
     protected int GetBudget() => _budget;
     protected int GetActiveStreamCount() => _activeSlots.Count;
+    protected ConnectionPoolContext PoolContext => _poolContext;
+    protected IBodyDrainTarget<TStreamId> Target => _target;
 }
