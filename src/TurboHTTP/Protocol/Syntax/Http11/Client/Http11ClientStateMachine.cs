@@ -313,7 +313,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.ResetSyncReadCounter();
             _serialPump.OnCapacityAvailable();
         }
     }
