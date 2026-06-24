@@ -142,7 +142,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         if (!endStream && _serialPump is not null)
         {
-            _serialPump.OnCapacityAvailable();
+            _serialPump.AddCredit();
         }
 
         if (endStream)
@@ -490,7 +490,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             var bodyStream = turboBody.GetResponseStream();
 
             _serialPump =
-                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+                new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
             _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
         }
         else
@@ -677,11 +677,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         switch (msg)
         {
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.BytesRead);
+                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.Reason);
+                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
     }
@@ -690,7 +690,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.OnCapacityAvailable();
+            _serialPump.AddCredit();
         }
     }
 
