@@ -35,7 +35,6 @@ public sealed class BodyPumpHelperSpec
         Assert.Equal(BodyPumpHelper.ReadOutcome.CompletedSynchronously, result.Outcome);
         Assert.Equal(100, result.BytesRead);
         Assert.False(slot.IsReadInFlight);
-        Assert.Equal(1, slot.ConsecutiveSyncReads);
 
         slot.DisposeResources();
     }

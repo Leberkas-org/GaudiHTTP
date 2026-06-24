@@ -3,7 +3,7 @@ using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class BodyDrainSlot<TStreamId> : IResettable
+internal class BodyDrainSlot<TStreamId> : IResettable
 {
     // Identity — set once via Initialize, read-only after
     public TStreamId StreamId { get; private set; } = default!;
@@ -22,10 +22,7 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
     // Observable state
     public bool IsReadInFlight { get; private set; }
     public bool IsOrphaned { get; private set; }
-    public bool HasLimbo { get; private set; }
     public bool IsDrainComplete { get; private set; }
-    public ReadOnlyMemory<byte> LimboData { get; private set; }
-    public int ConsecutiveSyncReads { get; private set; }
 
     public void Initialize(
         TStreamId streamId,
@@ -58,44 +55,17 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
 
     public void CompleteSyncRead() => IsReadInFlight = false;
 
-    public void CompleteAsyncRead()
-    {
-        IsReadInFlight = false;
-        ConsecutiveSyncReads = 0;
-    }
-
-    /// <summary>
-    /// Increments the consecutive sync read counter.
-    /// Returns true when the starvation threshold is reached (caller should yield).
-    /// </summary>
-    public bool IncrementSyncReads(int maxPerDispatch)
-    {
-        ConsecutiveSyncReads++;
-        return ConsecutiveSyncReads >= maxPerDispatch;
-    }
-
-    public void ResetSyncReads() => ConsecutiveSyncReads = 0;
+    public void CompleteAsyncRead() => IsReadInFlight = false;
 
     public void MarkOrphaned() => IsOrphaned = true;
 
-    public void StoreLimbo(ReadOnlyMemory<byte> data)
-    {
-        LimboData = data;
-        HasLimbo = true;
-    }
-
-    public void ShrinkLimbo(int consumed)
-    {
-        LimboData = LimboData[consumed..];
-    }
-
-    public void ClearLimbo()
-    {
-        LimboData = default;
-        HasLimbo = false;
-    }
-
     public void MarkDrainComplete() => IsDrainComplete = true;
+
+    public void ReplaceBuffer(int newSize)
+    {
+        Buffer?.Dispose();
+        Buffer = MemoryPool<byte>.Shared.Rent(newSize);
+    }
 
     public void DisposeResources()
     {
@@ -105,7 +75,7 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
         LinkedCts = null;
     }
 
-    public void Reset()
+    public virtual void Reset()
     {
         StreamId = default!;
         BodyStream = null;
@@ -115,10 +85,7 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
         ContentLength = null;
         IsReadInFlight = false;
         IsOrphaned = false;
-        LimboData = default;
-        HasLimbo = false;
         IsDrainComplete = false;
-        ConsecutiveSyncReads = 0;
         CachedSuccessTransform = null;
         CachedFailureTransform = null;
     }

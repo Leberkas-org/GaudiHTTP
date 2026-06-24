@@ -14,7 +14,7 @@ internal sealed class FlowControlledBodyPump
     private readonly int _hardCap;
 
     private readonly Queue<int> _readyQueue = new();
-    private readonly Dictionary<int, BodyDrainSlot<int>> _activeSlots = new();
+    private readonly Dictionary<int, FlowControlledDrainSlot> _activeSlots = new();
     private readonly HashSet<int> _cancelledStreams = new();
     private readonly HashSet<int> _windowBlockedStreams = new();
     private readonly HashSet<int> _limboSlots = new();
@@ -40,7 +40,7 @@ internal sealed class FlowControlledBodyPump
 
     public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
-        var slot = _poolContext.Rent(static () => new BodyDrainSlot<int>());
+        var slot = _poolContext.Rent(static () => new FlowControlledDrainSlot());
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token);
@@ -61,7 +61,7 @@ internal sealed class FlowControlledBodyPump
 
     public void RegisterWithLimbo(int streamId, ReadOnlyMemory<byte> data, CancellationToken requestCt)
     {
-        var slot = _poolContext.Rent(static () => new BodyDrainSlot<int>());
+        var slot = _poolContext.Rent(static () => new FlowControlledDrainSlot());
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token);
@@ -289,7 +289,7 @@ internal sealed class FlowControlledBodyPump
         }
     }
 
-    private void ProcessReadResult(BodyDrainSlot<int> slot, int bytesRead)
+    private void ProcessReadResult(FlowControlledDrainSlot slot, int bytesRead)
     {
         if (bytesRead == 0)
         {
@@ -344,7 +344,7 @@ internal sealed class FlowControlledBodyPump
         }
     }
 
-    private void DrainLimboSlot(BodyDrainSlot<int> slot)
+    private void DrainLimboSlot(FlowControlledDrainSlot slot)
     {
         var connWindow = _flowController.ConnectionSendWindow;
         var streamWindow = slot.BodyStream is null
@@ -381,7 +381,7 @@ internal sealed class FlowControlledBodyPump
         }
     }
 
-    private void CompleteDrain(BodyDrainSlot<int> slot)
+    private void CompleteDrain(FlowControlledDrainSlot slot)
     {
         _limboSlots.Remove(slot.StreamId);
         _activeSlots.Remove(slot.StreamId);
@@ -390,7 +390,7 @@ internal sealed class FlowControlledBodyPump
         _poolContext.Return(slot);
     }
 
-    private void RemoveAndReturnSlot(int streamId, BodyDrainSlot<int> slot)
+    private void RemoveAndReturnSlot(int streamId, FlowControlledDrainSlot slot)
     {
         _activeSlots.Remove(streamId);
         slot.DisposeResources();

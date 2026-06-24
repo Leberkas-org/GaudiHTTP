@@ -43,53 +43,14 @@ public sealed class BodyDrainSlotSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void CompleteAsyncRead_should_clear_IsReadInFlight_and_reset_sync_counter()
+    public void CompleteAsyncRead_should_clear_IsReadInFlight()
     {
         var slot = new BodyDrainSlot<int>();
         slot.BeginRead();
-        slot.IncrementSyncReads(100);
-        slot.IncrementSyncReads(100);
 
         slot.CompleteAsyncRead();
 
         Assert.False(slot.IsReadInFlight);
-        Assert.Equal(0, slot.ConsecutiveSyncReads);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IncrementSyncReads_should_return_false_below_threshold()
-    {
-        var slot = new BodyDrainSlot<int>();
-
-        var result = slot.IncrementSyncReads(3);
-
-        Assert.False(result);
-        Assert.Equal(1, slot.ConsecutiveSyncReads);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IncrementSyncReads_should_return_true_at_threshold()
-    {
-        var slot = new BodyDrainSlot<int>();
-
-        slot.IncrementSyncReads(3);
-        slot.IncrementSyncReads(3);
-        var result = slot.IncrementSyncReads(3);
-
-        Assert.True(result);
-        Assert.Equal(3, slot.ConsecutiveSyncReads);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ResetSyncReads_should_zero_counter()
-    {
-        var slot = new BodyDrainSlot<int>();
-        slot.IncrementSyncReads(100);
-        slot.IncrementSyncReads(100);
-
-        slot.ResetSyncReads();
-
-        Assert.Equal(0, slot.ConsecutiveSyncReads);
     }
 
     [Fact(Timeout = 5000)]
@@ -112,41 +73,6 @@ public sealed class BodyDrainSlotSpec
         Assert.True(slot.IsDrainComplete);
     }
 
-    [Fact(Timeout = 5000)]
-    public void StoreLimbo_should_set_HasLimbo_and_LimboData()
-    {
-        var slot = new BodyDrainSlot<int>();
-        var data = new byte[] { 10, 20, 30 };
-
-        slot.StoreLimbo(data);
-
-        Assert.True(slot.HasLimbo);
-        Assert.Equal(data, slot.LimboData.ToArray());
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ShrinkLimbo_should_advance_slice()
-    {
-        var slot = new BodyDrainSlot<int>();
-        var data = new byte[] { 1, 2, 3, 4, 5 };
-        slot.StoreLimbo(data);
-
-        slot.ShrinkLimbo(2);
-
-        Assert.Equal([3, 4, 5], slot.LimboData.ToArray());
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClearLimbo_should_clear_HasLimbo_and_LimboData()
-    {
-        var slot = new BodyDrainSlot<int>();
-        slot.StoreLimbo(new byte[] { 1, 2 });
-
-        slot.ClearLimbo();
-
-        Assert.False(slot.HasLimbo);
-        Assert.True(slot.LimboData.IsEmpty);
-    }
 
     [Fact(Timeout = 5000)]
     public void EnsureBuffer_should_rent_from_MemoryPool()
@@ -214,9 +140,7 @@ public sealed class BodyDrainSlotSpec
         slot.EnsureBuffer(256);
         slot.BeginRead();
         slot.MarkOrphaned();
-        slot.StoreLimbo(new byte[] { 9 });
         slot.MarkDrainComplete();
-        slot.IncrementSyncReads(100);
 
         slot.Reset();
 
@@ -230,10 +154,7 @@ public sealed class BodyDrainSlotSpec
         Assert.Null(slot.Buffer);
         Assert.False(slot.IsReadInFlight);
         Assert.False(slot.IsOrphaned);
-        Assert.False(slot.HasLimbo);
-        Assert.True(slot.LimboData.IsEmpty);
         Assert.False(slot.IsDrainComplete);
-        Assert.Equal(0, slot.ConsecutiveSyncReads);
     }
 
     [Fact(Timeout = 5000)]

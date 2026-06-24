@@ -690,7 +690,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.ResetSyncReadCounter();
             _serialPump.OnCapacityAvailable();
         }
     }

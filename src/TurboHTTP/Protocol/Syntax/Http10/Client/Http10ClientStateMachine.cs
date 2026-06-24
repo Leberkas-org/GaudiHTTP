@@ -88,8 +88,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
 
             // H1.0 has no OnOutboundFlushed — drive the pump inline.
-            _serialPump!.ResetSyncReadCounter();
-            _serialPump.OnCapacityAvailable();
+            _serialPump!.OnCapacityAvailable();
         }
 
         if (endStream)
