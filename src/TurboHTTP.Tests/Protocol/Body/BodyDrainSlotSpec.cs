@@ -13,11 +13,10 @@ public sealed class BodyDrainSlotSpec
         var cts = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
 
-        slot.Initialize(42, stream, contentLength: 3, CancellationToken.None, linked);
+        slot.Initialize(42, stream, CancellationToken.None, linked);
 
         Assert.Equal(42, slot.StreamId);
         Assert.Same(stream, slot.BodyStream);
-        Assert.Equal(3L, slot.ContentLength);
         Assert.Same(linked, slot.LinkedCts);
     }
 
@@ -32,23 +31,12 @@ public sealed class BodyDrainSlotSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void CompleteSyncRead_should_clear_IsReadInFlight()
+    public void CompleteRead_should_clear_IsReadInFlight()
     {
         var slot = new BodyDrainSlot<int>();
         slot.BeginRead();
 
-        slot.CompleteSyncRead();
-
-        Assert.False(slot.IsReadInFlight);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void CompleteAsyncRead_should_clear_IsReadInFlight()
-    {
-        var slot = new BodyDrainSlot<int>();
-        slot.BeginRead();
-
-        slot.CompleteAsyncRead();
+        slot.CompleteRead();
 
         Assert.False(slot.IsReadInFlight);
     }
@@ -64,15 +52,19 @@ public sealed class BodyDrainSlotSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void MarkDrainComplete_should_set_IsDrainComplete()
+    public void ReservedWindow_should_default_to_zero()
     {
         var slot = new BodyDrainSlot<int>();
-
-        slot.MarkDrainComplete();
-
-        Assert.True(slot.IsDrainComplete);
+        Assert.Equal(0, slot.ReservedWindow);
     }
 
+    [Fact(Timeout = 5000)]
+    public void ReservedWindow_should_persist_across_reads()
+    {
+        var slot = new BodyDrainSlot<int>();
+        slot.ReservedWindow = 8 * 1024;
+        Assert.Equal(8 * 1024, slot.ReservedWindow);
+    }
 
     [Fact(Timeout = 5000)]
     public void EnsureBuffer_should_rent_from_MemoryPool()
@@ -120,7 +112,7 @@ public sealed class BodyDrainSlotSpec
         var stream = new MemoryStream([]);
         var cts = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-        slot.Initialize(1, stream, null, CancellationToken.None, linked);
+        slot.Initialize(1, stream, CancellationToken.None, linked);
         slot.EnsureBuffer(256);
 
         slot.DisposeResources();
@@ -136,25 +128,24 @@ public sealed class BodyDrainSlotSpec
         var stream = new MemoryStream([1, 2, 3]);
         var cts = new CancellationTokenSource();
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-        slot.Initialize(7, stream, 3, CancellationToken.None, linked);
+        slot.Initialize(7, stream, CancellationToken.None, linked);
         slot.EnsureBuffer(256);
         slot.BeginRead();
         slot.MarkOrphaned();
-        slot.MarkDrainComplete();
+        slot.ReservedWindow = 16 * 1024;
 
         slot.Reset();
 
         Assert.Equal(0, slot.StreamId);
         Assert.Null(slot.BodyStream);
-        Assert.Null(slot.ContentLength);
 #pragma warning disable xUnit1051 // SUT behavior: asserts slot resets RequestCt to default, not test cooperative cancellation
         Assert.Equal(default, slot.RequestCt);
 #pragma warning restore xUnit1051
         Assert.Null(slot.LinkedCts);
         Assert.Null(slot.Buffer);
+        Assert.Equal(0, slot.ReservedWindow);
         Assert.False(slot.IsReadInFlight);
         Assert.False(slot.IsOrphaned);
-        Assert.False(slot.IsDrainComplete);
     }
 
     [Fact(Timeout = 5000)]
@@ -162,7 +153,7 @@ public sealed class BodyDrainSlotSpec
     {
         var slot = new BodyDrainSlot<long>();
         var stream = new MemoryStream([]);
-        slot.Initialize(99L, stream, null, CancellationToken.None, null);
+        slot.Initialize(99L, stream, CancellationToken.None, null);
 
         slot.Reset();
 

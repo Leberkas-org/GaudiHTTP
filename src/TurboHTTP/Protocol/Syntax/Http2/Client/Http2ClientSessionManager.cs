@@ -251,7 +251,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken());
+        _pump!.Register(streamId, bodyStream!, request.GetCancellationToken(), initialCredits: 16);
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
@@ -290,7 +290,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         // which will emit it when the send window opens up via WINDOW_UPDATE.
         state.MarkBodyDrainActive();
         var remainderBytes = body[sent..].ToArray();
-        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), remainderBytes.Length, CancellationToken.None);
+        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), CancellationToken.None, initialCredits: 16);
     }
 
     private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)

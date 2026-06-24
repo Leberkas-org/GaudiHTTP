@@ -41,7 +41,7 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1L, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -55,8 +55,8 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(128), 128, CancellationToken.None);
-        pump.Register(3L, MakeBody(128), 128, CancellationToken.None);
+        pump.Register(1L, MakeBody(128), CancellationToken.None, initialCredits: 16);
+        pump.Register(3L, MakeBody(128), CancellationToken.None, initialCredits: 16);
 
         Assert.Contains(1L, target.Completed);
         Assert.Contains(3L, target.Completed);
@@ -68,7 +68,7 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1L, MakeBody(100), CancellationToken.None, initialCredits: 16);
         pump.Cancel(1L);
     }
 
@@ -88,7 +88,7 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1L, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Single(target.Completed);
@@ -100,7 +100,7 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(65 * 16), 65 * 16, CancellationToken.None);
+        pump.Register(1L, MakeBody(65 * 16), CancellationToken.None, initialCredits: 16);
 
         // All chunks emitted + EOF
         var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
@@ -114,11 +114,11 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, MakeBody(10), 10, CancellationToken.None);
+        pump.Register(1L, MakeBody(10), CancellationToken.None, initialCredits: 16);
         Assert.Single(target.Completed);
 
         target.Completed.Clear();
-        pump.Register(3L, MakeBody(10), 10, CancellationToken.None);
+        pump.Register(3L, MakeBody(10), CancellationToken.None, initialCredits: 16);
         Assert.Single(target.Completed);
     }
 
@@ -128,7 +128,7 @@ public sealed class MultiplexedBodyPumpSpec
         var target = new FakeTarget();
         var pump = new MultiplexedBodyPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(1L, new MemoryStream([]), 0, CancellationToken.None);
+        pump.Register(1L, new MemoryStream([]), CancellationToken.None, initialCredits: 16);
 
         Assert.Single(target.Emitted);
         Assert.True(target.Emitted[0].EndStream);

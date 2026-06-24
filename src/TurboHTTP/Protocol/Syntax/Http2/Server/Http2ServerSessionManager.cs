@@ -368,7 +368,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                     state.MarkBodyDrainActive();
                     _pump!.Register(streamId,
                         new MemoryStream(segment.Array!, segment.Offset, segment.Count, writable: false),
-                        bufferedBody.Length, CancellationToken.None);
+                        CancellationToken.None, initialCredits: 16);
                     return;
                 }
 
@@ -385,7 +385,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
+        _pump!.Register(streamId, bodyStream, CancellationToken.None, initialCredits: 16);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
 
@@ -935,7 +935,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
         // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
         state.MarkBodyDrainActive();
         var remainderBytes = remainder.ToArray();
-        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), remainderBytes.Length, CancellationToken.None);
+        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), CancellationToken.None, initialCredits: 16);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",

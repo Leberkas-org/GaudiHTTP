@@ -491,7 +491,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
             _serialPump =
                 new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
-            _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
+            _serialPump.Register(bodyStream, CancellationToken.None);
         }
         else
         {
