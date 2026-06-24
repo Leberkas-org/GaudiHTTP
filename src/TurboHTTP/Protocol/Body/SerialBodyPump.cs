@@ -46,10 +46,6 @@ internal sealed class SerialBodyPump
         TryStartRead();
     }
 
-    public void ResetSyncReadCounter()
-    {
-        _slot.ResetSyncReads();
-    }
 
     public void HandleReadComplete(int bytesRead)
     {

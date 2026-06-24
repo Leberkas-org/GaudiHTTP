@@ -268,7 +268,6 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (_serialPump is not null)
         {
-            _serialPump.ResetSyncReadCounter();
             _serialPump.OnCapacityAvailable();
         }
     }
