@@ -77,7 +77,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         Assert.True(target.Emitted.Count >= 1);
     }
@@ -89,7 +89,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         Assert.Empty(target.Emitted);
     }
@@ -101,7 +101,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
         // Threshold for 1 active stream = min(budget/2, 1*2) = 2
@@ -118,7 +118,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         for (var i = 0; i < 10; i++)
         {
@@ -136,7 +136,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), cts);
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         pump.CancelAll();
 
         Assert.True(cts.IsCancellationRequested);
@@ -150,7 +150,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         pump.Cancel(0);
 
         Assert.Equal(0, pump.ActiveStreamCount);
@@ -163,7 +163,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = new MemoryStream([]);
 
-        pump.Register(0, body, 0, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         Assert.Single(target.Emitted);
         Assert.True(target.Emitted[0].EndStream);
@@ -178,7 +178,7 @@ public sealed class BodyPumpBaseSpec
         var body = MakeBody(100);
         var error = new IOException("test error");
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         pump.HandleReadFailed(0, error);
 
         Assert.Single(target.Failed);
@@ -210,8 +210,8 @@ public sealed class BodyPumpBaseSpec
         var body0 = MakeBody(64 * 1024);
         var body1 = MakeBody(64 * 1024);
 
-        pump.Register(0, body0, 64 * 1024, CancellationToken.None);
-        pump.Register(1, body1, 64 * 1024, CancellationToken.None);
+        pump.Register(0, body0, CancellationToken.None);
+        pump.Register(1, body1, CancellationToken.None);
 
         // Add enough credits to exceed the read-round threshold (min(budget/2, 2*2) = 4).
         for (var i = 0; i < 20; i++)
@@ -231,9 +231,9 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
         var bodySize = 64 * 1024;
-        pump.Register(0, MakeBody(bodySize), bodySize, CancellationToken.None);
-        pump.Register(1, MakeBody(bodySize), bodySize, CancellationToken.None);
-        pump.Register(2, MakeBody(bodySize), bodySize, CancellationToken.None);
+        pump.Register(0, MakeBody(bodySize), CancellationToken.None);
+        pump.Register(1, MakeBody(bodySize), CancellationToken.None);
+        pump.Register(2, MakeBody(bodySize), CancellationToken.None);
 
         // Add credits well above threshold to trigger a multi-read round.
         for (var i = 0; i < 48; i++)
@@ -326,7 +326,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(64 * 1024);
 
-        pump.Register(0, body, 64 * 1024, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         // With sync MemoryStream and credit reclaim, the first AddCredit that
         // reaches threshold reads the entire body in one self-driving chain.
@@ -347,7 +347,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(64 * 1024);
 
-        pump.Register(0, body, 64 * 1024, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         // No credits yet: no reads.
         Assert.Empty(target.Emitted);
@@ -372,7 +372,7 @@ public sealed class BodyPumpBaseSpec
         var body = new MemoryStream([]);
 
         // Register empty body — completes immediately on Register (HasPendingDemand=true).
-        pump.Register(0, body, 0, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Single(target.Completed);
 
         // Cancelling after completion should not throw and should be a no-op.
@@ -387,8 +387,8 @@ public sealed class BodyPumpBaseSpec
         var cts = new CancellationTokenSource();
         var pump = new TestPump(target, new ConnectionPoolContext(), cts);
 
-        pump.Register(0, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
-        pump.Register(1, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
+        pump.Register(0, MakeBody(64 * 1024), CancellationToken.None);
+        pump.Register(1, MakeBody(64 * 1024), CancellationToken.None);
 
         pump.CancelAll();
 
@@ -403,9 +403,9 @@ public sealed class BodyPumpBaseSpec
         var target = new FakeTarget { HasPendingDemand = false };
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
 
-        pump.Register(0, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
-        pump.Register(1, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
-        pump.Register(2, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
+        pump.Register(0, MakeBody(64 * 1024), CancellationToken.None);
+        pump.Register(1, MakeBody(64 * 1024), CancellationToken.None);
+        pump.Register(2, MakeBody(64 * 1024), CancellationToken.None);
 
         pump.Cancel(1);
 
@@ -462,7 +462,7 @@ public sealed class BodyPumpBaseSpec
 
         // Body: 3 chunks of 16 KB → 3 data frames then 1 endStream frame.
         var body = MakeBody(3 * 16 * 1024);
-        pump.Register(0, body, 3 * 16 * 1024, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         // Seed exactly one credit — the inline AddCredit fired by each EmitDataFrames call
         // continues the drain. The entire body must complete without external credits.
@@ -487,7 +487,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(100);
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
         // Act: add exactly 1 credit.
@@ -511,7 +511,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(16 * 1024);
 
-        pump.Register(0, body, 16 * 1024, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
         // Two credits: one for the data read (16KB), one for the EOF read (0 bytes).
@@ -572,7 +572,7 @@ public sealed class BodyPumpBaseSpec
 
         // Empty body: HasPendingDemand=true → TryReadNextEligible fires → EOF immediately →
         // CleanupSlot (fix: before notify) → OnDrainComplete → Cancel(0) → no-op.
-        pump.Register(0, new MemoryStream([]), 0, CancellationToken.None);
+        pump.Register(0, new MemoryStream([]), CancellationToken.None);
 
         // Body drains to completion. The Cancel inside OnDrainComplete must be a safe no-op.
         Assert.Single(target.Completed);
@@ -581,7 +581,7 @@ public sealed class BodyPumpBaseSpec
         // Verify pool integrity: register a second body — the slot must be reusable.
         // Without the fix, the slot would have been double-returned and the pool is corrupted,
         // causing a NullReferenceException or corrupted state here.
-        pump.Register(1, new MemoryStream([]), 0, CancellationToken.None);
+        pump.Register(1, new MemoryStream([]), CancellationToken.None);
         Assert.Equal(2, target.Completed.Count);
     }
 
@@ -597,7 +597,7 @@ public sealed class BodyPumpBaseSpec
         var cts = new CancellationTokenSource();
         var pump = new TestPump(target, new ConnectionPoolContext(), cts);
 
-        pump.Register(0, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(0, MakeBody(100), CancellationToken.None);
         pump.CancelAll();
 
         // Act: stale completion arrives for streamId 0 — must not throw.
@@ -617,7 +617,7 @@ public sealed class BodyPumpBaseSpec
         var cts = new CancellationTokenSource();
         var pump = new TestPump(target, new ConnectionPoolContext(), cts);
 
-        pump.Register(0, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(0, MakeBody(100), CancellationToken.None);
         pump.CancelAll();
 
         // Act: stale failure arrives — must not throw or call OnDrainFailed.
@@ -641,7 +641,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = new MemoryStream([42]);
 
-        pump.Register(0, body, 1, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
         // First credit → data read (1 byte). Second credit → EOF read (0 bytes).
@@ -669,7 +669,7 @@ public sealed class BodyPumpBaseSpec
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = MakeBody(16 * 1024);
 
-        pump.Register(0, body, 16 * 1024, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
         Assert.Empty(target.Emitted);
 
         // Drive exactly 2 reads: data + EOF.
@@ -697,7 +697,7 @@ public sealed class BodyPumpBaseSpec
 
         for (var id = 0; id < 5; id++)
         {
-            pump.Register(id, MakeBody(64 * 1024), 64 * 1024, CancellationToken.None);
+            pump.Register(id, MakeBody(64 * 1024), CancellationToken.None);
         }
 
         pump.Cancel(1);
@@ -759,7 +759,7 @@ public sealed class BodyPumpBaseSpec
         target.SetPump(pump);
 
         var bodySize = 8 * 16 * 1024;
-        pump.Register(0, MakeBody(bodySize), bodySize, CancellationToken.None);
+        pump.Register(0, MakeBody(bodySize), CancellationToken.None);
 
         // Seed one credit to start the drain; the target cancels on first emit.
         pump.AddCredit();
@@ -794,16 +794,16 @@ public sealed class BodyPumpBaseSpec
     [Fact(Timeout = 5000)]
     public void ReadAsync_that_throws_synchronously_should_propagate_as_exception()
     {
-        // BodyPumpHelper.StartRead calls ReadAsync inside PerformRead.
+        // StartRead calls ReadAsync inside PerformRead.
         // If ReadAsync throws synchronously (not via a faulted ValueTask), the exception
-        // propagates out of PerformRead → TryReadNextEligible → AddCredit → caller.
+        // propagates out of PerformRead → DrainReady → AddCredit → caller.
         // This test documents the current behavior: the pump does NOT catch synchronous throws
         // from ReadAsync; the caller receives the exception directly.
         var target = new FakeTarget { HasPendingDemand = false };
         var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
         var body = new SynchronousThrowStream();
 
-        pump.Register(0, body, 100, CancellationToken.None);
+        pump.Register(0, body, CancellationToken.None);
 
         // AddCredit triggers a read, which calls ReadAsync → throws synchronously.
         var ex = Record.Exception(() => pump.AddCredit());

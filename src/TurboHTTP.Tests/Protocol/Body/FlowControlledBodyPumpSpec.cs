@@ -58,7 +58,7 @@ public sealed class FlowControlledBodyPumpSpec
         var pump = MakePump(target, flow);
 
         flow.InitStreamSendWindow(1);
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -77,7 +77,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.OnDataSent(1, 65535);
         // Stream window is now 0, connection window reduced too
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         Assert.Empty(target.Emitted);
         Assert.Empty(target.Completed);
@@ -104,7 +104,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnDataSent(1, 65535 - 4 * 1024);
         // Stream window = 4096, conn window still large
 
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // Stream is window-blocked: 4096 < 8192
         Assert.Empty(target.Emitted);
@@ -129,8 +129,8 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.InitStreamSendWindow(3);
 
-        pump.Register(1, MakeBody(128), 128, CancellationToken.None);
-        pump.Register(3, MakeBody(128), 128, CancellationToken.None);
+        pump.Register(1, MakeBody(128), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(128), CancellationToken.None, initialCredits: 16);
 
         // Both should complete (sync fast path)
         Assert.Contains(1, target.Completed);
@@ -150,7 +150,7 @@ public sealed class FlowControlledBodyPumpSpec
         var pump = MakePump(target, flow);
 
         flow.InitStreamSendWindow(1);
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // Already completed for sync stream
         pump.Cancel(1);
@@ -176,7 +176,7 @@ public sealed class FlowControlledBodyPumpSpec
         var pump = MakePump(target, flow);
 
         flow.InitStreamSendWindow(1);
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // MemoryStream completes synchronously — no PipeTo needed
         Assert.Equal(2, target.Emitted.Count);
@@ -194,7 +194,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.OnSendWindowUpdate(1, 1024 * 1024);
         var bodySize = 65 * 16;
-        pump.Register(1, MakeBody(bodySize), bodySize, CancellationToken.None);
+        pump.Register(1, MakeBody(bodySize), CancellationToken.None, initialCredits: 16);
 
         // All bytes emitted + EOF (no starvation guard)
         var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
@@ -210,13 +210,13 @@ public sealed class FlowControlledBodyPumpSpec
         var pump = MakePump(target, flow);
 
         flow.InitStreamSendWindow(1);
-        pump.Register(1, MakeBody(10), 10, CancellationToken.None);
+        pump.Register(1, MakeBody(10), CancellationToken.None, initialCredits: 16);
         Assert.Single(target.Completed);
 
         // Register again — should reuse pooled slot
         flow.InitStreamSendWindow(3);
         target.Completed.Clear();
-        pump.Register(3, MakeBody(10), 10, CancellationToken.None);
+        pump.Register(3, MakeBody(10), CancellationToken.None, initialCredits: 16);
         Assert.Single(target.Completed);
     }
 
@@ -230,7 +230,7 @@ public sealed class FlowControlledBodyPumpSpec
         var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), connCts);
 
         flow.InitStreamSendWindow(1);
-        pump.Register(1, MakeBody(100), 100, reqCts.Token);
+        pump.Register(1, MakeBody(100), reqCts.Token, initialCredits: 16);
 
         Assert.Single(target.Completed);
         reqCts.Dispose();
@@ -247,7 +247,7 @@ public sealed class FlowControlledBodyPumpSpec
         var initialConnWindow = flow.ConnectionSendWindow;
         var initialStreamWindow = flow.GetStreamSendWindow(1);
 
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // After completing the drain, windows should have been decremented and refunded.
         // Net effect: 100 bytes were effectively consumed (not refunded).
@@ -270,7 +270,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnDataSent(1, 65534);
         // Stream window = 1, far below the 8192 threshold
 
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // No reads should happen — stream is window-blocked
         Assert.Empty(target.Emitted);
@@ -287,7 +287,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         // Block the stream below threshold
         flow.OnDataSent(1, 65534);
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
         Assert.Empty(target.Emitted);
 
         // Restore window above threshold and signal update
@@ -312,7 +312,7 @@ public sealed class FlowControlledBodyPumpSpec
         var windowBefore = flow.ConnectionSendWindow;
 
         // Register a body smaller than chunkSize so the reservation exceeds bytes read
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         var windowAfter = flow.ConnectionSendWindow;
 
@@ -343,7 +343,7 @@ public sealed class FlowControlledBodyPumpSpec
         var streamWindowBefore = flow.GetStreamSendWindow(1);
 
         // Register and drain a 100-byte body.
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         // Windows should have been decremented by the reservation, then refunded for the unused portion.
         // Net: they should be <= original (refund restores unused reservation, but actual data was reserved).
@@ -370,7 +370,7 @@ public sealed class FlowControlledBodyPumpSpec
         var connWindowBefore = flow.ConnectionSendWindow;
         var streamWindowBefore = flow.GetStreamSendWindow(1);
 
-        pump.Register(1, MakeBody(100), 100, CancellationToken.None);
+        pump.Register(1, MakeBody(100), CancellationToken.None, initialCredits: 16);
 
         var connWindowAfter = flow.ConnectionSendWindow;
         var streamWindowAfter = flow.GetStreamSendWindow(1);
@@ -398,7 +398,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.OnDataSent(1, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // No reads — stream blocked
         Assert.Empty(target.Emitted);
@@ -430,8 +430,8 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnDataSent(1, 65535);
         flow.OnDataSent(3, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
-        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // Neither should have emitted (blocked before bootstrap credits could run, or blocked after).
         Assert.Empty(target.Completed);
@@ -464,8 +464,8 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnDataSent(1, 65535);
         flow.OnDataSent(3, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
-        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // Both blocked: no emits beyond bootstrap (bootstrap credits may have been spent trying to read)
         Assert.Empty(target.Completed);
@@ -497,7 +497,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.OnDataSent(1, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // Stream is window-blocked.
         Assert.Empty(target.Emitted);
@@ -528,8 +528,8 @@ public sealed class FlowControlledBodyPumpSpec
         flow.OnDataSent(1, 65535);
         flow.OnDataSent(3, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
-        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // CancelAll should clean up including window-blocked streams.
         pump.CancelAll();
@@ -584,7 +584,7 @@ public sealed class FlowControlledBodyPumpSpec
                 _firstRead = false;
                 // Advance internal position immediately so subsequent sync reads see the correct
                 // stream position — the bytes are considered read even though the ValueTask is
-                // returned as non-completed (to force the async dispatch path in BodyPumpHelper
+                // returned as non-completed (to force the async dispatch path in BodyPumpBase
                 // so that no sync credit reclaim occurs).
                 var n = ReadSync(buffer);
                 var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -632,7 +632,7 @@ public sealed class FlowControlledBodyPumpSpec
         var data = new byte[100];
         var body = new OnceAsyncStream(data);
 
-        pump.Register(1, body, 100, CancellationToken.None);
+        pump.Register(1, body, CancellationToken.None, initialCredits: 16);
 
         // At this point the first read was dispatched asynchronously (slot is in-flight).
         // Simulate delivery of the async read result: 100 bytes read.
@@ -662,7 +662,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(1);
         flow.OnDataSent(1, 65535);
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // Stream is window-blocked: bootstrap credits accumulated but no reads fired.
         Assert.Empty(target.Emitted);
@@ -703,7 +703,7 @@ public sealed class FlowControlledBodyPumpSpec
         var data = new byte[16 * 1024];
         var body = new OnceAsyncStream(data);
 
-        pump.Register(1, body, 16 * 1024, CancellationToken.None);
+        pump.Register(1, body, CancellationToken.None, initialCredits: 16);
 
         // First read is async (in-flight). BeforeRead reserved chunkSize (16384) from the window.
         // Cancel the stream while the read is still in-flight: slot becomes orphaned.
@@ -744,10 +744,10 @@ public sealed class FlowControlledBodyPumpSpec
         // Register 4 streams — each Register bootstraps 16 credits.
         // The first 3 streams should each read one 16-KB chunk, consuming the full connection window.
         // The 4th stream should be window-blocked because connection window < chunkSize/2.
-        pump.Register(1, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
-        pump.Register(2, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
-        pump.Register(3, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
-        pump.Register(4, MakeBody(32 * 1024), 32 * 1024, CancellationToken.None);
+        pump.Register(1, MakeBody(32 * 1024), CancellationToken.None, initialCredits: 16);
+        pump.Register(2, MakeBody(32 * 1024), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(32 * 1024), CancellationToken.None, initialCredits: 16);
+        pump.Register(4, MakeBody(32 * 1024), CancellationToken.None, initialCredits: 16);
 
         // Stream 4 must not have any data emitted (window-blocked).
         var stream4DataEmits = target.Emitted.Count(e => e.StreamId == 4 && !e.EndStream);
@@ -776,7 +776,7 @@ public sealed class FlowControlledBodyPumpSpec
         flow.InitStreamSendWindow(5);
         flow.OnDataSent(5, 65535);
 
-        pump.Register(5, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(5, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // Stream 5 is window-blocked.
         Assert.Empty(target.Emitted);
@@ -816,9 +816,9 @@ public sealed class FlowControlledBodyPumpSpec
             flow.OnDataSent(id, 65535);
         }
 
-        pump.Register(1, MakeBody(50), 50, CancellationToken.None);
-        pump.Register(2, MakeBody(50), 50, CancellationToken.None);
-        pump.Register(3, MakeBody(50), 50, CancellationToken.None);
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(2, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
 
         // All three blocked — nothing emitted yet.
         Assert.Empty(target.Completed);

@@ -75,7 +75,7 @@ public sealed class SerialBodyPumpSpec
         var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(100);
 
-        pump.Register(body, 100, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -94,7 +94,7 @@ public sealed class SerialBodyPumpSpec
         var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = new MemoryStream([]);
 
-        pump.Register(body, 0, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         Assert.Single(target.Emitted);
         Assert.True(target.Emitted[0].EndStream);
@@ -113,7 +113,7 @@ public sealed class SerialBodyPumpSpec
         target.SetPump(pump);
         var body = MakeBody(200);
 
-        pump.Register(body, 200, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         var dataEmits = target.Emitted.Where(e => !e.EndStream).ToList();
         Assert.Single(dataEmits);  // 200 bytes < 16 KB chunk = 1 emit
@@ -131,7 +131,7 @@ public sealed class SerialBodyPumpSpec
         var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(200);
 
-        pump.Register(body, 200, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         // Initial register starts reads. With target's 16KB chunk size and FakeTarget (no auto-resume),
         // the base class credit system drains initial budget and pauses.
@@ -153,7 +153,7 @@ public sealed class SerialBodyPumpSpec
         var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(100);
 
-        pump.Register(body, 100, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
         // Already completed since MemoryStream is sync with sufficient budget
         Assert.Single(target.Completed);
 
@@ -171,7 +171,7 @@ public sealed class SerialBodyPumpSpec
         // Large enough to not complete with 16 initial credits
         var largeBody = MakeBody(1000 * 1024);
 
-        pump.Register(largeBody, 1000 * 1024, CancellationToken.None);
+        pump.Register(largeBody, CancellationToken.None);
         // Some reads completed with initial credits
         var initialEmitted = target.Emitted.Count(e => !e.EndStream);
         Assert.True(initialEmitted > 0, "initial credits should have started reads");
@@ -210,7 +210,7 @@ public sealed class SerialBodyPumpSpec
         var pump = new SerialBodyPump(target, poolContext, connCts);
         var body = MakeBody(64);
 
-        pump.Register(body, 64, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         Assert.Equal(64, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
         Assert.Single(target.Completed);
@@ -228,7 +228,7 @@ public sealed class SerialBodyPumpSpec
         var largeBodySize = 1000 * 1024;  // 1 MB body
         var body = MakeBody(largeBodySize);
 
-        pump.Register(body, largeBodySize, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         // With 16 initial credits and 16 KB chunks, we drain ~256 KB. Need more credits for 1 MB.
         int iterations = 0;
@@ -255,7 +255,7 @@ public sealed class SerialBodyPumpSpec
         target.SetPump(pump);
         var body = MakeBody(65 * 16);
 
-        pump.Register(body, 65 * 16, CancellationToken.None);
+        pump.Register(body, CancellationToken.None);
 
         // All 65 data chunks emitted + EOF
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
@@ -272,7 +272,7 @@ public sealed class SerialBodyPumpSpec
         var reqCts = new CancellationTokenSource();
         var pump = new SerialBodyPump(target, poolContext, connCts);
 
-        pump.Register(MakeBody(100), 100, reqCts.Token);
+        pump.Register(MakeBody(100), reqCts.Token);
 
         Assert.Single(target.Completed);
         // Verify no exception when disposing reqCts (linked CTS should already be disposed by pump)
@@ -317,7 +317,7 @@ public sealed class SerialBodyPumpSpec
         target.SetPump(pump);
 
         var bodyStream = pipe.Reader.AsStream();
-        pump.Register(bodyStream, totalSize, CancellationToken.None);
+        pump.Register(bodyStream, CancellationToken.None);
 
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(totalSize, emittedBytes);
@@ -362,7 +362,7 @@ public sealed class SerialBodyPumpSpec
         target.SetPump(pump);
 
         var bodyStream = pipe.Reader.AsStream();
-        pump.Register(bodyStream, totalSize, CancellationToken.None);
+        pump.Register(bodyStream, CancellationToken.None);
 
         // At this point, the pump has consumed the initial 4 KB synchronously,
         // then issued a read that went async (no more data in pipe yet).

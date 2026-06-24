@@ -489,7 +489,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
         _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
-        _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
+        _serialPump.Register(bodyStream, CancellationToken.None);
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
