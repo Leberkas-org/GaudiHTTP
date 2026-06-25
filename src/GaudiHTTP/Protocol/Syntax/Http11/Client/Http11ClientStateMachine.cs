@@ -10,7 +10,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget<int>
+internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget
 {
     private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
@@ -87,11 +87,9 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<int>.PreferredChunkSize => _options.RequestBodyChunkSize;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -131,12 +129,12 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "request body drain complete");
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
         _outboundBodyPending = false;
@@ -300,21 +298,22 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                 break;
 
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
-        if (_serialPump is not null)
-        {
-            _serialPump.AddCredit();
-        }
+        _serialPump?.OnCapacityAvailable();
     }
 
     public void Cleanup()
@@ -488,8 +487,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _isChunked = contentLength is null && !httpVersion.Equals(HttpVersion.Version10);
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
-        _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
-        _serialPump.Register(bodyStream, CancellationToken.None);
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
+        _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)

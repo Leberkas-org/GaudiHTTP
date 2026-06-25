@@ -17,7 +17,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
-internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
+internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -233,8 +233,8 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
-        _pump.Register(streamId, bodyStream, CancellationToken.None, initialCredits: 16);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, 16 * 1024);
+        _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
 
@@ -261,15 +261,15 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     {
         switch (msg)
         {
-            case ContinueDrain:
-                _pump?.HandleContinueDrain();
+            case MultiplexedDrainContinue cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
 
-            case DrainReadComplete<long> read:
+            case MultiplexedDrainReadComplete read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed<long> failed:
+            case MultiplexedDrainReadFailed failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
@@ -763,14 +763,11 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
     public void OnOutboundFlushed()
     {
-        _pump?.AddCredit();
     }
 
-    IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<long>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -778,7 +775,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", streamId);
 
@@ -790,7 +787,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this,
             "HTTP/3: Response body drain failed for stream {0}: {1}", streamId, reason.Message);

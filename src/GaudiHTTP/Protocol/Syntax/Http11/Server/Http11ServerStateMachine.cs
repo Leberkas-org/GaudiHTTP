@@ -16,7 +16,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
+internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget
 {
     private const string KeepAliveTimer = "keep-alive";
     private const string RequestHeadersTimer = "request-headers";
@@ -109,11 +109,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<int>.PreferredChunkSize => _bodyEncoderOptions.ChunkSize;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -140,9 +138,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
         }
 
-        if (!endStream && _serialPump is not null)
+        if (!endStream)
         {
-            _serialPump.AddCredit();
+            _serialPump?.OnCapacityAvailable();
         }
 
         if (endStream)
@@ -168,12 +166,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "response body drain complete");
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         _outboundBodyPending = false;
         _responseRate.Remove(0);
@@ -490,8 +488,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             var bodyStream = gaudiBody.GetResponseStream();
 
             _serialPump =
-                new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
-            _serialPump.Register(bodyStream, CancellationToken.None);
+                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+            _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
         }
         else
         {
@@ -677,21 +675,22 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         switch (msg)
         {
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
-        if (_serialPump is not null)
-        {
-            _serialPump.AddCredit();
-        }
+        _serialPump?.OnCapacityAvailable();
     }
 
     internal readonly struct ResponseHeaderScan(long? contentLength, bool hasExplicitChunked, int estimatedSize)

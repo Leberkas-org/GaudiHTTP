@@ -52,7 +52,7 @@ public sealed class Http3DataFrameBatchingSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
-        var target = (IBodyDrainTarget<long>)sm;
+        var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 4;
         var body = new byte[256];
@@ -74,7 +74,7 @@ public sealed class Http3DataFrameBatchingSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
-        var target = (IBodyDrainTarget<long>)sm;
+        var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 8;
         var body = new byte[128];
@@ -96,7 +96,7 @@ public sealed class Http3DataFrameBatchingSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
-        var target = (IBodyDrainTarget<long>)sm;
+        var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 12;
         var body = new byte[1 * 1024 * 1024];
@@ -118,7 +118,7 @@ public sealed class Http3DataFrameBatchingSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
-        var target = (IBodyDrainTarget<long>)sm;
+        var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 16;
 

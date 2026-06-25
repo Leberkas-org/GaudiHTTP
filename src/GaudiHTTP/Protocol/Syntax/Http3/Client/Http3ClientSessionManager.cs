@@ -13,7 +13,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
-internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
+internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 {
     internal sealed record AbandonedResponseBody(long StreamId);
     private readonly Http3ClientEncoderOptions _encoderOptions;
@@ -161,23 +161,23 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
-        _pump.Register(streamId, bodyStream!, CancellationToken.None, initialCredits: 16);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, 16 * 1024);
+        _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
     {
         switch (msg)
         {
-            case ContinueDrain:
-                _pump?.HandleContinueDrain();
+            case MultiplexedDrainContinue cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
 
-            case DrainReadComplete<long> read:
+            case MultiplexedDrainReadComplete read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed<long> failed:
+            case MultiplexedDrainReadFailed failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
@@ -382,14 +382,11 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
     public void OnOutboundFlushed()
     {
-        _pump?.AddCredit();
     }
 
-    IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<long>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         EmitBufferedDataFrames(streamId, data, endStream);
     }
@@ -428,7 +425,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
         _drainContentOwners.Remove(streamId);
 
@@ -440,7 +437,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
         _drainContentOwners.Remove(streamId);
         Tracing.For("Protocol").Warning(this,

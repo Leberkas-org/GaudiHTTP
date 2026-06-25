@@ -9,7 +9,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget<int>
+internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget
 {
     private readonly IClientStageOperations _ops;
     private readonly Http10ClientDecoder _decoder;
@@ -73,11 +73,9 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => false;
-    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -87,8 +85,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
 
-            // H1.0 has no OnOutboundFlushed — drive the pump inline.
-            _serialPump!.AddCredit();
+            // H1.0 has no OnOutboundFlushed — drive the pump inline after each chunk.
+            _serialPump!.OnCapacityAvailable();
         }
 
         if (endStream)
@@ -100,12 +98,12 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body drain complete");
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
         _outboundBodyPending = false;
@@ -191,11 +189,15 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 break;
 
             case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
             case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
@@ -286,8 +288,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartBodyDrain(Stream bodyStream)
     {
-        _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
-        _serialPump.Register(bodyStream, CancellationToken.None);
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 2);
+        _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
     private void DecodeResponse(TransportBuffer buffer)
