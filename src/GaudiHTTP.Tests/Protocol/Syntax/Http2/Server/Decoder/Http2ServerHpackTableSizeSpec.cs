@@ -23,13 +23,12 @@ public sealed class Http2ServerHpackTableSizeSpec
         MaxHeaderCount = 100,
     };
 
-    private static readonly HpackEncoder Encoder = new(useHuffman: false);
-
     private static byte[] EncodeRequest()
     {
+        var encoder = new HpackEncoder(useHuffman: false);
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var span = owner.Memory.Span;
-        var written = Encoder.Encode(new List<HpackHeader>
+        var written = encoder.Encode(new List<HpackHeader>
         {
             new(":method", "GET"),
             new(":path", "/"),

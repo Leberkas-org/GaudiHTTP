@@ -840,4 +840,211 @@ public sealed class FlowControlledBodyPumpSpec
         Assert.Contains(3, target.Completed);
         Assert.DoesNotContain(target.Emitted, e => e.StreamId == 2 && !e.EndStream);
     }
+
+    // Fix 2: Scaled WINDOW_UPDATE credit injection
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_connection_level_should_drain_blocked_streams_with_scaled_credits()
+    {
+        // 5 streams all window-blocked. Connection-level WINDOW_UPDATE should inject
+        // credits proportional to unblocked count (5, capped at 16) and drain all bodies.
+        // The pump has accumulated credits from initialCredits during registration.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        for (var id = 1; id <= 10; id += 2)
+        {
+            flow.InitStreamSendWindow(id);
+            flow.OnDataSent(id, 65535);
+        }
+
+        for (var id = 1; id <= 10; id += 2)
+        {
+            pump.Register(id, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        }
+
+        Assert.Empty(target.Completed);
+
+        for (var id = 1; id <= 10; id += 2)
+        {
+            flow.OnSendWindowUpdate(id, 65535);
+        }
+
+        flow.OnSendWindowUpdate(0, 65535 * 5);
+        pump.OnWindowUpdate(0);
+
+        for (var id = 1; id <= 10; id += 2)
+        {
+            Assert.Contains(id, target.Completed);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_stream_level_with_no_unblock_should_still_inject_one_credit()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        flow.InitStreamSendWindow(1);
+        pump.Register(1, MakeBody(50), CancellationToken.None);
+
+        Assert.Empty(target.Emitted);
+
+        pump.OnWindowUpdate(1);
+
+        Assert.NotEmpty(target.Emitted);
+    }
+
+    // Re-entrancy guard (Fix 1) integration with flow control
+
+    private sealed class InlineCreditFlowTarget : IBodyDrainTarget<int>
+    {
+        private FlowControlledBodyPump? _pump;
+        public IActorRef PipeToTarget { get; } = ActorRefs.Nobody;
+        public bool HasPendingDemand => false;
+        public int PreferredChunkSize => 16 * 1024;
+        public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
+        public List<int> Completed { get; } = [];
+        public List<(int StreamId, Exception Reason)> Failed { get; } = [];
+
+        public void SetPump(FlowControlledBodyPump pump) => _pump = pump;
+
+        public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+        {
+            Emitted.Add((streamId, data.ToArray(), endStream));
+            if (!endStream && _pump is not null)
+            {
+                _pump.AddCredit();
+            }
+        }
+
+        public void OnDrainComplete(int streamId) => Completed.Add(streamId);
+        public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_with_inline_AddCredit_should_drain_streams_iteratively()
+    {
+        // 30 window-blocked streams with sync bodies AND inline AddCredit from
+        // EmitDataFrames. Before Fix 1, this created O(30) recursive DrainReady
+        // stack depth per OnWindowUpdate. After Fix 1, flat iteration.
+        // With inline credits, each stream costs 1 net credit (EOF only). The pump
+        // has 48 accumulated credits from registration, enough for all 30 EOFs.
+        var target = new InlineCreditFlowTarget();
+        var flow = MakeFlow(connWindow: 100 * 1024 * 1024);
+        var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        for (var id = 1; id <= 60; id += 2)
+        {
+            flow.InitStreamSendWindow(id);
+            flow.OnDataSent(id, 65535);
+        }
+
+        for (var id = 1; id <= 60; id += 2)
+        {
+            pump.Register(id, MakeBody(100), CancellationToken.None, initialCredits: 16);
+        }
+
+        Assert.Empty(target.Completed);
+
+        for (var id = 1; id <= 60; id += 2)
+        {
+            flow.OnSendWindowUpdate(id, 1024 * 1024);
+        }
+
+        flow.OnSendWindowUpdate(0, 100 * 1024 * 1024);
+        pump.OnWindowUpdate(0);
+
+        for (var id = 1; id <= 60; id += 2)
+        {
+            Assert.Contains(id, target.Completed);
+        }
+    }
+
+    // Fix 4: Connection-window early-out
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_connection_level_should_skip_scan_when_connection_window_below_threshold()
+    {
+        // When connection send window < chunkSize/2, no stream can be eligible
+        // (Math.Min(streamWindow, connWindow) < minReadSize for all). The scan
+        // over _windowBlockedStreams is skipped entirely via early-out.
+        var target = new FakeTarget();
+        var connWindow = 48 * 1024;
+        var flow = MakeFlow(connWindow: connWindow);
+        var pump = MakePump(target, flow);
+
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+        flow.OnDataSent(1, 65535);
+        flow.OnDataSent(3, 65535);
+
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
+
+        Assert.Empty(target.Completed);
+
+        // Restore per-stream windows.
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(3, 65535);
+
+        // Exhaust connection window below minReadSize (chunkSize/2 = 8192)
+        // using a dummy stream so streams 1 and 3 keep their per-stream window.
+        flow.InitStreamSendWindow(999);
+        flow.OnSendWindowUpdate(999, connWindow);
+        flow.OnDataSent(999, (int)(flow.ConnectionSendWindow - 4 * 1024));
+
+        // Connection window is ~4 KB < 8 KB threshold.
+        // Early-out should skip the scan — streams stay blocked.
+        pump.OnWindowUpdate(0);
+
+        Assert.Empty(target.Completed);
+
+        // Restore connection window above threshold and retry.
+        flow.OnSendWindowUpdate(0, 1024 * 1024);
+        pump.OnWindowUpdate(0);
+
+        Assert.Contains(1, target.Completed);
+        Assert.Contains(3, target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnWindowUpdate_connection_level_should_only_check_stream_window_when_connection_eligible()
+    {
+        // When connection window >= minReadSize, the scan checks only per-stream
+        // windows (not the redundant Math.Min with connectionWindow). Streams
+        // with exhausted per-stream windows remain blocked.
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024);
+        var pump = MakePump(target, flow);
+
+        // Stream 1: per-stream window exhausted.
+        // Stream 3: per-stream window available.
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+        flow.OnDataSent(1, 65535);
+        flow.OnDataSent(3, 65535);
+
+        pump.Register(1, MakeBody(50), CancellationToken.None, initialCredits: 16);
+        pump.Register(3, MakeBody(50), CancellationToken.None, initialCredits: 16);
+
+        // Only restore stream 3's window.
+        flow.OnSendWindowUpdate(3, 65535);
+        flow.OnSendWindowUpdate(0, 65535);
+        pump.OnWindowUpdate(0);
+
+        // Stream 3 should drain. Stream 1 stays blocked (per-stream window still 0).
+        Assert.Contains(3, target.Completed);
+        Assert.DoesNotContain(1, target.Completed);
+
+        // Restore stream 1's window and retry.
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(0, 65535);
+        pump.OnWindowUpdate(0);
+
+        Assert.Contains(1, target.Completed);
+    }
 }

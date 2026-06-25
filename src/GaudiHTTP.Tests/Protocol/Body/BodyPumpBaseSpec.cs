@@ -315,6 +315,53 @@ public sealed class BodyPumpBaseSpec
             $"Expected budget to decrease below {budgetAfterFast} after a slow interval.");
     }
 
+    // Fix 3: AddCreditWithoutEma
+
+    [Fact(Timeout = 5000)]
+    public void AddCreditWithoutEma_should_not_alter_budget()
+    {
+        var target = new FakeTarget();
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+
+        var budgetBefore = pump.Budget;
+
+        for (var i = 0; i < 50; i++)
+        {
+            pump.AddCreditWithoutEma();
+        }
+
+        Assert.Equal(budgetBefore, pump.Budget);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void AddCredit_during_DrainReady_should_skip_EMA_update()
+    {
+        // When AddCredit is called inline from EmitDataFrames during DrainReady,
+        // the EMA should NOT be updated (the interval is sub-microsecond and
+        // would distort the budget toward MaxBudget). Verify that a slow budget
+        // established before the drain is preserved after.
+        var target = new InlineCreditFakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        // Establish slow budget.
+        for (var i = 0; i < 5; i++)
+        {
+            Thread.Sleep(15);
+            pump.AddCredit();
+        }
+
+        var slowBudget = pump.Budget;
+        Assert.Equal(8, slowBudget);
+
+        // Register a stream and drain it. The inline AddCredit calls from
+        // EmitDataFrames happen inside DrainReady → EMA is skipped.
+        pump.Register(0, MakeBody(3 * 16 * 1024), CancellationToken.None, initialCredits: 16);
+
+        Assert.Single(target.Completed);
+        Assert.Equal(slowBudget, pump.Budget);
+    }
+
     // Completion-trigger
 
     [Fact(Timeout = 5000)]
@@ -789,6 +836,73 @@ public sealed class BodyPumpBaseSpec
 
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
             => throw new IOException("sync throw from ReadAsync");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void InlineAddCredit_with_many_concurrent_sync_streams_should_drain_all_iteratively()
+    {
+        // Before the re-entrancy guard: many sync streams with inline AddCredit from
+        // EmitDataFrames would produce O(N) recursive DrainReady calls on the stack,
+        // risking StackOverflowException. After the fix, DrainReady converts recursive
+        // stack growth to flat iteration — same total work, O(1) stack depth.
+        // Each stream gets 16 initial credits (matches production EncodeRequest path),
+        // which is enough to drain each small body during registration.
+        var target = new InlineCreditFakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        for (var i = 0; i < 200; i++)
+        {
+            pump.Register(i, MakeBody(100), CancellationToken.None, initialCredits: 16);
+        }
+
+        Assert.Equal(200, target.Completed.Count);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void InlineAddCredit_with_multichunk_bodies_should_drain_all_iteratively()
+    {
+        // Each stream has a 3-chunk body (3 × 16 KB = 4 reads including EOF).
+        // With inline AddCredit, the pre-fix recursion depth was O(reads) per stream.
+        // After the fix, DrainReady iterates flat.
+        var target = new InlineCreditFakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        for (var i = 0; i < 200; i++)
+        {
+            pump.Register(i, MakeBody(3 * 16 * 1024), CancellationToken.None, initialCredits: 16);
+        }
+
+        Assert.Equal(200, target.Completed.Count);
+        var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.Equal(200 * 3 * 16 * 1024, totalBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void InlineAddCredit_with_queued_streams_should_drain_all_via_external_credits()
+    {
+        // Registers 50 streams with NO initial credits, then injects credits externally.
+        // Each 100-byte stream needs 2 reads (data + EOF). Inline AddCredit from
+        // EmitDataFrames reclaims the data credit, so each stream consumes 1 net credit
+        // for the EOF. With enough external credits, all streams drain.
+        var target = new InlineCreditFakeTarget { HasPendingDemand = false };
+        var pump = new TestPump(target, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        for (var i = 0; i < 50; i++)
+        {
+            pump.Register(i, MakeBody(100), CancellationToken.None);
+        }
+
+        Assert.Empty(target.Completed);
+
+        for (var i = 0; i < 100; i++)
+        {
+            pump.AddCredit();
+        }
+
+        Assert.Equal(50, target.Completed.Count);
     }
 
     [Fact(Timeout = 5000)]
