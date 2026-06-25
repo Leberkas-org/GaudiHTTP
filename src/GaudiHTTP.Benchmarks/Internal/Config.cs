@@ -131,7 +131,7 @@ public class EngineBenchmarkConfig : ManualConfig
         WithArtifactsPath(artifactsPath);
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
-        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose));
+        AddDiagnoser(ThreadingDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);
         AddExporter(HttpVersionColorExporter.Default);
         AddExporter(AllocationByTypeExporter.Default);
