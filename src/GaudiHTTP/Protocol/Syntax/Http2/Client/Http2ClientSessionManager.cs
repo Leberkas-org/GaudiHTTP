@@ -14,7 +14,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
+internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 {
     internal sealed record AbandonedResponseBody(int StreamId);
     private readonly Http2ClientEncoderOptions _encoderOptions;
@@ -34,7 +34,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly Dictionary<int, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private FlowControlledBodyPump? _pump;
+    private BodyDrainScheduler? _scheduler;
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -82,7 +82,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             _decoderOptions.InitialStreamWindowSize,
             scaler,
             clock);
-        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts);
         // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
         // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
         // is a receive-side advertisement (sent in the preface), not a send-side limit.
@@ -95,6 +94,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
         // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in the preface on inbound frames.
         _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
+        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _requestEncoder.MaxFrameSize, 256);
     }
 
     public TransportData? TryBuildPreface()
@@ -244,15 +244,15 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
         if (contentLength == 0)
         {
-            // Empty body: emit END_STREAM directly without involving the pump (spec invariant 7).
-            ((IBodyDrainTarget<int>)this).EmitDataFrames(streamId, default, endStream: true);
+            // Empty body: emit END_STREAM directly without involving the scheduler (spec invariant 7).
+            ((IBodyDrainTarget)this).EmitDataFrames(streamId, default, endStream: true);
             CloseStream(streamId);
             return;
         }
 
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump!.Register(streamId, bodyStream!, request.GetCancellationToken(), initialCredits: 16);
+        _scheduler!.Register(streamId, bodyStream!, request.Content?.Headers.ContentLength, request.GetCancellationToken());
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
@@ -287,11 +287,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             return;
         }
 
-        // Window exhausted before all data sent: hand the remainder to the pump
+        // Window exhausted before all data sent: hand the remainder to the scheduler
         // which will emit it when the send window opens up via WINDOW_UPDATE.
         state.MarkBodyDrainActive();
-        var remainderBytes = body[sent..].ToArray();
-        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), CancellationToken.None, initialCredits: 16);
+        _scheduler!.RegisterWithLimbo(streamId, body[sent..], CancellationToken.None);
     }
 
     private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)
@@ -492,21 +491,16 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             state.AbortBody();
         }
 
-        _pump?.Cleanup();
+        _scheduler?.Cleanup();
         _drainContentOwners.Clear();
         ReleaseAllStreamState();
     }
 
-    public void OnOutboundFlushed()
-    {
-        _pump?.AddCredit();
-    }
+    public void OnOutboundFlushed() { }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<int>.PreferredChunkSize => _requestEncoder.MaxFrameSize;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         var maxFrame = _requestEncoder.MaxFrameSize;
         var remaining = data;
@@ -525,7 +519,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         _drainContentOwners.Remove(streamId);
 
@@ -545,7 +539,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         _drainContentOwners.Remove(streamId);
         Tracing.For("Protocol").Warning(this,
@@ -685,7 +679,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             state.AbortBody();
         }
 
-        _pump?.Cancel(streamId);
+        _scheduler?.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
         _flow.RemoveStreamSendWindow(streamId);
 
@@ -885,16 +879,16 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
     {
         switch (msg)
         {
-            case ContinueDrain:
-                _pump?.HandleContinueDrain();
+            case DrainContinue dc:
+                _scheduler?.HandleDrainContinue(dc.StreamId);
                 break;
 
-            case DrainReadComplete<int> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+            case DrainReadComplete read:
+                _scheduler?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed<int> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+            case DrainReadFailed failed:
+                _scheduler?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
             case AbandonedResponseBody abandoned:
@@ -936,7 +930,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
     private void HandleWindowUpdate(WindowUpdateFrame frame)
     {
         _flow.OnSendWindowUpdate(frame.StreamId, frame.Increment);
-        _pump?.OnWindowUpdate(frame.StreamId);
+        _scheduler?.OnWindowUpdate(frame.StreamId);
     }
 
     private void ReturnBodyReader(StreamState state)

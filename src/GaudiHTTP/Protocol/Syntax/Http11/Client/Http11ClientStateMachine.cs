@@ -297,11 +297,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
                 break;
 
-            case DrainReadComplete<int> read:
+            case DrainReadComplete read:
                 _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed<int> failed:
+            case DrainReadFailed failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 

@@ -101,6 +101,7 @@ public sealed class Http11ClientBodyBackpressureSpec
         while (!sm.CanAcceptRequest && guard++ < 10 * (BodySize / ChunkSize))
         {
             sm.OnOutboundFlushed();
+            sm.OnBodyMessage(new GaudiHTTP.Protocol.Body.DrainContinue(0));
         }
 
         var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);

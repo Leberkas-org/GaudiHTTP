@@ -126,7 +126,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var failedMsg = new DrainReadFailed<int>(0, new Exception("Body read failed"));
+        var failedMsg = new DrainReadFailed(0, new Exception("Body read failed"));
         var ex = Record.Exception(() => sm.OnBodyMessage(failedMsg));
 
         Assert.Null(ex);

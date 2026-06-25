@@ -340,8 +340,8 @@ internal sealed class BodyDrainScheduler
         var streamId = slot.StreamId;
         vt.PipeTo(
             _target.StageActor,
-            success: bytesRead => new DrainReadComplete<int>(streamId, bytesRead),
-            failure: ex => new DrainReadFailed<int>(streamId, ex));
+            success: bytesRead => new DrainReadComplete(streamId, bytesRead),
+            failure: ex => new DrainReadFailed(streamId, ex));
     }
 
     private void ProcessReadResult(DrainSlot slot, int bytesRead)

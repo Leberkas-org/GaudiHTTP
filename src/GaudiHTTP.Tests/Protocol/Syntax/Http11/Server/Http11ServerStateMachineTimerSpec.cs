@@ -118,7 +118,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         var timersBeforeBodyComplete = ops.ScheduledTimers.ToList();
 
         // Complete the body (even though it's empty)
-        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
+        sm.OnBodyMessage(new DrainReadComplete(0,0));
 
         // Check that keep-alive timer was scheduled after body completion
         var newTimers = ops.ScheduledTimers.Skip(timersBeforeBodyComplete.Count).ToList();
@@ -143,10 +143,10 @@ public sealed class Http11ServerStateMachineTimerSpec
         sm.OnResponse(context);
 
         // Send body chunk and completion
-        sm.OnBodyMessage(new DrainReadComplete<int>(0,5));
+        sm.OnBodyMessage(new DrainReadComplete(0,5));
 
         // Complete the body — this should schedule keep-alive timer
-        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
+        sm.OnBodyMessage(new DrainReadComplete(0,0));
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "keep-alive");
     }

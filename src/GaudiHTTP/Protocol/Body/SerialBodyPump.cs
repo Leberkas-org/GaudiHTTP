@@ -134,8 +134,8 @@ internal sealed class SerialBodyPump
         _consecutiveSyncReads = 0;
         vt.PipeTo(
             _target.StageActor,
-            success: bytesRead => new DrainReadComplete<int>(0, bytesRead),
-            failure: ex => new DrainReadFailed<int>(0, ex));
+            success: bytesRead => new DrainReadComplete(0, bytesRead),
+            failure: ex => new DrainReadFailed(0, ex));
     }
 
     private void ProcessReadResult(int bytesRead)

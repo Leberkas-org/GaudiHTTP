@@ -93,7 +93,7 @@ public sealed class Http10DataRateSpec
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         // Simulate drain complete (body fully sent)
-        sm.OnBodyMessage(new DrainReadComplete<int>(0, 0));
+        sm.OnBodyMessage(new DrainReadComplete(0, 0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -168,8 +168,8 @@ public sealed class Http10DataRateSpec
         sm.OnResponse(context);
 
         // Simulate body drain via SerialBodyPump: 10 bytes read, then endStream
-        sm.OnBodyMessage(new DrainReadComplete<int>(0, 10));
-        sm.OnBodyMessage(new DrainReadComplete<int>(0, 0));
+        sm.OnBodyMessage(new DrainReadComplete(0, 10));
+        sm.OnBodyMessage(new DrainReadComplete(0, 0));
 
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
@@ -196,7 +196,7 @@ public sealed class Http10DataRateSpec
         sm.OnResponse(context);
 
         // Feed tiny amount of response body via DrainReadComplete
-        sm.OnBodyMessage(new DrainReadComplete<int>(0, 10));
+        sm.OnBodyMessage(new DrainReadComplete(0, 10));
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));

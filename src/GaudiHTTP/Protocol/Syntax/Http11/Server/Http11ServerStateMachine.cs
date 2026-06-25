@@ -674,11 +674,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         switch (msg)
         {
-            case DrainReadComplete<int> read:
+            case DrainReadComplete read:
                 _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed<int> failed:
+            case DrainReadFailed failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 
