@@ -24,6 +24,8 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     private double _ema;
     private long _lastPullTicks;
     private bool _isDraining;
+    private bool _continuationPending;
+    protected bool _yieldBetweenDrainPasses;
 
     protected BodyPumpBase(
         IBodyDrainTarget<TStreamId> target,
@@ -40,6 +42,11 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     public void AddCredit()
     {
+        if (_yieldBetweenDrainPasses && (_isDraining || _continuationPending))
+        {
+            return;
+        }
+
         AddCreditCore(updateEma: true);
     }
 
@@ -176,13 +183,23 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         _readyQueue.Clear();
         _cancelledStreams.Clear();
         _credits = 0;
+        _continuationPending = false;
         OnCancelAll();
+    }
+
+    public void HandleContinueDrain()
+    {
+        _continuationPending = false;
+        _credits = Math.Min(_credits + _budget, MaxBudget);
+        DrainReady(_budget);
     }
 
     // H2 flow-control extension points — only FlowControlledBodyPump overrides these
     protected virtual void OnCancelAll() { }
 
     protected virtual void OnStreamCancelled(TStreamId streamId) { }
+
+    protected virtual void ScheduleContinuation() { }
 
     // When returning false, the override is responsible for tracking the stream
     // (e.g., moving it to a blocked set). The stream is removed from the ready queue.
@@ -248,6 +265,12 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
                 {
                     break;
                 }
+            }
+
+            if (_readyQueue.Count > 0 && !_continuationPending)
+            {
+                _continuationPending = true;
+                ScheduleContinuation();
             }
         }
         finally
