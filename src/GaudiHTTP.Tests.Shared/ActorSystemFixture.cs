@@ -39,5 +39,6 @@ public sealed class ActorSystemFixture : IAsyncLifetime
     {
         await System.Terminate().WaitAsync(TimeSpan.FromSeconds(30));
         await System.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(30));
+        Servus.Senf.Tracing.Disable();
     }
 }

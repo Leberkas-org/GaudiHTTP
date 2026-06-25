@@ -77,9 +77,9 @@ public sealed class IntegrationSpec : AcceptanceTestBase
     {
         var payload = "TLS echo payload";
         var map = new ResponseMap()
-            .On("/echo", req =>
+            .On("/echo", async req =>
             {
-                var reqBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? "";
+                var reqBody = req.Content != null ? await req.Content.ReadAsStringAsync() : "";
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(reqBody)

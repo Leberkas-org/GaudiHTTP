@@ -5,7 +5,7 @@ namespace GaudiHTTP.API.Tests;
 
 public class CoreAPISpec
 {
-    private static readonly ApiGeneratorOptions ApiOptions = new()
+    private static ApiGeneratorOptions MakeApiOptions() => new()
     {
         ExcludeAttributes =
         [
@@ -17,10 +17,10 @@ public class CoreAPISpec
 
     private static Task VerifyAssembly<T>()
     {
-        return Verify(typeof(T).Assembly.GeneratePublicApi(ApiOptions));
+        return Verify(typeof(T).Assembly.GeneratePublicApi(MakeApiOptions()));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public Task ApproveCore()
     {
         return VerifyAssembly<IGaudiHttpClient>();

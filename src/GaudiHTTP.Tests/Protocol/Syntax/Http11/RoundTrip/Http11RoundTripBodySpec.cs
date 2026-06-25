@@ -8,11 +8,12 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
 public sealed class Http11RoundTripBodySpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
+    private static Http11ClientEncoder MakeEncoder() => new(ClientOptionDefaults.Http11Encoder());
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
-        return Encoder.Encode(buffer, request, out _, out _);
+        var encoder = MakeEncoder();
+        return encoder.Encode(buffer, request, out _, out _);
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int status, string reason, string body,

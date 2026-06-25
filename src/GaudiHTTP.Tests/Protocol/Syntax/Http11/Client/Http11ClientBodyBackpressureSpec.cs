@@ -40,7 +40,13 @@ public sealed class Http11ClientBodyBackpressureSpec
         public override long Position { get => _position; set => throw new NotSupportedException(); }
         public override void Flush() { }
         public override int Read(byte[] buffer, int offset, int count)
-            => ReadAsync(buffer.AsMemory(offset, count)).Result;
+        {
+            ReadsIssued++;
+            var n = Math.Min(count, length - _position);
+            buffer.AsSpan(offset, n).Fill(0x42);
+            _position += n;
+            return n;
+        }
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();

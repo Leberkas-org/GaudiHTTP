@@ -1,10 +1,11 @@
+using System.Collections.Frozen;
 using System.Text;
 
 namespace GaudiHTTP.Tests.Shared;
 
 public static class FakeResponse
 {
-    private static readonly Dictionary<int, string> ReasonPhrases = new()
+    private static readonly FrozenDictionary<int, string> ReasonPhrases = new Dictionary<int, string>
     {
         [200] = "OK", [201] = "Created", [204] = "No Content",
         [301] = "Moved Permanently", [302] = "Found", [304] = "Not Modified",
@@ -12,7 +13,7 @@ public static class FakeResponse
         [400] = "Bad Request", [401] = "Unauthorized", [403] = "Forbidden",
         [404] = "Not Found", [429] = "Too Many Requests",
         [500] = "Internal Server Error", [502] = "Bad Gateway", [503] = "Service Unavailable"
-    };
+    }.ToFrozenDictionary();
 
     private static string GetReason(int status) => ReasonPhrases.GetValueOrDefault(status, "Unknown");
 

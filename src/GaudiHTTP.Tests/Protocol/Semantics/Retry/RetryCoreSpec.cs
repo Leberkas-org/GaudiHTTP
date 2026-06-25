@@ -170,7 +170,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Same(req2, results[1]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_final_response_when_200_ok()
     {
@@ -188,7 +188,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_final_response_when_404()
     {
@@ -204,7 +204,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_final_response_when_post_returns_408()
     {
@@ -220,7 +220,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_final_response_when_request_message_is_null()
     {
@@ -236,7 +236,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_emit_retry_on_out1_when_get_returns_408()
     {
@@ -259,7 +259,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_emit_retry_on_out1_when_get_returns_503()
     {
@@ -277,7 +277,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_increment_attempt_count_when_retrying()
     {
@@ -295,7 +295,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         Assert.Equal(2, count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_final_response_when_retry_limit_reached()
     {
@@ -337,7 +337,7 @@ public sealed class RetryCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryCore_should_forward_on_out2_when_patch_returns_503()
     {
