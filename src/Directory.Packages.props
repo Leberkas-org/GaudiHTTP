@@ -6,7 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="Akka.Hosting" Version="1.5.68" />
     <PackageVersion Include="Akka.Streams" Version="1.5.68" />
-    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.3" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.4" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.9" />
     <PackageVersion Include="Servus.Akka" Version="0.3.13" />
     <PackageVersion Include="Servus" Version="0.34.0" />
