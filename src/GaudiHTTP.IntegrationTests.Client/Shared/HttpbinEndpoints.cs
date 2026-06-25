@@ -118,7 +118,7 @@ internal static class HttpbinEndpoints
         {
             var sanitizedKey = SanitizeCookieToken(kvp.Key);
             var sanitizedValue = SanitizeCookieToken(kvp.Value.ToString());
-            ctx.Response.Cookies.Append(sanitizedKey, sanitizedValue, new CookieOptions { Path = "/" });
+            ctx.Response.Cookies.Append(sanitizedKey, sanitizedValue, new CookieOptions { Path = "/", Secure = true, HttpOnly = true, SameSite = SameSiteMode.Lax });
         }
         ctx.Response.StatusCode = 302;
         ctx.Response.Redirect("/cookies", permanent: false);
