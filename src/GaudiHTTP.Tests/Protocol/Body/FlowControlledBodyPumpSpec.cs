@@ -1047,4 +1047,85 @@ public sealed class FlowControlledBodyPumpSpec
 
         Assert.Contains(1, target.Completed);
     }
+
+    [Fact(Timeout = 10000)]
+    public void DrainReady_should_be_bounded_with_inline_credits_and_large_body()
+    {
+        var target = new InlineCreditFlowTarget();
+        var flow = MakeFlow(connWindow: 100 * 1024 * 1024);
+        var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        flow.InitStreamSendWindow(1);
+        flow.OnSendWindowUpdate(1, 100 * 1024 * 1024);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        pump.Register(1, MakeBody(1024 * 1024), CancellationToken.None, initialCredits: 16);
+        sw.Stop();
+
+        var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+
+        // With _yieldBetweenDrainPasses: inline AddCredit is dropped during drain,
+        // so only initialCredits (16) reads happen. 16 × 16KB = 256KB of 1MB.
+        Assert.True(emittedBytes <= 16 * 16 * 1024,
+            $"Expected at most {16 * 16 * 1024} bytes from initial credits, got {emittedBytes}. " +
+            "Credits are leaking into the drain loop.");
+        Assert.Empty(target.Completed);
+
+        // Verify HandleContinueDrain advances the drain in bounded steps
+        var prevBytes = emittedBytes;
+        pump.HandleContinueDrain();
+        var afterFirst = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.True(afterFirst > prevBytes, "ContinueDrain should advance the drain");
+        Assert.True(afterFirst <= prevBytes + 48 * 16 * 1024,
+            $"ContinueDrain should be bounded to budget reads, got {afterFirst - prevBytes} bytes");
+
+        // Drive to completion
+        while (target.Completed.Count == 0)
+        {
+            pump.HandleContinueDrain();
+        }
+
+        var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.Equal(1024 * 1024, totalBytes);
+        Assert.True(sw.ElapsedMilliseconds < 100,
+            $"Register took {sw.ElapsedMilliseconds}ms — should be < 100ms for bounded drain");
+    }
+
+    [Fact(Timeout = 30000)]
+    public void DrainReady_should_be_bounded_with_512_concurrent_streams()
+    {
+        var target = new InlineCreditFlowTarget();
+        var flow = MakeFlow(connWindow: 1024 * 1024 * 1024);
+        var pump = new FlowControlledBodyPump(target, flow, new ConnectionPoolContext(), new CancellationTokenSource());
+        target.SetPump(pump);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        for (var id = 1; id <= 1024; id += 2)
+        {
+            flow.InitStreamSendWindow(id);
+            flow.OnSendWindowUpdate(id, 100 * 1024 * 1024);
+            pump.Register(id, MakeBody(1024 * 1024), CancellationToken.None, initialCredits: 16);
+        }
+
+        var registerTime = sw.ElapsedMilliseconds;
+
+        // Registration of 512 × 1MB streams with inline credits should be fast
+        // (bounded by initialCredits per stream, not by total body size).
+        Assert.True(registerTime < 5000,
+            $"Registering 512 streams took {registerTime}ms — CPU spinning detected");
+
+        // Drive all streams to completion via continuation
+        var iterations = 0;
+        while (target.Completed.Count < 512 && iterations < 100_000)
+        {
+            pump.HandleContinueDrain();
+            iterations++;
+        }
+
+        sw.Stop();
+        Assert.Equal(512, target.Completed.Count);
+        Assert.True(sw.ElapsedMilliseconds < 20_000,
+            $"Full drain took {sw.ElapsedMilliseconds}ms — expected < 20s");
+    }
 }

@@ -1,3 +1,4 @@
+using Akka.Actor;
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -17,6 +18,7 @@ internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
         : base(target, poolContext, connectionCts)
     {
         _flowController = flowController;
+        _yieldBetweenDrainPasses = true;
     }
 
     public void OnWindowUpdate(int streamId)
@@ -104,6 +106,11 @@ internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
         }
 
         slot.ReservedWindow = 0;
+    }
+
+    protected override void ScheduleContinuation()
+    {
+        Target.PipeToTarget.Tell(ContinueDrain.Instance, ActorRefs.NoSender);
     }
 
     protected override void OnCancelAll()

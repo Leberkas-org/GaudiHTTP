@@ -412,6 +412,10 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
     {
         switch (msg)
         {
+            case ContinueDrain:
+                _pump?.HandleContinueDrain();
+                break;
+
             case DrainReadComplete<int> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
@@ -959,11 +963,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
         }
 
         EmitBufferedDataFrames(streamId, data, endStream: false);
-
-        if (!endStream)
-        {
-            _pump?.AddCredit();
-        }
     }
 
     void IBodyDrainTarget<int>.OnDrainComplete(int streamId)

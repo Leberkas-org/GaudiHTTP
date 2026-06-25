@@ -261,6 +261,10 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     {
         switch (msg)
         {
+            case ContinueDrain:
+                _pump?.HandleContinueDrain();
+                break;
+
             case DrainReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
@@ -771,11 +775,6 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         if (!data.IsEmpty)
         {
             EmitBufferedDataFrames(streamId, data, endStream);
-
-            if (!endStream)
-            {
-                _pump?.AddCredit();
-            }
         }
     }
 
