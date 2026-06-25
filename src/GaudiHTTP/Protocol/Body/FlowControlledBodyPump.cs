@@ -21,45 +21,43 @@ internal sealed class FlowControlledBodyPump : BodyPumpBase<int>
 
     public void OnWindowUpdate(int streamId)
     {
+        var unblocked = 0;
+
         if (streamId == 0)
         {
-            // Connection-level update: re-evaluate all blocked streams and unblock eligible ones.
-            _unblockedTemp.Clear();
-            foreach (var blocked in _windowBlockedStreams)
+            var minRead = ComputeMinReadSize();
+            if (_flowController.ConnectionSendWindow >= minRead)
             {
-                var window = Math.Min(
-                    _flowController.GetStreamSendWindow(blocked),
-                    _flowController.ConnectionSendWindow);
-                if (window >= ComputeMinReadSize())
+                _unblockedTemp.Clear();
+                foreach (var blocked in _windowBlockedStreams)
                 {
-                    _unblockedTemp.Add(blocked);
+                    if (_flowController.GetStreamSendWindow(blocked) >= minRead)
+                    {
+                        _unblockedTemp.Add(blocked);
+                    }
                 }
-            }
 
-            foreach (var id in _unblockedTemp)
-            {
-                _windowBlockedStreams.Remove(id);
-                EnqueueStream(id);
+                foreach (var id in _unblockedTemp)
+                {
+                    _windowBlockedStreams.Remove(id);
+                    EnqueueStream(id);
+                }
+
+                unblocked = _unblockedTemp.Count;
             }
         }
         else if (_windowBlockedStreams.Remove(streamId))
         {
             EnqueueStream(streamId);
+            unblocked = 1;
         }
 
-        // Always inject credits when active streams exist. The pump can reach zero credits
-        // legitimately: the initial burst consumes bootstrap credits, all streams become
-        // window-blocked, and no further OnOutboundFlushed calls replenish credits because
-        // no data is being pushed. When a WINDOW_UPDATE subsequently unblocks streams (or
-        // streams are already in the ready queue from a prior re-enqueue), the pump must be
-        // able to read them. Without this unconditional boost the pump deadlocks — streams
-        // sit in the ready queue with available window but zero credits to drive reads,
-        // eventually tripping the data-rate monitor which RST_STREAMs the connection.
         if (GetActiveStreamCount() > 0)
         {
-            for (var i = 0; i < 16; i++)
+            var boost = Math.Clamp(unblocked, 1, 16);
+            for (var i = 0; i < boost; i++)
             {
-                AddCredit();
+                AddCreditWithoutEma();
             }
         }
     }

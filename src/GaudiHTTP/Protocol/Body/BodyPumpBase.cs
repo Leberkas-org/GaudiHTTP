@@ -23,6 +23,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
     private int _budget;
     private double _ema;
     private long _lastPullTicks;
+    private bool _isDraining;
 
     protected BodyPumpBase(
         IBodyDrainTarget<TStreamId> target,
@@ -39,7 +40,21 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     public void AddCredit()
     {
-        UpdateEma();
+        AddCreditCore(updateEma: true);
+    }
+
+    internal void AddCreditWithoutEma()
+    {
+        AddCreditCore(updateEma: false);
+    }
+
+    private void AddCreditCore(bool updateEma)
+    {
+        if (updateEma && !_isDraining)
+        {
+            UpdateEma();
+        }
+
         _credits = Math.Min(_credits + 1, MaxBudget);
 
         var threshold = Math.Max(Math.Min(_budget / 2, _activeSlots.Count), 1);
@@ -70,7 +85,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
         for (var i = 0; i < initialCredits; i++)
         {
-            AddCredit();
+            AddCreditWithoutEma();
         }
     }
 
@@ -185,38 +200,59 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     private void DrainReady(int maxReads)
     {
-        var reads = 0;
-        var queueSize = _readyQueue.Count;
-        while (reads < maxReads && _credits > 0 && queueSize-- > 0)
+        if (_isDraining)
         {
-            if (!_readyQueue.TryDequeue(out var streamId))
-            {
-                break;
-            }
+            return;
+        }
 
-            if (_cancelledStreams.Remove(streamId))
+        _isDraining = true;
+        try
+        {
+            while (true)
             {
-                continue;
-            }
+                var reads = 0;
+                var queueSize = _readyQueue.Count;
+                while (reads < maxReads && _credits > 0 && queueSize-- > 0)
+                {
+                    if (!_readyQueue.TryDequeue(out var streamId))
+                    {
+                        break;
+                    }
 
-            if (!_activeSlots.TryGetValue(streamId, out var slot))
-            {
-                continue;
-            }
+                    if (_cancelledStreams.Remove(streamId))
+                    {
+                        continue;
+                    }
 
-            if (slot.IsReadInFlight)
-            {
-                _readyQueue.Enqueue(streamId);
-                continue;
-            }
+                    if (!_activeSlots.TryGetValue(streamId, out var slot))
+                    {
+                        continue;
+                    }
 
-            if (!IsStreamEligible(streamId, slot))
-            {
-                continue;
-            }
+                    if (slot.IsReadInFlight)
+                    {
+                        _readyQueue.Enqueue(streamId);
+                        continue;
+                    }
 
-            PerformRead(streamId, slot);
-            reads++;
+                    if (!IsStreamEligible(streamId, slot))
+                    {
+                        continue;
+                    }
+
+                    PerformRead(streamId, slot);
+                    reads++;
+                }
+
+                if (_credits <= 0 || _readyQueue.Count == 0)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _isDraining = false;
         }
     }
 
