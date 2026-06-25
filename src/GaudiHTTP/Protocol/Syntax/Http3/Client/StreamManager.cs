@@ -1,4 +1,5 @@
 using System.Buffers;
+using Akka.Actor;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Body;
@@ -204,7 +205,10 @@ internal sealed class StreamManager(
                     var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
                     state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
-                    var bodyStream = state.GetBodyStream();
+                    var stageActor = ops.StageActor;
+                    var capturedId = streamId;
+                    var bodyStream = queued.AsStream(onAbandoned: () =>
+                        stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
                     response.Content = new StreamContent(bodyStream);
                     state.ApplyContentHeadersTo(response.Content);
 
@@ -404,7 +408,10 @@ internal sealed class StreamManager(
         var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
-        var bodyStream = state.GetBodyStream();
+        var stageActor = ops.StageActor;
+        var capturedId = streamId;
+        var bodyStream = queued.AsStream(onAbandoned: () =>
+            stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
         response.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(response.Content);
 
@@ -470,6 +477,17 @@ internal sealed class StreamManager(
 
         ops.OnResponse(response);
 
+        ReturnStreamState(streamId);
+    }
+
+    public void OnResponseBodyAbandoned(long streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            return;
+        }
+
+        AbortAndReturnBodyReader(state);
         ReturnStreamState(streamId);
     }
 

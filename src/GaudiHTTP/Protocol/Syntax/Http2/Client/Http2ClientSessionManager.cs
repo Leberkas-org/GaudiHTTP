@@ -16,6 +16,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
 internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 {
+    internal sealed record AbandonedResponseBody(int StreamId);
     private readonly Http2ClientEncoderOptions _encoderOptions;
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly GaudiClientOptions _options;
@@ -853,7 +854,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
         var queued = _poolContext.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued);
-        var bodyStream = state.GetBodyStream();
+        var stageActor = _ops.StageActor;
+        var capturedStreamId = streamId;
+        var bodyStream = queued.AsStream(onAbandoned: () =>
+            stageActor.Tell(new AbandonedResponseBody(capturedStreamId)));
         streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);
 
@@ -892,6 +896,40 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             case DrainReadFailed<int> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
+
+            case AbandonedResponseBody abandoned:
+                OnResponseBodyAbandoned(abandoned.StreamId);
+                break;
+        }
+    }
+
+    private void OnResponseBodyAbandoned(int streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            return;
+        }
+
+        Tracing.For("Protocol").Debug(this,
+            "HTTP/2: response body abandoned (stream={0}) — sending RST_STREAM", streamId);
+
+        state.AbortBody();
+        EmitFrame(new RstStreamFrame(streamId, Http2ErrorCode.NoError));
+        _streams.Remove(streamId);
+        ReturnBodyReader(state);
+        state.Reset();
+        _statePool.Return(state);
+
+        if (!_tracker.OnStreamClosed(streamId))
+        {
+            return;
+        }
+
+        _flow.RemoveStreamSendWindow(streamId);
+        var signal = _flow.OnStreamClosed(streamId);
+        if (signal is { } windowUpdate)
+        {
+            EmitFrame(new WindowUpdateFrame(windowUpdate.StreamId, windowUpdate.Increment));
         }
     }
 

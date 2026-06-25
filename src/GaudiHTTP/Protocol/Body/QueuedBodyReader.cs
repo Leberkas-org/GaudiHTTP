@@ -301,7 +301,9 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
         }
     }
 
-    public Stream AsStream() => new QueuedBodyStream(this);
+    Stream IBodyReader.AsStream() => new QueuedBodyStream(this);
+
+    public Stream AsStream(Action? onAbandoned = null) => new QueuedBodyStream(this, onAbandoned);
 
     public void Dispose() => Reset();
 

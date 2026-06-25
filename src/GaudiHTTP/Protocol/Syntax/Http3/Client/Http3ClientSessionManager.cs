@@ -15,6 +15,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
 internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 {
+    internal sealed record AbandonedResponseBody(long StreamId);
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
     private readonly GaudiClientOptions _options;
@@ -174,6 +175,10 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
             case DrainReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                break;
+
+            case AbandonedResponseBody abandoned:
+                _streamManager.OnResponseBodyAbandoned(abandoned.StreamId);
                 break;
         }
     }
