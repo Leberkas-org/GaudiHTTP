@@ -81,6 +81,47 @@ public sealed class QueuedBodyStreamSpec
         Assert.Empty(destination.ToArray());
     }
 
+    [Fact(Timeout = 5000)]
+    public void Dispose_without_reading_should_invoke_onAbandoned_callback()
+    {
+        var callbackFired = false;
+        var reader = new QueuedBodyReader(capacity: 4);
+        reader.TryEnqueue(new byte[] { 1, 2, 3 });
+        reader.Complete();
+
+        var stream = new QueuedBodyStream(reader, onAbandoned: () => callbackFired = true);
+        stream.Dispose();
+
+        Assert.True(callbackFired);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Dispose_after_fully_reading_should_not_invoke_callback()
+    {
+        var callbackFired = false;
+        var reader = new QueuedBodyReader(capacity: 4);
+        reader.TryEnqueue(new byte[] { 1, 2, 3 });
+        reader.Complete();
+
+        var stream = new QueuedBodyStream(reader, onAbandoned: () => callbackFired = true);
+        var buf = new byte[64];
+        while (await stream.ReadAsync(buf, TestContext.Current.CancellationToken) > 0) { }
+        stream.Dispose();
+
+        Assert.False(callbackFired);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispose_without_callback_should_not_throw()
+    {
+        var reader = new QueuedBodyReader(capacity: 4);
+        reader.TryEnqueue(new byte[] { 1, 2, 3 });
+        reader.Complete();
+
+        var stream = new QueuedBodyStream(reader);
+        stream.Dispose();
+    }
+
     private sealed class TrackingArrayPool : ArrayPool<byte>
     {
         private readonly ArrayPool<byte> _inner = Shared;
