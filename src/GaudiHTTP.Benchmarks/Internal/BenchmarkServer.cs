@@ -23,9 +23,13 @@ public sealed class BenchmarkServer : IAsyncDisposable
 
     public int Http30Port { get; private set; }
 
+    public bool IsQuicAvailable { get; private set; }
+
     public async ValueTask InitializeAsync(IAllocationProfiler? profiler = null)
     {
         _cert = GenerateSelfSignedCert();
+
+        var quicAvailable = QuicListenerIsSupported();
 
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -41,12 +45,15 @@ public sealed class BenchmarkServer : IAsyncDisposable
             options.Listen(IPAddress.Loopback, 0, lo =>
                 lo.Protocols = HttpProtocols.Http2);
 
-            // HTTP/3 (QUIC+TLS) listener
-            options.Listen(IPAddress.Loopback, 0, lo =>
+            if (quicAvailable)
             {
-                lo.Protocols = HttpProtocols.Http3;
-                lo.UseHttps(cert);
-            });
+                // HTTP/3 (QUIC+TLS) listener
+                options.Listen(IPAddress.Loopback, 0, lo =>
+                {
+                    lo.Protocols = HttpProtocols.Http3;
+                    lo.UseHttps(cert);
+                });
+            }
 
             // Raise HTTP/2 limits to support high-concurrency benchmarks (CL=256+).
             options.Limits.Http2.MaxStreamsPerConnection = 512;
@@ -59,11 +66,14 @@ public sealed class BenchmarkServer : IAsyncDisposable
             options.Limits.MaxConcurrentUpgradedConnections = null;
         });
 
-        builder.WebHost.UseQuic(quic =>
+        if (quicAvailable)
         {
-            quic.MaxBidirectionalStreamCount = 512;
-            quic.MaxUnidirectionalStreamCount = 32;
-        });
+            builder.WebHost.UseQuic(quic =>
+            {
+                quic.MaxBidirectionalStreamCount = 512;
+                quic.MaxUnidirectionalStreamCount = 32;
+            });
+        }
 
         var app = builder.Build();
 
@@ -71,8 +81,6 @@ public sealed class BenchmarkServer : IAsyncDisposable
 
         await app.StartAsync();
 
-        // Kestrel returns addresses in listener-registration order:
-        // index 0 = HTTP/1.1, index 1 = HTTP/2, index 2 = HTTP/3
         var addresses = app.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!
             .Addresses
@@ -80,9 +88,29 @@ public sealed class BenchmarkServer : IAsyncDisposable
 
         Http11Port = new Uri(addresses[0]).Port;
         Http20Port = new Uri(addresses[1]).Port;
-        Http30Port = new Uri(addresses[2]).Port;
+        Http30Port = quicAvailable ? new Uri(addresses[2]).Port : 0;
+        IsQuicAvailable = quicAvailable;
 
         _app = app;
+    }
+
+    private static bool QuicListenerIsSupported()
+    {
+        try
+        {
+            var type = Type.GetType("System.Net.Quic.QuicListener, System.Net.Quic");
+            if (type is null)
+            {
+                return false;
+            }
+
+            var prop = type.GetProperty("IsSupported", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            return prop?.GetValue(null) is true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async ValueTask DisposeAsync()
