@@ -63,8 +63,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
     public async Task Handler_should_inject_request_headers_that_reach_server()
     {
         // Create a separate client with header-injecting handler
-        var system = await GetActorSystemAsync();
-        var client = CreateClientWithHandler<HeaderInjectionHandler>();
+        var client = await CreateClientWithHandlerAsync<HeaderInjectionHandler>();
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/echo-headers");
         var response = await client.SendAsync(request, CancellationToken);
@@ -77,7 +76,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
     [Fact(Timeout = 10000)]
     public async Task Handler_should_fail_per_request_when_throwing()
     {
-        var client = CreateClientWithHandler<FailingHandler>();
+        var client = await CreateClientWithHandlerAsync<FailingHandler>();
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/ping");
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => client.SendAsync(request, CancellationToken));
@@ -87,7 +86,7 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
     [Fact(Timeout = 10000)]
     public async Task Handler_should_fail_only_faulted_request_while_others_succeed()
     {
-        var client = CreateClientWithHandler<ConditionalFailingHandler>();
+        var client = await CreateClientWithHandlerAsync<ConditionalFailingHandler>();
 
         // Send a failing request
         var failingRequest = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/ping");
@@ -107,10 +106,10 @@ public sealed class HandlerMiddlewareSpec : End2EndSpecBase
         Assert.Equal(HttpStatusCode.OK, goodResponse.StatusCode);
     }
 
-    private IGaudiHttpClient CreateClientWithHandler<THandler>() where THandler : GaudiHandler
+    private async Task<IGaudiHttpClient> CreateClientWithHandlerAsync<THandler>() where THandler : GaudiHandler
     {
         var services = new ServiceCollection();
-        services.AddSingleton(GetActorSystemAsync().Result);
+        services.AddSingleton(await GetActorSystemAsync());
 
         var clientOptions = new GaudiClientOptions
         {

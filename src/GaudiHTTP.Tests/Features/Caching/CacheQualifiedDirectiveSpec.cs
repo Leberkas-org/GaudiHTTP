@@ -26,7 +26,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_strip_field_when_no_cache_qualified()
     {
         var store = new Cache();
@@ -49,7 +49,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_strip_multiple_fields_when_no_cache_qualified()
     {
         var store = new Cache();
@@ -71,7 +71,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_require_revalidation_when_unqualified_no_cache()
     {
         var response = OkResponseWithCacheControl("max-age=3600, no-cache");
@@ -94,7 +94,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_not_force_revalidation_when_no_cache_qualified()
     {
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"Set-Cookie\"");
@@ -118,7 +118,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.7")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_exclude_field_when_private_qualified_in_shared_cache()
     {
         var policy = new CachePolicy { SharedCache = true };
@@ -141,7 +141,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.7")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_not_store_when_unqualified_private_in_shared_cache()
     {
         var policy = new CachePolicy { SharedCache = true };
@@ -158,7 +158,7 @@ public sealed class CacheQualifiedDirectiveSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.7")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheQualifiedDirective_should_store_when_unqualified_private_in_private_cache()
     {
         var policy = new CachePolicy { SharedCache = false };

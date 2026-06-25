@@ -163,7 +163,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         Assert.Same(req2, results[1]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_forward_final_response_when_200_ok()
     {
@@ -181,7 +181,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_forward_final_response_when_404()
     {
@@ -197,7 +197,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_forward_final_response_when_request_message_is_null()
     {
@@ -215,7 +215,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_emit_redirect_on_out1_when_301()
     {
@@ -238,7 +238,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_emit_redirect_on_out1_when_302()
     {
@@ -256,7 +256,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_rewrite_method_to_get_when_303()
     {
@@ -275,7 +275,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_preserve_method_when_307()
     {
@@ -293,7 +293,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_preserve_method_when_308()
     {
@@ -312,7 +312,7 @@ public sealed class RedirectCoreSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public void RedirectCore_should_carry_redirect_handler_in_options()
     {

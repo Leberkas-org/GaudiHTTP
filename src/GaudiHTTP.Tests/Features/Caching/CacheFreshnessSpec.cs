@@ -47,7 +47,7 @@ public sealed class CacheFreshnessSpec
     }
 
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_return_freshness_lifetime_60s_when_max_age_60()
     {
@@ -56,7 +56,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(60), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_override_max_age_with_s_max_age_when_shared_cache()
     {
@@ -66,7 +66,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(120), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_ignore_s_max_age_when_private_cache()
     {
@@ -76,7 +76,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(60), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.3")]
     public void CacheFreshness_should_use_expires_header_when_no_max_age()
     {
@@ -85,7 +85,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(300), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2.2")]
     public void CacheFreshness_should_use_ten_percent_of_age_when_heuristic_freshness()
     {
@@ -95,7 +95,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(100), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2.2")]
     public void CacheFreshness_should_cap_freshness_at_one_day_when_heuristic_freshness_exceeds_one_day()
     {
@@ -105,7 +105,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromDays(1), lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_return_lifetime_zero_when_no_freshness_info()
     {
@@ -114,7 +114,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.Zero, lifetime);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2.3")]
     public void CacheFreshness_should_use_age_header_when_computing_current_age()
     {
@@ -126,7 +126,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(TimeSpan.FromSeconds(41), age);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2.3")]
     public void CacheFreshness_should_use_response_delay_when_no_age_header()
     {
@@ -142,7 +142,7 @@ public sealed class CacheFreshnessSpec
     }
 
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_return_is_fresh_true_when_freshness_lifetime_exceeds_current_age()
     {
@@ -151,7 +151,7 @@ public sealed class CacheFreshnessSpec
         Assert.True(CacheFreshnessEvaluator.IsFresh(entry, now));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4.2")]
     public void CacheFreshness_should_return_is_fresh_false_when_current_age_exceeds_freshness_lifetime()
     {
@@ -160,7 +160,7 @@ public sealed class CacheFreshnessSpec
         Assert.False(CacheFreshnessEvaluator.IsFresh(entry, now));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4")]
     public void CacheFreshness_should_return_miss_when_entry_is_null()
     {
@@ -169,7 +169,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.Miss, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-4")]
     public void CacheFreshness_should_return_fresh_when_entry_is_fresh()
     {
@@ -180,7 +180,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.Fresh, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.1")]
     public void CacheFreshness_should_add_age_header_when_serving_from_cache()
     {
@@ -193,7 +193,7 @@ public sealed class CacheFreshnessSpec
         Assert.True(response.Headers.Contains("Age"));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.1")]
     public void CacheFreshness_should_match_current_age_when_age_header_generated()
     {
@@ -208,7 +208,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(((long)expectedAge.TotalSeconds).ToString(), ageValue);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.1")]
     public void CacheFreshness_should_overwrite_age_when_already_present()
     {
@@ -227,7 +227,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(expectedAge.ToString(), values[0]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.1.4")]
     public void Evaluate_should_return_must_revalidate_when_request_no_cache()
     {
@@ -241,7 +241,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void Evaluate_should_return_must_revalidate_when_response_unqualified_no_cache()
     {
@@ -266,7 +266,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.1.3")]
     public void Evaluate_should_return_stale_when_request_min_fresh_not_satisfied()
     {
@@ -280,7 +280,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.2")]
     public void Evaluate_should_return_must_revalidate_when_stale_and_must_revalidate_set()
     {
@@ -305,7 +305,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.2")]
     public void Evaluate_should_return_must_revalidate_when_stale_proxy_and_proxy_revalidate_in_shared_cache()
     {
@@ -331,7 +331,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.1.2")]
     public void Evaluate_should_return_stale_when_request_max_stale_with_sufficient_tolerance()
     {
@@ -345,7 +345,7 @@ public sealed class CacheFreshnessSpec
         Assert.Equal(CacheLookupStatus.Stale, result.Status);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.1.2")]
     public void Evaluate_should_return_must_revalidate_when_stale_exceeds_max_stale_tolerance()
     {

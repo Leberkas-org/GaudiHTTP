@@ -3,7 +3,7 @@ using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
-public sealed class Http2StreamStateMachineSpec
+public sealed class Http2DecoderStreamStateSpec
 {
     private static byte[] MakeHeadersBytes(int streamId, bool endStream = false, string status = "200")
     {

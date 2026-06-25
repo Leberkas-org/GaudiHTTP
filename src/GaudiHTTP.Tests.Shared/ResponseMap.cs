@@ -10,7 +10,7 @@ namespace GaudiHTTP.Tests.Shared;
 /// </summary>
 public sealed class ResponseMap
 {
-    private readonly List<(Func<HttpRequestMessage, bool> Predicate, Func<HttpRequestMessage, HttpResponseMessage> Factory)> _mappings = [];
+    private readonly List<(Func<HttpRequestMessage, bool> Predicate, Func<HttpRequestMessage, Task<HttpResponseMessage>> Factory)> _mappings = [];
 
     /// <summary>
     /// Maps a request path to a static response with the given status and body.
@@ -25,7 +25,7 @@ public sealed class ResponseMap
                 {
                     Content = new StringContent(body)
                 };
-                return response;
+                return Task.FromResult(response);
             }
         ));
         return this;
@@ -35,6 +35,17 @@ public sealed class ResponseMap
     /// Maps a request path to a dynamic response produced by the given factory.
     /// </summary>
     public ResponseMap On(string path, Func<HttpRequestMessage, HttpResponseMessage> factory)
+    {
+        _mappings.Add((
+            req => string.Equals(req.RequestUri?.AbsolutePath, path, StringComparison.OrdinalIgnoreCase),
+            req => Task.FromResult(factory(req))));
+        return this;
+    }
+
+    /// <summary>
+    /// Maps a request path to an async response produced by the given factory.
+    /// </summary>
+    public ResponseMap On(string path, Func<HttpRequestMessage, Task<HttpResponseMessage>> factory)
     {
         _mappings.Add((
             req => string.Equals(req.RequestUri?.AbsolutePath, path, StringComparison.OrdinalIgnoreCase),
@@ -48,20 +59,20 @@ public sealed class ResponseMap
     /// </summary>
     public ResponseMap On(Func<HttpRequestMessage, bool> predicate, Func<HttpRequestMessage, HttpResponseMessage> factory)
     {
-        _mappings.Add((predicate, factory));
+        _mappings.Add((predicate, req => Task.FromResult(factory(req))));
         return this;
     }
 
     /// <summary>
     /// Resolves a request to a response. Returns a 404 for unmapped paths.
     /// </summary>
-    internal HttpResponseMessage Resolve(HttpRequestMessage request)
+    internal async Task<HttpResponseMessage> ResolveAsync(HttpRequestMessage request)
     {
         foreach (var (predicate, factory) in _mappings)
         {
             if (predicate(request))
             {
-                var response = factory(request);
+                var response = await factory(request);
                 response.RequestMessage = request;
                 return response;
             }

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Time.Testing;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
-namespace GaudiHTTP.Tests.Protocol.Syntax.Http2;
+namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
 
 public sealed class FlowControllerAdaptiveScalingSpec
 {

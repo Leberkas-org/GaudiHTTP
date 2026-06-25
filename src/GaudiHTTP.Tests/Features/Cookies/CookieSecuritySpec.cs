@@ -32,7 +32,7 @@ public sealed class CookieSecuritySpec
             : null;
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_secure_cookie_when_request_is_http()
     {
         // Attack: MITM intercepts plaintext HTTP and reads Secure-flagged cookies.
@@ -46,7 +46,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_secure_cookie_when_request_is_https()
     {
         // Verify that Secure cookies are correctly delivered over HTTPS.
@@ -61,7 +61,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("token=secret", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_non_secure_cookie_when_any_scheme()
     {
         // Non-Secure cookies have no transport restriction.
@@ -77,7 +77,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("sid=abc", httpsCookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_store_httponly_flag_when_set_cookie_contains_httponly()
     {
         // HttpOnly is [Fact(Timeout = 5000)] server-enforced attribute; the client stores it for informational purposes.
@@ -96,7 +96,7 @@ public sealed class CookieSecuritySpec
 
     // SameSite — Cross-site request scoping
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_store_samesite_strict_when_set_cookie_contains_strict()
     {
         // SameSite=Strict cookies are stored and sent on same-site requests. Cross-site exclusion
@@ -113,7 +113,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("csrf=token123", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_store_samesite_lax_when_set_cookie_contains_lax()
     {
         // SameSite=Lax cookies are sent on safe top-level navigations (GET) but not
@@ -129,7 +129,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("pref=dark", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_strict_cookie_when_request_is_cross_site()
     {
         // Attack: a cross-site request (initiated by other.com) must not carry a SameSite=Strict
@@ -144,7 +144,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_strict_cookie_when_request_is_same_site()
     {
         // Same-site request (initiated by example.com) carries the Strict cookie.
@@ -159,7 +159,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("csrf=token123", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_lax_cookie_when_cross_site_unsafe_method()
     {
         // SameSite=Lax cookies are withheld on cross-site unsafe (POST) requests.
@@ -173,7 +173,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_lax_cookie_when_cross_site_safe_method()
     {
         // SameSite=Lax cookies ARE sent on cross-site safe top-level navigations (GET).
@@ -188,7 +188,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("pref=dark", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_none_cookie_when_cross_site()
     {
         // SameSite=None (with Secure) is intended for cross-site use and is always sent.
@@ -203,7 +203,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("tracker=abc", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_treat_subdomain_as_same_site_for_strict_cookie()
     {
         // Same registrable domain (app.example.com vs api.example.com) is same-site:
@@ -219,7 +219,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("csrf=token123", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_store_samesite_none_when_set_cookie_contains_none()
     {
         // SameSite=None is used for cross-site cookies and requires Secure per browser policy.
@@ -234,7 +234,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("tracker=abc", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_subdomain_cookie_when_request_to_parent_domain()
     {
         // Attack: [Fact(Timeout = 5000)] cookie set by sub.example.com (host-only) should not be leaked
@@ -250,7 +250,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_domain_cookie_to_subdomain_when_domain_attribute_set()
     {
         // Domain=example.com allows subdomains but must not leak to notexample.com.
@@ -267,7 +267,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(unrelatedCookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_match_cookie_when_domain_is_substring_but_not_label_boundary()
     {
         // Attack: "notexample.com" ends with "example.com" as [Fact(Timeout = 5000)] string, but the cookie
@@ -277,7 +277,7 @@ public sealed class CookieSecuritySpec
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_reject_domain_match_when_request_host_is_ip_address()
     {
         // Attack: IP addresses cannot be subdomains. Prevents scope escalation via IP.
@@ -286,7 +286,7 @@ public sealed class CookieSecuritySpec
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_host_only_cookie_when_request_to_subdomain()
     {
         // Host-only cookies (no Domain attribute) require exact match.
@@ -300,7 +300,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(subCookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_reject_cookie_when_domain_attribute_does_not_match_request_host()
     {
         // Attack: evil.com sets Domain=example.com to hijack cookies.
@@ -312,7 +312,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_cookie_when_request_path_outside_cookie_path()
     {
         // Cookie scoped to /foo must not leak to /bar.
@@ -326,7 +326,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(barCookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_send_cookie_when_request_path_is_subpath_of_cookie_path()
     {
         // /foo cookie matches /foo/sub (boundary at '/').
@@ -341,7 +341,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("scoped=val", cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_send_cookie_when_request_path_shares_prefix_but_not_boundary()
     {
         // /foobar starts with /foo but does not have a label boundary at position 4.
@@ -350,7 +350,7 @@ public sealed class CookieSecuritySpec
         Assert.False(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_match_root_when_path_contains_traversal()
     {
         // Attack: /foo/.. should not collapse to / and bypass path scoping.
@@ -380,7 +380,7 @@ public sealed class CookieSecuritySpec
         Assert.False(fooResult);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_match_foo_cookie_when_uri_normalizes_traversal_to_foo()
     {
         // The System.Uri class normalizes /bar/../foo → /foo before cookie matching.
@@ -401,7 +401,7 @@ public sealed class CookieSecuritySpec
         Assert.False(CookieJar.PathMatches("/foo", "/bar/../foo"));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_delete_cookie_when_max_age_is_zero()
     {
         // Max-Age=0 signals immediate deletion. Verifies cookie is removed from jar.
@@ -419,7 +419,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_store_cookie_when_max_age_is_zero()
     {
         // A new cookie with Max-Age=0 should not be stored at all.
@@ -431,7 +431,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_not_store_cookie_when_max_age_is_negative()
     {
         // Negative Max-Age should be treated as expired (same as Max-Age=0).
@@ -443,7 +443,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_handle_gracefully_when_cookie_value_is_extremely_large()
     {
         // Attack: Adversary sends a cookie with a very large value to cause OOM or slowdowns.
@@ -459,7 +459,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(1, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_handle_gracefully_when_cookie_name_is_extremely_large()
     {
         // Attack: Adversary sends a cookie with a very large name.
@@ -473,7 +473,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(1, jar.Count);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_handle_gracefully_when_many_cookies_stored()
     {
         // Attack: Adversary floods the jar with thousands of cookies to cause performance degradation.
@@ -492,7 +492,7 @@ public sealed class CookieSecuritySpec
         Assert.NotNull(cookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_store_all_security_attributes_when_combined_on_single_cookie()
     {
         // Verify that all security attributes are stored when combined.
@@ -512,7 +512,7 @@ public sealed class CookieSecuritySpec
         Assert.Null(httpCookie);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CookieJar_should_enforce_combined_scoping_when_domain_and_path_both_set()
     {
         // Cookie must match both domain AND path to be sent.

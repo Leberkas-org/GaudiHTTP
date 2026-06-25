@@ -135,6 +135,8 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
             await _clientProvider.DisposeAsync();
         }
+
+        Tracing.Disable();
     }
 
     /// <summary>
