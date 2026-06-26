@@ -67,9 +67,7 @@ internal static class ProtocolCoreBuilder
                     $"Unsupported HTTP version: {version}")
             };
 
-            // Async boundary on the joined flow: the full engine+transport sub-graph
-            // runs in its own sub-actor (separate from GroupBy/EndpointDispatch).
-            return engine.CreateFlow().Join(transports.Get(version));
+            return engine.CreateFlow().Join(transports.Get(version)).Async();
         }
     }
 

@@ -44,7 +44,7 @@ internal sealed class ConnectionActor : ReceiveActor
         _drainSwitch = KillSwitches.Shared(string.Concat("conn-", connectionId));
 
         var protocolBidi = engine.CreateFlow(services);
-        var composed = protocolBidi.Join(Flow.FromGraph(bridgeGraph));
+        var composed = protocolBidi.Join(Flow.FromGraph(bridgeGraph).Async());
 
         var self = Self;
         connectionFlow
