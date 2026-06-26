@@ -13,9 +13,7 @@ internal sealed class DrainSlot : IResettable
     public long? ContentLength;
     public bool IsReadInFlight;
     public bool IsOrphaned;
-    public ReadOnlyMemory<byte> LimboData;
-    public bool HasLimbo;
-    public bool IsDrainComplete;
+    public int ReservedWindow;
     public int ConsecutiveSyncReads;
 
     public Func<int, object>? CachedSuccessTransform { get; private set; }
@@ -35,18 +33,6 @@ internal sealed class DrainSlot : IResettable
         CachedFailureTransform = ex => new DrainReadFailed(StreamId, ex);
     }
 
-    public void StoreLimbo(ReadOnlyMemory<byte> data)
-    {
-        LimboData = data;
-        HasLimbo = true;
-    }
-
-    public void ClearLimbo()
-    {
-        LimboData = default;
-        HasLimbo = false;
-    }
-
     public void Reset()
     {
         StreamId = 0;
@@ -57,9 +43,7 @@ internal sealed class DrainSlot : IResettable
         ContentLength = null;
         IsReadInFlight = false;
         IsOrphaned = false;
-        LimboData = default;
-        HasLimbo = false;
-        IsDrainComplete = false;
+        ReservedWindow = 0;
         ConsecutiveSyncReads = 0;
         CachedSuccessTransform = null;
         CachedFailureTransform = null;

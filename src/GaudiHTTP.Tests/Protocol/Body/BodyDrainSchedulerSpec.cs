@@ -23,6 +23,29 @@ public sealed class BodyDrainSchedulerSpec
         public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
     }
 
+    private sealed class DelegatingReadStream(Func<Memory<byte>, CancellationToken, ValueTask<int>> readFunc) : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => readFunc(buffer, cancellationToken);
+    }
+
     private static FlowController MakeFlow(int connWindow = 1024 * 1024)
     {
         var fc = new FlowController(1024 * 1024, 64 * 1024);
@@ -86,29 +109,27 @@ public sealed class BodyDrainSchedulerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void PartialSend_should_store_limbo_and_drain_on_window_update()
+    public void WindowBlocked_should_defer_read_until_window_opens()
     {
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 65535);
         var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
-        // Exhaust most of the window
-        flow.OnDataSent(1, 65535 - 50);
-        // Stream window = 50, conn window = 50
+        // Exhaust connection window completely
+        flow.OnDataSent(1, 65535);
 
         scheduler.Register(1, MakeBody(200), 200, CancellationToken.None);
 
-        // Should send 50 bytes, limbo 150
-        Assert.Single(target.Emitted);
-        Assert.Equal(50, target.Emitted[0].Data.Length);
+        // No reads should have started: connection window = 0
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Completed);
 
-        // WINDOW_UPDATE
-        flow.OnSendWindowUpdate(1, 200);
-        flow.OnSendWindowUpdate(0, 200);
-        scheduler.OnWindowUpdate(1);
+        // Open both windows
+        flow.OnSendWindowUpdate(1, 65535);
+        flow.OnSendWindowUpdate(0, 65535);
+        scheduler.OnWindowUpdate(0);
 
-        // Should drain limbo (150) + read more + EOF
         var totalData = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(200, totalData);
         Assert.Single(target.Completed);
@@ -211,35 +232,11 @@ public sealed class BodyDrainSchedulerSpec
         var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 16 * 1024, hardCap: 16);
 
         // Connection window = 65535, chunkSize = 16384
-        // effectiveSlots = min(readSlots=2, 65535/16384=4, 16) = 2
-        // This is a self-consistency test — the scheduler should not over-read
+        // With reservation, reads are bounded by min(chunkSize, streamWindow, connWindow)
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
 
         Assert.Single(target.Completed);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void RegisterWithLimbo_should_drain_on_connection_window_update()
-    {
-        var target = new FakeTarget();
-        var flow = MakeFlow();
-        var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 1 * 1024, hardCap: 16);
-
-        flow.InitStreamSendWindow(1);
-        // Exhaust connection window
-        flow.OnDataSent(1, 65535);
-
-        var remainder = new byte[] { 1, 2, 3, 4, 5 };
-        scheduler.RegisterWithLimbo(1, remainder, CancellationToken.None);
-
-        Assert.Empty(target.Emitted);
-
-        flow.OnSendWindowUpdate(0, 65535);
-        scheduler.OnWindowUpdate(0);
-
-        Assert.Single(target.Emitted);
-        Assert.Equal(5, target.Emitted[0].Data.Length);
     }
 
     [Fact(Timeout = 5000)]
@@ -274,5 +271,76 @@ public sealed class BodyDrainSchedulerSpec
 
         Assert.Single(target.Completed);
         reqCts.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void WindowReservation_should_consume_window_before_read_and_refund_unused()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 65535);
+        var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var windowBefore = flow.ConnectionSendWindow;
+
+        // Body is smaller than chunkSize: reserve 1024, read 100, expect refund of 924
+        scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+
+        // After completion, window should be reduced by exactly 100 (bytes actually sent),
+        // not by 1024 (the reserved chunk size).
+        Assert.Equal(windowBefore - 100, flow.ConnectionSendWindow);
+        Assert.Single(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OrphanRefund_should_return_reserved_window_when_stream_cancelled_during_read()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var windowBefore = flow.ConnectionSendWindow;
+
+        // Use a blocking stream that returns a Task (not ValueTask with sync result)
+        // so the scheduler goes through the async/PipeTo path.
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockingStream = new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task));
+        scheduler.Register(1, blockingStream, null, CancellationToken.None);
+
+        // Window should be reserved (decremented by chunkSize=1024)
+        Assert.Equal(windowBefore - 1 * 1024, flow.ConnectionSendWindow);
+
+        // Cancel the stream while read is in flight
+        scheduler.Cancel(1);
+
+        // Simulate the async PipeTo callback arriving after cancel
+        tcs.SetResult(50);
+        scheduler.HandleReadComplete(1, 50);
+
+        // After HandleReadComplete on orphaned slot, full reservation must be refunded
+        Assert.Equal(windowBefore, flow.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void WindowBlocked_should_block_when_available_below_half_chunk()
+    {
+        var target = new FakeTarget();
+        // chunkSize = 1024, minReadSize = 512
+        // Set connection window to 256 (below minReadSize)
+        var flow = MakeFlow(connWindow: 65535);
+        var scheduler = new BodyDrainScheduler(target, flow, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        // Leave stream window at 65535 but exhaust connection window to 256
+        flow.OnDataSent(1, 65535 - 256);
+        flow.OnSendWindowUpdate(0, -(65535 - 256));
+
+        // Register: connWindow=256, streamWindow=256, available=256, minRead=512
+        // available < minReadSize so it should be blocked
+        scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Completed);
     }
 }

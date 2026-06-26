@@ -365,7 +365,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                 if (window <= 0)
                 {
                     state.MarkBodyDrainActive();
-                    _scheduler!.RegisterWithLimbo(streamId, bufferedBody, CancellationToken.None);
+                    _scheduler!.Register(streamId, new MemoryStream(bufferedBody.ToArray(), writable: false), null, CancellationToken.None);
                     return;
                 }
 
@@ -935,7 +935,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
         state.MarkBodyDrainActive();
-        _scheduler!.RegisterWithLimbo(streamId, remainder, CancellationToken.None);
+        _scheduler!.Register(streamId, new MemoryStream(remainder.ToArray(), writable: false), null, CancellationToken.None);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",

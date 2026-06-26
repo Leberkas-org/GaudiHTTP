@@ -290,7 +290,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         // Window exhausted before all data sent: hand the remainder to the scheduler
         // which will emit it when the send window opens up via WINDOW_UPDATE.
         state.MarkBodyDrainActive();
-        _scheduler!.RegisterWithLimbo(streamId, body[sent..], CancellationToken.None);
+        _scheduler!.Register(streamId, new MemoryStream(body[sent..].ToArray(), writable: false), null, CancellationToken.None);
     }
 
     private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)
