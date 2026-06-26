@@ -292,8 +292,10 @@ internal sealed class BodyDrainScheduler
 
         if (vt.IsCompletedSuccessfully)
         {
-            slot.CompleteSyncRead();
-            ProcessReadResult(slot, vt.Result);
+            slot.CompleteRead();
+            _target.StageActor.Tell(
+                slot.CachedSuccessTransform!(vt.Result),
+                ActorRefs.NoSender);
             return;
         }
 

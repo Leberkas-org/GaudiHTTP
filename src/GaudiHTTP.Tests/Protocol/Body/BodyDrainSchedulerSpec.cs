@@ -12,7 +12,14 @@ public sealed class BodyDrainSchedulerSpec
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<int> Completed { get; } = [];
         public List<(int StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public List<object> PendingMessages { get; } = [];
+        public IActorRef StageActor => _interceptor;
+        private readonly MessageInterceptor _interceptor;
+
+        public FakeTarget()
+        {
+            _interceptor = new MessageInterceptor(PendingMessages);
+        }
 
         public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
         {
@@ -21,6 +28,15 @@ public sealed class BodyDrainSchedulerSpec
 
         public void OnDrainComplete(int streamId) => Completed.Add(streamId);
         public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    private sealed class MessageInterceptor : MinimalActorRef
+    {
+        private readonly List<object> _messages;
+        public MessageInterceptor(List<object> messages) => _messages = messages;
+        public override ActorPath Path { get; } = new RootActorPath(new Address("akka", "test")) / "fake";
+        public override IActorRefProvider Provider => throw new NotSupportedException();
+        protected override void TellInternal(object message, IActorRef sender) => _messages.Add(message);
     }
 
     private sealed class DelegatingReadStream(Func<Memory<byte>, CancellationToken, ValueTask<int>> readFunc) : Stream
@@ -57,6 +73,30 @@ public sealed class BodyDrainSchedulerSpec
         return fc;
     }
 
+    private static void DrainToCompletion(BodyDrainScheduler scheduler, FakeTarget target, int expectedCompletions = 1, int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (target.Completed.Count < expectedCompletions && target.Failed.Count == 0 && iterations++ < maxIterations)
+        {
+            if (target.PendingMessages.Count == 0)
+            {
+                break;
+            }
+
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case DrainReadComplete rc:
+                    scheduler.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    break;
+                case DrainContinue dc:
+                    scheduler.HandleDrainContinue(dc.StreamId);
+                    break;
+            }
+        }
+    }
+
     private static MemoryStream MakeBody(int size)
     {
         var data = new byte[size];
@@ -77,6 +117,7 @@ public sealed class BodyDrainSchedulerSpec
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -103,6 +144,7 @@ public sealed class BodyDrainSchedulerSpec
         // WINDOW_UPDATE for stream 1
         flow.OnSendWindowUpdate(1, 65535);
         scheduler.OnWindowUpdate(1);
+        DrainToCompletion(scheduler, target);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Single(target.Completed);
@@ -129,6 +171,7 @@ public sealed class BodyDrainSchedulerSpec
         flow.OnSendWindowUpdate(1, 65535);
         flow.OnSendWindowUpdate(0, 65535);
         scheduler.OnWindowUpdate(0);
+        DrainToCompletion(scheduler, target);
 
         var totalData = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(200, totalData);
@@ -147,8 +190,8 @@ public sealed class BodyDrainSchedulerSpec
 
         scheduler.Register(1, MakeBody(128), 128, CancellationToken.None);
         scheduler.Register(3, MakeBody(128), 128, CancellationToken.None);
+        DrainToCompletion(scheduler, target, expectedCompletions: 2);
 
-        // Both should complete (sync fast path)
         Assert.Contains(1, target.Completed);
         Assert.Contains(3, target.Completed);
 
@@ -193,14 +236,14 @@ public sealed class BodyDrainSchedulerSpec
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
 
-        // MemoryStream completes synchronously — no PipeTo needed
         Assert.Equal(2, target.Emitted.Count);
         Assert.Single(target.Completed);
     }
 
     [Fact(Timeout = 5000)]
-    public void SyncStarvationGuard_should_yield_after_64_reads()
+    public void ForceAsync_should_dispatch_sync_reads_via_message()
     {
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 1024 * 1024);
@@ -210,13 +253,13 @@ public sealed class BodyDrainSchedulerSpec
         flow.OnSendWindowUpdate(1, 1024 * 1024);
         scheduler.Register(1, MakeBody(65 * 16), 65 * 16, CancellationToken.None);
 
-        var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.Equal(64 * 16, emittedBytes);
+        // With force-async, every sync read dispatches a message instead of processing inline.
+        // After Register, nothing is emitted yet — all reads are pending as messages.
         Assert.Empty(target.Completed);
+        Assert.True(target.PendingMessages.Count > 0, "Sync reads should be dispatched as messages");
 
-        // Guard fires DrainContinue(1) to StageActor (Nobody in tests — message dropped).
-        // Verified behaviorally: pump stops at exactly 64 chunks, proving the guard path was taken.
-        scheduler.HandleDrainContinue(1);
+        // Drain all pending messages to completion
+        DrainToCompletion(scheduler, target);
 
         var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(65 * 16, totalBytes);
@@ -235,6 +278,7 @@ public sealed class BodyDrainSchedulerSpec
         // With reservation, reads are bounded by min(chunkSize, streamWindow, connWindow)
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
 
         Assert.Single(target.Completed);
     }
@@ -248,12 +292,14 @@ public sealed class BodyDrainSchedulerSpec
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(10), 10, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
         Assert.Single(target.Completed);
 
         // Register again — should reuse pooled slot
         flow.InitStreamSendWindow(3);
         target.Completed.Clear();
         scheduler.Register(3, MakeBody(10), 10, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
         Assert.Single(target.Completed);
     }
 
@@ -268,6 +314,7 @@ public sealed class BodyDrainSchedulerSpec
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, reqCts.Token);
+        DrainToCompletion(scheduler, target);
 
         Assert.Single(target.Completed);
         reqCts.Dispose();
@@ -285,6 +332,7 @@ public sealed class BodyDrainSchedulerSpec
 
         // Body is smaller than chunkSize: reserve 1024, read 100, expect refund of 924
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
 
         // After completion, window should be reduced by exactly 100 (bytes actually sent),
         // not by 1024 (the reserved chunk size).
