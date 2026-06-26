@@ -233,7 +233,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, 16 * 1024);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024);
         _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }

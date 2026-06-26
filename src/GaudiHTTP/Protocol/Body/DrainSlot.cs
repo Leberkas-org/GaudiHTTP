@@ -1,8 +1,9 @@
 using System.Buffers;
+using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class DrainSlot
+internal sealed class DrainSlot : IResettable
 {
     public int StreamId;
     public Stream? BodyStream;
@@ -16,6 +17,23 @@ internal sealed class DrainSlot
     public bool HasLimbo;
     public bool IsDrainComplete;
     public int ConsecutiveSyncReads;
+
+    public Func<int, object>? CachedSuccessTransform { get; private set; }
+    public Func<Exception, object>? CachedFailureTransform { get; private set; }
+
+    public void Initialize(
+        int streamId,
+        Stream bodyStream,
+        CancellationToken requestCt,
+        CancellationTokenSource? linkedCts)
+    {
+        StreamId = streamId;
+        BodyStream = bodyStream;
+        RequestCt = requestCt;
+        LinkedCts = linkedCts;
+        CachedSuccessTransform = n => new DrainReadComplete(StreamId, n);
+        CachedFailureTransform = ex => new DrainReadFailed(StreamId, ex);
+    }
 
     public void StoreLimbo(ReadOnlyMemory<byte> data)
     {
@@ -43,5 +61,7 @@ internal sealed class DrainSlot
         HasLimbo = false;
         IsDrainComplete = false;
         ConsecutiveSyncReads = 0;
+        CachedSuccessTransform = null;
+        CachedFailureTransform = null;
     }
 }

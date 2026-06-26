@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
 namespace GaudiHTTP.Protocol.Body;
@@ -11,13 +12,12 @@ internal sealed class BodyDrainScheduler
     private readonly IBodyDrainTarget _target;
     private readonly FlowController _flowController;
     private readonly CancellationTokenSource _connectionCts;
+    private readonly ConnectionPoolContext _poolContext;
     private readonly int _chunkSize;
     private readonly int _hardCap;
-    private readonly int _maxPoolSize;
 
     private readonly Queue<int> _readyQueue = new();
     private readonly Dictionary<int, DrainSlot> _activeSlots = new();
-    private readonly Stack<DrainSlot> _slotPool = new();
     private readonly HashSet<int> _cancelledStreams = new();
     private readonly HashSet<int> _windowBlockedStreams = new();
     private readonly HashSet<int> _limboSlots = new();
@@ -29,27 +29,26 @@ internal sealed class BodyDrainScheduler
         IBodyDrainTarget target,
         FlowController flowController,
         CancellationTokenSource connectionCts,
+        ConnectionPoolContext poolContext,
         int chunkSize,
         int hardCap)
     {
         _target = target;
         _flowController = flowController;
         _connectionCts = connectionCts;
+        _poolContext = poolContext;
         _chunkSize = chunkSize;
         _hardCap = hardCap;
-        _maxPoolSize = hardCap * 2;
     }
 
     public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
-        var slot = RentSlot();
-        slot.StreamId = streamId;
-        slot.BodyStream = bodyStream;
-        slot.ContentLength = contentLength;
-        slot.RequestCt = requestCt;
-        slot.LinkedCts = requestCt.CanBeCanceled
+        var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : null;
+        var slot = _poolContext.Rent(static () => new DrainSlot());
+        slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
+        slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
 
         if (_flowController.GetStreamSendWindow(streamId) > 0)
@@ -65,12 +64,16 @@ internal sealed class BodyDrainScheduler
 
     public void RegisterWithLimbo(int streamId, ReadOnlyMemory<byte> data, CancellationToken requestCt)
     {
-        var slot = RentSlot();
-        slot.StreamId = streamId;
-        slot.LinkedCts = requestCt.CanBeCanceled
+        var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : null;
+        var slot = _poolContext.Rent(static () => new DrainSlot());
+
+        // Initialize sets StreamId, RequestCt, LinkedCts and cached transforms;
+        // BodyStream is intentionally left null for limbo-only slots.
+        slot.StreamId = streamId;
         slot.RequestCt = requestCt;
+        slot.LinkedCts = linkedCts;
 
         // Rent a buffer and copy remainder data into it so limbo slice points into our buffer
         var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(data.Length, _chunkSize));
@@ -140,7 +143,7 @@ internal sealed class BodyDrainScheduler
         if (slot.IsOrphaned)
         {
             DisposeSlotResources(slot);
-            ReturnSlot(slot);
+            _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
@@ -163,7 +166,7 @@ internal sealed class BodyDrainScheduler
         if (slot.IsOrphaned)
         {
             DisposeSlotResources(slot);
-            ReturnSlot(slot);
+            _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
@@ -172,7 +175,7 @@ internal sealed class BodyDrainScheduler
         _activeSlots.Remove(streamId);
         _target.OnDrainFailed(streamId, reason);
         DisposeSlotResources(slot);
-        ReturnSlot(slot);
+        _poolContext.Return(slot);
     }
 
     public void HandleDrainContinue(int streamId)
@@ -188,7 +191,7 @@ internal sealed class BodyDrainScheduler
         if (slot.IsOrphaned)
         {
             DisposeSlotResources(slot);
-            ReturnSlot(slot);
+            _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
@@ -218,7 +221,7 @@ internal sealed class BodyDrainScheduler
             // Has limbo data but no in-flight read: clean up immediately
             _activeSlots.Remove(streamId);
             DisposeSlotResources(slot);
-            ReturnSlot(slot);
+            _poolContext.Return(slot);
             return;
         }
 
@@ -226,7 +229,7 @@ internal sealed class BodyDrainScheduler
         {
             _activeSlots.Remove(streamId);
             DisposeSlotResources(slot);
-            ReturnSlot(slot);
+            _poolContext.Return(slot);
             return;
         }
 
@@ -243,7 +246,7 @@ internal sealed class BodyDrainScheduler
             if (!slot.IsOrphaned)
             {
                 DisposeSlotResources(slot);
-                ReturnSlot(slot);
+                _poolContext.Return(slot);
             }
 
             _limboSlots.Remove(streamId);
@@ -283,7 +286,7 @@ internal sealed class BodyDrainScheduler
                 {
                     _activeSlots.Remove(streamId);
                     DisposeSlotResources(cancelled);
-                    ReturnSlot(cancelled);
+                    _poolContext.Return(cancelled);
                 }
 
                 continue;
@@ -337,11 +340,10 @@ internal sealed class BodyDrainScheduler
 
         slot.ConsecutiveSyncReads = 0;
         _asyncInFlight++;
-        var streamId = slot.StreamId;
         vt.PipeTo(
             _target.StageActor,
-            success: bytesRead => new DrainReadComplete(streamId, bytesRead),
-            failure: ex => new DrainReadFailed(streamId, ex));
+            success: slot.CachedSuccessTransform,
+            failure: slot.CachedFailureTransform);
     }
 
     private void ProcessReadResult(DrainSlot slot, int bytesRead)
@@ -448,27 +450,12 @@ internal sealed class BodyDrainScheduler
         _activeSlots.Remove(slot.StreamId);
         _target.OnDrainComplete(slot.StreamId);
         DisposeSlotResources(slot);
-        ReturnSlot(slot);
+        _poolContext.Return(slot);
     }
 
     private static void DisposeSlotResources(DrainSlot slot)
     {
         slot.Buffer?.Dispose();
         slot.LinkedCts?.Dispose();
-    }
-
-    private DrainSlot RentSlot()
-    {
-        return _slotPool.TryPop(out var slot) ? slot : new DrainSlot();
-    }
-
-    private void ReturnSlot(DrainSlot slot)
-    {
-        slot.Reset();
-
-        if (_slotPool.Count < _maxPoolSize)
-        {
-            _slotPool.Push(slot);
-        }
     }
 }

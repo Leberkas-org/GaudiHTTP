@@ -1,8 +1,9 @@
 using System.Buffers;
+using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class PumpSlot
+internal sealed class PumpSlot : IResettable
 {
     public long StreamId;
     public Stream? BodyStream;
@@ -13,6 +14,23 @@ internal sealed class PumpSlot
     public bool IsReadInFlight;
     public bool IsOrphaned;
     public int ConsecutiveSyncReads;
+
+    public Func<int, object>? CachedSuccessTransform { get; private set; }
+    public Func<Exception, object>? CachedFailureTransform { get; private set; }
+
+    public void Initialize(
+        long streamId,
+        Stream bodyStream,
+        CancellationToken requestCt,
+        CancellationTokenSource? linkedCts)
+    {
+        StreamId = streamId;
+        BodyStream = bodyStream;
+        RequestCt = requestCt;
+        LinkedCts = linkedCts;
+        CachedSuccessTransform = n => new MultiplexedDrainReadComplete(StreamId, n);
+        CachedFailureTransform = ex => new MultiplexedDrainReadFailed(StreamId, ex);
+    }
 
     public void Reset()
     {
@@ -25,5 +43,7 @@ internal sealed class PumpSlot
         IsReadInFlight = false;
         IsOrphaned = false;
         ConsecutiveSyncReads = 0;
+        CachedSuccessTransform = null;
+        CachedFailureTransform = null;
     }
 }

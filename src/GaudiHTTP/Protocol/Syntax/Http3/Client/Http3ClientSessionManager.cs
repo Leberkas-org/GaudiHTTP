@@ -161,7 +161,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, 16 * 1024);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024);
         _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }
 

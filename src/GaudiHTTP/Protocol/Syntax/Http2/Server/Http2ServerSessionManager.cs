@@ -119,7 +119,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _statePool = new StackStreamStatePool<StreamState>(
             statePoolCapacity,
             () => new StreamState());
-        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _responseEncoder.MaxFrameSize, 256);
+        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
     }
 
     public void PreStart()

@@ -19,6 +19,9 @@ internal sealed class SerialBodyPump
     private int _availableCapacity;
     private int _consecutiveSyncReads;
 
+    private Func<int, object>? _cachedSuccess;
+    private Func<Exception, object>? _cachedFailure;
+
     public SerialBodyPump(
         IBodyDrainTarget target,
         CancellationTokenSource connectionCts,
@@ -40,6 +43,8 @@ internal sealed class SerialBodyPump
             : null;
         _availableCapacity = _maxCapacity;
         _consecutiveSyncReads = 0;
+        _cachedSuccess = n => new DrainReadComplete(0, n);
+        _cachedFailure = ex => new DrainReadFailed(0, ex);
         TryStartRead();
     }
 
@@ -85,6 +90,8 @@ internal sealed class SerialBodyPump
         _activeStream = null;
         _availableCapacity = 0;
         _isReadInFlight = false;
+        _cachedSuccess = null;
+        _cachedFailure = null;
     }
 
     public void Cleanup()
@@ -96,6 +103,8 @@ internal sealed class SerialBodyPump
         _activeStream = null;
         _availableCapacity = 0;
         _isReadInFlight = false;
+        _cachedSuccess = null;
+        _cachedFailure = null;
     }
 
     private void TryStartRead()
@@ -134,8 +143,8 @@ internal sealed class SerialBodyPump
         _consecutiveSyncReads = 0;
         vt.PipeTo(
             _target.StageActor,
-            success: bytesRead => new DrainReadComplete(0, bytesRead),
-            failure: ex => new DrainReadFailed(0, ex));
+            success: _cachedSuccess,
+            failure: _cachedFailure);
     }
 
     private void ProcessReadResult(int bytesRead)
@@ -160,6 +169,8 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
+        _cachedSuccess = null;
+        _cachedFailure = null;
 
         if (wasActive)
         {
