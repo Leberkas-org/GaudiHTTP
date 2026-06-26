@@ -11,7 +11,14 @@ public sealed class SerialBodyPumpSpec
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<int> Completed { get; } = [];
         public List<(int StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public List<object> PendingMessages { get; } = [];
+        public IActorRef StageActor => _interceptor;
+        private readonly MessageInterceptor _interceptor;
+
+        public FakeTarget()
+        {
+            _interceptor = new MessageInterceptor(PendingMessages);
+        }
 
         public void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
         {
@@ -22,9 +29,49 @@ public sealed class SerialBodyPumpSpec
         public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
     }
 
+    private sealed class MessageInterceptor : MinimalActorRef
+    {
+        private readonly List<object> _messages;
+        public MessageInterceptor(List<object> messages) => _messages = messages;
+        public override ActorPath Path { get; } = new RootActorPath(new Address("akka", "test")) / "fake-serial";
+        public override IActorRefProvider Provider => throw new NotSupportedException();
+        protected override void TellInternal(object message, IActorRef sender) => _messages.Add(message);
+    }
+
+    private static void DrainToCompletion(
+        SerialBodyPump pump,
+        FakeTarget target,
+        int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (target.Completed.Count == 0
+               && target.Failed.Count == 0
+               && iterations++ < maxIterations)
+        {
+            if (target.PendingMessages.Count == 0)
+            {
+                break;
+            }
+
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case DrainReadComplete rc:
+                    pump.HandleReadComplete(rc.BytesRead);
+                    break;
+                case DrainContinue:
+                    pump.HandleDrainContinue();
+                    break;
+            }
+        }
+    }
+
     /// <summary>
     /// Target that calls OnCapacityAvailable() synchronously after EmitDataFrames,
     /// simulating a consumer that immediately signals capacity after each chunk.
+    /// Uses a direct-dispatch actor ref so pump messages (DrainReadComplete, DrainContinue)
+    /// are processed inline as they arrive — no external drain loop needed.
     /// </summary>
     private sealed class AutoResumeTarget : IBodyDrainTarget
     {
@@ -32,7 +79,13 @@ public sealed class SerialBodyPumpSpec
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<int> Completed { get; } = [];
         public List<(int StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public IActorRef StageActor => _directRef;
+        private readonly DirectDispatchActorRef _directRef;
+
+        public AutoResumeTarget()
+        {
+            _directRef = new DirectDispatchActorRef(this);
+        }
 
         public void SetPump(SerialBodyPump pump) => _pump = pump;
 
@@ -46,7 +99,32 @@ public sealed class SerialBodyPumpSpec
         }
 
         public void OnDrainComplete(int streamId) => Completed.Add(streamId);
+
         public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
+
+        private sealed class DirectDispatchActorRef(AutoResumeTarget owner) : MinimalActorRef
+        {
+            public override ActorPath Path { get; } = new RootActorPath(new Address("akka", "test")) / "fake-auto-resume";
+            public override IActorRefProvider Provider => throw new NotSupportedException();
+
+            protected override void TellInternal(object message, IActorRef sender)
+            {
+                if (owner._pump is null)
+                {
+                    return;
+                }
+
+                switch (message)
+                {
+                    case DrainReadComplete rc:
+                        owner._pump.HandleReadComplete(rc.BytesRead);
+                        break;
+                    case DrainContinue:
+                        owner._pump.HandleDrainContinue();
+                        break;
+                }
+            }
+        }
     }
 
     private static MemoryStream MakeBody(int size)
@@ -72,6 +150,7 @@ public sealed class SerialBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(MakeBody(100), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -88,6 +167,7 @@ public sealed class SerialBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(new MemoryStream([]), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Single(target.Emitted);
         Assert.True(target.Emitted[0].EndStream);
@@ -103,6 +183,21 @@ public sealed class SerialBodyPumpSpec
         var body = MakeBody(200);
 
         pump.Register(body, contentLength: null, CancellationToken.None);
+        // Process any dispatched messages (first read completes as message)
+        while (target.PendingMessages.Count > 0)
+        {
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case DrainReadComplete rc:
+                    pump.HandleReadComplete(rc.BytesRead);
+                    break;
+                case DrainContinue:
+                    pump.HandleDrainContinue();
+                    break;
+            }
+        }
 
         // With maxCapacity=1 and 16-byte chunks, only 1 chunk was drained then paused
         var emittedData = target.Emitted.Where(e => !e.EndStream).ToList();
@@ -112,6 +207,21 @@ public sealed class SerialBodyPumpSpec
         while (target.Completed.Count == 0)
         {
             pump.OnCapacityAvailable();
+            // Drain any messages generated by OnCapacityAvailable
+            while (target.PendingMessages.Count > 0)
+            {
+                var msg = target.PendingMessages[0];
+                target.PendingMessages.RemoveAt(0);
+                switch (msg)
+                {
+                    case DrainReadComplete rc:
+                        pump.HandleReadComplete(rc.BytesRead);
+                        break;
+                    case DrainContinue:
+                        pump.HandleDrainContinue();
+                        break;
+                }
+            }
         }
 
         Assert.Equal(200, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
@@ -142,6 +252,7 @@ public sealed class SerialBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(MakeBody(100), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
         Assert.Single(target.Completed);
 
         // Cancel after complete should be no-op (stream already null)
@@ -166,6 +277,7 @@ public sealed class SerialBodyPumpSpec
         var body = MakeBody(64);
 
         pump.Register(body, contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Equal(64, target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length));
         Assert.Single(target.Completed);
@@ -190,17 +302,19 @@ public sealed class SerialBodyPumpSpec
     public void Sync_reads_should_complete_large_body_with_starvation_guard_via_actor()
     {
         var target = new AutoResumeTarget();
-        // Small chunk to trigger many sync reads; starvation guard will fire at 64
+        // Small chunk to trigger many sync reads; starvation guard will fire at 64 consecutive reads.
+        // The AutoResumeTarget processes DrainContinue messages inline, so the drain completes fully.
         var pump = MakePump(target, chunkSize: 16, maxCapacity: 2);
         target.SetPump(pump);
-        var body = MakeBody(65 * 16);
+        var totalSize = 65 * 16;
+        var body = MakeBody(totalSize);
 
         pump.Register(body, contentLength: null, CancellationToken.None);
 
-        // Starvation guard fires at 64 consecutive reads and sends DrainContinue to StageActor (Nobody).
-        // So drain stalls. Verify partial data was emitted before guard fired.
+        // AutoResumeTarget processes DrainContinue via DrainMessages() — full body drains.
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.True(emittedBytes > 0, "Expected data emitted before starvation guard triggered");
+        Assert.Equal(totalSize, emittedBytes);
+        Assert.Single(target.Completed);
     }
 
     [Fact(Timeout = 5000)]
@@ -245,6 +359,7 @@ public sealed class SerialBodyPumpSpec
         var reqCts = new CancellationTokenSource();
 
         pump.Register(MakeBody(100), contentLength: null, reqCts.Token);
+        DrainToCompletion(pump, target);
 
         Assert.Single(target.Completed);
         // Verify no exception when disposing reqCts (linked CTS should already be disposed by pump)

@@ -11,7 +11,14 @@ public sealed class MultiplexedBodyPumpSpec
         public List<(long StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<long> Completed { get; } = [];
         public List<(long StreamId, Exception Reason)> Failed { get; } = [];
-        public IActorRef StageActor { get; } = ActorRefs.Nobody;
+        public List<object> PendingMessages { get; } = [];
+        public IActorRef StageActor => _interceptor;
+        private readonly MessageInterceptor _interceptor;
+
+        public FakeTarget()
+        {
+            _interceptor = new MessageInterceptor(PendingMessages);
+        }
 
         public void EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
         {
@@ -20,6 +27,45 @@ public sealed class MultiplexedBodyPumpSpec
 
         public void OnDrainComplete(long streamId) => Completed.Add(streamId);
         public void OnDrainFailed(long streamId, Exception reason) => Failed.Add((streamId, reason));
+    }
+
+    private sealed class MessageInterceptor : MinimalActorRef
+    {
+        private readonly List<object> _messages;
+        public MessageInterceptor(List<object> messages) => _messages = messages;
+        public override ActorPath Path { get; } = new RootActorPath(new Address("akka", "test")) / "fake-mux";
+        public override IActorRefProvider Provider => throw new NotSupportedException();
+        protected override void TellInternal(object message, IActorRef sender) => _messages.Add(message);
+    }
+
+    private static void DrainToCompletion(
+        MultiplexedBodyPump pump,
+        FakeTarget target,
+        int expectedCompletions = 1,
+        int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (target.Completed.Count < expectedCompletions
+               && target.Failed.Count == 0
+               && iterations++ < maxIterations)
+        {
+            if (target.PendingMessages.Count == 0)
+            {
+                break;
+            }
+
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case MultiplexedDrainReadComplete rc:
+                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    break;
+                case MultiplexedDrainContinue dc:
+                    pump.HandleDrainContinue(dc.StreamId);
+                    break;
+            }
+        }
     }
 
     private static MemoryStream MakeBody(int size)
@@ -45,6 +91,7 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(1L, MakeBody(100), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Equal(100, target.Emitted[0].Data.Length);
@@ -61,6 +108,7 @@ public sealed class MultiplexedBodyPumpSpec
 
         pump.Register(1L, MakeBody(128), contentLength: null, CancellationToken.None);
         pump.Register(3L, MakeBody(128), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target, expectedCompletions: 2);
 
         Assert.Contains(1L, target.Completed);
         Assert.Contains(3L, target.Completed);
@@ -73,7 +121,8 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(1L, MakeBody(100), contentLength: null, CancellationToken.None);
-        // Already completed synchronously — Cancel on completed stream is a no-op
+        DrainToCompletion(pump, target);
+        // Drain completed synchronously — Cancel on completed stream is a no-op
         pump.Cancel(1L);
     }
 
@@ -113,6 +162,7 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(1L, MakeBody(50), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Equal(2, target.Emitted.Count);
         Assert.Single(target.Completed);
@@ -126,10 +176,10 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target, chunkSize: 16);
 
         pump.Register(1L, MakeBody(65 * 16), contentLength: null, CancellationToken.None);
+        // Starvation guard fires at 64 consecutive reads and dispatches MultiplexedDrainContinue.
+        // DrainToCompletion processes those messages to drive the pump to completion.
+        DrainToCompletion(pump, target);
 
-        // Starvation guard fires at 64 consecutive reads, yielding via StageActor.Tell to Nobody.
-        // Since StageActor is Nobody, HandleDrainContinue is never called, so drain stalls after
-        // MaxSyncReadsPerDispatch. Verify at least partial data was emitted.
         var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.True(total > 0, "Expected at least some data emitted before starvation guard fired");
     }
@@ -141,10 +191,12 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(1L, MakeBody(10), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
         Assert.Single(target.Completed);
 
         target.Completed.Clear();
         pump.Register(3L, MakeBody(10), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
         Assert.Single(target.Completed);
     }
 
@@ -155,6 +207,7 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target);
 
         pump.Register(1L, new MemoryStream([]), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
 
         Assert.Single(target.Emitted);
         Assert.True(target.Emitted[0].EndStream);

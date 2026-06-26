@@ -20,6 +20,12 @@ internal sealed class FakeServerOps : IServerStageOperations
     public List<(string Name, TimeSpan Delay)> ScheduleTimerCalls { get; } = [];
 
     public List<IFeatureCollection> ResponseBodyCompletions { get; } = [];
+    public List<object> BodyMessages { get; } = [];
+
+    public FakeServerOps()
+    {
+        StageActor = new CapturingActorRef(BodyMessages);
+    }
 
     public void OnRequest(IFeatureCollection features) => Requests.Add(features);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
@@ -39,7 +45,14 @@ internal sealed class FakeServerOps : IServerStageOperations
     }
 
     public ILoggingAdapter Log => NoLogger.Instance;
-    public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
+    public IActorRef StageActor { get; set; }
     public IMaterializer Materializer { get; set; } = null!;
     public ConnectionPoolContext? PoolContext { get; } = new();
+
+    private sealed class CapturingActorRef(List<object> messages) : MinimalActorRef
+    {
+        public override ActorPath Path { get; } = new RootActorPath(new Address("akka", "test")) / "fake-server-ops";
+        public override IActorRefProvider Provider => throw new NotSupportedException();
+        protected override void TellInternal(object message, IActorRef sender) => messages.Add(message);
+    }
 }

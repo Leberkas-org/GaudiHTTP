@@ -32,7 +32,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public bool CanAcceptRequest => _inFlightRequest is null && !IsReconnecting && !_outboundBodyPending;
 
-    public bool HasInFlightRequests => _inFlightRequest is not null;
+    public bool HasInFlightRequests => _inFlightRequest is not null || _outboundBodyPending;
 
     public bool IsReconnecting { get; private set; }
 
@@ -47,7 +47,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 return _reconnectBufferedRequest is not null ? 1 : 0;
             }
 
-            return _inFlightRequest is not null ? 1 : 0;
+            return (_inFlightRequest is not null || _outboundBodyPending) ? 1 : 0;
         }
     }
 

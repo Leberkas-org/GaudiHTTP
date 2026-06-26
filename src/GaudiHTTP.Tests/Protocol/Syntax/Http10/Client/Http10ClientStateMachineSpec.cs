@@ -175,9 +175,15 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         };
         sm.OnRequest(request);
 
+        // Force-async: drain body pump messages dispatched to StageActor.
+        while (ops.BodyMessages.Count > 0)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+
         // Known Content-Length: headers emitted immediately, body streamed via SerialBodyPump.
-        // The pump reads synchronously from ByteArrayContent and calls EmitDataFrames inline,
-        // so headers + body chunks + endStream all happen within OnRequest.
         var transportData = ops.Outbound.OfType<TransportData>().ToList();
         Assert.True(transportData.Count >= 2, "Expected headers + at least one body TransportData");
 

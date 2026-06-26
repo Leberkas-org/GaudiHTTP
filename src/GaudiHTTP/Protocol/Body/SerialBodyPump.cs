@@ -135,8 +135,8 @@ internal sealed class SerialBodyPump
         if (vt.IsCompletedSuccessfully)
         {
             _isReadInFlight = false;
-            _consecutiveSyncReads++;
-            ProcessReadResult(vt.Result);
+            _consecutiveSyncReads = 0;
+            _target.StageActor.Tell(_cachedSuccess!(vt.Result), ActorRefs.NoSender);
             return;
         }
 
