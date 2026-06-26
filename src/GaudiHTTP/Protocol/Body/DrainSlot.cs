@@ -5,16 +5,16 @@ namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class DrainSlot : IResettable
 {
-    public int StreamId;
-    public Stream? BodyStream;
-    public IMemoryOwner<byte>? Buffer;
-    public CancellationTokenSource? LinkedCts;
-    public CancellationToken RequestCt;
-    public long? ContentLength;
-    public bool IsReadInFlight;
-    public bool IsOrphaned;
-    public int ReservedWindow;
-    public int ConsecutiveSyncReads;
+    public int StreamId { get; private set; }
+    public Stream? BodyStream { get; private set; }
+    public IMemoryOwner<byte>? Buffer { get; private set; }
+    public CancellationTokenSource? LinkedCts { get; private set; }
+    public CancellationToken RequestCt { get; private set; }
+    public long? ContentLength { get; set; }
+    public int ReservedWindow { get; set; }
+    public int ConsecutiveSyncReads { get; private set; }
+    public bool IsReadInFlight { get; private set; }
+    public bool IsOrphaned { get; private set; }
 
     public Func<int, object>? CachedSuccessTransform { get; private set; }
     public Func<Exception, object>? CachedFailureTransform { get; private set; }
@@ -31,6 +31,37 @@ internal sealed class DrainSlot : IResettable
         LinkedCts = linkedCts;
         CachedSuccessTransform = n => new DrainReadComplete(StreamId, n);
         CachedFailureTransform = ex => new DrainReadFailed(StreamId, ex);
+    }
+
+    public void EnsureBuffer(int chunkSize)
+    {
+        Buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(chunkSize, 256));
+    }
+
+    public void BeginRead() => IsReadInFlight = true;
+
+    public void CompleteRead()
+    {
+        IsReadInFlight = false;
+        ConsecutiveSyncReads = 0;
+    }
+
+    public void IncrementSyncReads() => ConsecutiveSyncReads++;
+
+    public void CompleteSyncRead()
+    {
+        IsReadInFlight = false;
+        ConsecutiveSyncReads++;
+    }
+
+    public void ResetSyncReads() => ConsecutiveSyncReads = 0;
+
+    public void MarkOrphaned() => IsOrphaned = true;
+
+    public void DisposeResources()
+    {
+        Buffer?.Dispose();
+        LinkedCts?.Dispose();
     }
 
     public void Reset()

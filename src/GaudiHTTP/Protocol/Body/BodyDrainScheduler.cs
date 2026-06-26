@@ -106,8 +106,7 @@ internal sealed class BodyDrainScheduler
             return;
         }
 
-        slot.IsReadInFlight = false;
-        slot.ConsecutiveSyncReads = 0;
+        slot.CompleteRead();
 
         if (slot.IsOrphaned)
         {
@@ -117,7 +116,7 @@ internal sealed class BodyDrainScheduler
                 slot.ReservedWindow = 0;
             }
 
-            DisposeSlotResources(slot);
+            slot.DisposeResources();
             _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
@@ -135,8 +134,7 @@ internal sealed class BodyDrainScheduler
             return;
         }
 
-        slot.IsReadInFlight = false;
-        slot.ConsecutiveSyncReads = 0;
+        slot.CompleteRead();
 
         if (slot.IsOrphaned)
         {
@@ -146,7 +144,7 @@ internal sealed class BodyDrainScheduler
                 slot.ReservedWindow = 0;
             }
 
-            DisposeSlotResources(slot);
+            slot.DisposeResources();
             _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
@@ -154,7 +152,7 @@ internal sealed class BodyDrainScheduler
 
         _activeSlots.Remove(streamId);
         _target.OnDrainFailed(streamId, reason);
-        DisposeSlotResources(slot);
+        slot.DisposeResources();
         _poolContext.Return(slot);
     }
 
@@ -165,11 +163,11 @@ internal sealed class BodyDrainScheduler
             return;
         }
 
-        slot.IsReadInFlight = false;
+        slot.ResetSyncReads();
 
         if (slot.IsOrphaned)
         {
-            DisposeSlotResources(slot);
+            slot.DisposeResources();
             _poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
@@ -190,14 +188,14 @@ internal sealed class BodyDrainScheduler
 
         if (slot.IsReadInFlight)
         {
-            slot.IsOrphaned = true;
+            slot.MarkOrphaned();
             return;
         }
 
         if (_windowBlockedStreams.Remove(streamId))
         {
             _activeSlots.Remove(streamId);
-            DisposeSlotResources(slot);
+            slot.DisposeResources();
             _poolContext.Return(slot);
             return;
         }
@@ -213,7 +211,7 @@ internal sealed class BodyDrainScheduler
         {
             if (!slot.IsOrphaned)
             {
-                DisposeSlotResources(slot);
+                slot.DisposeResources();
                 _poolContext.Return(slot);
             }
         }
@@ -242,7 +240,7 @@ internal sealed class BodyDrainScheduler
                 if (_activeSlots.TryGetValue(streamId, out var cancelled))
                 {
                     _activeSlots.Remove(streamId);
-                    DisposeSlotResources(cancelled);
+                    cancelled.DisposeResources();
                     _poolContext.Return(cancelled);
                 }
 
@@ -267,16 +265,13 @@ internal sealed class BodyDrainScheduler
 
             if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
             {
-                slot.ConsecutiveSyncReads = 0;
-                slot.IsReadInFlight = true;
+                slot.ResetSyncReads();
+                slot.BeginRead();  // marks as in-flight for yield
                 _target.StageActor.Tell(new DrainContinue(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
-            if (slot.Buffer is null)
-            {
-                slot.Buffer = MemoryPool<byte>.Shared.Rent(Math.Max(_chunkSize, 256));
-            }
+            slot.EnsureBuffer(_chunkSize);
 
             StartRead(slot);
         }
@@ -292,18 +287,17 @@ internal sealed class BodyDrainScheduler
         slot.ReservedWindow = readSize;
 
         var token = slot.LinkedCts?.Token ?? _connectionCts.Token;
-        slot.IsReadInFlight = true;
+        slot.BeginRead();
         var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..readSize], token);
 
         if (vt.IsCompletedSuccessfully)
         {
-            slot.IsReadInFlight = false;
-            slot.ConsecutiveSyncReads++;
+            slot.CompleteSyncRead();
             ProcessReadResult(slot, vt.Result);
             return;
         }
 
-        slot.ConsecutiveSyncReads = 0;
+        slot.ResetSyncReads();
         _asyncInFlight++;
         vt.PipeTo(
             _target.StageActor,
@@ -338,13 +332,8 @@ internal sealed class BodyDrainScheduler
     {
         _activeSlots.Remove(slot.StreamId);
         _target.OnDrainComplete(slot.StreamId);
-        DisposeSlotResources(slot);
+        slot.DisposeResources();
         _poolContext.Return(slot);
     }
 
-    private static void DisposeSlotResources(DrainSlot slot)
-    {
-        slot.Buffer?.Dispose();
-        slot.LinkedCts?.Dispose();
-    }
 }
