@@ -9,10 +9,6 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 
     private ManualResetValueTaskSourceCore<HttpResponseMessage> _core = new() { RunContinuationsAsynchronously = true };
 
-    // Intrusive linked-list node used by GaudiHttpClient's lock-free pending-request list.
-    // Written only while the request is live (between Rent and Return); cleared before Return.
-    internal PendingRequest? Next;
-
     // The channel-path default-timeout source (RequestEnricher rule 8). Disposed when the request
     // completes so its TimerQueue entry is released immediately instead of lingering for the whole
     // timeout window after every request (the channel path never returns the pending to the pool).
@@ -37,7 +33,6 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
     public static void Return(PendingRequest item)
     {
         item.DisposeTimeoutCts();
-        item.Next = null;
         Pool.Return(item);
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Channels;
@@ -17,11 +18,7 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
 
     private readonly HttpRequestMessage _defaultHeadersHolder = new();
 
-    // Lock-free intrusive singly-linked list of in-flight PendingRequests.
-    // Nodes are linked via PendingRequest.Next. Head is swapped atomically.
-    // Push and remove are O(1) and O(N) respectively; CancelPendingRequests
-    // (called at most once, on Dispose) atomically drains the whole list.
-    private PendingRequest? _pendingHead;
+    private readonly ConcurrentDictionary<PendingRequest, byte> _pendingTcs = new();
     private readonly NamedClientConsumerRegistration _consumerRegistration;
     private readonly CancellationTokenSource _disposeCts = new();
 
@@ -145,7 +142,7 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
         request.Options.Set(OptionsKey.VersionKey, version);
         request.Options.Set(OptionsKey.ConsumerIdKey, ConsumerId);
 
-        PendingListPush(pending);
+        _pendingTcs.TryAdd(pending, 0);
 
         var effectiveTimeout = request.Options.TryGetValue(OptionsKey.TimeoutKey, out var perRequestTimeout)
             ? perRequestTimeout
@@ -223,7 +220,7 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
                 }
             }
 
-            PendingListRemove(pending);
+            _pendingTcs.TryRemove(pending, out _);
             PendingRequest.Return(pending);
         }
     }
@@ -251,82 +248,15 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
     /// <inheritdoc />
     public void CancelPendingRequests()
     {
-        // Atomically drain the entire list so concurrent SendAsync callers cannot race
-        // with the cancellation walk. Any request that completes normally between the
-        // swap and TrySetCanceled hits the InvalidOperationException guard inside
-        // TrySetCanceled and silently no-ops.
-        var node = Interlocked.Exchange(ref _pendingHead, null);
-        while (node is not null)
+        foreach (var pending in _pendingTcs.Keys)
         {
-            var next = node.Next;
-            node.TrySetCanceled();
-            node = next;
+            pending.TrySetCanceled();
+            _pendingTcs.TryRemove(pending, out _);
         }
 
         while (Responses.TryRead(out var stale))
         {
             stale.Dispose();
-        }
-    }
-
-    // Push to the front of the intrusive linked list via a CAS loop (lock-free, O(1)).
-    private void PendingListPush(PendingRequest item)
-    {
-        PendingRequest? head;
-        do
-        {
-            head = Volatile.Read(ref _pendingHead);
-            item.Next = head;
-        }
-        while (Interlocked.CompareExchange(ref _pendingHead, item, head) != head);
-    }
-
-    // Remove a specific node from the intrusive linked list (lock-free, O(N)).
-    // Called once per request in the finally block of SendAsync.
-    private void PendingListRemove(PendingRequest item)
-    {
-        while (true)
-        {
-            var head = Volatile.Read(ref _pendingHead);
-            if (head is null)
-            {
-                return;
-            }
-
-            if (ReferenceEquals(head, item))
-            {
-                if (Interlocked.CompareExchange(ref _pendingHead, head.Next, head) == head)
-                {
-                    return;
-                }
-
-                // Head changed concurrently; retry from the top.
-                continue;
-            }
-
-            // Walk to find the predecessor of item and CAS it to skip over item.
-            // Nodes are only removed by their own SendAsync finally block, so once we
-            // find a predecessor its Next pointer is stable for our CAS.
-            var prev = head;
-            var cur = head.Next;
-            while (cur is not null)
-            {
-                if (ReferenceEquals(cur, item))
-                {
-                    // Best-effort unlink. If prev itself was concurrently removed by
-                    // CancelPendingRequests (which swaps the whole list to null), the
-                    // item becomes unreachable anyway and is safe: Return clears Next
-                    // before the node is pooled.
-                    Interlocked.CompareExchange(ref prev.Next!, cur.Next, cur);
-                    return;
-                }
-
-                prev = cur;
-                cur = cur.Next;
-            }
-
-            // Item not found — already drained by CancelPendingRequests.
-            return;
         }
     }
 
