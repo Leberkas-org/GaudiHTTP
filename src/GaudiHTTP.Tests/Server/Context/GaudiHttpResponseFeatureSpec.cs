@@ -1,4 +1,5 @@
 using GaudiHTTP.Server.Context.Features;
+using Microsoft.AspNetCore.Http;
 
 namespace GaudiHTTP.Tests.Server.Context;
 
@@ -56,6 +57,31 @@ public sealed class GaudiHttpResponseFeatureSpec
             }
         };
         Assert.Equal("value", feature.Headers["X-Custom"].ToString());
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Headers_setter_should_store_assigned_dictionary()
+    {
+        // Kestrel parity (HttpProtocol: ResponseHeaders = value): a wholesale assignment is
+        // honored, not silently dropped. The serialization encoders read it back via the getter.
+        var feature = new GaudiHttpResponseFeature();
+        var custom = new HeaderDictionary { ["X-Custom"] = "v" };
+
+        feature.Headers = custom;
+
+        Assert.Same(custom, feature.Headers);
+        Assert.Equal("v", feature.Headers["X-Custom"].ToString());
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Reset_should_clear_assigned_headers_override()
+    {
+        var feature = new GaudiHttpResponseFeature();
+        feature.Headers = new HeaderDictionary { ["X-Custom"] = "v" };
+
+        feature.Reset();
+
+        Assert.False(feature.Headers.ContainsKey("X-Custom"));
     }
 
     [Fact(Timeout = 5000)]
