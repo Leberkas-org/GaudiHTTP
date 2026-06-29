@@ -2,15 +2,9 @@ using Microsoft.AspNetCore.Http;
 
 namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class GaudiInformationalResponseFeature
+internal sealed class GaudiInformationalResponseFeature(Action<int, IHeaderDictionary> sendCallback)
 {
-    private readonly Action<int, IHeaderDictionary> _sendCallback;
     private bool _finalResponseSent;
-
-    public GaudiInformationalResponseFeature(Action<int, IHeaderDictionary> sendCallback)
-    {
-        _sendCallback = sendCallback;
-    }
 
     public void MarkFinalResponseSent() => _finalResponseSent = true;
 
@@ -28,7 +22,7 @@ internal sealed class GaudiInformationalResponseFeature
                 "Cannot send informational response after final response headers have been sent.");
         }
 
-        _sendCallback(statusCode, headers);
+        sendCallback(statusCode, headers);
     }
 
     internal void Reset()

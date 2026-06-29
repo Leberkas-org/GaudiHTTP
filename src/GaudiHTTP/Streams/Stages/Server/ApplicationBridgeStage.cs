@@ -541,8 +541,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private static void FireOnCompleted(IFeatureCollection features)
         {
-            if (features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature responseFeature
-                && responseFeature.HasOnCompletedCallbacks)
+            if (features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature { HasOnCompletedCallbacks: true } responseFeature)
             {
                 responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
             }

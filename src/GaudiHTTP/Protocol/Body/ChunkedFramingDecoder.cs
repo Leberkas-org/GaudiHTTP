@@ -236,15 +236,15 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
         foreach (var b in span)
         {
             uint nibble;
-            if (b >= (byte)'0' && b <= (byte)'9')
+            if (b is >= (byte)'0' and <= (byte)'9')
             {
                 nibble = (uint)(b - '0');
             }
-            else if (b >= (byte)'a' && b <= (byte)'f')
+            else if (b is >= (byte)'a' and <= (byte)'f')
             {
                 nibble = (uint)(b - 'a' + 10);
             }
-            else if (b >= (byte)'A' && b <= (byte)'F')
+            else if (b is >= (byte)'A' and <= (byte)'F')
             {
                 nibble = (uint)(b - 'A' + 10);
             }

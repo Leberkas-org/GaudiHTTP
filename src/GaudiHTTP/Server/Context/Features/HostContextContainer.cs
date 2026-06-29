@@ -19,23 +19,17 @@ namespace GaudiHTTP.Server.Context.Features;
 /// <typeparamref name="TContext"/> slot is stored untyped on the collection so the non-generic collection
 /// can carry it across requests.
 /// </remarks>
-internal sealed class HostContextContainer<TContext> : IFeatureCollection, IHostContextContainer<TContext>
+internal sealed class HostContextContainer<TContext>(GaudiFeatureCollection inner)
+    : IFeatureCollection, IHostContextContainer<TContext>
     where TContext : notnull
 {
-    private readonly GaudiFeatureCollection _inner;
-
-    public HostContextContainer(GaudiFeatureCollection inner)
-    {
-        _inner = inner;
-    }
-
     public TContext? HostContext
     {
-        get => _inner.HostContext is TContext ctx ? ctx : default;
-        set => _inner.HostContext = value;
+        get => inner.HostContext is TContext ctx ? ctx : default;
+        set => inner.HostContext = value;
     }
 
-    private IFeatureCollection Inner => _inner;
+    private IFeatureCollection Inner => inner;
 
     public bool IsReadOnly => Inner.IsReadOnly;
 

@@ -19,9 +19,9 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
     // UpgradeToPipe can be invoked from both the stage-actor thread (ApplicationBridgeStage)
     // and the application/handler thread (first response write). Guard pipe creation so at
     // most one Pipe is ever constructed — a true cross-thread boundary, hence the lock.
-    private readonly object _pipeLock = new();
-    private ArrayBufferWriter<byte> _bufferWriter = FeatureCollectionFactory.RentBuffer();
-    private ResponsePipeWriter _writer;
+    private readonly Lock _pipeLock = new();
+    private readonly ArrayBufferWriter<byte> _bufferWriter = FeatureCollectionFactory.RentBuffer();
+    private readonly ResponsePipeWriter _writer;
     private Stream? _stream;
     private Sink<ReadOnlyMemory<byte>, Task>? _bodySink;
 
@@ -75,7 +75,7 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
 
         if (_pipe is not null && _writer.IsCompleted && _pipe.Reader.TryRead(out var result))
         {
-            if (result.IsCompleted && !result.Buffer.IsEmpty)
+            if (result is { IsCompleted: true, Buffer.IsEmpty: false })
             {
                 if (result.Buffer.IsSingleSegment)
                 {
@@ -245,17 +245,11 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
         return _pipe!.Reader.AsStream();
     }
 
-    private sealed class ResponsePipeWriter : PipeWriter
+    private sealed class ResponsePipeWriter(GaudiHttpResponseBodyFeature owner) : PipeWriter
     {
-        private readonly GaudiHttpResponseBodyFeature _owner;
         private TaskCompletionSource? _headerCommit;
         private bool _headersCommitted;
         private GaudiHttpResponseFeature? _responseFeature;
-
-        public ResponsePipeWriter(GaudiHttpResponseBodyFeature owner)
-        {
-            _owner = owner;
-        }
 
         // Awaited from the stage-actor thread while the app thread commits — a true
         // cross-thread boundary, hence the explicit barriers. The TCS is lazy: handlers
@@ -343,47 +337,47 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
         }
 
-        private PipeWriter? PipeWriterOrNull => _owner._pipe?.Writer;
+        private PipeWriter? PipeWriterOrNull => owner._pipe?.Writer;
 
         public override bool CanGetUnflushedBytes => true;
-        public override long UnflushedBytes => PipeWriterOrNull?.UnflushedBytes ?? _owner._bufferWriter.WrittenCount;
+        public override long UnflushedBytes => PipeWriterOrNull?.UnflushedBytes ?? owner._bufferWriter.WrittenCount;
 
         public override Memory<byte> GetMemory(int sizeHint = 0)
         {
-            if (_owner._pipe is not null)
+            if (owner._pipe is not null)
             {
-                return _owner._pipe.Writer.GetMemory(sizeHint);
+                return owner._pipe.Writer.GetMemory(sizeHint);
             }
 
-            return _owner._bufferWriter.GetMemory(sizeHint);
+            return owner._bufferWriter.GetMemory(sizeHint);
         }
 
         public override Span<byte> GetSpan(int sizeHint = 0)
         {
-            if (_owner._pipe is not null)
+            if (owner._pipe is not null)
             {
-                return _owner._pipe.Writer.GetSpan(sizeHint);
+                return owner._pipe.Writer.GetSpan(sizeHint);
             }
 
-            return _owner._bufferWriter.GetSpan(sizeHint);
+            return owner._bufferWriter.GetSpan(sizeHint);
         }
 
         public override void Advance(int bytes)
         {
             BytesWritten += bytes;
 
-            if (_owner._pipe is not null)
+            if (owner._pipe is not null)
             {
-                _owner._pipe.Writer.Advance(bytes);
+                owner._pipe.Writer.Advance(bytes);
                 return;
             }
 
-            _owner._bufferWriter.Advance(bytes);
+            owner._bufferWriter.Advance(bytes);
         }
 
         public override void CancelPendingFlush()
         {
-            _owner._pipe?.Writer.CancelPendingFlush();
+            owner._pipe?.Writer.CancelPendingFlush();
         }
 
         public override ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken = default)
@@ -393,12 +387,12 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
                 return CommitAndFlushAsync(cancellationToken);
             }
 
-            if (_owner._pipe is null)
+            if (owner._pipe is null)
             {
-                _owner.UpgradeToPipe();
+                owner.UpgradeToPipe();
             }
 
-            return _owner._pipe!.Writer.FlushAsync(cancellationToken);
+            return owner._pipe!.Writer.FlushAsync(cancellationToken);
         }
 
         public override ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source,
@@ -409,12 +403,12 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
                 return CommitAndWriteAsync(source, cancellationToken);
             }
 
-            if (_owner._pipe is null)
+            if (owner._pipe is null)
             {
-                _owner.UpgradeToPipe();
+                owner.UpgradeToPipe();
             }
 
-            return _owner._pipe!.Writer.WriteAsync(source, cancellationToken);
+            return owner._pipe!.Writer.WriteAsync(source, cancellationToken);
         }
 
         private async ValueTask<FlushResult> CommitAndFlushAsync(CancellationToken cancellationToken)
@@ -432,12 +426,12 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
                 SignalHeadersReady();
             }
 
-            if (_owner._pipe is null)
+            if (owner._pipe is null)
             {
-                _owner.UpgradeToPipe();
+                owner.UpgradeToPipe();
             }
 
-            return await _owner._pipe!.Writer.FlushAsync(cancellationToken);
+            return await owner._pipe!.Writer.FlushAsync(cancellationToken);
         }
 
         private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source,
@@ -458,12 +452,12 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
 
             BytesWritten += source.Length;
 
-            if (_owner._pipe is null)
+            if (owner._pipe is null)
             {
-                _owner.UpgradeToPipe();
+                owner.UpgradeToPipe();
             }
 
-            return await _owner._pipe!.Writer.WriteAsync(source, cancellationToken);
+            return await owner._pipe!.Writer.WriteAsync(source, cancellationToken);
         }
 
         public override void Complete(Exception? exception = null)
@@ -472,7 +466,7 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
             {
                 IsCompleted = true;
                 CommitHeaders();
-                _owner._pipe?.Writer.Complete(exception);
+                owner._pipe?.Writer.Complete(exception);
             }
         }
 
@@ -482,9 +476,9 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
             {
                 IsCompleted = true;
                 CommitHeaders();
-                if (_owner._pipe is not null)
+                if (owner._pipe is not null)
                 {
-                    return _owner._pipe.Writer.CompleteAsync(exception);
+                    return owner._pipe.Writer.CompleteAsync(exception);
                 }
             }
 

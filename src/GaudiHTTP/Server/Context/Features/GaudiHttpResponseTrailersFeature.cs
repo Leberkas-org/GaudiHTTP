@@ -17,8 +17,5 @@ internal sealed class GaudiHttpResponseTrailersFeature : IHttpResponseTrailersFe
     public IEnumerable<KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>> GetAllowedTrailers()
         => _trailers.Where(header => TrailerFieldValidator.IsAllowedInTrailer(header.Key));
 
-    internal void Reset()
-    {
-        _trailers.Clear();
-    }
+    internal void Reset() => _trailers.Clear();
 }
