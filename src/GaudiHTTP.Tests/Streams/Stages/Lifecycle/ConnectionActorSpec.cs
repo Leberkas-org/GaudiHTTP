@@ -14,6 +14,10 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 public sealed class ConnectionActorSpec : TestKit
 {
+    public ConnectionActorSpec() : base("akka.loglevel = INFO")
+    {
+    }
+
     private sealed class PassthroughEngine : IServerProtocolEngine
     {
         public Version ProtocolVersion => new(1, 1);
@@ -87,5 +91,25 @@ public sealed class ConnectionActorSpec : TestKit
         Watch(actor);
         actor.Tell(new ConnectionActor.Drain());
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 10000)]
+    public void ConnectionActor_should_log_lifecycle_under_configured_category()
+    {
+        // UseConnectionLogging(category): connection accepted events must be logged under a logger
+        // whose source IS the configured category. Previously the category was completely dead.
+        const string category = "GaudiHTTP.ConnLogTest";
+        var probe = CreateTestProbe();
+        Sys.EventStream.Subscribe(probe.Ref, typeof(Akka.Event.Info));
+
+        Sys.ActorOf(ConnectionActor.Props(
+            7, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(),
+            new GaudiServerOptions(), services: null, loggingCategory: category));
+
+        var info = probe.FishForMessage<Akka.Event.Info>(
+            m => m.Message?.ToString()?.Contains("Connection 7 accepted") == true,
+            TimeSpan.FromSeconds(5));
+
+        Assert.StartsWith(category, info.LogSource);
     }
 }

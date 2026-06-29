@@ -159,6 +159,35 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Cleartext_h2_preface_should_be_rejected_when_http2_not_allowed()
+    {
+        // An Http1-only cleartext endpoint must reject a prior-knowledge h2c preface instead of
+        // silently switching to HTTP/2 (the per-endpoint Protocols restriction was previously ignored).
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops, HttpProtocols.Http1);
+
+        sm.DecodeClientData(MakeConnected());
+        sm.DecodeClientData(MakeData("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray()));
+
+        Assert.True(sm.ShouldComplete, "h2c prior-knowledge must be rejected on an Http1-only endpoint");
+        Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name == "keep-alive-timeout");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleartext_h2_preface_should_be_accepted_when_http2_allowed()
+    {
+        // Default (Http1AndHttp2) endpoint still accepts the h2c preface.
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops, HttpProtocols.Http1AndHttp2);
+
+        sm.DecodeClientData(MakeConnected());
+        sm.DecodeClientData(MakeData("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray()));
+
+        Assert.False(sm.ShouldComplete);
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "keep-alive-timeout");
+    }
+
+    [Fact(Timeout = 5000)]
     public void Sniffing_should_identify_http2_when_first_segment_exceeds_sniff_cap()
     {
         var ops = new FakeServerOps();
