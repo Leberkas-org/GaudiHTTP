@@ -22,12 +22,9 @@ internal sealed class StreamManager(
     QpackTableSync tableSync,
     long maxResponseBodySize)
 {
-    private const int MaxPoolSize = 256;
-
-    private readonly ConnectionObjectPool _bodyReaderPool = new();
+    private readonly ConnectionObjectPool _objectPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
-    private readonly Stack<StreamState> _statePool = new();
 
     private readonly Dictionary<long, FrameDecoder> _streamDecoders = new();
 
@@ -113,12 +110,7 @@ internal sealed class StreamManager(
         if (_streams.TryGetValue(streamId, out var state))
         {
             AbortAndReturnBodyReader(state);
-            state.Reset();
-            if (_statePool.Count < MaxPoolSize)
-            {
-                _statePool.Push(state);
-            }
-
+            _objectPool.Return(state);
             _streams.Remove(streamId);
         }
 
@@ -200,7 +192,7 @@ internal sealed class StreamManager(
 
                 if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
+                    var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
                     state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
                     var stageActor = ops.StageActor;
@@ -319,11 +311,7 @@ internal sealed class StreamManager(
         foreach (var (_, state) in _streams)
         {
             AbortAndReturnBodyReader(state);
-            state.Reset();
-            if (_statePool.Count < MaxPoolSize)
-            {
-                _statePool.Push(state);
-            }
+            _objectPool.Return(state);
         }
 
         _streams.Clear();
@@ -336,7 +324,7 @@ internal sealed class StreamManager(
     {
         foreach (var decoder in _streamDecoders.Values)
         {
-            _bodyReaderPool.Return(decoder);
+            _objectPool.Return(decoder);
         }
 
         _streamDecoders.Clear();
@@ -356,10 +344,6 @@ internal sealed class StreamManager(
         }
 
         _streams.Clear();
-
-        while (_statePool.TryPop(out _))
-        {
-        }
     }
 
     private void HandleResponseHeaders(HeadersFrame frame, StreamState state)
@@ -388,7 +372,7 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
+        var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
         var stageActor = ops.StageActor;
@@ -484,7 +468,7 @@ internal sealed class StreamManager(
 
         if (reader is QueuedBodyReader queued)
         {
-            _bodyReaderPool.Return(queued);
+            _objectPool.Return(queued);
         }
         else
         {
@@ -494,7 +478,7 @@ internal sealed class StreamManager(
 
     private StreamState RentStreamState(long streamId)
     {
-        var state = _statePool.TryPop(out var pooled) ? pooled : new StreamState();
+        var state = _objectPool.Rent(static () => new StreamState());
         state.Initialize(streamId);
         return state;
     }
@@ -508,25 +492,20 @@ internal sealed class StreamManager(
 
         OnStreamClosedCallback?.Invoke(streamId);
 
-        state.Reset();
-        if (_statePool.Count < MaxPoolSize)
-        {
-            _statePool.Push(state);
-        }
-
+        _objectPool.Return(state);
         ReturnDecoder(streamId);
     }
 
     private FrameDecoder RentDecoder()
     {
-        return _bodyReaderPool.Rent(static () => new FrameDecoder());
+        return _objectPool.Rent(static () => new FrameDecoder());
     }
 
     private void ReturnDecoder(long streamId)
     {
         if (_streamDecoders.Remove(streamId, out var decoder))
         {
-            _bodyReaderPool.Return(decoder);
+            _objectPool.Return(decoder);
         }
     }
 
