@@ -267,7 +267,7 @@ public sealed class GaudiHttpClientSpec
         var requests = Channel.CreateUnbounded<HttpRequestMessage>();
         var responses = Channel.CreateUnbounded<HttpResponseMessage>();
 
-        using var client = CreateTestClient(requests, responses, timeout: System.Threading.Timeout.InfiniteTimeSpan);
+        using var client = CreateTestClient(requests, responses, timeout: Timeout.InfiniteTimeSpan);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
             .WithTimeout(TimeSpan.FromMilliseconds(100));
 

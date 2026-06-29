@@ -143,7 +143,7 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        System.Threading.Thread.Sleep(150);
+        Thread.Sleep(150);
 
         sm.OnTimerFired("data-rate-check");
 
