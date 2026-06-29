@@ -11,8 +11,7 @@ internal static class HttpMessageSize
     private static readonly Http11ClientEncoderOptions DefaultOptions = new()
     {
         AutoHost = true,
-        AutoAcceptEncoding = true,
-        ChunkSize = 16 * 1024
+        AutoAcceptEncoding = true
     };
 
     public static int Estimate(HttpRequestMessage request, int bodyLength)

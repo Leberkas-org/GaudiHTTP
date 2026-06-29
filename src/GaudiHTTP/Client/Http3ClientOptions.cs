@@ -57,8 +57,11 @@ public sealed class Http3ClientOptions
 
     /// <summary>
     /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
-    /// Prevents unbounded memory growth during concurrent uploads. Default is 64 KiB.
+    /// Default is 64 KiB.
     /// </summary>
+    [Obsolete("Ignored: outbound request-body memory is already bounded by the HTTP/3 stream " +
+              "flow-control window and the body pump. Retained for API compatibility; slated for " +
+              "removal in a future major version.")]
     public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
 
     /// <summary>
