@@ -23,7 +23,8 @@ internal static class PrefaceBuilder
         int streamInitialWindowSize,
         int connectionInitialWindowSize,
         int headerTableSize,
-        int maxFrameSize)
+        int maxFrameSize,
+        int maxHeaderListSize)
     {
         const int frameHeaderSize = 9;
         var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
@@ -33,7 +34,10 @@ internal static class PrefaceBuilder
             (SettingsParameter.HeaderTableSize, (uint)headerTableSize),
             (SettingsParameter.EnablePush, 0),
             (SettingsParameter.InitialWindowSize, (uint)streamInitialWindowSize),
-            (SettingsParameter.MaxFrameSize, (uint)maxFrameSize)
+            (SettingsParameter.MaxFrameSize, (uint)maxFrameSize),
+            // RFC 9113 §6.5.2: advise the peer of the largest header list we will accept so it can
+            // pre-trim oversized header blocks instead of having them rejected after the fact.
+            (SettingsParameter.MaxHeaderListSize, (uint)maxHeaderListSize)
         };
 
         var settingsPayloadSize = settingsParams.Length * 6;
