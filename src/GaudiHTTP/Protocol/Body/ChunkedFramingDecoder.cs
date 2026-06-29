@@ -84,118 +84,118 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
             switch (_phase)
             {
                 case Phase.ChunkSize:
-                {
-                    var crlf = BufferSearch.FindCrlf(work, pos);
-                    if (crlf < 0)
                     {
-                        incompleteLine = true;
-                        goto stash;
-                    }
-
-                    var line = work[pos..crlf];
-                    var semi = line.IndexOf((byte)';');
-                    if (semi >= 0 && line.Length - semi > _maxChunkExtensionLength)
-                    {
-                        throw new HttpProtocolException("Chunk extension exceeds configured maximum length.");
-                    }
-
-                    var sizeSpan = semi < 0 ? line : line[..semi];
-                    if (!TryParseHexSpan(sizeSpan, out var chunkSize) || chunkSize > int.MaxValue)
-                    {
-                        throw new HttpProtocolException("Invalid chunk size.");
-                    }
-
-                    _currentChunkRemaining = (int)chunkSize;
-                    pos = crlf + 2;
-                    _phase = _currentChunkRemaining == 0 ? Phase.Trailer : Phase.ChunkData;
-                    break;
-                }
-                case Phase.ChunkData:
-                {
-                    var avail = work.Length - pos;
-                    var take = Math.Min(_currentChunkRemaining, avail);
-                    if (take > 0)
-                    {
-                        _totalBodyBytes += take;
-                        if (_totalBodyBytes > _maxBodySize)
+                        var crlf = BufferSearch.FindCrlf(work, pos);
+                        if (crlf < 0)
                         {
-                            throw new HttpProtocolException(
-                                $"Request body size {_totalBodyBytes} exceeds limit {_maxBodySize}.");
+                            incompleteLine = true;
+                            goto stash;
                         }
 
-                        bodyOutput = work.Slice(pos, take);
-                        hasBody = true;
-                        _currentChunkRemaining -= take;
-                        pos += take;
-
-                        if (_currentChunkRemaining == 0)
+                        var line = work[pos..crlf];
+                        var semi = line.IndexOf((byte)';');
+                        if (semi >= 0 && line.Length - semi > _maxChunkExtensionLength)
                         {
-                            _phase = Phase.ChunkDataCrlf;
+                            throw new HttpProtocolException("Chunk extension exceeds configured maximum length.");
                         }
 
+                        var sizeSpan = semi < 0 ? line : line[..semi];
+                        if (!TryParseHexSpan(sizeSpan, out var chunkSize) || chunkSize > int.MaxValue)
+                        {
+                            throw new HttpProtocolException("Invalid chunk size.");
+                        }
+
+                        _currentChunkRemaining = (int)chunkSize;
+                        pos = crlf + 2;
+                        _phase = _currentChunkRemaining == 0 ? Phase.Trailer : Phase.ChunkData;
                         break;
                     }
+                case Phase.ChunkData:
+                    {
+                        var avail = work.Length - pos;
+                        var take = Math.Min(_currentChunkRemaining, avail);
+                        if (take > 0)
+                        {
+                            _totalBodyBytes += take;
+                            if (_totalBodyBytes > _maxBodySize)
+                            {
+                                throw new HttpProtocolException(
+                                    $"Request body size {_totalBodyBytes} exceeds limit {_maxBodySize}.");
+                            }
 
-                    incompleteLine = true;
-                    goto stash;
-                }
+                            bodyOutput = work.Slice(pos, take);
+                            hasBody = true;
+                            _currentChunkRemaining -= take;
+                            pos += take;
+
+                            if (_currentChunkRemaining == 0)
+                            {
+                                _phase = Phase.ChunkDataCrlf;
+                            }
+
+                            break;
+                        }
+
+                        incompleteLine = true;
+                        goto stash;
+                    }
                 case Phase.ChunkDataCrlf:
-                {
-                    if (work.Length - pos < 2)
                     {
-                        incompleteLine = true;
-                        goto stash;
-                    }
+                        if (work.Length - pos < 2)
+                        {
+                            incompleteLine = true;
+                            goto stash;
+                        }
 
-                    if (work[pos] != (byte)'\r' || work[pos + 1] != (byte)'\n')
-                    {
-                        throw new HttpProtocolException("Missing CRLF after chunk-data.");
-                    }
+                        if (work[pos] != (byte)'\r' || work[pos + 1] != (byte)'\n')
+                        {
+                            throw new HttpProtocolException("Missing CRLF after chunk-data.");
+                        }
 
-                    pos += 2;
-                    _phase = Phase.ChunkSize;
-                    break;
-                }
-                case Phase.Trailer:
-                {
-                    var crlf = BufferSearch.FindCrlf(work, pos);
-                    if (crlf < 0)
-                    {
-                        incompleteLine = true;
-                        goto stash;
-                    }
-
-                    if (crlf == pos)
-                    {
                         pos += 2;
-                        _phase = Phase.Complete;
-                        _stashLen = 0;
-                        rawConsumed = pos - stashOffset;
-                        if (rawConsumed < 0) rawConsumed = 0;
-                        return new FramingDecodeResult(bodyOutput, true);
+                        _phase = Phase.ChunkSize;
+                        break;
                     }
-
-                    var trailerLine = work[pos..crlf];
-                    _trailerSectionBytes += trailerLine.Length + 2;
-                    if (_trailerSectionBytes > MaxTrailerSectionBytes)
+                case Phase.Trailer:
                     {
-                        throw new HttpProtocolException("Trailer section exceeds maximum size.");
-                    }
+                        var crlf = BufferSearch.FindCrlf(work, pos);
+                        if (crlf < 0)
+                        {
+                            incompleteLine = true;
+                            goto stash;
+                        }
 
-                    if (HeaderFieldParser.TryParse(trailerLine, out var fieldName, out var fieldValue)
-                        && TrailerFieldValidator.IsAllowedInTrailer(fieldName))
-                    {
-                        _trailers ??= [];
-                        _trailers.Add((fieldName, fieldValue));
-                    }
+                        if (crlf == pos)
+                        {
+                            pos += 2;
+                            _phase = Phase.Complete;
+                            _stashLen = 0;
+                            rawConsumed = pos - stashOffset;
+                            if (rawConsumed < 0) rawConsumed = 0;
+                            return new FramingDecodeResult(bodyOutput, true);
+                        }
 
-                    pos = crlf + 2;
-                    break;
-                }
+                        var trailerLine = work[pos..crlf];
+                        _trailerSectionBytes += trailerLine.Length + 2;
+                        if (_trailerSectionBytes > MaxTrailerSectionBytes)
+                        {
+                            throw new HttpProtocolException("Trailer section exceeds maximum size.");
+                        }
+
+                        if (HeaderFieldParser.TryParse(trailerLine, out var fieldName, out var fieldValue)
+                            && TrailerFieldValidator.IsAllowedInTrailer(fieldName))
+                        {
+                            _trailers ??= [];
+                            _trailers.Add((fieldName, fieldValue));
+                        }
+
+                        pos = crlf + 2;
+                        break;
+                    }
             }
         }
 
-        stash:
+    stash:
         var remaining = work.Length - pos;
         if (incompleteLine && _phase is Phase.ChunkSize or Phase.Trailer
                            && remaining > Math.Max(MaxControlLineLength, _maxChunkExtensionLength))

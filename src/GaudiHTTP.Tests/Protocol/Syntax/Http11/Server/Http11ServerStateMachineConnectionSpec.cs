@@ -121,7 +121,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         Assert.False(sm.CanAcceptResponse);
 
         // Send body failed
-        sm.OnBodyMessage(new BodyReadFailed<int>(0,new Exception("Test failure")));
+        sm.OnBodyMessage(new BodyReadFailed<int>(0, new Exception("Test failure")));
 
         // After body failed, CanAcceptResponse is false because _pendingResponseCount == 0 (response already sent)
         // not because body is pending
@@ -146,9 +146,9 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var headerCount = ops.Outbound.Count;
 
         // Send two read completions followed by EOF
-        sm.OnBodyMessage(new BodyReadComplete<int>(0,5));
-        sm.OnBodyMessage(new BodyReadComplete<int>(0,6));
-        sm.OnBodyMessage(new BodyReadComplete<int>(0,0));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 5));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 6));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
 
         // 2 data chunks + 1 chunked terminator from CompleteAsync
         var bodyChunks = ops.Outbound.Skip(headerCount).OfType<TransportData>().ToList();

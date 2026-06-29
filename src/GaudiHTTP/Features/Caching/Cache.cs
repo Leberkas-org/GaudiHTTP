@@ -405,7 +405,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
             {
                 continue;
             }
-            
+
             if (store.TryGet(compoundKey, out var entry))
             {
                 _totalBytes -= entry.Body.Length;

@@ -6,7 +6,7 @@ public sealed class PseudoHeaderValueValidationSpec
 {
     private static readonly string Section = "RFC 9113 §8.3.1";
 
-    private static List<(string Name, string Value)> Headers(params (string Name, string Value)[] h) => [..h];
+    private static List<(string Name, string Value)> Headers(params (string Name, string Value)[] h) => [.. h];
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.3.1")]

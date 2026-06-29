@@ -16,11 +16,10 @@ internal sealed class GaudiHeaderDictionary : IGaudiHeaderDictionary
 {
     private readonly Dictionary<string, StringValues> _headers =
         new(StringComparer.OrdinalIgnoreCase);
-    private bool _isReadOnly;
 
     private void ThrowIfReadOnly()
     {
-        if (_isReadOnly)
+        if (IsReadOnly)
         {
             throw new InvalidOperationException("The header dictionary is read-only.");
         }
@@ -28,7 +27,7 @@ internal sealed class GaudiHeaderDictionary : IGaudiHeaderDictionary
 
     public void SetReadOnly()
     {
-        _isReadOnly = true;
+        IsReadOnly = true;
     }
 
     public StringValues this[string key]
@@ -77,7 +76,7 @@ internal sealed class GaudiHeaderDictionary : IGaudiHeaderDictionary
 
     public int Count => _headers.Count;
 
-    public bool IsReadOnly => _isReadOnly;
+    public bool IsReadOnly { get; private set; }
 
     public ICollection<string> Keys => _headers.Keys;
 
@@ -101,25 +100,15 @@ internal sealed class GaudiHeaderDictionary : IGaudiHeaderDictionary
         _headers.Clear();
     }
 
-    public bool Contains(KeyValuePair<string, StringValues> item)
-    {
-        return _headers.TryGetValue(item.Key, out var value) && value.Equals(item.Value);
-    }
+    public bool Contains(KeyValuePair<string, StringValues> item) =>
+        _headers.TryGetValue(item.Key, out var value) && value.Equals(item.Value);
 
-    public bool ContainsKey(string key)
-    {
-        return _headers.ContainsKey(key);
-    }
+    public bool ContainsKey(string key) => _headers.ContainsKey(key);
 
-    public void CopyTo(KeyValuePair<string, StringValues>[] array, int arrayIndex)
-    {
+    public void CopyTo(KeyValuePair<string, StringValues>[] array, int arrayIndex) =>
         ((ICollection<KeyValuePair<string, StringValues>>)_headers).CopyTo(array, arrayIndex);
-    }
 
-    public IEnumerator<KeyValuePair<string, StringValues>> GetEnumerator()
-    {
-        return _headers.GetEnumerator();
-    }
+    public IEnumerator<KeyValuePair<string, StringValues>> GetEnumerator() => _headers.GetEnumerator();
 
     public bool Remove(string key)
     {
@@ -138,19 +127,13 @@ internal sealed class GaudiHeaderDictionary : IGaudiHeaderDictionary
         return false;
     }
 
-    public bool TryGetValue(string key, out StringValues value)
-    {
-        return _headers.TryGetValue(key, out value);
-    }
+    public bool TryGetValue(string key, out StringValues value) => _headers.TryGetValue(key, out value);
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     internal void Reset()
     {
-        _isReadOnly = false;
+        IsReadOnly = false;
         _headers.Clear();
     }
 }

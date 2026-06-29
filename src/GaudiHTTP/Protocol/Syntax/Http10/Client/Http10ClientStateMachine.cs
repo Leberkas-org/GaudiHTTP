@@ -22,7 +22,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private int _reconnectAttempts;
     private bool _lastRequestWasHead;
     private bool _outboundBodyPending;
-    private HttpRequestMessage? _deferredRequest;
     private IStreamingBodyReader? _activeStreamingReader;
     private bool _connectionClosed;
     private SerialBodyPump? _serialPump;
@@ -92,8 +91,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         if (endStream)
         {
             _outboundBodyPending = false;
-            _inFlightRequest = _deferredRequest;
-            _deferredRequest = null;
             Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body complete (pump)");
         }
     }
@@ -107,10 +104,10 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
         _outboundBodyPending = false;
-        if (_deferredRequest is not null)
+        if (_inFlightRequest is not null)
         {
-            _deferredRequest.Fail(new HttpRequestException("Failed to read HTTP/1.0 request body.", reason));
-            _deferredRequest = null;
+            _inFlightRequest.Fail(new HttpRequestException("Failed to read HTTP/1.0 request body.", reason));
+            _inFlightRequest = null;
         }
     }
 
@@ -207,7 +204,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         _inFlightRequest = null;
         _outboundBodyPending = false;
         _activeStreamingReader = null;
-        _deferredRequest = null;
         _connectionClosed = false;
         _serialPump?.Cleanup();
         _serialPump = null;
@@ -265,8 +261,10 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 var headerWritten = _encoder.EncodeHeadersOnly(span, request, knownCl.Value);
                 item.Length = headerWritten;
                 _ops.OnOutbound(TransportData.Rent(item));
-                _deferredRequest = request;
-                _inFlightRequest = null;
+                // Correlate from headers-dispatch onward: with force-async the body drains via the
+                // mailbox, so a response may arrive before the body completes. Keeping the request
+                // in-flight (rather than deferring _inFlightRequest until endStream) lets it correlate.
+                _inFlightRequest = request;
                 _outboundBodyPending = true;
                 StartBodyDrain(bodyStream);
             }
