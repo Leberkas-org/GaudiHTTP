@@ -19,8 +19,10 @@ internal sealed class SerialBodyPump
     private int _availableCapacity;
     private int _consecutiveSyncReads;
 
-    private Func<int, object>? _cachedSuccess;
-    private Func<Exception, object>? _cachedFailure;
+    // Serial stream id is always 0, so the read-completion transforms capture nothing and are
+    // shared statically — no per-Register closure allocation.
+    private static readonly Func<int, object> CachedSuccess = n => new DrainReadComplete(0, n);
+    private static readonly Func<Exception, object> CachedFailure = ex => new DrainReadFailed(0, ex);
 
     public SerialBodyPump(
         IBodyDrainTarget target,
@@ -43,8 +45,6 @@ internal sealed class SerialBodyPump
             : null;
         _availableCapacity = _maxCapacity;
         _consecutiveSyncReads = 0;
-        _cachedSuccess = n => new DrainReadComplete(0, n);
-        _cachedFailure = ex => new DrainReadFailed(0, ex);
         TryStartRead();
     }
 
@@ -89,10 +89,7 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
-        _isReadInFlight = false;
-        _cachedSuccess = null;
-        _cachedFailure = null;
-    }
+        _isReadInFlight = false;    }
 
     public void Cleanup()
     {
@@ -102,10 +99,7 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
-        _isReadInFlight = false;
-        _cachedSuccess = null;
-        _cachedFailure = null;
-    }
+        _isReadInFlight = false;    }
 
     private void TryStartRead()
     {
@@ -136,15 +130,15 @@ internal sealed class SerialBodyPump
         {
             _isReadInFlight = false;
             _consecutiveSyncReads = 0;
-            _target.StageActor.Tell(_cachedSuccess!(vt.Result), ActorRefs.NoSender);
+            _target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
             return;
         }
 
         _consecutiveSyncReads = 0;
         vt.PipeTo(
             _target.StageActor,
-            success: _cachedSuccess,
-            failure: _cachedFailure);
+            success: CachedSuccess,
+            failure: CachedFailure);
     }
 
     private void ProcessReadResult(int bytesRead)
@@ -169,9 +163,6 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
-        _cachedSuccess = null;
-        _cachedFailure = null;
-
         if (wasActive)
         {
             _target.OnDrainComplete(0);

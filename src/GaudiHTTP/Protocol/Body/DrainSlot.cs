@@ -16,8 +16,17 @@ internal sealed class DrainSlot : IResettable
     public bool IsReadInFlight { get; private set; }
     public bool IsOrphaned { get; private set; }
 
-    public Func<int, object>? CachedSuccessTransform { get; private set; }
-    public Func<Exception, object>? CachedFailureTransform { get; private set; }
+    // Created once per pooled slot instead of per Initialize: the transforms read StreamId at
+    // invocation (it is a property, not captured by value), so a single instance stays correct
+    // across slot reuse and avoids two closure allocations per stream registration.
+    public Func<int, object> CachedSuccessTransform { get; }
+    public Func<Exception, object> CachedFailureTransform { get; }
+
+    public DrainSlot()
+    {
+        CachedSuccessTransform = n => new DrainReadComplete(StreamId, n);
+        CachedFailureTransform = ex => new DrainReadFailed(StreamId, ex);
+    }
 
     public void Initialize(
         int streamId,
@@ -29,8 +38,6 @@ internal sealed class DrainSlot : IResettable
         BodyStream = bodyStream;
         RequestCt = requestCt;
         LinkedCts = linkedCts;
-        CachedSuccessTransform = n => new DrainReadComplete(StreamId, n);
-        CachedFailureTransform = ex => new DrainReadFailed(StreamId, ex);
     }
 
     public void EnsureBuffer(int chunkSize)
@@ -76,7 +83,5 @@ internal sealed class DrainSlot : IResettable
         IsOrphaned = false;
         ReservedWindow = 0;
         ConsecutiveSyncReads = 0;
-        CachedSuccessTransform = null;
-        CachedFailureTransform = null;
     }
 }
