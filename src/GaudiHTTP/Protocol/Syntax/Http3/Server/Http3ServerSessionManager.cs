@@ -42,8 +42,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly CancellationTokenSource _connectionCts = new();
     private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
-    private readonly Stack<FrameDecoder> _decoderPool = new();
-    private const int MaxDecoderPoolSize = 256;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly List<long> _rateViolations = [];
@@ -733,29 +731,9 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    private FrameDecoder RentDecoder()
-    {
-        if (_decoderPool.TryPop(out var decoder))
-        {
-            decoder.Reset();
-            return decoder;
-        }
+    private FrameDecoder RentDecoder() => _poolContext.Rent(static () => new FrameDecoder());
 
-        return new FrameDecoder();
-    }
-
-    private void ReturnDecoder(FrameDecoder decoder)
-    {
-        decoder.Reset();
-        if (_decoderPool.Count < MaxDecoderPoolSize)
-        {
-            _decoderPool.Push(decoder);
-        }
-        else
-        {
-            decoder.Dispose();
-        }
-    }
+    private void ReturnDecoder(FrameDecoder decoder) => _poolContext.Return(decoder);
 
 
     IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;

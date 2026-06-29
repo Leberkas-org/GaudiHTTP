@@ -23,7 +23,6 @@ internal sealed class StreamManager(
     long maxResponseBodySize)
 {
     private const int MaxPoolSize = 256;
-    private const int MaxDecoderPoolSize = 256;
 
     private readonly ConnectionObjectPool _bodyReaderPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
@@ -31,7 +30,6 @@ internal sealed class StreamManager(
     private readonly Stack<StreamState> _statePool = new();
 
     private readonly Dictionary<long, FrameDecoder> _streamDecoders = new();
-    private readonly Stack<FrameDecoder> _decoderPool = new();
 
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
@@ -338,15 +336,7 @@ internal sealed class StreamManager(
     {
         foreach (var decoder in _streamDecoders.Values)
         {
-            decoder.Reset();
-            if (_decoderPool.Count < MaxDecoderPoolSize)
-            {
-                _decoderPool.Push(decoder);
-            }
-            else
-            {
-                decoder.Dispose();
-            }
+            _bodyReaderPool.Return(decoder);
         }
 
         _streamDecoders.Clear();
@@ -358,13 +348,6 @@ internal sealed class StreamManager(
     public void Dispose()
     {
         ResetAllDecoders();
-
-        foreach (var decoder in _decoderPool)
-        {
-            decoder.Dispose();
-        }
-
-        _decoderPool.Clear();
 
         foreach (var state in _streams.Values)
         {
@@ -536,30 +519,14 @@ internal sealed class StreamManager(
 
     private FrameDecoder RentDecoder()
     {
-        if (_decoderPool.TryPop(out var decoder))
-        {
-            decoder.Reset();
-            return decoder;
-        }
-
-        return new FrameDecoder();
+        return _bodyReaderPool.Rent(static () => new FrameDecoder());
     }
 
     private void ReturnDecoder(long streamId)
     {
-        if (!_streamDecoders.Remove(streamId, out var decoder))
+        if (_streamDecoders.Remove(streamId, out var decoder))
         {
-            return;
-        }
-
-        decoder.Reset();
-        if (_decoderPool.Count < MaxDecoderPoolSize)
-        {
-            _decoderPool.Push(decoder);
-        }
-        else
-        {
-            decoder.Dispose();
+            _bodyReaderPool.Return(decoder);
         }
     }
 
