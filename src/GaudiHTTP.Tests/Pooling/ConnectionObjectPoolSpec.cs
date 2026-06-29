@@ -2,7 +2,7 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Tests.Pooling;
 
-public sealed class ConnectionPoolContextSpec
+public sealed class ConnectionObjectPoolSpec
 {
     private sealed class Counter : IResettable
     {
@@ -13,7 +13,7 @@ public sealed class ConnectionPoolContextSpec
     [Fact(Timeout = 5000)]
     public void Rent_after_return_reuses_the_same_reset_instance()
     {
-        var ctx = new ConnectionPoolContext();
+        var ctx = new ConnectionObjectPool();
         var a = ctx.Rent(static () => new Counter());
         a.Value = 42;
         ctx.Return(a);

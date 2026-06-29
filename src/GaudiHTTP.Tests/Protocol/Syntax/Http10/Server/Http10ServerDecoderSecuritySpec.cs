@@ -23,7 +23,7 @@ public sealed class Http10ServerDecoderSecuritySpec
 
     private static Http10ServerDecoder MakeDecoder(Http10ServerDecoderOptions? options = null)
     {
-        return new Http10ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionPoolContext());
+        return new Http10ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionObjectPool());
     }
 
     [Fact(Timeout = 5000)]

@@ -7,7 +7,7 @@ namespace GaudiHTTP.Tests.Server;
 
 public sealed class FeatureCollectionFactorySpec
 {
-    private readonly ConnectionPoolContext _pool = new();
+    private readonly ConnectionObjectPool _pool = new();
 
     [Fact(Timeout = 5000)]
     public void Create_should_set_request_feature()

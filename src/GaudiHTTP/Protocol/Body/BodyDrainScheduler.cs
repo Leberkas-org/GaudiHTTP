@@ -12,7 +12,7 @@ internal sealed class BodyDrainScheduler
     private readonly IBodyDrainTarget _target;
     private readonly FlowController _flowController;
     private readonly CancellationTokenSource _connectionCts;
-    private readonly ConnectionPoolContext _poolContext;
+    private readonly ConnectionObjectPool _poolContext;
     private readonly int _chunkSize;
     private readonly int _hardCap;
 
@@ -28,7 +28,7 @@ internal sealed class BodyDrainScheduler
         IBodyDrainTarget target,
         FlowController flowController,
         CancellationTokenSource connectionCts,
-        ConnectionPoolContext poolContext,
+        ConnectionObjectPool poolContext,
         int chunkSize,
         int hardCap)
     {

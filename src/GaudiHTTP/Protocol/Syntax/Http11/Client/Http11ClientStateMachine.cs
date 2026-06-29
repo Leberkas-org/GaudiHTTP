@@ -16,7 +16,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
 
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
     private Queue<HttpRequestMessage>? _reconnectBufferedQueue;

@@ -12,7 +12,7 @@ internal static class FeatureCollectionFactory
     private const int MaxPoolSize = 32;
 
     public static IFeatureCollection Create(
-        ConnectionPoolContext pool,
+        ConnectionObjectPool pool,
         GaudiHttpRequestFeature requestFeature,
         bool hasBody,
         IHttpConnectionFeature? connectionFeature = null,
@@ -31,7 +31,7 @@ internal static class FeatureCollectionFactory
     }
 
     public static IFeatureCollection Create(
-        ConnectionPoolContext pool,
+        ConnectionObjectPool pool,
         bool hasBody,
         out GaudiHttpRequestFeature requestFeature,
         IHttpConnectionFeature? connectionFeature = null,
@@ -165,7 +165,7 @@ internal static class FeatureCollectionFactory
         return features;
     }
 
-    internal static void Return(ConnectionPoolContext pool, IFeatureCollection features)
+    internal static void Return(ConnectionObjectPool pool, IFeatureCollection features)
     {
         if (features is not GaudiFeatureCollection gaudiFeatures)
         {

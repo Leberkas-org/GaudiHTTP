@@ -10,7 +10,7 @@ internal sealed class MultiplexedBodyPump
 
     private readonly IMultiplexedBodyDrainTarget _target;
     private readonly CancellationTokenSource _connectionCts;
-    private readonly ConnectionPoolContext _poolContext;
+    private readonly ConnectionObjectPool _poolContext;
     private readonly int _chunkSize;
     private readonly int _maxConcurrentReads;
 
@@ -22,7 +22,7 @@ internal sealed class MultiplexedBodyPump
     public MultiplexedBodyPump(
         IMultiplexedBodyDrainTarget target,
         CancellationTokenSource connectionCts,
-        ConnectionPoolContext poolContext,
+        ConnectionObjectPool poolContext,
         int chunkSize,
         int maxConcurrentReads = 4)
     {

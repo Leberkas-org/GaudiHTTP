@@ -5,7 +5,7 @@ namespace GaudiHTTP.Protocol.Body;
 internal static class BodyReaderPoolExtensions
 {
     public static (IBodyReader? Reader, IFramingDecoder? Decoder) RentBodyReader(
-        this ConnectionPoolContext pool,
+        this ConnectionObjectPool pool,
         BodyReaderClassification classification,
         BodyDecoderOptions options)
     {
@@ -43,7 +43,7 @@ internal static class BodyReaderPoolExtensions
     }
 
     public static void ReturnBodyReader(
-        this ConnectionPoolContext pool,
+        this ConnectionObjectPool pool,
         IBodyReader? reader,
         IFramingDecoder? decoder)
     {

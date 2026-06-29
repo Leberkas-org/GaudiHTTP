@@ -7,7 +7,7 @@ using GaudiHTTP.Protocol.Syntax.Http10.Options;
 
 namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, ConnectionPoolContext poolContext)
+internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, ConnectionObjectPool poolContext)
 {
     private enum Phase
     {

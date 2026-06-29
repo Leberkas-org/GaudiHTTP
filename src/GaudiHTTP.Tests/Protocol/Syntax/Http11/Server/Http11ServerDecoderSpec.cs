@@ -23,7 +23,7 @@ public sealed class Http11ServerDecoderSpec
         AllowObsFold = false
     };
 
-    private readonly Http11ServerDecoder _decoder = new(DefaultDecoderOptions(), new ConnectionPoolContext());
+    private readonly Http11ServerDecoder _decoder = new(DefaultDecoderOptions(), new ConnectionObjectPool());
 
     [Fact(Timeout = 5000)]
     public void Feed_should_decode_simple_request()
@@ -94,7 +94,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_handle_bare_cr_in_request_line()
     {
         var raw = "GET /path\rHTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -106,7 +106,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_ignore_leading_crlf_before_request_line()
     {
         var raw = "\r\nGET /path HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -123,7 +123,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_reject_whitespace_before_first_header()
     {
         var raw = "GET / HTTP/1.1\r\n \r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionObjectPool());
 
         _ = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, out _));
     }
@@ -133,7 +133,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_accept_absolute_form_request_target()
     {
         var raw = "GET http://example.com/path HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -146,7 +146,7 @@ public sealed class Http11ServerDecoderSpec
     [Fact(Timeout = 5000)]
     public void GetRequestFeature_should_parse_method_and_path()
     {
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionObjectPool());
         var data = "POST /api/items?page=2 HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var outcome = decoder.Feed(data, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);

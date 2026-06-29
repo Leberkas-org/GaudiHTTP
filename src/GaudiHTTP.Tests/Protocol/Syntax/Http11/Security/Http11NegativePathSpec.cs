@@ -10,7 +10,7 @@ public sealed class Http11NegativePathSpec
 {
     private static List<HttpResponseMessage> Decode(ReadOnlyMemory<byte> data, bool isHead = false)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var responses = new List<HttpResponseMessage>();
         var offset = 0;
         while (offset < data.Length)
@@ -37,7 +37,7 @@ public sealed class Http11NegativePathSpec
     public void Http11NegativePath_should_parse_http20_version()
     {
         var raw = "HTTP/2.0 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -52,7 +52,7 @@ public sealed class Http11NegativePathSpec
     {
         // "HTTPS/1.1" does not start with "HTTP/", so the decoder treats it as HTTP/0.9 body data.
         var raw = "HTTPS/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -66,7 +66,7 @@ public sealed class Http11NegativePathSpec
         // RFC 9112 §4: exactly one SP between HTTP-version and 3-digit status code.
         // The parser returns false (NeedMore) for a malformed status line.
         var raw = "HTTP/1.1  200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -80,7 +80,7 @@ public sealed class Http11NegativePathSpec
         // RFC 9112 §4: status-code is exactly 3 decimal digits.
         // The parser returns false (NeedMore) for a malformed status line.
         var raw = "HTTP/1.1 20 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -93,7 +93,7 @@ public sealed class Http11NegativePathSpec
     {
         // The parser returns false (NeedMore) for a malformed status-code.
         var raw = "HTTP/1.1 20A OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -107,7 +107,7 @@ public sealed class Http11NegativePathSpec
         // RFC 9112 §2.2: a recipient MUST NOT treat a bare LF as a line terminator.
         // Bare-LF input is treated as incomplete data (NeedMore).
         var raw = "HTTP/1.1 200 OK\nContent-Length: 0\n\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -122,7 +122,7 @@ public sealed class Http11NegativePathSpec
         // it reads to CRLF. Only header-block bytes count toward MaxHeaderBytes.
         var longReason = new string('X', 66000);
         var raw = Encoding.ASCII.GetBytes($"HTTP/1.1 200 {longReason}\r\nContent-Length: 0\r\n\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -181,7 +181,7 @@ public sealed class Http11NegativePathSpec
             "HTTP/1.1 200 OK\r\n" +
             "Transfer-Encoding: gzip\r\n" +
             "\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
@@ -271,7 +271,7 @@ public sealed class Http11NegativePathSpec
             "\r\n" +
             "Hello";
         var raw = Encoding.ASCII.GetBytes(response);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }
@@ -288,7 +288,7 @@ public sealed class Http11NegativePathSpec
             "\r\n" +
             "5\r\nHello\r\n0\r\n\r\n";
         var raw = Encoding.ASCII.GetBytes(response);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }
@@ -305,7 +305,7 @@ public sealed class Http11NegativePathSpec
             "0x5\r\nHello\r\n" +
             "0\r\n\r\n";
         var raw = Encoding.ASCII.GetBytes(response);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }

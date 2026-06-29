@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 public sealed class Http10ClientDecoderSpec
 {
     private static Http10ClientDecoder MakeDecoder() =>
-        new(ClientOptionDefaults.Http10Decoder(), new ConnectionPoolContext());
+        new(ClientOptionDefaults.Http10Decoder(), new ConnectionObjectPool());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-6")]
@@ -57,7 +57,7 @@ public sealed class Http10ClientDecoderSpec
     {
         var opts = ClientOptionDefaults.Http10Decoder() with { StreamingThreshold = 4 };
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello"u8.ToArray();
-        var decoder = new Http10ClientDecoder(opts, new ConnectionPoolContext());
+        var decoder = new Http10ClientDecoder(opts, new ConnectionObjectPool());
 
         Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, false, out _));
         var response = decoder.GetResponse();

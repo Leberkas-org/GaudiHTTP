@@ -20,7 +20,7 @@ internal interface IServerStageOperations
     IServiceProvider? Services => null;
     GaudiHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
-    ConnectionPoolContext? PoolContext => null;
+    ConnectionObjectPool? PoolContext => null;
     void OnResponseBodyComplete(IFeatureCollection features) { }
     bool HasPendingDemand => false;
 }

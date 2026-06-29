@@ -12,7 +12,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
 {
-    private readonly ConnectionPoolContext _pool = new();
+    private readonly ConnectionObjectPool _pool = new();
 
     private sealed class CallbackTrackingApplication(Func<IFeatureCollection, Task> handler)
         : IHttpApplication<IFeatureCollection>

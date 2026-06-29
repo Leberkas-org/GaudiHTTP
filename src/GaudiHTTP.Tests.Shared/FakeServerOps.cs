@@ -47,7 +47,7 @@ internal sealed class FakeServerOps : IServerStageOperations
     public ILoggingAdapter Log => NoLogger.Instance;
     public IActorRef StageActor { get; set; }
     public IMaterializer Materializer { get; set; } = null!;
-    public ConnectionPoolContext? PoolContext { get; } = new();
+    public ConnectionObjectPool? PoolContext { get; } = new();
 
     private sealed class CapturingActorRef(List<object> messages) : MinimalActorRef
     {

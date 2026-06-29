@@ -21,7 +21,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly GaudiClientOptions _options;
     private readonly IClientStageOperations _ops;
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;

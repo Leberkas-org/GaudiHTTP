@@ -129,7 +129,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
 
             var sb = new StringBuilder();
             sb.Append("HTTP/1.1 200 OK\r\n");
@@ -178,7 +178,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
 
             var claimedLengths = new[]
             {
@@ -235,7 +235,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
 
             var body = "Hello, World!";
             var validResponse = BuildValidResponse(200, "OK", body,
@@ -278,7 +278,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
 
             byte[] fullResponse;
             if (rng.Next(2) == 0)

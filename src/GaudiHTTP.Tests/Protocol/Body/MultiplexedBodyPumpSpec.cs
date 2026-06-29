@@ -81,7 +81,7 @@ public sealed class MultiplexedBodyPumpSpec
 
     private static MultiplexedBodyPump MakePump(FakeTarget target, int chunkSize = 16 * 1024)
     {
-        return new MultiplexedBodyPump(target, new CancellationTokenSource(), new ConnectionPoolContext(), chunkSize);
+        return new MultiplexedBodyPump(target, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize);
     }
 
     [Fact(Timeout = 5000)]

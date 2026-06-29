@@ -27,7 +27,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private IFeatureCollection? _deferredFeatures;
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;

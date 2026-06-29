@@ -15,7 +15,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly Http10ClientDecoder _decoder;
     private readonly Http10ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
     private HttpRequestMessage? _reconnectBufferedRequest;

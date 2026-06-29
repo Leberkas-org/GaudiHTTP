@@ -21,7 +21,7 @@ public sealed class Http10ServerDecoderSpec
         AllowObsFold = false
     };
 
-    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions(), new ConnectionPoolContext());
+    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions(), new ConnectionObjectPool());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]

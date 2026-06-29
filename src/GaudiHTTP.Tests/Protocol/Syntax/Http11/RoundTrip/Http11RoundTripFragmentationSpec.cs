@@ -20,7 +20,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome1 = decoder.Feed(part1, false, out _);
         var outcome2 = decoder.Feed(part2, false, out _);
 
@@ -37,7 +37,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var headerBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"u8.ToArray();
         var bodyBytes = "hello"u8.ToArray();
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome1 = decoder.Feed(headerBytes.AsMemory(), false, out _);
         var outcome2 = decoder.Feed(bodyBytes.AsMemory(), false, out _);
 
@@ -60,7 +60,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome1 = decoder.Feed(part1, false, out _);
         var outcome2 = decoder.Feed(part2, false, out _);
 
@@ -79,7 +79,7 @@ public sealed class Http11RoundTripFragmentationSpec
 
         // The decoder does not buffer internally between calls, so callers must accumulate
         // unconsumed bytes and re-feed from the start of any incomplete parse unit.
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var accum = new byte[bytes.Length];
         var accumLen = 0;
         HttpResponseMessage? finalResponse = null;
@@ -112,7 +112,7 @@ public sealed class Http11RoundTripFragmentationSpec
             (ReadOnlyMemory<byte>)"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nfoo\r\n"u8.ToArray();
         var part2 = (ReadOnlyMemory<byte>)"3\r\nbar\r\n0\r\n\r\n"u8.ToArray();
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome1 = decoder.Feed(part1, false, out _);
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
 

@@ -7,7 +7,7 @@ namespace GaudiHTTP.Tests.Server;
 
 public sealed class ContextPoolingSpec
 {
-    private readonly ConnectionPoolContext _pool = new();
+    private readonly ConnectionObjectPool _pool = new();
 
     [Fact(Timeout = 5000)]
     public void GaudiHttpResponseFeature_Reset_clears_status_code()

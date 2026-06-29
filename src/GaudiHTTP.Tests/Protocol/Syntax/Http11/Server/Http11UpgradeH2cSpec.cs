@@ -38,7 +38,7 @@ public sealed class Http11UpgradeH2CSpec
             set => _inner.Materializer = value;
         }
 
-        public ConnectionPoolContext? PoolContext => _inner.PoolContext;
+        public ConnectionObjectPool? PoolContext => _inner.PoolContext;
 
         public void OnRequest(IFeatureCollection features) => _inner.OnRequest(features);
         public void OnOutbound(ITransportOutbound item) => _inner.OnOutbound(item);

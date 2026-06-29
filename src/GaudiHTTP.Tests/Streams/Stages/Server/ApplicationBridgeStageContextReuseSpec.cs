@@ -13,7 +13,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
 {
-    private readonly ConnectionPoolContext _pool = new();
+    private readonly ConnectionObjectPool _pool = new();
 
     // Mirrors how Microsoft.AspNetCore.Hosting.HostingApplication caches its context: it checks the
     // feature collection for IHostContextContainer<TContext> and reuses HostContext when present.

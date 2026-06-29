@@ -40,7 +40,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();

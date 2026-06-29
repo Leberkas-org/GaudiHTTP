@@ -26,7 +26,7 @@ public sealed class Http11RoundTripStatusCodeSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();

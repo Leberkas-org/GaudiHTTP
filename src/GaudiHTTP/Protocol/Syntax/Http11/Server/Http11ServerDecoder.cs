@@ -7,7 +7,7 @@ using GaudiHTTP.Server.Context.Features;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, ConnectionPoolContext poolContext)
+internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, ConnectionObjectPool poolContext)
 {
     private enum Phase
     {

@@ -25,7 +25,7 @@ public sealed class Http11ServerDecoderSecuritySpec
 
     private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)
     {
-        return new Http11ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionPoolContext());
+        return new Http11ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionObjectPool());
     }
 
     [Fact(Timeout = 5000)]

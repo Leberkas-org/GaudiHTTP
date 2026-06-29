@@ -38,7 +38,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private GaudiHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
@@ -478,7 +478,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 
-    ConnectionPoolContext? IServerStageOperations.PoolContext => _poolContext;
+    ConnectionObjectPool? IServerStageOperations.PoolContext => _poolContext;
 
     void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
     {

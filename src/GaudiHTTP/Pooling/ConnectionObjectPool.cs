@@ -6,7 +6,7 @@ namespace GaudiHTTP.Pooling;
 // One per connection. Owns per-type ObjectPool instances keyed by type. Per-connection instancing
 // means no cross-connection contention; DefaultObjectPool's internal thread-safety absorbs the Akka
 // dispatcher thread-hops within a connection (the failure mode that made [ThreadStatic] miss).
-internal sealed class ConnectionPoolContext
+internal sealed class ConnectionObjectPool
 {
     private readonly ConcurrentDictionary<Type, object> _pools = new();
 

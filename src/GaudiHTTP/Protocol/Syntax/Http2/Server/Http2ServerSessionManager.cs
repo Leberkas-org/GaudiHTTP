@@ -48,7 +48,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     internal readonly record struct StreamBodyConsumed(int StreamId);
 
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private readonly CancellationTokenSource _connectionCts = new();
     private BodyDrainScheduler? _scheduler;
 

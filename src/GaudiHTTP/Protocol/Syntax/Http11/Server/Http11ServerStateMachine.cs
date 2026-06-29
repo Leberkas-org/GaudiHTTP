@@ -52,7 +52,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
 
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private bool _isChunked;
     private IFeatureCollection? _activeResponseFeatures;
     private SerialBodyPump? _serialPump;

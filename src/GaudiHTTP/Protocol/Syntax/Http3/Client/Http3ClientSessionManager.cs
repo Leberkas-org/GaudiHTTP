@@ -30,7 +30,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _poolContext = new();
+    private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
 
     private bool _controlPrefaceSent;

@@ -34,7 +34,7 @@ public sealed class Http11RoundTripMethodSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();
@@ -150,7 +150,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buf, 0, written);
         Assert.StartsWith("HEAD /resource HTTP/1.1", encoded);
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Content-Type", "application/octet-stream"));

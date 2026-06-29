@@ -14,7 +14,7 @@ public sealed class Http11SecuritySpec
     {
         // Default MaxHeaderCount = 100; 99 extra + Content-Length = 100 total
         var raw = BuildResponseWithNHeaders(99);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome = decoder.Feed(raw, false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
@@ -26,7 +26,7 @@ public sealed class Http11SecuritySpec
     {
         // 100 extra + Content-Length = 101 total, exceeds default MaxHeaderCount = 100
         var raw = BuildResponseWithNHeaders(100);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -38,7 +38,7 @@ public sealed class Http11SecuritySpec
         // 5 extra + Content-Length = 6 total, exceeds custom MaxHeaderCount = 5
         var raw = BuildResponseWithNHeaders(5);
         var opts = ClientOptionDefaults.Http11Decoder() with { MaxHeaderCount = 5 };
-        var decoder = new Http11ClientDecoder(opts, new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(opts, new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -49,7 +49,7 @@ public sealed class Http11SecuritySpec
     {
         // Build a response with ~8KB of headers, well below the 32KB MaxHeaderBytes default
         var raw = BuildResponseWithLargeHeader(8191);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
         var outcome = decoder.Feed(raw, false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
@@ -61,7 +61,7 @@ public sealed class Http11SecuritySpec
     {
         // Build a response with headers exceeding MaxHeaderBytes (32KB default)
         var raw = BuildResponseWithLargeHeader(33000);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -72,7 +72,7 @@ public sealed class Http11SecuritySpec
     {
         // 17000 bytes exceeds the default HeaderLineMaxLength (8KB)
         var raw = BuildResponseWithLargeHeaderValue(17000);
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -82,7 +82,7 @@ public sealed class Http11SecuritySpec
     public void Http11Security_should_reject_response_when_both_transfer_encoding_and_content_length_present()
     {
         var raw = BuildResponseWithTeAndCl();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -92,7 +92,7 @@ public sealed class Http11SecuritySpec
     public void Http11Security_should_reject_header_when_crlf_injected_in_value()
     {
         var raw = BuildResponseWithBareCrInHeaderValue();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -102,7 +102,7 @@ public sealed class Http11SecuritySpec
     public void Http11Security_should_reject_header_when_nul_byte_in_value()
     {
         var raw = BuildResponseWithNulInHeaderValue();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
@@ -111,7 +111,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_decode_cleanly_when_reset_after_partial_headers()
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         // Feed incomplete headers (no CRLFCRLF yet)
         var incomplete = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n"u8.ToArray();
@@ -132,7 +132,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_decode_cleanly_when_reset_after_partial_body()
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
 
         // Feed headers + partial body (body says 10 bytes but we only send 5)
         var partial = "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nHello"u8.ToArray();

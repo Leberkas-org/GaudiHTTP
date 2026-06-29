@@ -25,7 +25,7 @@ internal sealed class StreamManager(
     private const int MaxPoolSize = 256;
     private const int MaxDecoderPoolSize = 256;
 
-    private readonly ConnectionPoolContext _bodyReaderPool = new();
+    private readonly ConnectionObjectPool _bodyReaderPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
     private readonly Stack<StreamState> _statePool = new();
