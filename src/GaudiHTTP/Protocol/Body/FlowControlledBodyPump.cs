@@ -292,7 +292,12 @@ internal sealed class FlowControlledBodyPump
 
         if (vt.IsCompletedSuccessfully)
         {
-            slot.CompleteRead();
+            // Force-async: identical to the PipeTo path below but delivering the already-known
+            // result. The slot stays IsReadInFlight (from BeginRead) and counted in _asyncInFlight
+            // across the mailbox hop so HandleReadComplete's CompleteRead/_asyncInFlight-- balance
+            // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
+            slot.ResetSyncReads();
+            _asyncInFlight++;
             _target.StageActor.Tell(
                 slot.CachedSuccessTransform!(vt.Result),
                 ActorRefs.NoSender);
