@@ -3,14 +3,13 @@ using Akka.Actor;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class SerialBodyPump
+internal sealed class SerialBodyPump(
+    IBodyDrainTarget target,
+    CancellationTokenSource connectionCts,
+    int chunkSize,
+    int maxCapacity)
 {
     private const int MaxSyncReadsPerDispatch = 64;
-
-    private readonly IBodyDrainTarget _target;
-    private readonly CancellationTokenSource _connectionCts;
-    private readonly int _chunkSize;
-    private readonly int _maxCapacity;
 
     private Stream? _activeStream;
     private IMemoryOwner<byte>? _buffer;
@@ -24,33 +23,21 @@ internal sealed class SerialBodyPump
     private static readonly Func<int, object> CachedSuccess = n => new BodyReadComplete<int>(0, n);
     private static readonly Func<Exception, object> CachedFailure = ex => new BodyReadFailed<int>(0, ex);
 
-    public SerialBodyPump(
-        IBodyDrainTarget target,
-        CancellationTokenSource connectionCts,
-        int chunkSize,
-        int maxCapacity)
-    {
-        _target = target;
-        _connectionCts = connectionCts;
-        _chunkSize = chunkSize;
-        _maxCapacity = maxCapacity;
-    }
-
     public void Register(Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         _activeStream = bodyStream;
-        _buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(_chunkSize, 256));
+        _buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(chunkSize, 256));
         _linkedCts = requestCt.CanBeCanceled
-            ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
+            ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
-        _availableCapacity = _maxCapacity;
+        _availableCapacity = maxCapacity;
         _consecutiveSyncReads = 0;
         TryStartRead();
     }
 
     public void OnCapacityAvailable()
     {
-        if (_availableCapacity < _maxCapacity)
+        if (_availableCapacity < maxCapacity)
         {
             _availableCapacity++;
         }
@@ -70,7 +57,7 @@ internal sealed class SerialBodyPump
         _isReadInFlight = false;
         _consecutiveSyncReads = 0;
         _activeStream = null;
-        _target.OnDrainFailed(0, reason);
+        target.OnDrainFailed(0, reason);
         CompleteDrain();
     }
 
@@ -119,14 +106,14 @@ internal sealed class SerialBodyPump
             // call from ProcessReadResult cannot start another read while we wait for
             // HandleBodyReadContinue to resume us.
             _isReadInFlight = true;
-            _target.StageActor.Tell(new BodyReadContinue<int>(0), ActorRefs.NoSender);
+            target.StageActor.Tell(new BodyReadContinue<int>(0), ActorRefs.NoSender);
             return;
         }
 
         _availableCapacity--;
-        var token = _linkedCts?.Token ?? _connectionCts.Token;
+        var token = _linkedCts?.Token ?? connectionCts.Token;
         _isReadInFlight = true;
-        var vt = _activeStream.ReadAsync(_buffer!.Memory[.._chunkSize], token);
+        var vt = _activeStream.ReadAsync(_buffer!.Memory[..chunkSize], token);
 
         if (vt.IsCompletedSuccessfully)
         {
@@ -135,13 +122,13 @@ internal sealed class SerialBodyPump
             // PipeTo path below) so an interleaved OnCapacityAvailable -> TryStartRead cannot
             // start the next read and overwrite _buffer before HandleReadComplete emits it.
             _consecutiveSyncReads = 0;
-            _target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
+            target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
             return;
         }
 
         _consecutiveSyncReads = 0;
         vt.PipeTo(
-            _target.StageActor,
+            target.StageActor,
             success: CachedSuccess,
             failure: CachedFailure);
     }
@@ -150,12 +137,12 @@ internal sealed class SerialBodyPump
     {
         if (bytesRead == 0)
         {
-            _target.EmitDataFrames(0, default, endStream: true);
+            target.EmitDataFrames(0, default, endStream: true);
             CompleteDrain();
             return;
         }
 
-        _target.EmitDataFrames(0, _buffer!.Memory[..bytesRead], endStream: false);
+        target.EmitDataFrames(0, _buffer!.Memory[..bytesRead], endStream: false);
         TryStartRead();
     }
 
@@ -170,7 +157,7 @@ internal sealed class SerialBodyPump
         _availableCapacity = 0;
         if (wasActive)
         {
-            _target.OnDrainComplete(0);
+            target.OnDrainComplete(0);
         }
     }
 }

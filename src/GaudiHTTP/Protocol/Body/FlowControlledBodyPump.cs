@@ -5,16 +5,15 @@ using GaudiHTTP.Protocol.Syntax.Http2;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class FlowControlledBodyPump
+internal sealed class FlowControlledBodyPump(
+    IBodyDrainTarget target,
+    FlowController flowController,
+    CancellationTokenSource connectionCts,
+    ConnectionObjectPool poolContext,
+    int chunkSize,
+    int hardCap)
 {
     private const int MaxSyncReadsPerDispatch = 64;
-
-    private readonly IBodyDrainTarget _target;
-    private readonly FlowController _flowController;
-    private readonly CancellationTokenSource _connectionCts;
-    private readonly ConnectionObjectPool _poolContext;
-    private readonly int _chunkSize;
-    private readonly int _hardCap;
 
     private readonly Queue<int> _readyQueue = new();
     private readonly Dictionary<int, PumpSlot<int>> _activeSlots = new();
@@ -24,33 +23,17 @@ internal sealed class FlowControlledBodyPump
     private int _readSlots = 2;
     private int _asyncInFlight;
 
-    public FlowControlledBodyPump(
-        IBodyDrainTarget target,
-        FlowController flowController,
-        CancellationTokenSource connectionCts,
-        ConnectionObjectPool poolContext,
-        int chunkSize,
-        int hardCap)
-    {
-        _target = target;
-        _flowController = flowController;
-        _connectionCts = connectionCts;
-        _poolContext = poolContext;
-        _chunkSize = chunkSize;
-        _hardCap = hardCap;
-    }
-
     public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         var linkedCts = requestCt.CanBeCanceled
-            ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
+            ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
-        var slot = _poolContext.Rent(static () => new PumpSlot<int>());
+        var slot = poolContext.Rent(static () => new PumpSlot<int>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
 
-        if (_flowController.GetStreamSendWindow(streamId) > 0 && _flowController.ConnectionSendWindow > 0)
+        if (flowController.GetStreamSendWindow(streamId) > 0 && flowController.ConnectionSendWindow > 0)
         {
             _readyQueue.Enqueue(streamId);
             TryScheduleReads();
@@ -63,16 +46,16 @@ internal sealed class FlowControlledBodyPump
 
     public void OnWindowUpdate(int streamId)
     {
-        var minRead = _chunkSize / 2;
+        var minRead = chunkSize / 2;
 
         if (streamId == 0)
         {
-            if (_flowController.ConnectionSendWindow >= minRead)
+            if (flowController.ConnectionSendWindow >= minRead)
             {
                 var stillBlocked = new List<int>();
                 foreach (var blocked in _windowBlockedStreams)
                 {
-                    if (_flowController.GetStreamSendWindow(blocked) >= minRead)
+                    if (flowController.GetStreamSendWindow(blocked) >= minRead)
                     {
                         _readyQueue.Enqueue(blocked);
                     }
@@ -112,12 +95,12 @@ internal sealed class FlowControlledBodyPump
         {
             if (slot.ReservedWindow > 0)
             {
-                _flowController.Refund(slot.StreamId, slot.ReservedWindow);
+                flowController.Refund(slot.StreamId, slot.ReservedWindow);
                 slot.ReservedWindow = 0;
             }
 
             slot.DisposeResources();
-            _poolContext.Return(slot);
+            poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
@@ -140,20 +123,20 @@ internal sealed class FlowControlledBodyPump
         {
             if (slot.ReservedWindow > 0)
             {
-                _flowController.Refund(slot.StreamId, slot.ReservedWindow);
+                flowController.Refund(slot.StreamId, slot.ReservedWindow);
                 slot.ReservedWindow = 0;
             }
 
             slot.DisposeResources();
-            _poolContext.Return(slot);
+            poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
 
         _activeSlots.Remove(streamId);
-        _target.OnDrainFailed(streamId, reason);
+        target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();
-        _poolContext.Return(slot);
+        poolContext.Return(slot);
     }
 
     public void HandleBodyReadContinue(int streamId)
@@ -168,7 +151,7 @@ internal sealed class FlowControlledBodyPump
         if (slot.IsOrphaned)
         {
             slot.DisposeResources();
-            _poolContext.Return(slot);
+            poolContext.Return(slot);
             _activeSlots.Remove(streamId);
             return;
         }
@@ -196,7 +179,7 @@ internal sealed class FlowControlledBodyPump
         {
             _activeSlots.Remove(streamId);
             slot.DisposeResources();
-            _poolContext.Return(slot);
+            poolContext.Return(slot);
             return;
         }
 
@@ -205,14 +188,14 @@ internal sealed class FlowControlledBodyPump
 
     public void Cleanup()
     {
-        _connectionCts.Cancel();
+        connectionCts.Cancel();
 
         foreach (var (_, slot) in _activeSlots)
         {
             if (!slot.IsOrphaned)
             {
                 slot.DisposeResources();
-                _poolContext.Return(slot);
+                poolContext.Return(slot);
             }
         }
 
@@ -224,14 +207,14 @@ internal sealed class FlowControlledBodyPump
 
     private void TryScheduleReads()
     {
-        var connWindow = _flowController.ConnectionSendWindow;
+        var connWindow = flowController.ConnectionSendWindow;
 
         if (connWindow <= 0)
         {
             return;
         }
 
-        while (_asyncInFlight < Math.Min(_readSlots, _hardCap) && _readyQueue.Count > 0)
+        while (_asyncInFlight < Math.Min(_readSlots, hardCap) && _readyQueue.Count > 0)
         {
             var streamId = _readyQueue.Dequeue();
 
@@ -241,7 +224,7 @@ internal sealed class FlowControlledBodyPump
                 {
                     _activeSlots.Remove(streamId);
                     cancelled.DisposeResources();
-                    _poolContext.Return(cancelled);
+                    poolContext.Return(cancelled);
                 }
 
                 continue;
@@ -252,10 +235,10 @@ internal sealed class FlowControlledBodyPump
                 continue;
             }
 
-            var streamWindow = _flowController.GetStreamSendWindow(streamId);
-            connWindow = _flowController.ConnectionSendWindow;
+            var streamWindow = flowController.GetStreamSendWindow(streamId);
+            connWindow = flowController.ConnectionSendWindow;
             var available = (int)Math.Min(streamWindow, connWindow);
-            var minReadSize = _chunkSize / 2;
+            var minReadSize = chunkSize / 2;
 
             if (available < minReadSize)
             {
@@ -267,11 +250,11 @@ internal sealed class FlowControlledBodyPump
             {
                 slot.ResetSyncReads();
                 slot.BeginRead();  // marks as in-flight for yield
-                _target.StageActor.Tell(new BodyReadContinue<int>(slot.StreamId), ActorRefs.NoSender);
+                target.StageActor.Tell(new BodyReadContinue<int>(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
-            slot.EnsureBuffer(_chunkSize);
+            slot.EnsureBuffer(chunkSize);
 
             StartRead(slot);
         }
@@ -279,14 +262,14 @@ internal sealed class FlowControlledBodyPump
 
     private void StartRead(PumpSlot<int> slot)
     {
-        var streamWindow = _flowController.GetStreamSendWindow(slot.StreamId);
-        var connWindow = _flowController.ConnectionSendWindow;
-        var readSize = (int)Math.Min(Math.Min((long)_chunkSize, streamWindow), connWindow);
+        var streamWindow = flowController.GetStreamSendWindow(slot.StreamId);
+        var connWindow = flowController.ConnectionSendWindow;
+        var readSize = (int)Math.Min(Math.Min((long)chunkSize, streamWindow), connWindow);
 
-        _flowController.Reserve(slot.StreamId, readSize);
+        flowController.Reserve(slot.StreamId, readSize);
         slot.ReservedWindow = readSize;
 
-        var token = slot.LinkedCts?.Token ?? _connectionCts.Token;
+        var token = slot.LinkedCts?.Token ?? connectionCts.Token;
         slot.BeginRead();
         var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..readSize], token);
 
@@ -298,7 +281,7 @@ internal sealed class FlowControlledBodyPump
             // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
             slot.ResetSyncReads();
             _asyncInFlight++;
-            _target.StageActor.Tell(
+            target.StageActor.Tell(
                 slot.CachedSuccessTransform!(vt.Result),
                 ActorRefs.NoSender);
             return;
@@ -307,7 +290,7 @@ internal sealed class FlowControlledBodyPump
         slot.ResetSyncReads();
         _asyncInFlight++;
         vt.PipeTo(
-            _target.StageActor,
+            target.StageActor,
             success: slot.CachedSuccessTransform,
             failure: slot.CachedFailureTransform);
     }
@@ -317,20 +300,20 @@ internal sealed class FlowControlledBodyPump
         var refund = slot.ReservedWindow - bytesRead;
         if (refund > 0)
         {
-            _flowController.Refund(slot.StreamId, refund);
+            flowController.Refund(slot.StreamId, refund);
         }
 
         slot.ReservedWindow = 0;
 
         if (bytesRead == 0)
         {
-            _target.EmitDataFrames(slot.StreamId, default, endStream: true);
+            target.EmitDataFrames(slot.StreamId, default, endStream: true);
             CompleteDrain(slot);
             return;
         }
 
-        _target.EmitDataFrames(slot.StreamId, slot.Buffer!.Memory[..bytesRead], endStream: false);
-        _readSlots = Math.Min(_readSlots + 1, _hardCap);
+        target.EmitDataFrames(slot.StreamId, slot.Buffer!.Memory[..bytesRead], endStream: false);
+        _readSlots = Math.Min(_readSlots + 1, hardCap);
         _readyQueue.Enqueue(slot.StreamId);
         TryScheduleReads();
     }
@@ -338,9 +321,9 @@ internal sealed class FlowControlledBodyPump
     private void CompleteDrain(PumpSlot<int> slot)
     {
         _activeSlots.Remove(slot.StreamId);
-        _target.OnDrainComplete(slot.StreamId);
+        target.OnDrainComplete(slot.StreamId);
         slot.DisposeResources();
-        _poolContext.Return(slot);
+        poolContext.Return(slot);
     }
 
 }

@@ -452,7 +452,10 @@ internal sealed class GaudiFeatureCollection : IFeatureCollection, IResettable
 
         if (_extras is not null)
         {
-            foreach (var kv in _extras) yield return kv;
+            foreach (var kv in _extras)
+            {
+                yield return kv;
+            }
         }
     }
 

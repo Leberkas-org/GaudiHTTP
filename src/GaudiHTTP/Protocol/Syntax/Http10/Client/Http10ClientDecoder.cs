@@ -188,7 +188,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, Co
             return _framingDecoder.OnEof();
         }
 
-        if (_bodyReader is BufferedBodyReader buffered && !buffered.IsCompleted)
+        if (_bodyReader is BufferedBodyReader { IsCompleted: false } buffered)
         {
             if (buffered.IsOpenEnded)
             {

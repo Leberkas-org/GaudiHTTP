@@ -6,16 +6,9 @@ namespace GaudiHTTP.Pooling;
 // to that pool exactly once on Dispose. Used for body buffers that are rented on the connection-
 // stage thread and disposed on the application thread, where a process-wide pool with global,
 // locked per-bucket stacks keeps the rent/return hit rate intact across the thread hop.
-internal sealed class PooledArrayMemoryOwner : IMemoryOwner<byte>
+internal sealed class PooledArrayMemoryOwner(ArrayPool<byte> pool, int minimumLength) : IMemoryOwner<byte>
 {
-    private readonly ArrayPool<byte> _pool;
-    private byte[]? _array;
-
-    public PooledArrayMemoryOwner(ArrayPool<byte> pool, int minimumLength)
-    {
-        _pool = pool;
-        _array = pool.Rent(minimumLength);
-    }
+    private byte[]? _array = pool.Rent(minimumLength);
 
     public Memory<byte> Memory
         => _array ?? throw new ObjectDisposedException(nameof(PooledArrayMemoryOwner));
@@ -29,6 +22,6 @@ internal sealed class PooledArrayMemoryOwner : IMemoryOwner<byte>
         }
 
         _array = null;
-        _pool.Return(array);
+        pool.Return(array);
     }
 }

@@ -7,18 +7,20 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed class Http2ClientStateMachine : IClientStateMachine
+internal sealed class Http2ClientStateMachine(
+    GaudiClientOptions options,
+    IClientStageOperations ops,
+    TimeProvider? timeProvider = null)
+    : IClientStateMachine
 {
-    private readonly Http2ClientSessionManager _clientSession;
-    private readonly ReconnectionManager _reconnect;
-    private readonly IClientStageOperations _ops;
-    private readonly GaudiClientOptions _options;
+    private readonly Http2ClientSessionManager _clientSession = new(options, ops, timeProvider);
+    private readonly ReconnectionManager _reconnect = new(options.Http2.MaxReconnectAttempts, options.Http2.MaxReconnectBufferSize);
     private TransportOptions? _transportOptions;
 
     private const string KeepAlivePingTimerKey = "keep-alive-ping";
     private const string KeepAlivePingTimeoutKey = "keep-alive-ping-timeout";
 
-    private bool KeepAliveEnabled => _options.Http2.KeepAlivePingDelay != Timeout.InfiniteTimeSpan;
+    private bool KeepAliveEnabled => options.Http2.KeepAlivePingDelay != Timeout.InfiniteTimeSpan;
 
     public bool CanAcceptRequest =>
         !_clientSession.GoAwayReceived && !_reconnect.IsReconnecting && _clientSession.CanOpenStream;
@@ -27,14 +29,6 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     public bool IsReconnecting => _reconnect.IsReconnecting;
     public RequestEndpoint Endpoint => _clientSession.Endpoint;
     public int ReconnectBufferCount => _reconnect.BufferedCount;
-
-    public Http2ClientStateMachine(GaudiClientOptions options, IClientStageOperations ops, TimeProvider? timeProvider = null)
-    {
-        _options = options;
-        _ops = ops;
-        _clientSession = new Http2ClientSessionManager(options, ops, timeProvider);
-        _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts, options.Http2.MaxReconnectBufferSize);
-    }
 
     public void PreStart()
     {
@@ -90,7 +84,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             // routes through OnConnectionLost, which replays idempotent in-flight requests and fails the rest.
             Tracing.For("Protocol").Info(this,
                 "HTTP/2: connection protocol error - disconnecting: {0}", ex.Message);
-            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
+            ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
 
@@ -138,7 +132,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         {
             case KeepAlivePingTimerKey:
             {
-                var policy = _options.Http2.KeepAlivePingPolicy;
+                var policy = options.Http2.KeepAlivePingPolicy;
                 if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_clientSession.HasInFlightRequests)
                 {
                     return;
@@ -150,7 +144,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             }
             case KeepAlivePingTimeoutKey:
             {
-                if (_clientSession.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
+                if (_clientSession.IsKeepAliveTimedOut(options.Http2.KeepAlivePingTimeout))
                 {
                     Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout - closing connection");
                     if (_clientSession.HasInFlightRequests)
@@ -192,8 +186,8 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         _clientSession.ReleaseAllStreamState();
         _clientSession.ResetConnectionState();
 
-        _transportOptions ??= OptionsFactory.Build(_clientSession.Endpoint, _options);
-        _ops.OnOutbound(new ConnectTransport(_transportOptions));
+        _transportOptions ??= OptionsFactory.Build(_clientSession.Endpoint, options);
+        ops.OnOutbound(new ConnectTransport(_transportOptions));
     }
 
     private List<HttpRequestMessage> ClassifyStreamsForReplay(int lastStreamId)
@@ -244,7 +238,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         var preface = _clientSession.TryBuildPreface();
         if (preface is not null)
         {
-            _ops.OnOutbound(preface);
+            ops.OnOutbound(preface);
         }
 
         var toReplay = _reconnect.OnConnectionRestored();
@@ -265,14 +259,14 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             return;
         }
 
-        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
     private void ScheduleKeepAlivePing()
     {
         if (KeepAliveEnabled)
         {
-            _ops.OnScheduleTimer(KeepAlivePingTimerKey, _options.Http2.KeepAlivePingDelay);
+            ops.OnScheduleTimer(KeepAlivePingTimerKey, options.Http2.KeepAlivePingDelay);
         }
     }
 
@@ -280,7 +274,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     {
         if (KeepAliveEnabled)
         {
-            _ops.OnScheduleTimer(KeepAlivePingTimeoutKey, _options.Http2.KeepAlivePingTimeout);
+            ops.OnScheduleTimer(KeepAlivePingTimeoutKey, options.Http2.KeepAlivePingTimeout);
         }
     }
 
@@ -288,7 +282,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     {
         if (KeepAliveEnabled)
         {
-            _ops.OnCancelTimer(KeepAlivePingTimeoutKey);
+            ops.OnCancelTimer(KeepAlivePingTimeoutKey);
             ScheduleKeepAlivePing();
         }
     }
