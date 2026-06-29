@@ -169,15 +169,15 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     {
         switch (msg)
         {
-            case MultiplexedDrainContinue cont:
-                _pump?.HandleDrainContinue(cont.StreamId);
+            case BodyReadContinue<long> cont:
+                _pump?.HandleBodyReadContinue(cont.StreamId);
                 break;
 
-            case MultiplexedDrainReadComplete read:
+            case BodyReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case MultiplexedDrainReadFailed failed:
+            case BodyReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 

@@ -58,11 +58,11 @@ public sealed class MultiplexedBodyPumpSpec
             target.PendingMessages.RemoveAt(0);
             switch (msg)
             {
-                case MultiplexedDrainReadComplete rc:
+                case BodyReadComplete<long> rc:
                     pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
                     break;
-                case MultiplexedDrainContinue dc:
-                    pump.HandleDrainContinue(dc.StreamId);
+                case BodyReadContinue<long> dc:
+                    pump.HandleBodyReadContinue(dc.StreamId);
                     break;
             }
         }
@@ -176,7 +176,7 @@ public sealed class MultiplexedBodyPumpSpec
         var pump = MakePump(target, chunkSize: 16);
 
         pump.Register(1L, MakeBody(65 * 16), contentLength: null, CancellationToken.None);
-        // Starvation guard fires at 64 consecutive reads and dispatches MultiplexedDrainContinue.
+        // Starvation guard fires at 64 consecutive reads and dispatches BodyReadContinue.
         // DrainToCompletion processes those messages to drive the pump to completion.
         DrainToCompletion(pump, target);
 

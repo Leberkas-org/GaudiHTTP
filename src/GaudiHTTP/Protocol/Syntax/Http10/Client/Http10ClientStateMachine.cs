@@ -188,16 +188,16 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             case StreamingSlotFreed:
                 break;
 
-            case DrainReadComplete read:
+            case BodyReadComplete<int> read:
                 _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
+            case BodyReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 
-            case DrainContinue:
-                _serialPump?.HandleDrainContinue();
+            case BodyReadContinue<int>:
+                _serialPump?.HandleBodyReadContinue();
                 break;
         }
     }

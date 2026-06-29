@@ -245,8 +245,8 @@ public sealed class ServerStateMachineSpec
         sm.OnResponse(MakeResponseContext(response));
         var countAfterHeaders = ops.Outbound.Count;
 
-        sm.OnBodyMessage(new DrainReadComplete(0, 11));
-        sm.OnBodyMessage(new DrainReadComplete(0, 0));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 11));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
 
         var bodyItems = ops.Outbound.Skip(countAfterHeaders).OfType<TransportData>().ToList();
         Assert.NotEmpty(bodyItems);
@@ -280,7 +280,7 @@ public sealed class ServerStateMachineSpec
 
         Assert.False(sm.CanAcceptResponse);
 
-        sm.OnBodyMessage(new DrainReadComplete(0, 0));
+        sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
 
         Assert.False(sm.CanAcceptResponse);
     }

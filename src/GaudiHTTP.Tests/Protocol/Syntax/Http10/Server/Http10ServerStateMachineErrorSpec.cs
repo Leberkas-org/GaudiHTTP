@@ -121,12 +121,12 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     }
 
     [Fact(Timeout = 5000)]
-    public void OnBodyMessage_DrainReadFailed_should_not_crash_without_prior_response()
+    public void OnBodyMessage_BodyReadFailed_should_not_crash_without_prior_response()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var failedMsg = new DrainReadFailed(0, new Exception("Body read failed"));
+        var failedMsg = new BodyReadFailed<int>(0, new Exception("Body read failed"));
         var ex = Record.Exception(() => sm.OnBodyMessage(failedMsg));
 
         Assert.Null(ex);

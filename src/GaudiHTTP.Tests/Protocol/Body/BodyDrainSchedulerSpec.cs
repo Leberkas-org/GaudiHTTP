@@ -87,11 +87,11 @@ public sealed class BodyDrainSchedulerSpec
             target.PendingMessages.RemoveAt(0);
             switch (msg)
             {
-                case DrainReadComplete rc:
+                case BodyReadComplete<int> rc:
                     scheduler.HandleReadComplete(rc.StreamId, rc.BytesRead);
                     break;
-                case DrainContinue dc:
-                    scheduler.HandleDrainContinue(dc.StreamId);
+                case BodyReadContinue<int> dc:
+                    scheduler.HandleBodyReadContinue(dc.StreamId);
                     break;
             }
         }

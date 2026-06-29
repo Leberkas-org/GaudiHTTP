@@ -879,15 +879,15 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         switch (msg)
         {
-            case DrainContinue dc:
-                _scheduler?.HandleDrainContinue(dc.StreamId);
+            case BodyReadContinue<int> dc:
+                _scheduler?.HandleBodyReadContinue(dc.StreamId);
                 break;
 
-            case DrainReadComplete read:
+            case BodyReadComplete<int> read:
                 _scheduler?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
+            case BodyReadFailed<int> failed:
                 _scheduler?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 

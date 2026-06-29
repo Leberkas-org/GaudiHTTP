@@ -17,7 +17,7 @@ internal sealed class BodyDrainScheduler
     private readonly int _hardCap;
 
     private readonly Queue<int> _readyQueue = new();
-    private readonly Dictionary<int, DrainSlot> _activeSlots = new();
+    private readonly Dictionary<int, PumpSlot<int>> _activeSlots = new();
     private readonly HashSet<int> _cancelledStreams = new();
     private readonly HashSet<int> _windowBlockedStreams = new();
 
@@ -45,7 +45,7 @@ internal sealed class BodyDrainScheduler
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : null;
-        var slot = _poolContext.Rent(static () => new DrainSlot());
+        var slot = _poolContext.Rent(static () => new PumpSlot<int>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
@@ -156,7 +156,7 @@ internal sealed class BodyDrainScheduler
         _poolContext.Return(slot);
     }
 
-    public void HandleDrainContinue(int streamId)
+    public void HandleBodyReadContinue(int streamId)
     {
         if (!_activeSlots.TryGetValue(streamId, out var slot))
         {
@@ -267,7 +267,7 @@ internal sealed class BodyDrainScheduler
             {
                 slot.ResetSyncReads();
                 slot.BeginRead();  // marks as in-flight for yield
-                _target.StageActor.Tell(new DrainContinue(slot.StreamId), ActorRefs.NoSender);
+                _target.StageActor.Tell(new BodyReadContinue<int>(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
@@ -277,7 +277,7 @@ internal sealed class BodyDrainScheduler
         }
     }
 
-    private void StartRead(DrainSlot slot)
+    private void StartRead(PumpSlot<int> slot)
     {
         var streamWindow = _flowController.GetStreamSendWindow(slot.StreamId);
         var connWindow = _flowController.ConnectionSendWindow;
@@ -307,7 +307,7 @@ internal sealed class BodyDrainScheduler
             failure: slot.CachedFailureTransform);
     }
 
-    private void ProcessReadResult(DrainSlot slot, int bytesRead)
+    private void ProcessReadResult(PumpSlot<int> slot, int bytesRead)
     {
         var refund = slot.ReservedWindow - bytesRead;
         if (refund > 0)
@@ -330,7 +330,7 @@ internal sealed class BodyDrainScheduler
         TryScheduleReads();
     }
 
-    private void CompleteDrain(DrainSlot slot)
+    private void CompleteDrain(PumpSlot<int> slot)
     {
         _activeSlots.Remove(slot.StreamId);
         _target.OnDrainComplete(slot.StreamId);

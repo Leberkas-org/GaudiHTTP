@@ -15,7 +15,7 @@ internal sealed class MultiplexedBodyPump
     private readonly int _maxConcurrentReads;
 
     private readonly Queue<long> _readyQueue = new();
-    private readonly Dictionary<long, PumpSlot> _activeSlots = new();
+    private readonly Dictionary<long, PumpSlot<long>> _activeSlots = new();
 
     private int _asyncInFlight;
 
@@ -38,7 +38,7 @@ internal sealed class MultiplexedBodyPump
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : null;
-        var slot = _poolContext.Rent(static () => new PumpSlot());
+        var slot = _poolContext.Rent(static () => new PumpSlot<long>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
@@ -93,7 +93,7 @@ internal sealed class MultiplexedBodyPump
         _poolContext.Return(slot);
     }
 
-    public void HandleDrainContinue(long streamId)
+    public void HandleBodyReadContinue(long streamId)
     {
         if (!_activeSlots.TryGetValue(streamId, out var slot))
         {
@@ -173,9 +173,9 @@ internal sealed class MultiplexedBodyPump
             {
                 slot.ResetSyncReads();
                 // Use BeginRead as a yield-in-progress marker so re-entrant calls from
-                // ProcessReadResult cannot start another read while waiting for HandleDrainContinue.
+                // ProcessReadResult cannot start another read while waiting for HandleBodyReadContinue.
                 slot.BeginRead();
-                _target.StageActor.Tell(new MultiplexedDrainContinue(slot.StreamId), ActorRefs.NoSender);
+                _target.StageActor.Tell(new BodyReadContinue<long>(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
@@ -185,7 +185,7 @@ internal sealed class MultiplexedBodyPump
         }
     }
 
-    private void StartRead(PumpSlot slot)
+    private void StartRead(PumpSlot<long> slot)
     {
         var token = slot.LinkedCts?.Token ?? _connectionCts.Token;
         slot.BeginRead();
@@ -208,7 +208,7 @@ internal sealed class MultiplexedBodyPump
             failure: slot.CachedFailureTransform);
     }
 
-    private void ProcessReadResult(PumpSlot slot, int bytesRead)
+    private void ProcessReadResult(PumpSlot<long> slot, int bytesRead)
     {
         if (bytesRead == 0)
         {
@@ -222,7 +222,7 @@ internal sealed class MultiplexedBodyPump
         TryScheduleReads();
     }
 
-    private void CompleteDrain(PumpSlot slot)
+    private void CompleteDrain(PumpSlot<long> slot)
     {
         _activeSlots.Remove(slot.StreamId);
         _target.OnDrainComplete(slot.StreamId);

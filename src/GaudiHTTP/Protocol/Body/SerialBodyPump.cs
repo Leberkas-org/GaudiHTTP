@@ -21,8 +21,8 @@ internal sealed class SerialBodyPump
 
     // Serial stream id is always 0, so the read-completion transforms capture nothing and are
     // shared statically — no per-Register closure allocation.
-    private static readonly Func<int, object> CachedSuccess = n => new DrainReadComplete(0, n);
-    private static readonly Func<Exception, object> CachedFailure = ex => new DrainReadFailed(0, ex);
+    private static readonly Func<int, object> CachedSuccess = n => new BodyReadComplete<int>(0, n);
+    private static readonly Func<Exception, object> CachedFailure = ex => new BodyReadFailed<int>(0, ex);
 
     public SerialBodyPump(
         IBodyDrainTarget target,
@@ -74,7 +74,7 @@ internal sealed class SerialBodyPump
         CompleteDrain();
     }
 
-    public void HandleDrainContinue()
+    public void HandleBodyReadContinue()
     {
         _isReadInFlight = false;
         TryStartRead();
@@ -89,7 +89,8 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
-        _isReadInFlight = false;    }
+        _isReadInFlight = false;
+    }
 
     public void Cleanup()
     {
@@ -99,7 +100,8 @@ internal sealed class SerialBodyPump
         _linkedCts = null;
         _activeStream = null;
         _availableCapacity = 0;
-        _isReadInFlight = false;    }
+        _isReadInFlight = false;
+    }
 
     private void TryStartRead()
     {
@@ -115,9 +117,9 @@ internal sealed class SerialBodyPump
             _consecutiveSyncReads = 0;
             // Use _isReadInFlight as a yield-in-progress marker so that any re-entrant
             // call from ProcessReadResult cannot start another read while we wait for
-            // HandleDrainContinue to resume us.
+            // HandleBodyReadContinue to resume us.
             _isReadInFlight = true;
-            _target.StageActor.Tell(new DrainContinue(0), ActorRefs.NoSender);
+            _target.StageActor.Tell(new BodyReadContinue<int>(0), ActorRefs.NoSender);
             return;
         }
 

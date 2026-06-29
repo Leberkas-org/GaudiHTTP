@@ -3,14 +3,15 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class PumpSlot : IResettable
+internal sealed class PumpSlot<TStreamId> : IResettable
 {
-    public long StreamId { get; private set; }
+    public TStreamId StreamId { get; private set; } = default!;
     public Stream? BodyStream { get; private set; }
     public IMemoryOwner<byte>? Buffer { get; private set; }
     public CancellationTokenSource? LinkedCts { get; private set; }
     public CancellationToken RequestCt { get; private set; }
     public long? ContentLength { get; set; }
+    public int ReservedWindow { get; set; }
     public int ConsecutiveSyncReads { get; private set; }
     public bool IsReadInFlight { get; private set; }
     public bool IsOrphaned { get; private set; }
@@ -23,12 +24,12 @@ internal sealed class PumpSlot : IResettable
 
     public PumpSlot()
     {
-        CachedSuccessTransform = n => new MultiplexedDrainReadComplete(StreamId, n);
-        CachedFailureTransform = ex => new MultiplexedDrainReadFailed(StreamId, ex);
+        CachedSuccessTransform = n => new BodyReadComplete<TStreamId>(StreamId, n);
+        CachedFailureTransform = ex => new BodyReadFailed<TStreamId>(StreamId, ex);
     }
 
     public void Initialize(
-        long streamId,
+        TStreamId streamId,
         Stream bodyStream,
         CancellationToken requestCt,
         CancellationTokenSource? linkedCts)
@@ -72,12 +73,13 @@ internal sealed class PumpSlot : IResettable
 
     public void Reset()
     {
-        StreamId = 0;
+        StreamId = default!;
         BodyStream = null;
         Buffer = null;
         LinkedCts = null;
         RequestCt = default;
         ContentLength = null;
+        ReservedWindow = 0;
         IsReadInFlight = false;
         IsOrphaned = false;
         ConsecutiveSyncReads = 0;
