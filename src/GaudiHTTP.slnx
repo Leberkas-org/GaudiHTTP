@@ -39,5 +39,7 @@
     <Project Path="GaudiHTTP.Tests.Shared/GaudiHTTP.Tests.Shared.csproj" />
     <Project Path="GaudiHTTP.Tests/GaudiHTTP.Tests.csproj" />
   </Folder>
+  <Project Path="GaudiHTTP.CpuProbe/GaudiHTTP.CpuProbe.csproj" />
+  <Project Path="GaudiHTTP.CpuProbeServer/GaudiHTTP.CpuProbeServer.csproj" />
   <Project Path="GaudiHTTP/GaudiHTTP.csproj" />
 </Solution>
