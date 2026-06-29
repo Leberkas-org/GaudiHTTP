@@ -18,6 +18,7 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly GaudiServerOptions _serverOptions;
     private readonly IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> _bridgeGraph;
     private readonly IServerProtocolEngine _engine;
+    private readonly string? _loggingCategory;
 
     public sealed record StartListening;
     public sealed record DrainConnections;
@@ -39,13 +40,15 @@ internal sealed class ListenerActor : ReceiveActor
         ListenerOptions listenerOptions,
         GaudiServerOptions serverOptions,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
-        IServerProtocolEngine engine)
+        IServerProtocolEngine engine,
+        string? loggingCategory = null)
     {
         _factory = factory;
         _listenerOptions = listenerOptions;
         _serverOptions = serverOptions;
         _bridgeGraph = bridgeGraph;
         _engine = engine;
+        _loggingCategory = loggingCategory;
 
         Receive<StartListening>(_ => OnStartListening());
         Receive<ConnectionArrived>(OnConnectionArrived);
@@ -107,7 +110,8 @@ internal sealed class ListenerActor : ReceiveActor
         _activeConnections++;
 
         var child = Context.ActorOf(
-            ConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions),
+            ConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions,
+                loggingCategory: _loggingCategory),
             string.Concat("conn-", connectionId));
 
         Context.WatchWith(child, new ConnectionStopped());
@@ -181,7 +185,8 @@ internal sealed class ListenerActor : ReceiveActor
         ListenerOptions listenerOptions,
         GaudiServerOptions serverOptions,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
-        IServerProtocolEngine engine)
+        IServerProtocolEngine engine,
+        string? loggingCategory = null)
         => Props.Create(() => new ListenerActor(
-            factory, listenerOptions, serverOptions, bridgeGraph, engine));
+            factory, listenerOptions, serverOptions, bridgeGraph, engine, loggingCategory));
 }

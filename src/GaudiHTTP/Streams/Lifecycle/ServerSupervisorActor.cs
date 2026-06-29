@@ -73,14 +73,15 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             var binding = msg.Bindings[i];
             var engine = binding.Options is QuicListenerOptions
                 ? ProtocolRouter.ResolveEngine(new Version(3, 0), msg.Options)
-                : ProtocolRouter.ResolveNegotiating(msg.Options);
+                : ProtocolRouter.ResolveNegotiating(msg.Options, binding.Protocols);
 
             var props = ListenerActor.Create(
                 binding.Factory,
                 binding.Options,
                 msg.Options,
                 msg.BridgeFlow,
-                engine);
+                engine,
+                binding.ConnectionLoggingCategory);
 
             var name = string.Concat("listener-", i);
             var listener = Context.ActorOf(props, name);

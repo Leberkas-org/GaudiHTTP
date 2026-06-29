@@ -35,6 +35,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly long _maxRequestBodySize;
     private readonly Http2ConnectionOptions _h2UpgradeOptions;
+    private readonly bool _allowH2cUpgrade;
 
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
@@ -69,12 +70,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     public int MaxConcurrentRequests => 1;
 
     public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions,
-        IServerStageOperations ops, TimeProvider? timeProvider = null)
+        IServerStageOperations ops, TimeProvider? timeProvider = null, bool allowH2cUpgrade = true)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(h2UpgradeOptions);
         _h2UpgradeOptions = h2UpgradeOptions;
+        _allowH2cUpgrade = allowH2cUpgrade;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _bodyReadTimeout = options.BodyReadTimeout;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
@@ -283,7 +285,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     ShouldComplete = true;
                 }
 
-                if (TryHandleH2cUpgrade(features))
+                if (_allowH2cUpgrade && TryHandleH2cUpgrade(features))
                 {
                     _decoder.Reset();
                     break;

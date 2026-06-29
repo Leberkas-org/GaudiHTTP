@@ -16,8 +16,9 @@ internal static class ProtocolRouter
         };
     }
 
-    internal static IServerProtocolEngine ResolveNegotiating(GaudiServerOptions options)
+    internal static IServerProtocolEngine ResolveNegotiating(GaudiServerOptions options,
+        HttpProtocols allowedProtocols = HttpProtocols.Http1AndHttp2)
     {
-        return new NegotiatingServerEngine(options);
+        return new NegotiatingServerEngine(options, allowedProtocols);
     }
 }

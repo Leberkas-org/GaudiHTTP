@@ -18,6 +18,8 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     private readonly GaudiServerOptions _options;
     private readonly UpgradeAwareOps _wrappedOps;
+    private readonly bool _http1Allowed;
+    private readonly bool _http2Allowed;
 
     // Pre-protocol guards: the sniffing window has no state machine yet, so it must bound how much
     // it buffers and how long it waits before a protocol is identified (memory-exhaustion / slow-loris).
@@ -40,10 +42,13 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     // the conservative default of 1 is safe.
     public int MaxConcurrentRequests => _phase == Phase.Running ? _inner!.MaxConcurrentRequests : 1;
 
-    public ProtocolNegotiatingStateMachine(GaudiServerOptions options, IServerStageOperations ops)
+    public ProtocolNegotiatingStateMachine(GaudiServerOptions options, IServerStageOperations ops,
+        HttpProtocols allowedProtocols = HttpProtocols.Http1AndHttp2)
     {
         _options = options;
         _wrappedOps = new UpgradeAwareOps(ops, this);
+        _http1Allowed = (allowedProtocols & HttpProtocols.Http1) != 0;
+        _http2Allowed = (allowedProtocols & HttpProtocols.Http2) != 0;
     }
 
     public void PreStart()
@@ -137,7 +142,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         {
             var h1Options = _options.ToHttp1Options();
             var h2UpgradeOptions = _options.ToHttp2Options();
-            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
             _inner!.DecodeClientData(data);
             return;
         }
@@ -166,6 +171,15 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         {
             if (span.StartsWith(Http2PrefixMagic))
             {
+                // Per-endpoint Protocols restriction: a cleartext endpoint that does not allow HTTP/2
+                // must reject a prior-knowledge h2c preface rather than silently upgrading.
+                if (!_http2Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h2Options = _options.ToHttp2Options();
                 Activate(ops => new Http2ServerStateMachine(h2Options, ops));
                 ReplayBuffered();
@@ -174,6 +188,13 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
             if (DetectHttp10())
             {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h1Options = _options.ToHttp1Options();
                 Activate(ops => new Http10ServerStateMachine(h1Options, ops));
                 ReplayBuffered();
@@ -182,9 +203,16 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
             if (ContainsRequestLineCrlf())
             {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h1Options = _options.ToHttp1Options();
                 var h2UpgradeOptions = _options.ToHttp2Options();
-                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
                 ReplayBuffered();
                 return;
             }
