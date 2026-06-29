@@ -6,6 +6,10 @@ namespace GaudiHTTP.Server.Context.Features;
 internal sealed class GaudiHttpResponseFeature : IHttpResponseFeature
 {
     private readonly GaudiHeaderDictionary _headers = new();
+    // A wholesale assignment via the setter overrides the owned dictionary, mirroring Kestrel's
+    // HttpProtocol (ResponseHeaders = value). The normal path mutates the owned dictionary
+    // through the getter, leaving this null.
+    private IHeaderDictionary? _userHeaders;
     private List<(Func<object?, Task> callback, object? state)>? _onStartingCallbacks;
     private List<(Func<object?, Task> callback, object? state)>? _onCompletedCallbacks;
 
@@ -23,8 +27,8 @@ internal sealed class GaudiHttpResponseFeature : IHttpResponseFeature
 
     public IHeaderDictionary Headers
     {
-        get => _headers;
-        set { }
+        get => _userHeaders ?? _headers;
+        set => _userHeaders = value;
     }
 
     public void OnStarting(Func<object?, Task> callback, object? state)
@@ -87,5 +91,6 @@ internal sealed class GaudiHttpResponseFeature : IHttpResponseFeature
         _onStartingCallbacks?.Clear();
         _onCompletedCallbacks?.Clear();
         _headers.Reset();
+        _userHeaders = null;
     }
 }
