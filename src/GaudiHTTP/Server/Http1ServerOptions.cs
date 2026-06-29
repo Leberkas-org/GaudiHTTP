@@ -5,6 +5,12 @@ namespace GaudiHTTP.Server;
 /// Controls request line parsing, pipelining, chunked-encoding limits, body read timeouts,
 /// and data-rate enforcement. Nullable properties inherit from <see cref="GaudiServerLimits"/>
 /// when left at <c>null</c>.
+/// <para>
+/// Note: the connection timeouts (<see cref="RequestHeadersTimeout"/>, <see cref="BodyReadTimeout"/>,
+/// <see cref="KeepAliveTimeout"/>, and the server-wide <c>BodyConsumptionTimeout</c>) are enforced for
+/// HTTP/1.1 connections. Legacy HTTP/1.0 is close-per-request and is exempt from these timeouts; the
+/// minimum data-rate limits, body-size limits, and header limits are still enforced for HTTP/1.0.
+/// </para>
 /// </summary>
 public sealed class Http1ServerOptions
 {

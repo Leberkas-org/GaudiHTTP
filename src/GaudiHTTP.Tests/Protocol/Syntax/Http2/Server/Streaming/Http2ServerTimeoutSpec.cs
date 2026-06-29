@@ -199,6 +199,43 @@ public sealed class Http2ServerTimeoutSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.4")]
+    public void Continuation_headers_timeout_should_honor_configured_RequestHeadersTimeout()
+    {
+        // Regression: the CONTINUATION headers timeout was hardcoded to 30s, so a configured
+        // per-protocol RequestHeadersTimeout override was silently ignored.
+        var ops = new FakeServerOps();
+        var options = new GaudiServerOptions
+        {
+            Http2 =
+            {
+                RequestHeadersTimeout = TimeSpan.FromSeconds(7)
+            }
+        };
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
+
+        sm.PreStart();
+
+        var headerBlock = EncodeHeaders("GET", "/", "example.com");
+        var partSize = headerBlock.Length / 2;
+        var headersFrameData = BuildHeadersFrame(
+            streamId: 1,
+            headerBlock[..partSize],
+            endStream: false,
+            endHeaders: false);
+
+        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        headersFrameData.CopyTo(buffer.FullMemory.Span);
+        buffer.Length = headersFrameData.Length;
+
+        sm.DecodeClientData(TransportData.Rent(buffer));
+
+        var headersTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "headers-timeout:1");
+        Assert.Equal("headers-timeout:1", headersTimer.Name);
+        Assert.Equal(TimeSpan.FromSeconds(7), headersTimer.Delay);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void Headers_timeout_should_cancel_on_endheaders()
     {
         var ops = new FakeServerOps();
