@@ -140,7 +140,7 @@ public sealed class ConsumerIngressFailureIsolationSpec : StreamTestBase
         var (sink, source) = MergeHub.Source<HttpRequestMessage>(16)
             .Via(Flow.Create<HttpRequestMessage>().Select(req =>
                 new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req }))
-            .ToMaterialized(BroadcastHub.Sink<HttpResponseMessage>(256), Akka.Streams.Dsl.Keep.Both)
+            .ToMaterialized(BroadcastHub.Sink<HttpResponseMessage>(256), Keep.Both)
             .Run(Materializer);
         return (sink, source);
     }

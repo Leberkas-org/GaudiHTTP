@@ -38,7 +38,7 @@ public sealed class RequestEnricherTimeoutSpec
     [Fact(Timeout = 5000)]
     public void Enrich_should_not_set_cancellation_token_when_timeout_is_infinite()
     {
-        var options = CreateOptions(System.Threading.Timeout.InfiniteTimeSpan);
+        var options = CreateOptions(Timeout.InfiniteTimeSpan);
         var enricher = new RequestEnricher(() => options);
         var request = new HttpRequestMessage(HttpMethod.Get, "/test");
 

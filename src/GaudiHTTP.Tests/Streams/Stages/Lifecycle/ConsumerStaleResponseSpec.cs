@@ -95,7 +95,7 @@ public sealed class ConsumerStaleResponseSpec : StreamTestBase
     {
         public bool WasDisposed { get; private set; }
 
-        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
             => Task.CompletedTask;
 
         protected override bool TryComputeLength(out long length)

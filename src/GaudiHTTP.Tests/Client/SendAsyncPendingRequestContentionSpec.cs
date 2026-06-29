@@ -40,7 +40,7 @@ public sealed class SendAsyncPendingRequestContentionSpec
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
             DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: System.Threading.Timeout.InfiniteTimeSpan,
+            Timeout: Timeout.InfiniteTimeSpan,
             Credentials: null,
             PreAuthenticate: false,
             UseProxy: false,
@@ -69,12 +69,40 @@ public sealed class SendAsyncPendingRequestContentionSpec
             }
             catch (OperationCanceledException)
             {
+                // noop
             }
-        });
+        }, TestContext.Current.CancellationToken);
 
         var dispatched = 0;
         var completed = 0;
         var failed = 0;
+
+        var workers = new Task[Concurrency];
+        var sw = Stopwatch.StartNew();
+        for (var i = 0; i < Concurrency; i++)
+        {
+            workers[i] = Worker();
+        }
+
+        try
+        {
+            await Task.WhenAll(workers).WaitAsync(Deadline, TestContext.Current.CancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            pipelineCts.Cancel();
+            Assert.Fail(
+                $"SendAsync completed only {Volatile.Read(ref completed):N0}/{TotalRequests:N0} requests within " +
+                $"{Deadline.TotalSeconds:F0}s at concurrency {Concurrency} — quadratic in-flight request-tracking " +
+                $"regression (lock-free pending list, commit 50918ff2).");
+        }
+
+        sw.Stop();
+        pipelineCts.Cancel();
+
+        Assert.Equal(0, failed);
+        Assert.Equal(TotalRequests, completed);
+        return;
 
         async Task Worker()
         {
@@ -92,31 +120,5 @@ public sealed class SendAsyncPendingRequestContentionSpec
                 }
             }
         }
-
-        var workers = new Task[Concurrency];
-        var sw = Stopwatch.StartNew();
-        for (var i = 0; i < Concurrency; i++)
-        {
-            workers[i] = Worker();
-        }
-
-        try
-        {
-            await Task.WhenAll(workers).WaitAsync(Deadline);
-        }
-        catch (TimeoutException)
-        {
-            pipelineCts.Cancel();
-            Assert.Fail(
-                $"SendAsync completed only {Volatile.Read(ref completed):N0}/{TotalRequests:N0} requests within " +
-                $"{Deadline.TotalSeconds:F0}s at concurrency {Concurrency} — quadratic in-flight request-tracking " +
-                $"regression (lock-free pending list, commit 50918ff2).");
-        }
-
-        sw.Stop();
-        pipelineCts.Cancel();
-
-        Assert.Equal(0, failed);
-        Assert.Equal(TotalRequests, completed);
     }
 }
