@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace GaudiHTTP.CpuProbe;
+namespace GaudiHTTP.CpuProbeClient;
 
 internal static class Program
 {
