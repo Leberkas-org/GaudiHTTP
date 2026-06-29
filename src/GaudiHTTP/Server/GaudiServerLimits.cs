@@ -15,7 +15,12 @@ public sealed class GaudiServerLimits
     public int MaxRequestHeaderCount { get; set; } = 100;
     /// <summary>Gets or sets the maximum combined size in bytes of all request headers. Default is 32 KiB.</summary>
     public int MaxRequestHeadersTotalSize { get; set; } = 32 * 1024;
-    /// <summary>Gets or sets the maximum size of the per-stream response write buffer in bytes. Default is 64 KiB.</summary>
+    /// <summary>
+    /// Gets or sets the number of bytes buffered on the response write pipe before back-pressure is
+    /// applied to the HTTP pipeline. Drives the transport <c>OutputPauseThreshold</c> as a server-wide
+    /// default (per-connection for TCP, per-stream for QUIC); an explicit per-listener
+    /// <see cref="TransportBufferOptions.OutputPauseThreshold"/> takes precedence. Default is 64 KiB.
+    /// </summary>
     public long MaxResponseBufferSize { get; set; } = 64 * 1024;
     /// <summary>Gets or sets the maximum size of the transport input buffer in bytes before back-pressure is applied. Default is 1 MiB. Set to <c>null</c> for unlimited.</summary>
     public long? MaxRequestBufferSize { get; set; } = 1024 * 1024;

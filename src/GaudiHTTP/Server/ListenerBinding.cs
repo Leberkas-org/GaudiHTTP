@@ -15,4 +15,11 @@ public sealed class ListenerBinding
     public required IListenerFactory Factory { get; init; }
     /// <summary>Gets the logger category name used for connection-level logging, or <c>null</c> to disable.</summary>
     public string? ConnectionLoggingCategory { get; init; }
+    /// <summary>
+    /// Gets the HTTP protocols this endpoint may negotiate. For cleartext endpoints this restricts
+    /// protocol selection (e.g. an <see cref="HttpProtocols.Http1"/>-only endpoint rejects h2c);
+    /// TLS endpoints additionally constrain negotiation via the advertised ALPN list. Defaults to
+    /// HTTP/1.x + HTTP/2.
+    /// </summary>
+    public HttpProtocols Protocols { get; init; } = HttpProtocols.Http1AndHttp2;
 }

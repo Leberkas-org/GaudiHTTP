@@ -40,7 +40,8 @@ internal sealed class EndpointResolver
                 var tcpProtocols = listen.Protocols & ~HttpProtocols.Http3;
                 if (tcpProtocols != HttpProtocols.None)
                 {
-                    bindings.Add(CreateTcpBinding(listen, cert, tcpProtocols, options.Limits.MaxRequestBufferSize));
+                    bindings.Add(CreateTcpBinding(listen, cert, tcpProtocols,
+                        options.Limits.MaxRequestBufferSize, options.Limits.MaxResponseBufferSize));
                 }
 
                 if ((listen.Protocols & HttpProtocols.Http3) != 0)
@@ -51,7 +52,8 @@ internal sealed class EndpointResolver
                             "HTTP/3 requires a static certificate. ServerCertificateSelector is not supported for QUIC.");
                     }
 
-                    bindings.Add(CreateQuicBinding(listen, cert, options.Http3.MaxConcurrentStreams));
+                    bindings.Add(CreateQuicBinding(listen, cert, options.Http3.MaxConcurrentStreams,
+                        options.Limits.MaxResponseBufferSize));
                 }
             }
             else
@@ -65,7 +67,7 @@ internal sealed class EndpointResolver
                 }
 
                 bindings.Add(CreateTcpBinding(listen, certificate: null, listen.Protocols,
-                    options.Limits.MaxRequestBufferSize));
+                    options.Limits.MaxRequestBufferSize, options.Limits.MaxResponseBufferSize));
             }
         }
 
@@ -191,13 +193,14 @@ internal sealed class EndpointResolver
     }
 
     private static ListenerBinding CreateTcpBinding(GaudiListenOptions listen, X509Certificate2? certificate,
-        HttpProtocols protocols, long? maxRequestBufferSize)
+        HttpProtocols protocols, long? maxRequestBufferSize, long maxResponseBufferSize)
     {
         var alpn = protocols.ToAlpnProtocols();
         var httpsOptions = listen.HttpsOptions;
 
         var transport = listen.Transport?.ResolveTcp() ?? TransportBufferOptions.TcpDefaults;
         var (inputPause, inputResume) = ResolveTcpInputThresholds(listen, transport, maxRequestBufferSize);
+        var (outputPause, outputResume) = ResolveOutputThresholds(listen, transport, maxResponseBufferSize);
         var tcpOptions = new TcpListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -211,8 +214,8 @@ internal sealed class EndpointResolver
             ServerCertificateSelector = httpsOptions?.ServerCertificateSelector,
             InputPauseThreshold = inputPause,
             InputResumeThreshold = inputResume,
-            OutputPauseThreshold = transport.OutputPauseThreshold,
-            OutputResumeThreshold = transport.OutputResumeThreshold,
+            OutputPauseThreshold = outputPause,
+            OutputResumeThreshold = outputResume,
             MinimumSegmentSize = transport.MinimumSegmentSize,
             ReceiveBufferHint = transport.ReceiveBufferHint
         };
@@ -221,7 +224,8 @@ internal sealed class EndpointResolver
         {
             Options = tcpOptions,
             Factory = new TcpListenerFactory(),
-            ConnectionLoggingCategory = listen.ConnectionLoggingCategory
+            ConnectionLoggingCategory = listen.ConnectionLoggingCategory,
+            Protocols = protocols
         };
     }
 
@@ -245,10 +249,31 @@ internal sealed class EndpointResolver
         return (cap, inputResume);
     }
 
+    /// <summary>
+    /// Resolves the write-pipe pause/resume thresholds, applying the server-wide
+    /// <see cref="GaudiServerLimits.MaxResponseBufferSize"/> as the output-pause default. A per-listener
+    /// <see cref="TransportBufferOptions.OutputPauseThreshold"/> takes precedence. Applies to both TCP
+    /// (one pipe per connection) and QUIC (one pipe per stream); the default value coincides with the
+    /// transport default (64 KiB), so behaviour is unchanged unless the limit is overridden.
+    /// </summary>
+    private static (long OutputPause, long OutputResume) ResolveOutputThresholds(
+        GaudiListenOptions listen, ResolvedTransportBuffers transport, long maxResponseBufferSize)
+    {
+        if (listen.Transport?.OutputPauseThreshold is not null)
+        {
+            return (transport.OutputPauseThreshold, transport.OutputResumeThreshold);
+        }
+
+        // Keep the resume threshold below the (possibly smaller) pause to preserve hysteresis.
+        var outputResume = Math.Min(transport.OutputResumeThreshold, maxResponseBufferSize / 2);
+        return (maxResponseBufferSize, outputResume);
+    }
+
     private static ListenerBinding CreateQuicBinding(GaudiListenOptions listen, X509Certificate2 certificate,
-        int maxConcurrentStreams)
+        int maxConcurrentStreams, long maxResponseBufferSize)
     {
         var transport = listen.Transport?.ResolveQuic() ?? TransportBufferOptions.QuicDefaults;
+        var (outputPause, outputResume) = ResolveOutputThresholds(listen, transport, maxResponseBufferSize);
         var quicOptions = new QuicListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -258,13 +283,15 @@ internal sealed class EndpointResolver
             EnabledSslProtocols = listen.HttpsOptions?.EnabledSslProtocols ??
                                   SslProtocols.None,
             ClientCertificateValidationCallback = listen.HttpsOptions?.ClientCertificateValidationCallback,
+            HandshakeTimeout = listen.HttpsOptions?.HandshakeTimeout ?? TimeSpan.FromSeconds(10),
+            ClientCertificateMode = listen.HttpsOptions?.ClientCertificateMode ?? ClientCertificateMode.NoCertificate,
             // RFC 9114 §6.1 / §7.2.4.2: bound concurrent request streams at the QUIC transport so
             // the listener stops accepting new bidirectional streams past the configured limit.
             MaxInboundBidirectionalStreams = maxConcurrentStreams,
             InputPauseThreshold = transport.InputPauseThreshold,
             InputResumeThreshold = transport.InputResumeThreshold,
-            OutputPauseThreshold = transport.OutputPauseThreshold,
-            OutputResumeThreshold = transport.OutputResumeThreshold,
+            OutputPauseThreshold = outputPause,
+            OutputResumeThreshold = outputResume,
             MinimumSegmentSize = transport.MinimumSegmentSize,
             ReceiveBufferHint = transport.ReceiveBufferHint
         };

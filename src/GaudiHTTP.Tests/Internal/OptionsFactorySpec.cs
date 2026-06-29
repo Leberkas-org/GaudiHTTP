@@ -425,6 +425,19 @@ public sealed class OptionsFactorySpec
     }
 
     [Fact(Timeout = 5000)]
+    public void OptionsFactory_should_pass_client_certificates_to_quic_for_http3()
+    {
+        // Regression: ClientCertificates reached the TLS path but not QUIC, so HTTP/3 mTLS was unsupported.
+        var endpoint = CreateHttp3Endpoint();
+        var certs = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+        var clientOptions = new GaudiClientOptions { ClientCertificates = certs };
+
+        var options = (QuicTransportOptions)OptionsFactory.Build(endpoint, clientOptions);
+
+        Assert.Same(certs, options.ClientCertificates);
+    }
+
+    [Fact(Timeout = 5000)]
     public void OptionsFactory_should_handle_ip_addresses()
     {
         var endpoint = new RequestEndpoint
