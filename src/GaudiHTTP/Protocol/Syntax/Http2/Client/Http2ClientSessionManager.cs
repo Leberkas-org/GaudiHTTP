@@ -494,7 +494,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         ReleaseAllStreamState();
     }
 
-    public void OnOutboundFlushed() { }
 
     IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 

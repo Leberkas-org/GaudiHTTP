@@ -20,8 +20,6 @@ namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 {
-    private const int MaxStatePoolCapacity = 1000;
-
     // RFC 9113 §5.1 / CVE-2023-44487 (Rapid Reset): client-initiated resets are counted within this
     // sliding window; exceeding the configured budget closes the connection with ENHANCE_YOUR_CALM.
     private const long ResetWindowMs = 30_000;
@@ -113,9 +111,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        var statePoolCapacity = Math.Min(
-            options.MaxConcurrentStreams > 0 ? options.MaxConcurrentStreams : 100,
-            MaxStatePoolCapacity);
         _scheduler = new FlowControlledBodyPump(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
     }
 
@@ -1005,7 +1000,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
     }
 
-    public void OnOutboundFlushed() { }
 
     IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 

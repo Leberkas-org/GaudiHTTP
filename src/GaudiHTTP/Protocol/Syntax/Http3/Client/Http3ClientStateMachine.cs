@@ -236,10 +236,6 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         }
     }
 
-    public void OnOutboundFlushed()
-    {
-        _clientSession.OnOutboundFlushed();
-    }
 
     public void OnBodyMessage(object msg)
     {

@@ -380,9 +380,6 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         return true;
     }
 
-    public void OnOutboundFlushed()
-    {
-    }
 
     IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
 
