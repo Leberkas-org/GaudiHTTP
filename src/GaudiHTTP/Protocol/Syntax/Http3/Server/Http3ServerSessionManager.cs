@@ -118,42 +118,42 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         switch (data)
         {
             case ServerStreamAccepted { Id: var id }:
-            {
-                _streamResolver.OnServerStreamOpened(id);
-                return;
-            }
-
-            case MultiplexedData multiplexed:
-            {
-                HandleTaggedStreamData(multiplexed);
-                multiplexed.Return();
-                return;
-            }
-
-            case StreamReadCompleted { Id.Value: >= 0 } readCompleted:
-            {
-                FlushPendingRequest(readCompleted.Id.Value);
-                return;
-            }
-
-            case StreamClosed { Id.Value: >= 0 } streamClosed:
-            {
-                if (streamClosed.Reason == DisconnectReason.Error)
                 {
-                    TrackStreamReset();
+                    _streamResolver.OnServerStreamOpened(id);
+                    return;
                 }
 
-                FlushPendingRequest(streamClosed.Id.Value);
-                return;
-            }
+            case MultiplexedData multiplexed:
+                {
+                    HandleTaggedStreamData(multiplexed);
+                    multiplexed.Return();
+                    return;
+                }
+
+            case StreamReadCompleted { Id.Value: >= 0 } readCompleted:
+                {
+                    FlushPendingRequest(readCompleted.Id.Value);
+                    return;
+                }
+
+            case StreamClosed { Id.Value: >= 0 } streamClosed:
+                {
+                    if (streamClosed.Reason == DisconnectReason.Error)
+                    {
+                        TrackStreamReset();
+                    }
+
+                    FlushPendingRequest(streamClosed.Id.Value);
+                    return;
+                }
 
             case TransportData rawData:
-            {
-                Tracing.For("Protocol").Warning(this,
-                    "Received untagged TransportData - dropping to prevent stream ID misrouting.");
-                rawData.Buffer.Dispose();
-                return;
-            }
+                {
+                    Tracing.For("Protocol").Warning(this,
+                        "Received untagged TransportData - dropping to prevent stream ID misrouting.");
+                    rawData.Buffer.Dispose();
+                    return;
+                }
         }
     }
 
@@ -503,53 +503,53 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 switch (frame)
                 {
                     case HeadersFrame headersFrame:
-                    {
-                        if (state.GetRequestFeature() is not null)
                         {
-                            _requestDecoder.DecodeTrailers(headersFrame, state);
-                            state.FeedBody([], endStream: true);
-                        }
-                        else
-                        {
-                            var requestFeature =
-                                _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
-                            if (requestFeature is not null)
+                            if (state.GetRequestFeature() is not null)
                             {
-                                state.InitRequestFeature(requestFeature);
+                                _requestDecoder.DecodeTrailers(headersFrame, state);
+                                state.FeedBody([], endStream: true);
                             }
                             else
                             {
-                                if (state.GetRequestFeature() is null)
+                                var requestFeature =
+                                    _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
+                                if (requestFeature is not null)
                                 {
-                                    // QPACK-blocked: the header block is queued in the table sync
-                                    // awaiting encoder-stream instructions. Mark it so the FIN is
-                                    // deferred and ProcessQpackEncoderStream redrives dispatch.
-                                    state.IsHeadersBlocked = true;
+                                    state.InitRequestFeature(requestFeature);
                                 }
+                                else
+                                {
+                                    if (state.GetRequestFeature() is null)
+                                    {
+                                        // QPACK-blocked: the header block is queued in the table sync
+                                        // awaiting encoder-stream instructions. Mark it so the FIN is
+                                        // deferred and ProcessQpackEncoderStream redrives dispatch.
+                                        state.IsHeadersBlocked = true;
+                                    }
 
-                                _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
+                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
+                                }
                             }
+
+                            break;
                         }
 
-                        break;
-                    }
-
                     case DataFrame dataFrame:
-                    {
-                        HandleDataFrame(dataFrame, streamId, state);
-                        break;
-                    }
+                        {
+                            HandleDataFrame(dataFrame, streamId, state);
+                            break;
+                        }
 
                     case SettingsFrame settings:
-                    {
-                        HandleSettingsFrame(settings);
-                        break;
-                    }
+                        {
+                            HandleSettingsFrame(settings);
+                            break;
+                        }
 
                     case GoAwayFrame:
-                    {
-                        break;
-                    }
+                        {
+                            break;
+                        }
                 }
             }
             catch (QpackException ex)
