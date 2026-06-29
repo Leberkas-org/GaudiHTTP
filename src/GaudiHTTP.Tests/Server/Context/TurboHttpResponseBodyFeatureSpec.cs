@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -192,5 +193,40 @@ public sealed class GaudiHttpResponseBodyFeatureSpec : TestKit
 
         Assert.False(feature.TryGetBufferedBody(out _),
             "An incomplete buffered body must not be emitted as a finished response.");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Default_pipe_should_be_recycled_across_responses_after_reset()
+    {
+        // A streaming response upgrades to a default-options Pipe. On reset that Pipe is
+        // Completed + Pipe.Reset()'d and kept, so the next streaming response reuses the same
+        // instance instead of allocating a fresh one — and must still read correctly.
+        var ct = TestContext.Current.CancellationToken;
+        var feature = new GaudiHttpResponseBodyFeature();
+        var pipeField = typeof(GaudiHttpResponseBodyFeature)
+            .GetField("_pipe", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        feature.DisableBuffering(); // forces UpgradeToPipe (zero buffered -> default-options pipe)
+        var firstPipe = pipeField.GetValue(feature);
+        Assert.NotNull(firstPipe);
+
+        await feature.Writer.WriteAsync("first"u8.ToArray(), ct);
+        await feature.CompleteAsync();
+        var r1 = await feature.GetResponseSource()
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
+        Assert.Equal("first", Encoding.UTF8.GetString(r1.SelectMany(m => m.ToArray()).ToArray()));
+
+        feature.Reset();
+        Assert.Null(pipeField.GetValue(feature)); // back to buffered-mode signal
+
+        feature.DisableBuffering();
+        var secondPipe = pipeField.GetValue(feature);
+        Assert.Same(firstPipe, secondPipe); // recycled, not reallocated
+
+        await feature.Writer.WriteAsync("second"u8.ToArray(), ct);
+        await feature.CompleteAsync();
+        var r2 = await feature.GetResponseSource()
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
+        Assert.Equal("second", Encoding.UTF8.GetString(r2.SelectMany(m => m.ToArray()).ToArray()));
     }
 }

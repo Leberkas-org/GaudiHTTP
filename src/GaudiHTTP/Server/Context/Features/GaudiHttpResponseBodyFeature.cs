@@ -11,6 +11,11 @@ namespace GaudiHTTP.Server.Context.Features;
 internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
 {
     private Pipe? _pipe;
+    // Default-options Pipe reused across responses on this (pooled) feature via Pipe.Reset(),
+    // so the common streaming response avoids a per-response Pipe allocation. Only the
+    // default-options Pipe is recyclable; the custom-threshold branch in UpgradeToPipe stays a
+    // fresh throwaway because Pipe.Reset() preserves the original PipeOptions.
+    private Pipe? _recycledPipe;
     // UpgradeToPipe can be invoked from both the stage-actor thread (ApplicationBridgeStage)
     // and the application/handler thread (first response write). Guard pipe creation so at
     // most one Pipe is ever constructed — a true cross-thread boundary, hence the lock.
@@ -44,6 +49,13 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
         {
             _pipe.Reader.Complete();
             _pipe.Writer.Complete();
+            if (ReferenceEquals(_pipe, _recycledPipe))
+            {
+                // Recycle the default-options pipe for the next response; a custom-threshold
+                // pipe is simply dropped (its PipeOptions can't be reused).
+                _pipe.Reset();
+            }
+
             _pipe = null;
         }
 
@@ -110,7 +122,7 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
             // already-buffered content or the pending FlushAsync would be silently discarded.
             var buffered = _bufferWriter.WrittenCount;
             var pipe = buffered < 64 * 1024
-                ? new Pipe()
+                ? (_recycledPipe ??= new Pipe())
                 : new Pipe(new PipeOptions(
                     pauseWriterThreshold: buffered + 64 * 1024,
                     resumeWriterThreshold: buffered / 2));
