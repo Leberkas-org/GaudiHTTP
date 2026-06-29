@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.Features;
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Server.Context.Features;
 
@@ -9,7 +10,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// Manages response/request assembly, pseudo-headers, content headers, body buffering,
 /// and body reader handling. Pooled and reused via <see cref="Reset"/>.
 /// </summary>
-internal sealed class StreamState
+internal sealed class StreamState : IResettable
 {
     private HttpResponseMessage? _response;
     private GaudiHttpRequestFeature? _requestFeature;

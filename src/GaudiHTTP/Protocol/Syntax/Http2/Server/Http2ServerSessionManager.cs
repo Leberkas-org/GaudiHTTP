@@ -28,7 +28,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private const string DataRateCheck = "data-rate-check";
 
-    private readonly StackStreamStatePool<StreamState> _statePool;
 
     private readonly Http2ServerEncoderOptions _encoderOptions;
     private readonly Http2ServerDecoderOptions _decoderOptions;
@@ -116,9 +115,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         var statePoolCapacity = Math.Min(
             options.MaxConcurrentStreams > 0 ? options.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
-        _statePool = new StackStreamStatePool<StreamState>(
-            statePoolCapacity,
-            () => new StreamState());
         _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
     }
 
@@ -503,7 +499,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         {
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
         }
 
         _streams.Clear();
@@ -877,7 +873,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             return existing;
         }
 
-        var state = _statePool.Rent();
+        var state = _poolContext.Rent(() => new StreamState());
         state.SetTimerKeys(streamId);
         _streams[streamId] = state;
         return state;
@@ -906,7 +902,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
 
             _streams.Remove(streamId);
         }

@@ -42,7 +42,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly CancellationTokenSource _connectionCts = new();
     private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
-    private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();
     private const int MaxDecoderPoolSize = 256;
     private readonly DataRateMonitor _requestRate;
@@ -95,9 +94,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         var statePoolCapacity = Math.Min(
             _decoderOptions.MaxConcurrentStreams > 0 ? _decoderOptions.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
-        _statePool = new StackStreamStatePool<StreamState>(
-            statePoolCapacity,
-            () => new StreamState());
     }
 
     public void PreStart()
@@ -294,7 +290,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             state.AbortBody();
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
         }
 
         _streams.Clear();
@@ -477,7 +473,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
             var frameDecoder = RentDecoder();
-            var streamState = _statePool.Rent();
+            var streamState = _poolContext.Rent(() => new StreamState());
             streamState.Initialize(streamId);
             streamData = (frameDecoder, streamState);
             _streams[streamId] = streamData;
@@ -731,7 +727,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             ReturnDecoder(decoder);
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
 
             _streams.Remove(streamId);
         }

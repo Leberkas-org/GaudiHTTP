@@ -1,5 +1,6 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Server.Context.Features;
 
@@ -9,7 +10,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http2;
 /// Per-stream header and body buffer management for HTTP/2.
 /// Extracted from Http20ConnectionStage for independent testability.
 /// </summary>
-internal sealed class StreamState
+internal sealed class StreamState : IResettable
 {
     private IMemoryOwner<byte>? _headerOwner;
     private Memory<byte> _headerBuffer;

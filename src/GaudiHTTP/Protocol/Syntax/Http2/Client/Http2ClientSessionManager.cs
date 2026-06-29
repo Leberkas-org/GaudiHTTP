@@ -25,7 +25,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
-    private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly FrameDecoder _frameDecoder;
     private readonly Http2ClientDecoder _responseDecoder;
     private readonly Http2ClientEncoder _requestEncoder;
@@ -89,7 +88,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         var poolCapacity = Math.Min(
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             1000);
-        _statePool = new StackStreamStatePool<StreamState>(poolCapacity, () => new StreamState());
         _responseDecoder = new Http2ClientDecoder(_decoderOptions.MaxHeaderSize, _decoderOptions.MaxHeaderListSize);
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
         // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in the preface on inbound frames.
@@ -197,7 +195,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         if (!_streams.TryGetValue(streamId, out var state))
         {
-            state = _statePool.Rent();
+            state = _poolContext.Rent(() => new StreamState());
             _streams[streamId] = state;
         }
 
@@ -281,7 +279,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 _streams.Remove(streamId);
                 ReturnBodyReader(state);
                 state.Reset();
-                _statePool.Return(state);
+                _poolContext.Return(state);
             }
 
             return;
@@ -467,7 +465,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         {
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
         }
 
         _streams.Clear();
@@ -535,7 +533,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _streams.Remove(streamId);
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
         }
     }
 
@@ -694,7 +692,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            state = _statePool.Rent();
+            state = _poolContext.Rent(() => new StreamState());
             _streams[frame.StreamId] = state;
         }
 
@@ -753,7 +751,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 _streams.Remove(frame.StreamId);
                 ReturnBodyReader(state);
                 state.Reset();
-                _statePool.Return(state);
+                _poolContext.Return(state);
             }
         }
     }
@@ -778,7 +776,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 state.DetachBodyReader();
                 ReturnBodyReader(state);
                 state.Reset();
-                _statePool.Return(state);
+                _poolContext.Return(state);
             }
 
             return;
@@ -808,7 +806,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                     _streams.Remove(streamId);
                     ReturnBodyReader(state);
                     state.Reset();
-                    _statePool.Return(state);
+                    _poolContext.Return(state);
                 }
 
                 return;
@@ -830,7 +828,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _streams.Remove(streamId);
             ReturnBodyReader(state);
             state.Reset();
-            _statePool.Return(state);
+            _poolContext.Return(state);
             return;
         }
 
@@ -912,7 +910,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _streams.Remove(streamId);
         ReturnBodyReader(state);
         state.Reset();
-        _statePool.Return(state);
+        _poolContext.Return(state);
 
         if (!_tracker.OnStreamClosed(streamId))
         {
