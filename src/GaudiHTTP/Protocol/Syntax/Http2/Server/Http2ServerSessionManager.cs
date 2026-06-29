@@ -49,7 +49,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private readonly ConnectionObjectPool _poolContext = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private BodyDrainScheduler? _scheduler;
+    private FlowControlledBodyPump? _scheduler;
 
     private int _nextContinuationStreamId;
     private bool _continuationEndStream;
@@ -115,7 +115,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         var statePoolCapacity = Math.Min(
             options.MaxConcurrentStreams > 0 ? options.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
-        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
+        _scheduler = new FlowControlledBodyPump(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
     }
 
     public void PreStart()

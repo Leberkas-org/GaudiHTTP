@@ -33,7 +33,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly Dictionary<int, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private BodyDrainScheduler? _scheduler;
+    private FlowControlledBodyPump? _scheduler;
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -92,7 +92,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
         // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in the preface on inbound frames.
         _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
-        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, _poolContext, _requestEncoder.MaxFrameSize, 256);
+        _scheduler = new FlowControlledBodyPump(this, _flow, _connectionCts, _poolContext, _requestEncoder.MaxFrameSize, 256);
     }
 
     public TransportData? TryBuildPreface()

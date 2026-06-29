@@ -5,7 +5,7 @@ using GaudiHTTP.Protocol.Syntax.Http2;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class BodyDrainScheduler
+internal sealed class FlowControlledBodyPump
 {
     private const int MaxSyncReadsPerDispatch = 64;
 
@@ -24,7 +24,7 @@ internal sealed class BodyDrainScheduler
     private int _readSlots = 2;
     private int _asyncInFlight;
 
-    public BodyDrainScheduler(
+    public FlowControlledBodyPump(
         IBodyDrainTarget target,
         FlowController flowController,
         CancellationTokenSource connectionCts,
