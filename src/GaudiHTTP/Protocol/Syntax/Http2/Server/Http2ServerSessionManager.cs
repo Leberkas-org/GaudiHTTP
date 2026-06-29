@@ -44,6 +44,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly Dictionary<int, int> _deferredStreamIncrements = new();
+    private readonly List<int> _bufferedDrainScratch = new();
 
     internal readonly record struct StreamBodyConsumed(int StreamId);
 
@@ -354,17 +355,10 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                     return;
                 }
 
-                // When the send window is exhausted, avoid copying the entire buffered body
-                // into MemoryPool chunks. Under high concurrency (256+ streams), that creates
-                // hundreds of MB of Gen-2 garbage per round. If the memory is array-backed,
-                // wrap it zero-copy and use the async drain path that reads in small chunks.
-                if (window <= 0)
-                {
-                    state.MarkBodyDrainActive();
-                    _scheduler!.Register(streamId, new MemoryStream(bufferedBody.ToArray(), writable: false), null, CancellationToken.None);
-                    return;
-                }
-
+                // Window can't take the whole body: emit what fits now and hold the rest as a slice
+                // (no copy — it points into the still-live response buffer), emitting it directly on
+                // WINDOW_UPDATE. SendBufferedBodyWithFlowControl handles window == 0 too (emits
+                // nothing now, holds the whole body). No ToArray, no MemoryStream, no pump.
                 SendBufferedBodyWithFlowControl(streamId, state, bufferedBody, window);
                 return;
             }
@@ -701,6 +695,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         if (result.InitialWindowSizeChange.HasValue)
         {
             _scheduler?.OnWindowUpdate(0);
+            DrainAllBufferedRemainders();
         }
     }
 
@@ -708,6 +703,15 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     {
         _flow.OnSendWindowUpdate(windowUpdate.StreamId, windowUpdate.Increment);
         _scheduler?.OnWindowUpdate(windowUpdate.StreamId);
+
+        if (windowUpdate.StreamId == 0)
+        {
+            DrainAllBufferedRemainders();
+        }
+        else
+        {
+            DrainBufferedRemainder(windowUpdate.StreamId);
+        }
     }
 
     private void HandlePingFrame(PingFrame ping)
@@ -929,13 +933,76 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             return;
         }
 
-        // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
+        // Hold the unsent slice on the stream (no copy) and emit it directly when WINDOW_UPDATE
+        // arrives. The slice points into the response feature's WrittenMemory, which stays valid
+        // until the stream is closed (after the body fully drains) — see DrainBufferedRemainder.
+        state.SetBufferedRemainder(remainder);
         state.MarkBodyDrainActive();
-        _scheduler!.Register(streamId, new MemoryStream(remainder.ToArray(), writable: false), null, CancellationToken.None);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
             streamId, sent, body.Length - sent);
+    }
+
+    // Emits as much of a stream's held buffered remainder as the current send window allows, then
+    // advances the slice cursor. When the slice is exhausted, terminates the body and closes the
+    // stream — mirroring IBodyDrainTarget.OnDrainComplete (the path buffered bodies used to take
+    // via the pump). EmitBufferedDataFrames copies the slice into an owned TransportBuffer, so the
+    // unsent remainder is the only thing referencing the response buffer between WINDOW_UPDATEs.
+    private void DrainBufferedRemainder(int streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state) || !state.HasBufferedRemainder)
+        {
+            return;
+        }
+
+        var window = _flow.GetSendWindow(streamId);
+        if (window <= 0)
+        {
+            return;
+        }
+
+        var send = (int)Math.Min(window, state.BufferedRemainder.Length);
+        EmitBufferedDataFrames(streamId, state.BufferedRemainder[..send], endStream: false);
+        _flow.OnDataSent(streamId, send);
+        state.AdvanceBufferedRemainder(send);
+
+        if (!state.HasBufferedRemainder)
+        {
+            state.MarkBodyDrainComplete();
+            EmitEndOfBody(streamId, state);
+            CloseStream(streamId);
+        }
+    }
+
+    // Connection-level WINDOW_UPDATE / SETTINGS change: drain held buffered remainders across all
+    // streams while the shared connection window allows. Ids are snapshotted first because draining
+    // can close (remove) a stream mid-iteration.
+    private void DrainAllBufferedRemainders()
+    {
+        if (_flow.ConnectionSendWindow <= 0)
+        {
+            return;
+        }
+
+        _bufferedDrainScratch.Clear();
+        foreach (var (id, state) in _streams)
+        {
+            if (state.HasBufferedRemainder)
+            {
+                _bufferedDrainScratch.Add(id);
+            }
+        }
+
+        foreach (var id in _bufferedDrainScratch)
+        {
+            if (_flow.ConnectionSendWindow <= 0)
+            {
+                break;
+            }
+
+            DrainBufferedRemainder(id);
+        }
     }
 
     public void OnOutboundFlushed() { }

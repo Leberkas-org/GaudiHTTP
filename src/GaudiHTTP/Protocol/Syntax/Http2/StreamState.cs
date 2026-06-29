@@ -26,6 +26,15 @@ internal sealed class StreamState : IResettable
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
+    private ReadOnlyMemory<byte> _bufferedRemainder;
+
+    // Unsent slice of a buffered response body that did not fit the H2 send window. Held with no
+    // copy (it points into the response feature's still-live WrittenMemory) and emitted directly on
+    // WINDOW_UPDATE — see Http2ServerSessionManager.DrainBufferedRemainder.
+    public bool HasBufferedRemainder => !_bufferedRemainder.IsEmpty;
+    public ReadOnlyMemory<byte> BufferedRemainder => _bufferedRemainder;
+    public void SetBufferedRemainder(ReadOnlyMemory<byte> remainder) => _bufferedRemainder = remainder;
+    public void AdvanceBufferedRemainder(int count) => _bufferedRemainder = _bufferedRemainder[count..];
 
     public string BodyConsumptionTimerKey { get; private set; } = "";
     public string HeadersTimeoutTimerKey { get; private set; } = "";
@@ -242,6 +251,7 @@ internal sealed class StreamState : IResettable
         _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
+        _bufferedRemainder = default;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;
