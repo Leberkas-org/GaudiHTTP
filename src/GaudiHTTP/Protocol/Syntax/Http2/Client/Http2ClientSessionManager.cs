@@ -107,7 +107,8 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _decoderOptions.InitialStreamWindowSize,
             _decoderOptions.InitialConnectionWindowSize,
             _encoderOptions.HeaderTableSize,
-            _encoderOptions.MaxFrameSize);
+            _encoderOptions.MaxFrameSize,
+            _decoderOptions.MaxHeaderListSize);
         var prefaceBuf = TransportBuffer.Rent(prefaceLength);
         prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
         prefaceOwner.Dispose();

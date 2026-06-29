@@ -38,8 +38,7 @@ internal static class ClientOptionsProjections
     public static Http11ClientEncoderOptions ToHttp11EncoderOptions(this GaudiClientOptions o) => new()
     {
         AutoHost = o.Http1.AutoHost,
-        AutoAcceptEncoding = o.Http1.AutoAcceptEncoding,
-        ChunkSize = o.RequestBodyChunkSize
+        AutoAcceptEncoding = o.Http1.AutoAcceptEncoding
     };
 
     public static Http2ClientDecoderOptions ToHttp2DecoderOptions(this GaudiClientOptions o) => new()
@@ -50,7 +49,9 @@ internal static class ClientOptionsProjections
         MaxStreamWindowSize = o.Http2.MaxStreamWindowSize,
         WindowScaleThresholdMultiplier = o.Http2.WindowScaleThresholdMultiplier,
         EnableAdaptiveWindowScaling = o.Http2.EnableAdaptiveWindowScaling,
-        MaxHeaderSize = 16 * 1024,
+        // Single-field limit (RFC 9113 §10.5.1) tracks the configured header-list budget so that
+        // raising MaxResponseHeaderListSize also allows a correspondingly larger single field.
+        MaxHeaderSize = o.Http2.MaxResponseHeaderListSize,
         MaxHeaderListSize = o.Http2.MaxResponseHeaderListSize
     };
 

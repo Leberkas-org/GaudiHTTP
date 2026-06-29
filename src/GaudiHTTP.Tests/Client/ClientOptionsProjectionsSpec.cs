@@ -76,4 +76,24 @@ public sealed class ClientOptionsProjectionsSpec
         Assert.Equal(1.0, dec.WindowScaleThresholdMultiplier);
         Assert.True(dec.EnableAdaptiveWindowScaling);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Http2_single_header_field_limit_should_track_response_header_list_size()
+    {
+        // Regression: MaxHeaderSize (single-field RFC 9113 §10.5.1 guard) was hardcoded to 16 KiB,
+        // so raising MaxResponseHeaderListSize to accept large headers still rejected any single
+        // field over 16 KiB. The single-field limit must track the configured list size.
+        var o = new GaudiClientOptions
+        {
+            Http2 =
+            {
+                MaxResponseHeaderListSize = 256 * 1024
+            }
+        };
+
+        var dec = o.ToHttp2DecoderOptions();
+
+        Assert.Equal(256 * 1024, dec.MaxHeaderSize);
+        Assert.Equal(256 * 1024, dec.MaxHeaderListSize);
+    }
 }
