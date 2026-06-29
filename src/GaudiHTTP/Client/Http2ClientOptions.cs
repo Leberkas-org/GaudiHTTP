@@ -26,7 +26,7 @@ public sealed class Http2ClientOptions
     /// <summary>
     /// Connection-level flow control window size in bytes (RFC 9113 §6.9).
     /// Advertised via WINDOW_UPDATE on stream 0 during the connection preface.
-    /// Default is 16 MB. Higher values improve throughput on high-bandwidth links
+    /// Default is 64 MB. Higher values improve throughput on high-bandwidth links
     /// but increase per-connection memory when consumers read slowly.
     /// </summary>
     public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;
@@ -92,8 +92,11 @@ public sealed class Http2ClientOptions
 
     /// <summary>
     /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
-    /// Prevents unbounded memory growth during concurrent uploads. Default is 64 KiB.
+    /// Default is 64 KiB.
     /// </summary>
+    [Obsolete("Ignored: outbound request-body memory is already bounded by the HTTP/2 flow-control " +
+              "window (per stream) and the body pump's connection-level read-slot cap. Retained for API " +
+              "compatibility; slated for removal in a future major version.")]
     public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
 
     /// <summary>

@@ -295,8 +295,10 @@ public sealed class GaudiClientOptionsSpec
     {
         var o = new GaudiClientOptions();
 
+#pragma warning disable CS0618 // obsolete/inert but retained for API compatibility
         Assert.Equal(64 * 1024, o.Http2.MaxRequestBodyBufferSize);
         Assert.Equal(64 * 1024, o.Http3.MaxRequestBodyBufferSize);
+#pragma warning restore CS0618
     }
 
     [Fact(Timeout = 5000)]

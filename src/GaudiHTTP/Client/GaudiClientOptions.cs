@@ -161,14 +161,18 @@ public sealed class GaudiClientOptions
 
     /// <summary>
     /// Credentials for server authentication (e.g., Basic, Digest).
-    /// When set, the <c>Authorization</c> header is injected into requests
-    /// during enrichment. Default is <see langword="null"/>.
+    /// These are only applied when <see cref="PreAuthenticate"/> is <see langword="true"/>,
+    /// in which case the <c>Authorization</c> header is injected during request enrichment.
+    /// Reactive (401-challenge) authentication is not currently supported, so credentials have
+    /// no effect unless <see cref="PreAuthenticate"/> is enabled. Default is <see langword="null"/>.
     /// </summary>
     public ICredentials? Credentials { get; set; }
 
     /// <summary>
-    /// When <see langword="true"/>, an <c>Authorization</c> header is sent with
-    /// the initial request instead of waiting for a 401 challenge.
+    /// When <see langword="true"/>, an <c>Authorization</c> header derived from
+    /// <see cref="Credentials"/> is sent pre-emptively with every request.
+    /// This is currently the only supported authentication mode — there is no reactive
+    /// 401-challenge handling, so credentials are ignored when this is <see langword="false"/>.
     /// Only effective when <see cref="Credentials"/> is set. Default is <see langword="false"/>.
     /// </summary>
     public bool PreAuthenticate { get; set; }

@@ -200,6 +200,36 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
+    public void OnRequest_body_should_chunk_at_configured_RequestBodyChunkSize()
+    {
+        // Regression: the HTTP/1.0 body pump hardcoded a 16 KiB chunk size, ignoring the
+        // configured RequestBodyChunkSize. A small configured size must split the body.
+        var config = new GaudiClientOptions { RequestBodyChunkSize = 4 };
+        var ops = new FakeClientOps();
+        var sm = new Http10ClientStateMachine(ops, config);
+        sm.PreStart();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
+        {
+            Content = new ByteArrayContent("helloworld"u8.ToArray())
+        };
+        sm.OnRequest(request);
+
+        while (ops.BodyMessages.Count > 0)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+
+        var transportData = ops.Outbound.OfType<TransportData>().ToList();
+        // transportData[0] is the header block; body chunks follow.
+        Assert.True(transportData.Count >= 3, "Body of 10 bytes at chunk size 4 should emit multiple body frames");
+        Assert.Equal(4, transportData[1].Buffer.Length);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC1945-5")]
     public void OnRequest_with_unknown_cl_body_should_fail_request()
     {
         var ops = new FakeClientOps();

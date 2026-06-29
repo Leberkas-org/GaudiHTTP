@@ -41,7 +41,6 @@ internal static class ClientOptionDefaults
     {
         AutoHost = true,
         AutoAcceptEncoding = true,
-        ChunkSize = 16 * 1024,
     };
 
     public static Http2ClientDecoderOptions Http2Decoder() => new()

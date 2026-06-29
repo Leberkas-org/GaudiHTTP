@@ -37,12 +37,14 @@ public sealed class Http1ClientOptions
     /// <summary>
     /// Automatically add a Host header derived from the request URI if none is present.
     /// Default is true, matching standard HTTP/1.1 behavior.
+    /// Applies to HTTP/1.1 only; the legacy HTTP/1.0 encoder does not inject a Host header.
     /// </summary>
     public bool AutoHost { get; set; } = true;
 
     /// <summary>
     /// Automatically add Accept-Encoding: gzip, deflate, br if no Accept-Encoding header is present.
     /// Default is true.
+    /// Applies to HTTP/1.1 only; the legacy HTTP/1.0 encoder does not inject an Accept-Encoding header.
     /// </summary>
     public bool AutoAcceptEncoding { get; set; } = true;
 
