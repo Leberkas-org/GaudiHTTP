@@ -318,6 +318,51 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Capacity_grant_during_pending_completion_must_not_corrupt_buffer()
+    {
+        // Regression: force-async defers each sync read's completion to the mailbox while the
+        // bytes still live in the single reused _buffer. A capacity grant (OnCapacityAvailable)
+        // arriving in that window must NOT start the next read and overwrite _buffer before the
+        // queued BodyReadComplete emits it. The pump keeps _isReadInFlight across the hop to
+        // prevent exactly this; without it, >64 KB bodies corrupt over H1.
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 16, maxCapacity: 2);
+        var totalSize = 16 * 8; // 8 distinct chunks
+        var body = MakeBody(totalSize);
+
+        pump.Register(body, contentLength: null, CancellationToken.None);
+
+        // Adversarial schedule: inject a capacity grant before draining each queued completion,
+        // i.e. exactly while a completion that still references _buffer is in flight.
+        var guard = 0;
+        while (target.Completed.Count == 0 && guard++ < 10_000)
+        {
+            pump.OnCapacityAvailable();
+            if (target.PendingMessages.Count == 0)
+            {
+                continue;
+            }
+
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case BodyReadComplete<int> rc:
+                    pump.HandleReadComplete(rc.BytesRead);
+                    break;
+                case BodyReadContinue<int>:
+                    pump.HandleBodyReadContinue();
+                    break;
+            }
+        }
+
+        // The reassembled body must equal the original, in order — no chunk overwritten.
+        var reassembled = target.Emitted.Where(e => !e.EndStream).SelectMany(e => e.Data).ToArray();
+        Assert.Equal(MakeBody(totalSize).ToArray(), reassembled);
+        Assert.Single(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
     public void HandleReadComplete_should_complete_drain()
     {
         var target = new FakeTarget();

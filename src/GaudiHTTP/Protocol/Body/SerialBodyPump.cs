@@ -130,7 +130,10 @@ internal sealed class SerialBodyPump
 
         if (vt.IsCompletedSuccessfully)
         {
-            _isReadInFlight = false;
+            // Force-async: the bytes sit in the shared _buffer until the Tell'd completion is
+            // processed. Keep _isReadInFlight = true across the mailbox hop (exactly like the
+            // PipeTo path below) so an interleaved OnCapacityAvailable -> TryStartRead cannot
+            // start the next read and overwrite _buffer before HandleReadComplete emits it.
             _consecutiveSyncReads = 0;
             _target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
             return;
