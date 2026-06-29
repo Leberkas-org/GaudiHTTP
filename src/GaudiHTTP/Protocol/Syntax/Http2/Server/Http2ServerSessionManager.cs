@@ -38,6 +38,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     private readonly long _maxRequestBodySize;
     private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly TimeSpan _bodyConsumptionTimeout;
+    private readonly TimeSpan _requestHeadersTimeout;
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
@@ -105,6 +106,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
+        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
         _initialStreamWindowSize = options.InitialStreamWindowSize;
 
         var rate = options.ToRateMonitor();
@@ -544,7 +546,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
             _nextContinuationStreamId = streamId;
             _continuationEndStream = headers.EndStream;
-            _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
+            _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
         }
     }
 

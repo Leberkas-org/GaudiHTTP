@@ -90,6 +90,50 @@ public sealed class Http3CriticalStreamsSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-7.2.4.1")]
+    public void PreStart_should_advertise_max_field_section_size()
+    {
+        // Regression: the server enforced MaxFieldSectionSize locally but never advertised
+        // SETTINGS_MAX_FIELD_SECTION_SIZE, so peers could not pre-trim oversized header blocks.
+        // DefaultConnectionOptions maps MaxHeaderListSize (32 KiB) → decoder MaxFieldSectionSize.
+        var ops = new FakeServerOps();
+        var sm = CreateSM(ops);
+
+        sm.PreStart();
+
+        var settings = ExtractControlSettings(ops);
+        Assert.NotNull(settings);
+        Assert.Equal(32L * 1024, settings!.MaxFieldSectionSize);
+    }
+
+    private static Settings? ExtractControlSettings(FakeServerOps ops)
+    {
+        var control = ops.Outbound.OfType<MultiplexedData>()
+            .FirstOrDefault(m => m.StreamId == CriticalStreamId.ControlId);
+        if (control is null)
+        {
+            return null;
+        }
+
+        var span = control.Buffer.Span;
+        QuicVarInt.TryDecode(span, out _, out var streamTypeBytes);
+        span = span[streamTypeBytes..];
+        if (!QuicVarInt.TryDecode(span, out _, out var frameTypeBytes))
+        {
+            return null;
+        }
+
+        span = span[frameTypeBytes..];
+        if (!QuicVarInt.TryDecode(span, out var payloadLength, out var payloadLenBytes))
+        {
+            return null;
+        }
+
+        span = span[payloadLenBytes..];
+        return Settings.Deserialize(span[..(int)payloadLength]);
+    }
+
+    [Fact(Timeout = 5000)]
     public void Cleanup_should_dispose_all_streams_and_reset()
     {
         var ops = new FakeServerOps();

@@ -37,6 +37,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly long _maxRequestBodySize;
     private readonly int _responseBodyChunkSize;
     private readonly TimeSpan _bodyConsumptionTimeout;
+    private readonly TimeSpan _requestHeadersTimeout;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly CancellationTokenSource _connectionCts = new();
@@ -75,12 +76,14 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _responseBodyChunkSize = options.ToBodyEncoderOptions().ChunkSize;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
+        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
 
         _tableSync = new QpackTableSync(
             encoderMaxCapacity: 0,
             decoderMaxCapacity: _encoderOptions.QpackMaxTableCapacity,
             maxBlockedStreams: _encoderOptions.QpackBlockedStreams,
-            configuredEncoderLimit: _encoderOptions.QpackMaxTableCapacity);
+            configuredEncoderLimit: _encoderOptions.QpackMaxTableCapacity,
+            useHuffman: _encoderOptions.UseHuffman);
 
         _requestDecoder = new Http3ServerDecoder(_tableSync, _decoderOptions);
         _responseEncoder = new Http3ServerEncoder(_tableSync, _encoderOptions);
@@ -527,7 +530,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                                         state.IsHeadersBlocked = true;
                                     }
 
-                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
+                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
                                 }
                             }
 
@@ -858,6 +861,9 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         var settings = new Settings();
         settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
         settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
+        // RFC 9114 §7.2.4.1: advertise the largest header section we will accept so the peer can
+        // pre-trim oversized header blocks instead of having them rejected after the fact.
+        settings.Set(SettingsIdentifier.MaxFieldSectionSize, _decoderOptions.MaxFieldSectionSize);
         var settingsFrame = settings.ToFrame();
 
         var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);

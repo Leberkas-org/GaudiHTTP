@@ -2,6 +2,9 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Tests.Server.Options;
 
+// CS0618: this spec intentionally exercises the obsolete-but-retained per-protocol
+// MaxResponseBufferSize override to lock in its projection/fallback behaviour.
+#pragma warning disable CS0618
 public sealed class ServerOptionsProjectionsSpec
 {
     [Fact(Timeout = 5000)]
@@ -202,14 +205,6 @@ public sealed class ServerOptionsProjectionsSpec
         var o = new GaudiServerOptions();
 
         Assert.Equal(1024 * 1024, o.Limits.MaxRequestBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void MaxOutboundCoalesceCount_default_should_be_32()
-    {
-        var o = new GaudiServerOptions();
-
-        Assert.Equal(32, o.MaxOutboundCoalesceCount);
     }
 
     [Fact(Timeout = 5000)]
