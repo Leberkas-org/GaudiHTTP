@@ -132,6 +132,36 @@ public sealed class QpackEncoderSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-4.1.2")]
+    public void Should_emit_raw_literal_value_when_huffman_disabled()
+    {
+        // Regression: HTTP/3 AllowResponseHeaderCompression(false) was ignored — the QPACK encoder
+        // always Huffman-coded. With useHuffman:false the value must be emitted verbatim on the wire.
+        var headers = new List<(string, string)> { ("x-custom", "aaaaaaaaaa") };
+
+        var huffOff = new QpackEncoder(maxTableCapacity: 0, useHuffman: false);
+        var bufOff = new byte[8192];
+        var wOff = SpanWriter.Create(bufOff);
+        var nOff = huffOff.Encode(headers, ref wOff);
+        Assert.True(ContainsAscii(bufOff.AsSpan(0, nOff), "aaaaaaaaaa"),
+            "useHuffman:false must emit the literal value verbatim");
+
+        var huffOn = new QpackEncoder(maxTableCapacity: 0, useHuffman: true);
+        var bufOn = new byte[8192];
+        var wOn = SpanWriter.Create(bufOn);
+        var nOn = huffOn.Encode(headers, ref wOn);
+        Assert.False(ContainsAscii(bufOn.AsSpan(0, nOn), "aaaaaaaaaa"),
+            "useHuffman:true must Huffman-code the value (raw bytes absent)");
+    }
+
+    private static bool ContainsAscii(ReadOnlySpan<byte> haystack, string needle)
+    {
+        Span<byte> n = stackalloc byte[needle.Length];
+        System.Text.Encoding.ASCII.GetBytes(needle, n);
+        return haystack.IndexOf(n) >= 0;
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9204-7.1")]
     public void Should_NeverIndex_When_SensitiveHeader()
     {

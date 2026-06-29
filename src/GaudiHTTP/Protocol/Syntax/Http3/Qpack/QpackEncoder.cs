@@ -15,12 +15,13 @@ internal sealed class QpackEncoder
 
     private int _maxTableCapacity;
     private bool _enableDynamicTable;
+    private readonly bool _useHuffman;
     private IMemoryOwner<byte>? _instructionOwner;
     private int _instructionBytesWritten;
     private readonly Dictionary<int, int> _pendingSections = new();
     private HeaderEncodingEntry[] _reusableEntries = new HeaderEncodingEntry[16];
 
-    public QpackEncoder(int maxTableCapacity)
+    public QpackEncoder(int maxTableCapacity, bool useHuffman = true)
     {
         if (maxTableCapacity < 0)
         {
@@ -28,6 +29,7 @@ internal sealed class QpackEncoder
         }
 
         _maxTableCapacity = maxTableCapacity;
+        _useHuffman = useHuffman;
         DynamicTable = new QpackDynamicTable(maxTableCapacity);
         _enableDynamicTable = maxTableCapacity > 0;
     }
@@ -379,7 +381,7 @@ internal sealed class QpackEncoder
         }
     }
 
-    private static void WriteLiteralWithDynamicName(string value, int absoluteIndex, int encodingBase,
+    private void WriteLiteralWithDynamicName(string value, int absoluteIndex, int encodingBase,
         bool neverIndex, ref SpanWriter writer)
     {
         if (absoluteIndex < encodingBase)
@@ -398,31 +400,31 @@ internal sealed class QpackEncoder
         WriteStringValue(value, ref writer);
     }
 
-    private static void WriteLiteralNoNameRef(string name, string value, bool neverIndex, ref SpanWriter writer)
+    private void WriteLiteralNoNameRef(string name, string value, bool neverIndex, ref SpanWriter writer)
     {
         var nameFlags = (byte)(0x20 | (neverIndex ? 0x10 : 0x00));
         WriteStringToOutput(name, 3, nameFlags, ref writer);
         WriteStringValue(value, ref writer);
     }
 
-    private static void WriteStringValue(string value, ref SpanWriter writer)
+    private void WriteStringValue(string value, ref SpanWriter writer)
     {
         WriteStringToOutput(value, 7, 0x00, ref writer);
     }
 
-    private static void WriteStringToOutput(string value, int prefixBits, byte prefixFlags, ref SpanWriter writer)
+    private void WriteStringToOutput(string value, int prefixBits, byte prefixFlags, ref SpanWriter writer)
     {
         var rawLength = Encoding.UTF8.GetByteCount(value);
         if (rawLength == 0)
         {
-            QpackStringCodec.Encode(ReadOnlySpan<byte>.Empty, prefixBits, prefixFlags, ref writer);
+            QpackStringCodec.Encode(ReadOnlySpan<byte>.Empty, prefixBits, prefixFlags, _useHuffman, ref writer);
             return;
         }
 
         var utf8Start = writer.Remaining.Length - rawLength;
         var utf8Region = writer.Remaining[utf8Start..];
         Encoding.UTF8.GetBytes(value.AsSpan(), utf8Region);
-        QpackStringCodec.Encode(utf8Region[..rawLength], prefixBits, prefixFlags, ref writer);
+        QpackStringCodec.Encode(utf8Region[..rawLength], prefixBits, prefixFlags, _useHuffman, ref writer);
     }
 
     private int FindDynamicExact(string name, string value)

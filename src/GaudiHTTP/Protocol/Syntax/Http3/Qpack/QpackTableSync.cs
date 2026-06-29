@@ -33,6 +33,7 @@ internal sealed class QpackTableSync
     private readonly int _encoderMaxCapacity;
     private readonly int _configuredEncoderLimit;
     private readonly int _decoderMaxCapacity;
+    private readonly bool _useHuffman;
 
     /// <summary>
     /// Creates a new QPACK table synchronization coordinator that owns both encoder and decoder.
@@ -54,7 +55,7 @@ internal sealed class QpackTableSync
     /// When null, defaults to <paramref name="encoderMaxCapacity"/>.
     /// </param>
     public QpackTableSync(int encoderMaxCapacity, int decoderMaxCapacity,
-        int maxBlockedStreams, int? configuredEncoderLimit)
+        int maxBlockedStreams, int? configuredEncoderLimit, bool useHuffman = true)
     {
         if (maxBlockedStreams < 0)
         {
@@ -66,7 +67,8 @@ internal sealed class QpackTableSync
         _configuredEncoderLimit = configuredEncoderLimit ?? encoderMaxCapacity;
         _decoderMaxCapacity = decoderMaxCapacity;
         _maxBlockedStreams = maxBlockedStreams;
-        Encoder = new QpackEncoder(encoderMaxCapacity);
+        _useHuffman = useHuffman;
+        Encoder = new QpackEncoder(encoderMaxCapacity, useHuffman);
         Decoder = new QpackDecoder(decoderMaxCapacity, maxBlockedStreams);
         _instructionDecoder = new QpackInstructionDecoder();
         _decoderInstructionDecoder = new QpackInstructionDecoder();
@@ -268,7 +270,7 @@ internal sealed class QpackTableSync
     /// </summary>
     public void Reset()
     {
-        Encoder = new QpackEncoder(_encoderMaxCapacity);
+        Encoder = new QpackEncoder(_encoderMaxCapacity, _useHuffman);
         Decoder = new QpackDecoder(_decoderMaxCapacity, _maxBlockedStreams);
         KnownReceivedCount = 0;
         RemoteMaxFieldSectionSize = null;
