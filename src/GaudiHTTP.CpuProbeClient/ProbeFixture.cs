@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
-namespace GaudiHTTP.CpuProbe;
+namespace GaudiHTTP.CpuProbeClient;
 
 /// <summary>
 /// Thin wrapper around an in-proc Kestrel server + two GaudiHttpClient instances
