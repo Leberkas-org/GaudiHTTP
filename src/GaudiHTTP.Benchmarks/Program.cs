@@ -5,7 +5,26 @@ using GaudiHTTP.Benchmarks.Kestrel;
 if (args.Length > 0 && args[0] == "--alloc-trace")
 {
     var version = args.Length > 1 ? args[1] : "3.0";
-    await AllocTraceHarness.RunAsync(version);
+    await AllocTraceHarness.RunAsync(version, clientOnly: false);
+    return;
+}
+
+if (args.Length > 0 && args[0] == "--alloc-trace-client")
+{
+    var version = args.Length > 1 ? args[1] : "3.0";
+    await AllocTraceHarness.RunAsync(version, clientOnly: true);
+    return;
+}
+
+if (args.Length > 0 && args[0] == "--bench-server")
+{
+    await AllocTraceHarness.RunServerProcessAsync();
+    return;
+}
+
+if (args.Length > 0 && args[0] == "--pool-bench")
+{
+    PoolBenchHarness.Run();
     return;
 }
 

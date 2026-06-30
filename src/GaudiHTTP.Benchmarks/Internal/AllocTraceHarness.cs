@@ -1,24 +1,38 @@
+using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using GaudiHTTP.Client;
 
 namespace GaudiHTTP.Benchmarks.Internal;
 
 /// <summary>
-/// Standalone client-side allocation trace for the Heavy / HTTP/3 / Streaming scenario.
-/// Reproduces the ~1.9 GB allocation figure from the Kestrel report (Heavy, CL=4096, H3) and
-/// attributes it by managed type using the in-process <see cref="AllocationProfiler"/>
-/// (GCAllocationTick, ~100 KB sampling). Not a BenchmarkDotNet benchmark — invoked via
-/// <c>--alloc-trace</c> so it runs in the host process where the client allocates.
+/// Client-side allocation trace for the Heavy / Streaming upload scenario. Attributes managed
+/// allocation by type using the in-process <see cref="AllocationProfiler"/> (GCAllocationTick,
+/// ~100 KB sampling) plus a precise <see cref="GC.GetTotalAllocatedBytes(bool)"/> total. Not a
+/// BenchmarkDotNet benchmark.
+///
+/// Two modes:
+/// <list type="bullet">
+/// <item><c>--alloc-trace &lt;ver&gt;</c>: server runs IN-PROCESS (legacy). The byte[] total is then
+/// contaminated by Kestrel receiving the 1 MB bodies, so only the protocol-DELTA is client-attributable.</item>
+/// <item><c>--alloc-trace-client &lt;ver&gt;</c>: the Kestrel server runs in a CHILD process
+/// (<c>--bench-server</c>), so every byte measured here is client-side. The full real client path
+/// (TCP/TLS/QUIC, framing, transport wrappers) is exercised; only the server's allocations leave the
+/// measured process.</item>
+/// </list>
 /// </summary>
 internal static class AllocTraceHarness
 {
-    public static async Task RunAsync(string version)
+    private const int RequestCount = 4096;
+    private const int WarmupCount = 256;
+    private const string PortsPrefix = "PORTS=";
+
+    public static Task RunAsync(string version) => RunAsync(version, clientOnly: false);
+
+    public static async Task RunAsync(string version, bool clientOnly)
     {
         ThreadPool.GetMinThreads(out var w, out var io);
         ThreadPool.SetMinThreads(Math.Max(w, 1024), Math.Max(io, 1024));
-
-        const int requestCount = 4096;
-        var payload = KestrelBaseClass.GeneratePayload(1 * 1024 * 1024);
 
         var (httpVersion, scheme) = version switch
         {
@@ -28,31 +42,148 @@ internal static class AllocTraceHarness
             _ => throw new ArgumentException($"Unknown version '{version}' (expected 1.1, 2.0, or 3.0)"),
         };
 
+        if (clientOnly)
+        {
+            await RunClientOnlyAsync(version, httpVersion, scheme);
+        }
+        else
+        {
+            await RunInProcessAsync(version, httpVersion, scheme);
+        }
+    }
+
+    private static async Task RunInProcessAsync(string version, Version httpVersion, string scheme)
+    {
         await using var server = new BenchmarkServer();
         await server.InitializeAsync();
 
-        var port = version switch
-        {
-            "1.1" => server.Http11Port,
-            "2.0" => server.Http20Port,
-            _ => server.Http30Port,
-        };
-
-        if (version == "3.0" && (!server.IsQuicAvailable || server.Http30Port == 0))
+        var port = SelectPort(version, server.Http11Port, server.Http20Port, server.Http30Port);
+        if (version == "3.0" && (!server.IsQuicAvailable || port == 0))
         {
             Console.Error.WriteLine("HTTP/3 (QUIC) is not available on this host — cannot run the H3 allocation trace.");
             return;
         }
 
         var baseAddress = new Uri($"{scheme}://127.0.0.1:{port}");
+        Console.WriteLine($"[in-process server] HTTP/{version} on {baseAddress}; server allocations CONTAMINATE the totals.");
+        await MeasureClientAsync(baseAddress, httpVersion, version);
+    }
+
+    private static async Task RunClientOnlyAsync(string version, Version httpVersion, string scheme)
+    {
+        using var child = StartServerProcess();
+
+        // Read the port line the child emits once Kestrel is listening.
+        int h11 = 0, h20 = 0, h30 = 0;
+        var quicAvailable = false;
+        string? line;
+        while ((line = await child.StandardOutput.ReadLineAsync()) is not null)
+        {
+            if (line.StartsWith(PortsPrefix, StringComparison.Ordinal))
+            {
+                var parts = line[PortsPrefix.Length..].Split(',');
+                h11 = int.Parse(parts[0]);
+                h20 = int.Parse(parts[1]);
+                h30 = int.Parse(parts[2]);
+                quicAvailable = bool.Parse(parts[3]);
+                break;
+            }
+            Console.WriteLine($"[server] {line}");
+        }
+
+        if (line is null)
+        {
+            Console.Error.WriteLine("Server child process exited before reporting its ports.");
+            return;
+        }
+
+        try
+        {
+            var port = SelectPort(version, h11, h20, h30);
+            if (version == "3.0" && (!quicAvailable || port == 0))
+            {
+                Console.Error.WriteLine("HTTP/3 (QUIC) is not available on this host — cannot run the H3 allocation trace.");
+                return;
+            }
+
+            var baseAddress = new Uri($"{scheme}://127.0.0.1:{port}");
+            Console.WriteLine($"[out-of-process server, pid {child.Id}] HTTP/{version} on {baseAddress}; totals are CLIENT-ONLY.");
+            await MeasureClientAsync(baseAddress, httpVersion, version);
+        }
+        finally
+        {
+            try
+            {
+                child.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // Already exited.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Server-only entry point (<c>--bench-server &lt;ver&gt;</c>). Starts the Kestrel benchmark server,
+    /// emits a single <c>PORTS=h11,h20,h30,quic</c> line on stdout, then runs until the parent kills it.
+    /// </summary>
+    public static async Task RunServerProcessAsync()
+    {
+        await using var server = new BenchmarkServer();
+        await server.InitializeAsync();
+
+        Console.WriteLine($"{PortsPrefix}{server.Http11Port},{server.Http20Port},{server.Http30Port},{server.IsQuicAvailable}");
+        await Console.Out.FlushAsync();
+
+        // Stay alive until the parent terminates the process tree.
+        await Task.Delay(Timeout.Infinite);
+    }
+
+    private static Process StartServerProcess()
+    {
+        var host = Environment.ProcessPath
+            ?? throw new InvalidOperationException("Cannot determine the host executable path.");
+        var entryDll = Assembly.GetEntryAssembly()!.Location;
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = host,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+
+        // When launched via `dotnet`/`dotnet run`, the host is the dotnet muxer and needs the dll as the
+        // first argument; when launched via the apphost exe, the host loads the entry assembly itself.
+        if (Path.GetFileNameWithoutExtension(host).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+        {
+            psi.ArgumentList.Add(entryDll);
+        }
+
+        psi.ArgumentList.Add("--bench-server");
+
+        var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("Failed to start the benchmark server child process.");
+        return process;
+    }
+
+    private static int SelectPort(string version, int h11, int h20, int h30) => version switch
+    {
+        "1.1" => h11,
+        "2.0" => h20,
+        _ => h30,
+    };
+
+    private static async Task MeasureClientAsync(Uri baseAddress, Version httpVersion, string version)
+    {
+        var payload = KestrelBaseClass.GeneratePayload(1 * 1024 * 1024);
         var uploadUri = new Uri(baseAddress, "/upload");
-        Console.WriteLine($"HTTP/{version} server on {baseAddress}; firing {requestCount} x 1MB uploads through the streaming channel.");
+        Console.WriteLine($"Firing {RequestCount} x 1MB uploads through the streaming channel.");
 
         await using var clientHelper = ClientHelper.CreateStreamingClient(baseAddress, httpVersion);
         var client = clientHelper.Client;
 
         // Warm up: connection setup, QPACK, JIT — excluded from the armed window.
-        await StreamUploads(client, uploadUri, payload, count: 256);
+        await StreamUploads(client, uploadUri, payload, WarmupCount);
 
         var profiler = new AllocationProfiler();
         profiler.Reset();
@@ -62,18 +193,22 @@ internal static class AllocTraceHarness
         var before = GC.GetTotalAllocatedBytes(precise: true);
         var (g0, g1, g2) = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
 
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         profiler.Arm();
-        await StreamUploads(client, uploadUri, payload, requestCount);
+        await StreamUploads(client, uploadUri, payload, RequestCount);
         profiler.Disarm();
+        sw.Stop();
 
         var after = GC.GetTotalAllocatedBytes(precise: true);
         var totalAllocated = after - before;
+        var rps = RequestCount / sw.Elapsed.TotalSeconds;
 
         Console.WriteLine();
-        Console.WriteLine($"Total managed allocated over {requestCount} uploads: {totalAllocated:N0} B ({totalAllocated / (1024.0 * 1024.0):N1} MB)");
-        Console.WriteLine($"Per request: {(double)totalAllocated / requestCount / 1024.0:N1} KB");
+        Console.WriteLine($"Throughput: {RequestCount} uploads in {sw.ElapsedMilliseconds:N0} ms = {rps:N0} req/s");
+        Console.WriteLine($"Total managed allocated over {RequestCount} uploads: {totalAllocated:N0} B ({totalAllocated / (1024.0 * 1024.0):N1} MB)");
+        Console.WriteLine($"Per request: {(double)totalAllocated / RequestCount / 1024.0:N1} KB");
         Console.WriteLine($"GC collections during window: gen0={GC.CollectionCount(0) - g0}, gen1={GC.CollectionCount(1) - g1}, gen2={GC.CollectionCount(2) - g2}");
-        profiler.Report(requestCount, top: 25);
+        profiler.Report(RequestCount, top: 25);
     }
 
     private static async Task StreamUploads(IGaudiHttpClient client, Uri uri, byte[] payload, int count)
