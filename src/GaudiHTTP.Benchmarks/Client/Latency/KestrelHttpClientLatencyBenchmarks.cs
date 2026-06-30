@@ -1,14 +1,13 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Latency;
 
 /// <summary>
 /// Baseline single-request latency for .NET <see cref="HttpClient"/> (SocketsHttpHandler) against
 /// a localhost Kestrel server. Mirrors <see cref="KestrelGaudiLatencyBenchmarks"/> exactly so the
 /// per-request round-trips are directly comparable.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(5)]
 [IterationCount(15)]
 public class KestrelHttpClientLatencyBenchmarks : KestrelBaseClass

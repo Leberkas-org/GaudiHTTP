@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 using GaudiHTTP.Client;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
 /// Concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
@@ -11,7 +11,6 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// core multiplexing value proposition); for H1.1 it measures pipelining/serialization on one
 /// connection. The standard concurrent suite hides this by spreading load across many connections.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
 public class KestrelGaudiSingleConnectionBenchmarks : KestrelBaseClass

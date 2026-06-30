@@ -134,9 +134,13 @@ public class EngineBenchmarkConfig : ManualConfig
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
         AddDiagnoser(ThreadingDiagnoser.Default);
-        AddExporter(MarkdownExporter.GitHub);
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom log exporter are added explicitly (adding the defaults again warns).
+        // No AllocationByTypeExporter here: this config runs no EventPipeProfiler, so there are no
+        // traces to post-process, and in-process throughput allocation would be server-contaminated
+        // anyway. Per-type allocation lives only on the Allocation/Micro configs.
+        AddExporter(JsonExporter.Full);
         AddExporter(HttpVersionColorExporter.Default);
-        AddExporter(AllocationByTypeExporter.Default);
         AddColumn(StatisticColumn.P50);
         AddColumn(StatisticColumn.P95);
         AddColumn(StatisticColumn.P100);
@@ -171,7 +175,8 @@ public class AllocationBenchmarkConfig : ManualConfig
             .WithIterationCount(3));
 
         AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
-        AddExporter(MarkdownExporter.GitHub);
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom exporters are added explicitly (adding the defaults again warns).
         AddExporter(JsonExporter.Full);
         AddExporter(AllocationByTypeExporter.Default);
     }
@@ -199,7 +204,8 @@ public class MicroBenchmarkConfig : ManualConfig
             .WithIterationCount(3));
 
         AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
-        AddExporter(MarkdownExporter.GitHub);
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom exporters are added explicitly (adding the defaults again warns).
         AddExporter(JsonExporter.Full);
         AddExporter(AllocationByTypeExporter.Default);
     }

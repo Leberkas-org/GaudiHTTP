@@ -1,12 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Server.Kestrel;
+namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelServerFortunesBenchmark : KestrelBaseClass
+public class GaudiServerFortunesBenchmark : GaudiServerBaseClass
 {
     private const int MaxFanOut = 1024;
 

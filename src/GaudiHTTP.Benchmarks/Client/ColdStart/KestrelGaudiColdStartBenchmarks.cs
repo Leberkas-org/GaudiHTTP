@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 using GaudiHTTP.Client;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.ColdStart;
 
 /// <summary>
 /// Cold-start cost for <see cref="IGaudiHttpClient"/>: each measured invocation creates a fresh
@@ -13,7 +13,6 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// measured region. NOTE: holds several ActorSystems alive per parameter combination — cold-start is
 /// inherently noisier than the steady-state suites; read it as an order-of-magnitude signal.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(2)]
 [IterationCount(8)]
 [InvocationCount(1, 1)]

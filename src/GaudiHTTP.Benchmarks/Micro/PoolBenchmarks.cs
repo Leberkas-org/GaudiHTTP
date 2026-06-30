@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks;
+namespace GaudiHTTP.Benchmarks.Micro;
 
 /// <summary>
 /// Compares the legacy O(n) array-scan object pool against the modern O(1) fast-slot +

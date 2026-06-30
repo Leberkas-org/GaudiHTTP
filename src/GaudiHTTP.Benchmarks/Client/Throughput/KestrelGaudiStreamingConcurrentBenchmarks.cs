@@ -2,9 +2,8 @@ using GaudiHTTP.Client;
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
 public class KestrelGaudiStreamingConcurrentBenchmarks : KestrelBaseClass

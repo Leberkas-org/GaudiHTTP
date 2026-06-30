@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
 /// Baseline concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
@@ -10,7 +10,6 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// efficiency is directly comparable. EnableMultipleHttp2Connections is irrelevant here because
 /// the per-server cap is pinned to 1.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
 public class KestrelHttpClientSingleConnectionBenchmarks : KestrelBaseClass
