@@ -50,6 +50,15 @@ internal sealed class ClientHelper : IAsyncDisposable
         => Build(baseAddress, version, BuildBenchmarkOptions(baseAddress, maxConnectionsOverride: null));
 
     /// <summary>
+    /// Creates a client whose feature pipeline is configured through the builder (e.g. <c>WithCache</c>),
+    /// while keeping the SAME transport <see cref="GaudiClientOptions"/> as the other benchmark clients
+    /// so the comparison stays apples-to-apples.
+    /// </summary>
+    public static ClientHelper CreateFeatureClient(
+        Uri baseAddress, Version version, Action<IGaudiHttpClientBuilder> configure)
+        => Build(baseAddress, version, BuildBenchmarkOptions(baseAddress, maxConnectionsOverride: null), configure);
+
+    /// <summary>
     /// Single source of truth for the benchmark client configuration, shared by both the SendAsync
     /// and channel-based helpers. Keeping one config guarantees the two usage patterns differ ONLY
     /// in how the benchmark drives the client, never in internal body handling or connection topology.
@@ -93,7 +102,9 @@ internal sealed class ClientHelper : IAsyncDisposable
             MaxConcurrentEndpoints = 16384,
         };
 
-    private static ClientHelper Build(Uri baseAddress, Version version, GaudiClientOptions options)
+    private static ClientHelper Build(
+        Uri baseAddress, Version version, GaudiClientOptions options,
+        Action<IGaudiHttpClientBuilder>? configure = null)
     {
         var services = new ServiceCollection();
 
@@ -115,7 +126,9 @@ internal sealed class ClientHelper : IAsyncDisposable
         var system = ActorSystem.Create($"GaudiHttp-bench-{Guid.NewGuid():N}", hocon);
         services.AddSingleton(system);
 
-        services.AddGaudiHttpClient();
+        var builder = services.AddGaudiHttpClient();
+        configure?.Invoke(builder);
+
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<GaudiClientOptions>>(
             new FixedOptionsFactory(options)));
 
