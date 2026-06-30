@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
-using GaudiHTTP.Protocol.Multiplexed;
 using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -35,7 +34,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
-    private readonly int _responseBodyChunkSize;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
 
@@ -74,7 +72,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
-        _responseBodyChunkSize = options.ToBodyEncoderOptions().ChunkSize;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
 

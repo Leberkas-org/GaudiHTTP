@@ -4,7 +4,6 @@
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.Client")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.End2End")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.IntegrationTests.Server")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.StressBenchmarks")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("GaudiHTTP.Tests.Shared")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
@@ -153,7 +152,6 @@ namespace GaudiHTTP.Client
         public int MaxFrameSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
         public int MaxReconnectBufferSize { get; set; }
-        public long MaxRequestBodyBufferSize { get; set; }
         public int MaxResponseHeaderListSize { get; set; }
         public int MaxStreamWindowSize { get; set; }
         public double WindowScaleThresholdMultiplier { get; set; }
@@ -169,7 +167,6 @@ namespace GaudiHTTP.Client
         public int MaxFieldSectionSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
         public int MaxReconnectBufferSize { get; set; }
-        public long MaxRequestBodyBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
     }
@@ -424,7 +421,6 @@ namespace GaudiHTTP.Server
         public GaudiHTTP.Server.Http2ServerOptions Http2 { get; }
         public GaudiHTTP.Server.Http3ServerOptions Http3 { get; }
         public GaudiHTTP.Server.GaudiServerLimits Limits { get; }
-        public int MaxOutboundCoalesceCount { get; set; }
         public int ResponseBodyChunkSize { get; set; }
         public System.Collections.Generic.IList<string> Urls { get; }
         public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }
@@ -478,7 +474,6 @@ namespace GaudiHTTP.Server
         public int MaxFrameSize { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
-        public long? MaxResponseBufferSize { get; set; }
         public int MaxStreamWindowSize { get; set; }
         public double? MinRequestBodyDataRate { get; set; }
         public System.TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
@@ -494,7 +489,6 @@ namespace GaudiHTTP.Server
         public int MaxConcurrentStreams { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
-        public long? MaxResponseBufferSize { get; set; }
         public double? MinRequestBodyDataRate { get; set; }
         public System.TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
         public double? MinResponseDataRate { get; set; }
@@ -522,6 +516,7 @@ namespace GaudiHTTP.Server
         public string? ConnectionLoggingCategory { get; init; }
         public required Servus.Akka.Transport.IListenerFactory Factory { get; init; }
         public required Servus.Akka.Transport.ListenerOptions Options { get; init; }
+        public GaudiHTTP.Server.HttpProtocols Protocols { get; init; }
     }
     public sealed class TransportBufferOptions
     {

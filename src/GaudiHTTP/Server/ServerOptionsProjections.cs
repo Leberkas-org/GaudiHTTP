@@ -39,10 +39,6 @@ internal static class ServerOptionsProjections
             HeaderTableSize = o.Http2.HeaderTableSize,
             MaxHeaderListSize = o.Http2.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
-#pragma warning disable CS0618 // per-protocol override obsolete; still read for back-compat fallback
-            MaxResponseBufferSize = o.Http2.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
-#pragma warning restore CS0618
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
             UseHuffman = o.AllowResponseHeaderCompression,
             KeepAlivePingDelay = o.Http2.KeepAlivePingDelay,
@@ -61,10 +57,6 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
             QpackBlockedStreams = o.Http3.QpackBlockedStreams,
-#pragma warning disable CS0618 // per-protocol override obsolete; still read for back-compat fallback
-            MaxResponseBufferSize = o.Http3.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
-#pragma warning restore CS0618
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
             UseHuffman = o.AllowResponseHeaderCompression
         };

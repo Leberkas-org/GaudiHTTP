@@ -1,15 +1,9 @@
-using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 
 namespace GaudiHTTP.Server;
 
 internal static class Http3ConnectionOptionsExtensions
 {
-    public static BodyEncoderOptions ToBodyEncoderOptions(this Http3ConnectionOptions o) => new()
-    {
-        ChunkSize = o.ResponseBodyChunkSize
-    };
-
     public static Http3ServerEncoderOptions ToEncoderOptions(this Http3ConnectionOptions o) => new()
     {
         WriteDateHeader = true,

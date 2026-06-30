@@ -9,8 +9,6 @@ internal sealed record Http3ConnectionOptions
     public required int MaxHeaderCount { get; init; }
     public required int QpackMaxTableCapacity { get; init; }
     public required int QpackBlockedStreams { get; init; }
-    public required long MaxResponseBufferSize { get; init; }
-    public required int ResponseBodyChunkSize { get; init; }
     public required TimeSpan BodyConsumptionTimeout { get; init; }
     public required bool UseHuffman { get; init; }
 }

@@ -113,20 +113,6 @@ public sealed class ServerOptionsProjectionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Http2_response_buffer_limit_should_flow_to_connection_options()
-    {
-        var o = new GaudiServerOptions
-        {
-            Http2 =
-            {
-                MaxResponseBufferSize = 4321
-            }
-        };
-
-        Assert.Equal(4321, o.ToHttp2Options().MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
     public void MaxRequestBodySize_default_should_match_kestrel()
     {
         var o = new GaudiServerOptions();
@@ -140,63 +126,6 @@ public sealed class ServerOptionsProjectionsSpec
         var o = new GaudiServerOptions();
 
         Assert.Equal(64 * 1024, o.Limits.MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Http2_MaxResponseBufferSize_should_fall_back_to_global()
-    {
-        var o = new GaudiServerOptions
-        {
-            Limits = { MaxResponseBufferSize = 99_999 }
-        };
-
-        Assert.Equal(99_999, o.ToHttp2Options().MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Http2_MaxResponseBufferSize_override_should_win()
-    {
-        var o = new GaudiServerOptions
-        {
-            Limits = { MaxResponseBufferSize = 99_999 },
-            Http2 = { MaxResponseBufferSize = 42 }
-        };
-
-        Assert.Equal(42, o.ToHttp2Options().MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Http3_MaxResponseBufferSize_should_fall_back_to_global()
-    {
-        var o = new GaudiServerOptions
-        {
-            Limits = { MaxResponseBufferSize = 88_888 }
-        };
-
-        Assert.Equal(88_888, o.ToHttp3Options().MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Http3_MaxResponseBufferSize_override_should_win()
-    {
-        var o = new GaudiServerOptions
-        {
-            Limits = { MaxResponseBufferSize = 88_888 },
-            Http3 = { MaxResponseBufferSize = 77 }
-        };
-
-        Assert.Equal(77, o.ToHttp3Options().MaxResponseBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Http3_response_buffer_limit_should_flow_to_connection_options()
-    {
-        var o = new GaudiServerOptions
-        {
-            Http3 = { MaxResponseBufferSize = 5678 }
-        };
-
-        Assert.Equal(5678, o.ToHttp3Options().MaxResponseBufferSize);
     }
 
     [Fact(Timeout = 5000)]

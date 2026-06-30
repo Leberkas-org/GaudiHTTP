@@ -35,12 +35,6 @@ public sealed class Http2ServerOptions
     /// <summary>Gets or sets the maximum total size of request headers in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
     public int? MaxHeaderListSize { get; set; }
 
-    /// <summary>Gets or sets the maximum size of the response write buffer in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxResponseBufferSize"/>.</summary>
-    [Obsolete("Per-protocol override is inert: the transport write-pipe is bound before ALPN protocol " +
-              "selection, so only the connection-level GaudiServerLimits.MaxResponseBufferSize is honored. " +
-              "Retained for API compatibility; slated for removal in a future major version.")]
-    public long? MaxResponseBufferSize { get; set; }
-
     /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
 
