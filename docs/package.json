@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "charts": "node scripts/generate-charts.mjs"
   },
   "devDependencies": {
+    "chart.js": "^4.4.7",
     "vitepress": "^1.6.3"
   },
   "dependencies": {

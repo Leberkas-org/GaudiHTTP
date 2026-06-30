@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
@@ -14,6 +16,9 @@ namespace GaudiHTTP.Benchmarks.Internal;
 public sealed class AllocationByTypeExporter : IExporter
 {
     public static readonly AllocationByTypeExporter Default = new();
+
+    private static readonly System.Text.RegularExpressions.Regex TimestampSuffix =
+        new(@"-\d{8}-\d{6}$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
     public string Name => nameof(AllocationByTypeExporter);
 
@@ -55,11 +60,14 @@ public sealed class AllocationByTypeExporter : IExporter
                 continue;
             }
 
-            var benchmarkName = Path.GetFileNameWithoutExtension(traceFile);
-            var dashIdx = benchmarkName.LastIndexOf('-');
-            if (dashIdx > 0)
+            var traceName = Path.GetFileNameWithoutExtension(traceFile);
+            // Strip BenchmarkDotNet's trailing "-yyyyMMdd-HHmmss" timestamp for a clean label;
+            // fall back to the last dash segment if the timestamp pattern is absent.
+            var benchmarkName = TimestampSuffix.Replace(traceName, string.Empty);
+            if (ReferenceEquals(benchmarkName, traceName) || benchmarkName == traceName)
             {
-                benchmarkName = benchmarkName[..dashIdx];
+                var dashIdx = traceName.LastIndexOf('-');
+                benchmarkName = dashIdx > 0 ? traceName[..dashIdx] : traceName;
             }
 
             var totalBytes = allocs.Sum(a => a.Bytes);
@@ -99,6 +107,21 @@ public sealed class AllocationByTypeExporter : IExporter
             }
 
             outputFiles.Add(mdPath);
+
+            // Machine-readable sibling for charting. The allocation charts MUST be fed from this
+            // process-wide EventPipe total — never from the MemoryDiagnoser column, which only sees
+            // the calling thread and massively under-counts the Akka/Task background allocations.
+            var jsonPath = Path.ChangeExtension(traceFile, ".alloc-by-type.json");
+            var payload = new AllocationByTypePayload(
+                benchmarkName,
+                traceName,
+                totalBytes,
+                totalTicks,
+                allocs.Select(a => new AllocationByTypeEntry(a.Type, a.Bytes, a.Count)).ToArray());
+            File.WriteAllText(
+                jsonPath,
+                JsonSerializer.Serialize(payload, AllocationJsonContext.Default.AllocationByTypePayload));
+            outputFiles.Add(jsonPath);
         }
 
         foreach (var traceFile in traceFiles)
@@ -155,3 +178,22 @@ public sealed class AllocationByTypeExporter : IExporter
             .ToList();
     }
 }
+
+/// <summary>
+/// Machine-readable per-benchmark allocation breakdown emitted next to each EventPipe trace.
+/// <paramref name="TotalBytes"/> is the process-wide, sampled GCAllocationTick total — the only
+/// allocation figure the charting tool is allowed to plot.
+/// </summary>
+public sealed record AllocationByTypePayload(
+    string Benchmark,
+    string Trace,
+    long TotalBytes,
+    long TotalTicks,
+    AllocationByTypeEntry[] Types);
+
+/// <summary>One allocated type with its sampled byte total and tick count.</summary>
+public sealed record AllocationByTypeEntry(string Type, long Bytes, long Count);
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(AllocationByTypePayload))]
+internal sealed partial class AllocationJsonContext : JsonSerializerContext;
