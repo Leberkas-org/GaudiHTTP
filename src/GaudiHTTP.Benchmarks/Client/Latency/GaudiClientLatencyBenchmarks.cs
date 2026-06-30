@@ -6,7 +6,7 @@ namespace GaudiHTTP.Benchmarks.Client.Latency;
 
 [WarmupCount(5)]
 [IterationCount(15)]
-public class KestrelGaudiLatencyBenchmarks : KestrelBaseClass
+public class GaudiClientLatencyBenchmarks : KestrelBaseClass
 {
     private const int Ops = 32;
 

@@ -11,7 +11,7 @@ namespace GaudiHTTP.Benchmarks.Client.Throughput;
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelGaudiSendAsyncConcurrentBenchmarks : KestrelBaseClass
+public class GaudiClientSendAsyncConcurrentBenchmarks : KestrelBaseClass
 {
     [Params(1, 512, 4096)]
     public int ConcurrencyLevel { get; set; }

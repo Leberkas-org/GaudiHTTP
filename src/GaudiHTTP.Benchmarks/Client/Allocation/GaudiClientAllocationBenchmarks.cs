@@ -14,7 +14,7 @@ namespace GaudiHTTP.Benchmarks.Client.Allocation;
 /// allocation config from merging with the throughput-oriented EngineBenchmarkConfig.
 /// </summary>
 [Config(typeof(AllocationBenchmarkConfig))]
-public class ClientAllocationBenchmarks
+public class GaudiClientAllocationBenchmarks
 {
     public enum Direction
     {

@@ -5,7 +5,7 @@ namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
 [WarmupCount(3)]
 [IterationCount(10)]
-public class GaudiServerJsonBenchmark : GaudiServerBaseClass
+public class KestrelServerPlaintextBenchmarks : KestrelBaseClass
 {
     private const int MaxFanOut = 1024;
 
@@ -53,20 +53,20 @@ public class GaudiServerJsonBenchmark : GaudiServerBaseClass
 
     public override async Task WarmupRequest()
     {
-        using var response = await _httpClient.GetAsync(JsonUri);
+        using var response = await _httpClient.GetAsync(PlaintextUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task Json_Sequential()
+    public async Task Plaintext_Sequential()
     {
-        using var response = await _httpClient.GetAsync(JsonUri);
+        using var response = await _httpClient.GetAsync(PlaintextUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
     [BenchmarkCategory("Concurrent")]
-    public Task Json_Concurrent()
+    public Task Plaintext_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
@@ -80,7 +80,7 @@ public class GaudiServerJsonBenchmark : GaudiServerBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var response = await _httpClient.GetAsync(JsonUri);
+            using var response = await _httpClient.GetAsync(PlaintextUri);
             response.EnsureSuccessStatusCode();
         }
         finally

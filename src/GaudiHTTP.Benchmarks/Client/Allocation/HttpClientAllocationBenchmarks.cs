@@ -5,7 +5,7 @@ using GaudiHTTP.Benchmarks.Internal;
 namespace GaudiHTTP.Benchmarks.Client.Allocation;
 
 /// <summary>
-/// HttpClient baseline for <see cref="ClientAllocationBenchmarks"/>: the same out-of-process,
+/// HttpClient baseline for <see cref="GaudiClientAllocationBenchmarks"/>: the same out-of-process,
 /// single-client allocation measurement (process-wide EventPipe total via
 /// <see cref="AllocationBenchmarkConfig"/>) for upload/download at MB scale, using SocketsHttpHandler.
 /// Compared offline against the GaudiHttp numbers — never in-process (cross-client allocation is not

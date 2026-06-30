@@ -10,7 +10,7 @@ namespace GaudiHTTP.Benchmarks.Client.Throughput;
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class HeavyConcurrentGaudiBenchmarks : KestrelBaseClass
+public class GaudiClientHeavyConcurrentBenchmarks : KestrelBaseClass
 {
     public enum Direction { Upload, Download }
 

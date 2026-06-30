@@ -1,30 +1,31 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Client;
 
 namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
-/// Baseline concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
-/// .NET <see cref="HttpClient"/> (SocketsHttpHandler). Mirrors
-/// <see cref="KestrelGaudiSingleConnectionBenchmarks"/> so single-connection multiplexing
-/// efficiency is directly comparable. EnableMultipleHttp2Connections is irrelevant here because
-/// the per-server cap is pinned to 1.
+/// Concurrent light GETs over a SINGLE connection (MaxConnectionsPerServer = 1) for
+/// <see cref="IGaudiHttpClient.SendAsync"/>. This isolates pure protocol multiplexing efficiency:
+/// for H2/H3 it measures stream multiplexing + HPACK/QPACK + flow control on one connection (the
+/// core multiplexing value proposition); for H1.1 it measures pipelining/serialization on one
+/// connection. The standard concurrent suite hides this by spreading load across many connections.
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelHttpClientSingleConnectionBenchmarks : KestrelBaseClass
+public class GaudiClientSingleConnectionBenchmarks : KestrelBaseClass
 {
     [Params(64, 256)]
     public int ConcurrencyLevel { get; set; }
 
-    private HttpClient _httpClient = null!;
+    private ClientHelper _clientHelper = null!;
     private Task[] _tasks = null!;
 
     [GlobalSetup]
     public override async Task GlobalSetup()
     {
         await base.GlobalSetup();
-        _httpClient = CreateBaselineHttpClient(maxConnectionsPerServer: 1);
+        _clientHelper = ClientHelper.CreateClient(BaseAddress, HttpVersionValue, maxConnectionsOverride: 1);
         _tasks = new Task[ConcurrencyLevel];
         await WarmupRequest();
     }
@@ -32,7 +33,7 @@ public class KestrelHttpClientSingleConnectionBenchmarks : KestrelBaseClass
     [GlobalCleanup]
     public override async Task GlobalCleanup()
     {
-        _httpClient.Dispose();
+        await _clientHelper.DisposeAsync();
         await base.GlobalCleanup();
     }
 
@@ -55,7 +56,8 @@ public class KestrelHttpClientSingleConnectionBenchmarks : KestrelBaseClass
 
     private async Task SendLight()
     {
-        using var response = await _httpClient.GetAsync(LightUri);
+        using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
+        using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
         response.EnsureSuccessStatusCode();
     }
 }

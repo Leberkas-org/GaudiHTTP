@@ -70,10 +70,10 @@ dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
 
 **Advantage scenarios (GaudiHttp vs out-of-the-box HttpClient):** `Client/Caching` (cache-hit
 goodput — HttpClient has no built-in cache), `Client/Streaming` (sustained channel-API pipeline +
-backpressure), `Client/Throughput/HeavyConcurrent*` (heavy concurrent MB transfers). Each is a paired
-`*Gaudi*` / `*HttpClient*` class with identical params. The memory/bounded-allocation story is the
-out-of-process `Client/Allocation` pair (Gaudi vs HttpClient, each measured alone) — compared offline,
-fed from the EventPipe total only.
+backpressure), `Client/Throughput/*HeavyConcurrent*` (heavy concurrent MB transfers). Each is a paired
+`*GaudiClient*` / `*HttpClient*` class with identical params. The memory/bounded-allocation story is the
+out-of-process `Client/Allocation` pair (GaudiClient vs HttpClient, each measured alone) — compared
+offline, fed from the EventPipe total only.
 
 | Config | Used by | Job | Native exporters | Metric to read |
 |--------|---------|-----|------------------|----------------|

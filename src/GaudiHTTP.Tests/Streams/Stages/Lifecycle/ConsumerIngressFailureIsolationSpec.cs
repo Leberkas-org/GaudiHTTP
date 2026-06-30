@@ -10,7 +10,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// Repro for the high-concurrency client collapse observed in the 2026-06-19 benchmark run
-/// (KestrelGaudiSendAsyncConcurrentBenchmarks at ConcurrencyLevel 4096, HTTP/2 + HTTP/3 → "NA",
+/// (GaudiClientSendAsyncConcurrentBenchmarks at ConcurrencyLevel 4096, HTTP/2 + HTTP/3 → "NA",
 /// 1229 exceptions, then a 120s WaitAsync timeout).
 ///
 /// Root cause, from the benchmark log stack trace:

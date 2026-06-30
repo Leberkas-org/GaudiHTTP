@@ -1,17 +1,15 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Client.Throughput;
+namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
-/// <summary>
-/// Baseline benchmarks measuring standard .NET <see cref="HttpClient"/> performance
-/// under concurrent load against a localhost Kestrel server.
-/// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
+public class KestrelServerFortunesBenchmarks : KestrelBaseClass
 {
-    [Params(1, 512, 4096)]
+    private const int MaxFanOut = 1024;
+
+    [Params(1, 64, 256)]
     public int ConcurrencyLevel { get; set; }
 
     private HttpClient _httpClient = null!;
@@ -29,7 +27,7 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
         {
             AllowAutoRedirect = false,
             EnableMultipleHttp2Connections = true,
-            MaxConnectionsPerServer = 64,
+            MaxConnectionsPerServer = 128,
             SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
         };
 
@@ -41,7 +39,7 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
         };
 
         _tasks = new Task[ConcurrencyLevel];
-        _fanOutGate = new SemaphoreSlim(MaxInFlight, MaxInFlight);
+        _fanOutGate = new SemaphoreSlim(MaxFanOut, MaxFanOut);
         await WarmupRequest();
     }
 
@@ -53,56 +51,36 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
         await base.GlobalCleanup();
     }
 
-    /// <inheritdoc />
     public override async Task WarmupRequest()
     {
-        using var response = await _httpClient.GetAsync(LightUri);
+        using var response = await _httpClient.GetAsync(FortunesUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task ConcurrentRequests_Light()
+    public async Task Fortunes_Sequential()
     {
-        for (var i = 0; i < ConcurrencyLevel; i++)
-        {
-            _tasks[i] = SendLightRequest();
-        }
-
-        await Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        using var response = await _httpClient.GetAsync(FortunesUri);
+        response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task ConcurrentRequests_Heavy()
+    [BenchmarkCategory("Concurrent")]
+    public Task Fortunes_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
-            _tasks[i] = SendHeavyRequest();
+            _tasks[i] = SendRequest();
         }
-
-        await Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
-    private async Task SendLightRequest()
+    private async Task SendRequest()
     {
         await _fanOutGate.WaitAsync();
         try
         {
-            using var response = await _httpClient.GetAsync(LightUri);
-            response.EnsureSuccessStatusCode();
-        }
-        finally
-        {
-            _fanOutGate.Release();
-        }
-    }
-
-    private async Task SendHeavyRequest()
-    {
-        await _fanOutGate.WaitAsync();
-        try
-        {
-            using var content = new ByteArrayContent(HeavyPayload);
-            using var response = await _httpClient.PostAsync(UploadUri, content);
+            using var response = await _httpClient.GetAsync(FortunesUri);
             response.EnsureSuccessStatusCode();
         }
         finally

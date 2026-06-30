@@ -4,12 +4,12 @@ using GaudiHTTP.Benchmarks.Internal;
 namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
-/// HttpClient baseline for <see cref="HeavyConcurrentGaudiBenchmarks"/>: identical heavy concurrent
+/// HttpClient baseline for <see cref="GaudiClientHeavyConcurrentBenchmarks"/>: identical heavy concurrent
 /// upload/download matrix via SocketsHttpHandler + SendAsync.
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class HeavyConcurrentHttpClientBenchmarks : KestrelBaseClass
+public class HttpClientHeavyConcurrentBenchmarks : KestrelBaseClass
 {
     public enum Direction { Upload, Download }
 

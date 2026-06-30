@@ -4,12 +4,12 @@ using GaudiHTTP.Benchmarks.Internal;
 namespace GaudiHTTP.Benchmarks.Client.Streaming;
 
 /// <summary>
-/// HttpClient baseline for <see cref="SustainedPipelineGaudiBenchmarks"/>: a sustained pipeline bounded
+/// HttpClient baseline for <see cref="GaudiClientSustainedPipelineBenchmarks"/>: a sustained pipeline bounded
 /// by a <see cref="SemaphoreSlim"/> in-flight window (the manual equivalent of the channel API).
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class SustainedPipelineHttpClientBenchmarks : KestrelBaseClass
+public class HttpClientSustainedPipelineBenchmarks : KestrelBaseClass
 {
     public enum Workload { Light, Slow }
 
