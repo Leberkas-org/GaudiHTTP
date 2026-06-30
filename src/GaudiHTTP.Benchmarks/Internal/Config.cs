@@ -127,10 +127,6 @@ public class EngineBenchmarkConfig : ManualConfig
 {
     public EngineBenchmarkConfig()
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var artifactsPath = Path.Combine("BenchmarkDotNet.Artifacts", timestamp);
-
-        WithArtifactsPath(artifactsPath);
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
         AddDiagnoser(ThreadingDiagnoser.Default);
@@ -160,9 +156,6 @@ public class AllocationBenchmarkConfig : ManualConfig
 {
     public AllocationBenchmarkConfig()
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        WithArtifactsPath(Path.Combine("BenchmarkDotNet.Artifacts", string.Concat("alloc_", timestamp)));
-
         // Monitoring strategy with a fixed, low iteration count: each invocation is an expensive
         // concurrent batch, so the default Throughput strategy would auto-scale to thousands of runs
         // and pin every core. EventPipe profiles the actual run (no extra benchmarks run) to avoid
@@ -193,9 +186,6 @@ public class MicroBenchmarkConfig : ManualConfig
 {
     public MicroBenchmarkConfig()
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        WithArtifactsPath(Path.Combine("BenchmarkDotNet.Artifacts", string.Concat("micro_", timestamp)));
-
         AddJob(Job.Default
             .WithGcServer(true)
             .WithStrategy(RunStrategy.Monitoring)
