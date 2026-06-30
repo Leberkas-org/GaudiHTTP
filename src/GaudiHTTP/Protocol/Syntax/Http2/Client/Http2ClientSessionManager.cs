@@ -499,21 +499,56 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
+        const int headerSize = 9;
         var maxFrame = _requestEncoder.MaxFrameSize;
+
+        // Empty body: emit a single empty DATA frame only to carry END_STREAM; otherwise nothing.
+        if (data.IsEmpty)
+        {
+            if (!endStream)
+            {
+                return;
+            }
+
+            var emptyBuf = TransportBuffer.Rent(headerSize);
+            DataFrame.WriteHeaderInPlace(emptyBuf.FullMemory.Span, 0, streamId, 0, endStream: true);
+            emptyBuf.Length = headerSize;
+            Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+                streamId, 0, true);
+            _ops.OnOutbound(TransportData.Rent(emptyBuf));
+            return;
+        }
+
+        // Batch the whole body into ONE TransportBuffer with in-place frame headers (mirrors the
+        // server's EmitBufferedDataFrames). The per-frame path used to rent a TransportBuffer and
+        // hand out a separate outbound item per DATA frame, churning the pool on large uploads.
+        var frameCount = (data.Length + maxFrame - 1) / maxFrame;
+        var totalWireSize = data.Length + frameCount * headerSize;
+
+        var buf = TransportBuffer.Rent(totalWireSize);
+        var dest = buf.FullMemory.Span;
+        var offset = 0;
         var remaining = data;
+
         while (remaining.Length > maxFrame)
         {
-            EmitFrame(new DataFrame(streamId, remaining[..maxFrame], endStream: false));
+            DataFrame.WriteHeaderInPlace(dest, offset, streamId, maxFrame, endStream: false);
+            remaining[..maxFrame].Span.CopyTo(dest[(offset + headerSize)..]);
+            offset += headerSize + maxFrame;
             remaining = remaining[maxFrame..];
+            Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+                streamId, maxFrame, false);
         }
 
-        // Emit the last (or only) chunk. If data was empty and endStream is true,
-        // this correctly emits an empty DATA frame with END_STREAM set.
-        if (!remaining.IsEmpty || endStream)
-        {
-            EmitFrame(new DataFrame(streamId, remaining, endStream));
-        }
+        var lastLen = remaining.Length;
+        DataFrame.WriteHeaderInPlace(dest, offset, streamId, lastLen, endStream);
+        remaining.Span.CopyTo(dest[(offset + headerSize)..]);
+        offset += headerSize + lastLen;
+        Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+            streamId, lastLen, endStream);
 
+        buf.Length = offset;
+        _ops.OnOutbound(TransportData.Rent(buf));
     }
 
     void IBodyDrainTarget.OnDrainComplete(int streamId)
