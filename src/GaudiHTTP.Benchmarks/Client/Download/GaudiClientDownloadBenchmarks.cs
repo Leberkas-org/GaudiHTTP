@@ -12,7 +12,7 @@ namespace GaudiHTTP.Benchmarks.Client.Download;
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelGaudiDownloadBenchmarks : KestrelBaseClass
+public class GaudiClientDownloadBenchmarks : KestrelBaseClass
 {
     [Params(1, 32)]
     public int ConcurrencyLevel { get; set; }

@@ -6,7 +6,7 @@ using GaudiHTTP.Benchmarks.Internal;
 namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
-/// Diagnostic variant of <see cref="KestrelGaudiStreamingConcurrentBenchmarks"/> that isolates
+/// Diagnostic variant of <see cref="GaudiClientStreamingConcurrentBenchmarks"/> that isolates
 /// <em>why</em> the channel (streaming) API trails <see cref="IGaudiHttpClient.SendAsync"/> in the
 /// concurrent throughput report.
 ///
@@ -28,11 +28,11 @@ namespace GaudiHTTP.Benchmarks.Client.Throughput;
 /// allocation per response.
 ///
 /// Baseline equivalence: <c>ReaderCount = 1, ReadBody = true</c> is behaviourally identical to
-/// <see cref="KestrelGaudiStreamingConcurrentBenchmarks"/> and serves as the calibration point.
+/// <see cref="GaudiClientStreamingConcurrentBenchmarks"/> and serves as the calibration point.
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelGaudiStreamingParallelReadersBenchmarks : KestrelBaseClass
+public class GaudiClientStreamingParallelReadersBenchmarks : KestrelBaseClass
 {
     [Params(512, 4096)]
     public int ConcurrencyLevel { get; set; }

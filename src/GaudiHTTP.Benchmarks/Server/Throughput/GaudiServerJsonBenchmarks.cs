@@ -1,11 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Server.Upload;
+namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
 [WarmupCount(3)]
 [IterationCount(10)]
-public class GaudiServerUploadBenchmark : GaudiServerBaseClass
+public class GaudiServerJsonBenchmarks : GaudiServerBaseClass
 {
     private const int MaxFanOut = 1024;
 
@@ -53,22 +53,20 @@ public class GaudiServerUploadBenchmark : GaudiServerBaseClass
 
     public override async Task WarmupRequest()
     {
-        using var content = new ByteArrayContent(HeavyPayload);
-        using var response = await _httpClient.PostAsync(UploadUri, content);
+        using var response = await _httpClient.GetAsync(JsonUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task Upload_Sequential()
+    public async Task Json_Sequential()
     {
-        using var content = new ByteArrayContent(HeavyPayload);
-        using var response = await _httpClient.PostAsync(UploadUri, content);
+        using var response = await _httpClient.GetAsync(JsonUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
     [BenchmarkCategory("Concurrent")]
-    public Task Upload_Concurrent()
+    public Task Json_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
@@ -82,8 +80,7 @@ public class GaudiServerUploadBenchmark : GaudiServerBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var content = new ByteArrayContent(HeavyPayload);
-            using var response = await _httpClient.PostAsync(UploadUri, content);
+            using var response = await _httpClient.GetAsync(JsonUri);
             response.EnsureSuccessStatusCode();
         }
         finally

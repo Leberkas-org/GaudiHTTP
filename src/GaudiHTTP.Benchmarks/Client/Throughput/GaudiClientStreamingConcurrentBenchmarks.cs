@@ -6,7 +6,7 @@ namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelGaudiStreamingConcurrentBenchmarks : KestrelBaseClass
+public class GaudiClientStreamingConcurrentBenchmarks : KestrelBaseClass
 {
     [Params(1, 512, 4096)] public int ConcurrencyLevel { get; set; }
 

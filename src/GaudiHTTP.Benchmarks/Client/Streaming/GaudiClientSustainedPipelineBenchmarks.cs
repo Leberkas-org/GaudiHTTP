@@ -11,7 +11,7 @@ namespace GaudiHTTP.Benchmarks.Client.Streaming;
 /// </summary>
 [WarmupCount(3)]
 [IterationCount(10)]
-public class SustainedPipelineGaudiBenchmarks : KestrelBaseClass
+public class GaudiClientSustainedPipelineBenchmarks : KestrelBaseClass
 {
     public enum Workload { Light, Slow }
 

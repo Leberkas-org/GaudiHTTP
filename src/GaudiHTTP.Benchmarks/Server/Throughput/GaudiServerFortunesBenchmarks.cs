@@ -5,7 +5,7 @@ namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
 [WarmupCount(3)]
 [IterationCount(10)]
-public class GaudiServerPlaintextBenchmark : GaudiServerBaseClass
+public class GaudiServerFortunesBenchmarks : GaudiServerBaseClass
 {
     private const int MaxFanOut = 1024;
 
@@ -53,20 +53,20 @@ public class GaudiServerPlaintextBenchmark : GaudiServerBaseClass
 
     public override async Task WarmupRequest()
     {
-        using var response = await _httpClient.GetAsync(PlaintextUri);
+        using var response = await _httpClient.GetAsync(FortunesUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task Plaintext_Sequential()
+    public async Task Fortunes_Sequential()
     {
-        using var response = await _httpClient.GetAsync(PlaintextUri);
+        using var response = await _httpClient.GetAsync(FortunesUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
     [BenchmarkCategory("Concurrent")]
-    public Task Plaintext_Concurrent()
+    public Task Fortunes_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
@@ -80,7 +80,7 @@ public class GaudiServerPlaintextBenchmark : GaudiServerBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var response = await _httpClient.GetAsync(PlaintextUri);
+            using var response = await _httpClient.GetAsync(FortunesUri);
             response.EnsureSuccessStatusCode();
         }
         finally
