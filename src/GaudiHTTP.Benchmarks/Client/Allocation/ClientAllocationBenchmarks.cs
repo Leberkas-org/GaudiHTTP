@@ -23,15 +23,17 @@ public class ClientAllocationBenchmarks
     }
 
     private const int BatchSize = 1024;
-    private const int OneMegabyte = 1 * 1024 * 1024;
-
-    private static readonly byte[] Payload = KestrelBaseClass.GeneratePayload(OneMegabyte);
 
     [Params("1.1", "2.0", "3.0")]
     public string HttpVersion { get; set; } = "1.1";
 
     [Params(Direction.Upload, Direction.Download)]
     public Direction Mode { get; set; }
+
+    [Params(1 * 1024 * 1024, 8 * 1024 * 1024)]
+    public int BodySize { get; set; }
+
+    private byte[] _payload = null!;
 
     private Version HttpVersionValue => HttpVersion switch
     {
@@ -43,6 +45,7 @@ public class ClientAllocationBenchmarks
     private ServerProcessHandle _server = null!;
     private ClientHelper _clientHelper = null!;
     private Uri _uri = null!;
+    private Uri _downloadUri = null!;
     private bool _disabled;
 
     [GlobalSetup]
@@ -61,9 +64,12 @@ public class ClientAllocationBenchmarks
 
         var scheme = HttpVersion == "3.0" ? "https" : "http";
         var baseAddress = new Uri($"{scheme}://127.0.0.1:{_server.PortFor(HttpVersion)}");
-        _uri = new Uri(baseAddress, Mode == Direction.Upload ? "/upload" : "/download");
+        _uri = new Uri(baseAddress, "/upload");
+        _downloadUri = new Uri(baseAddress, $"/download?size={BodySize}");
 
         _clientHelper = ClientHelper.CreateStreamingClient(baseAddress, HttpVersionValue);
+
+        _payload = KestrelBaseClass.GeneratePayload(BodySize);
 
         await Drive(WarmupBatch);
     }
@@ -107,7 +113,7 @@ public class ClientAllocationBenchmarks
                 await throttle.WaitAsync(ct);
                 var request = new HttpRequestMessage(HttpMethod.Post, _uri)
                 {
-                    Content = new ByteArrayContent(Payload),
+                    Content = new ByteArrayContent(_payload),
                 };
                 await client.Requests.WriteAsync(request, ct);
             }
@@ -154,7 +160,7 @@ public class ClientAllocationBenchmarks
             for (var i = 0; i < count; i++)
             {
                 await throttle.WaitAsync(ct);
-                var request = new HttpRequestMessage(HttpMethod.Get, _uri);
+                var request = new HttpRequestMessage(HttpMethod.Get, _downloadUri);
                 await client.Requests.WriteAsync(request, ct);
             }
         }, ct);
