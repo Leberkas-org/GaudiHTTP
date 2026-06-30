@@ -1,6 +1,6 @@
 # Feature Options and Builders
 
-Feature options configure optional features and are applied via the builder API, not through `TurboClientOptions`. All `With*` methods accept an optional configuration delegate; calling them without arguments enables the feature with its defaults. See [Configuration guide](/client/configuration) for builder usage.
+Feature options configure optional features and are applied via the builder API, not through `GaudiClientOptions`. All `With*` methods accept an optional configuration delegate; calling them without arguments enables the feature with its defaults. See [Configuration guide](/client/configuration) for builder usage.
 
 ## RetryOptions
 
@@ -191,7 +191,7 @@ public static class GaudiHttpClientBuilderExtensions
     
     IGaudiHttpClientBuilder WithExpectContinue(this IGaudiHttpClientBuilder builder, Action<Expect100Options>? configure = null);
     
-    IGaudiHttpClientBuilder AddHandler<T>(this IGaudiHttpClientBuilder builder) where T : TurboHandler;
+    IGaudiHttpClientBuilder AddHandler<T>(this IGaudiHttpClientBuilder builder) where T : GaudiHandler;
     
     IGaudiHttpClientBuilder UseRequest(this IGaudiHttpClientBuilder builder, Func<HttpRequestMessage, HttpRequestMessage> transform);
     
@@ -203,10 +203,10 @@ public static class GaudiHttpClientBuilderExtensions
 
 ## Custom Handlers
 
-The `TurboHandler` base class provides a hook for custom request/response middleware:
+The `GaudiHandler` base class provides a hook for custom request/response middleware:
 
 ```csharp
-public abstract class TurboHandler
+public abstract class GaudiHandler
 {
     public virtual HttpRequestMessage ProcessRequest(HttpRequestMessage request) => request;
     public virtual HttpResponseMessage ProcessResponse(HttpRequestMessage original, HttpResponseMessage response) => response;
@@ -217,7 +217,7 @@ Custom handlers are registered via the builder:
 
 ```csharp
 // Define a custom handler
-public class AuthHeaderHandler : TurboHandler
+public class AuthHeaderHandler : GaudiHandler
 {
     public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
     {
@@ -250,6 +250,6 @@ These types are part of the public API and can be customized:
 |------|---------|-------|
 | `ICookieStore` | Cookie storage and injection — implement and pass to `.WithCookies(store)` | [Cookies](/client/cookies) |
 | `ICacheStore` | Cache backend (extends `IDisposable`) — implement and pass to `.WithCache(store)` | [Caching](/client/caching) |
-| `TurboHandler` | Custom request/response middleware — register via `.AddHandler<T>()` | [Configuration](/client/configuration) |
+| `GaudiHandler` | Custom request/response middleware — register via `.AddHandler<T>()` | [Configuration](/client/configuration) |
 
 See [Configuration guide](/client/configuration) for integration patterns.

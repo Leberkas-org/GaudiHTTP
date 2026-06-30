@@ -37,7 +37,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
 ## Configuration
 
-HTTP/3 options are configured on the nested `Http3` sub-object of `TurboClientOptions`:
+HTTP/3 options are configured on the nested `Http3` sub-object of `GaudiClientOptions`:
 
 ```csharp
 builder.Services.AddGaudiHttpClient("http3-api", options =>

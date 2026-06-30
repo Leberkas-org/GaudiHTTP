@@ -5,8 +5,8 @@ Build a working GaudiHTTP server in under 5 minutes. GaudiHTTP replaces Kestrel 
 ## 1. Create a Project
 
 ```bash
-dotnet new web -n MyTurboApp
-cd MyTurboApp
+dotnet new web -n MyGaudiApp
+cd MyGaudiApp
 dotnet add package GaudiHTTP
 ```
 

@@ -51,7 +51,7 @@ These defaults are chosen conservatively to avoid overwhelming servers.
 
 ## Configuration
 
-Connection pool behaviour is controlled via properties on `TurboClientOptions`:
+Connection pool behaviour is controlled via properties on `GaudiClientOptions`:
 
 ```csharp
 builder.Services.AddGaudiHttpClient("my-api", options =>

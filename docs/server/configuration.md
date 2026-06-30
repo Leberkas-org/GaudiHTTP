@@ -109,7 +109,7 @@ Access via `options.Http3`.
 
 ## Transport Buffers
 
-Per-endpoint backpressure thresholds for the pipes between the OS socket and the HTTP pipeline. Set via `TurboListenOptions.Transport`. All properties are nullable; each `null` property falls back to its protocol-optimized default individually (TCP buffers one pipe per connection, QUIC one pipe per stream), so you only set what you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
+Per-endpoint backpressure thresholds for the pipes between the OS socket and the HTTP pipeline. Set via `GaudiListenOptions.Transport`. All properties are nullable; each `null` property falls back to its protocol-optimized default individually (TCP buffers one pipe per connection, QUIC one pipe per stream), so you only set what you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
 
 | Property | Type | TCP Default | QUIC Default | Description |
 |----------|------|-------------|--------------|-------------|
