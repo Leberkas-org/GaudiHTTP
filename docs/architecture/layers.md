@@ -55,7 +55,7 @@ The channel API provides **backpressure** — if the producer sends too fast, `W
 
 ## Configuration
 
-Transport options are set via `TurboClientOptions` at registration time. Request defaults like HTTP version and headers are set on the client instance:
+Transport options are set via `GaudiClientOptions` at registration time. Request defaults like HTTP version and headers are set on the client instance:
 
 ```csharp
 // Register via DI
