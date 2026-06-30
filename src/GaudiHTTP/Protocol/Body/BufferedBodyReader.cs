@@ -1,5 +1,6 @@
 using System.Buffers;
 using GaudiHTTP.Pooling;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -23,7 +24,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         _received = 0;
         IsCompleted = contentLength == 0;
         _owner = contentLength > 0
-            ? CrossThreadBufferPool.Rent(contentLength)
+            ? PooledArrayMemoryOwner.Create(contentLength)
             : null;
     }
 
@@ -34,7 +35,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         _openEnded = true;
         _received = 0;
         IsCompleted = false;
-        _owner = CrossThreadBufferPool.Rent(4 * 1024);
+        _owner = PooledArrayMemoryOwner.Create(4 * 1024);
     }
 
     void IResettable.Reset() => ResetOpenEnded();
@@ -78,7 +79,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         }
 
         var newSize = Math.Max(needed, (_owner?.Memory.Length ?? 4 * 1024) * 2);
-        var next = CrossThreadBufferPool.Rent(newSize);
+        var next = PooledArrayMemoryOwner.Create(newSize);
         if (_owner is not null && _received > 0)
         {
             _owner.Memory[.._received].CopyTo(next.Memory);
