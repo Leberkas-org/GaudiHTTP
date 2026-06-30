@@ -57,6 +57,18 @@ public abstract class KestrelBaseClass : BenchmarkSuiteBase
     public Uri DownloadUri(int sizeBytes) =>
         new($"{Scheme}://127.0.0.1:{KestrelPort}/download?size={sizeBytes}");
 
+    /// <summary>Cacheable endpoint: fresh for <paramref name="maxAgeSeconds"/> with a stable ETag.</summary>
+    public Uri CacheableUri(int maxAgeSeconds, int sizeBytes) =>
+        new($"{Scheme}://127.0.0.1:{KestrelPort}/cacheable?maxage={maxAgeSeconds}&size={sizeBytes}");
+
+    /// <summary>Uncacheable endpoint (no-store) under a unique <paramref name="nonce"/> path segment.</summary>
+    public Uri UncacheableUri(string nonce, int sizeBytes) =>
+        new($"{Scheme}://127.0.0.1:{KestrelPort}/uncacheable/{nonce}?size={sizeBytes}");
+
+    /// <summary>Slow endpoint that delays <paramref name="delayMs"/> ms before responding.</summary>
+    public Uri SlowUri(int delayMs) =>
+        new($"{Scheme}://127.0.0.1:{KestrelPort}/slow?ms={delayMs}");
+
     /// <summary>
     /// Builds a baseline <see cref="HttpClient"/> over <see cref="SocketsHttpHandler"/> matching the
     /// current HTTP version policy. Used by the HttpClient baseline benchmark classes.
