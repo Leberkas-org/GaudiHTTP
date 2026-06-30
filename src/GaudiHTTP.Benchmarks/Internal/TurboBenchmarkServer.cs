@@ -44,6 +44,11 @@ public sealed class GaudiBenchmarkServer : IAsyncDisposable
             options.Http2.MaxConcurrentStreams = 512;
             options.Http2.InitialConnectionWindowSize = 4 * 1024 * 1024;
             options.Http2.InitialStreamWindowSize = 1 * 1024 * 1024;
+
+            // Body handling matched to the client so request/response buffering and chunking
+            // do not diverge between client and server benchmarks.
+            options.ResponseBodyChunkSize = 64 * 1024;
+            options.Http1.MaxBufferedRequestBodySize = 2 * 1024 * 1024;
         });
 
         var app = builder.Build();
