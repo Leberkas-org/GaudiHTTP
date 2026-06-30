@@ -2,30 +2,11 @@ using BenchmarkDotNet.Running;
 using GaudiHTTP.Benchmarks.Internal;
 using GaudiHTTP.Benchmarks.Kestrel;
 
-if (args.Length > 0 && args[0] == "--alloc-trace")
+// Internal child-process entry used by ClientAllocationBenchmarks' GlobalSetup to run the Kestrel
+// server out of process (so client allocation is measured in isolation). Not a user-facing tool.
+if (args.Length > 0 && args[0] == ServerProcessHandle.ServerArgument)
 {
-    var version = args.Length > 1 ? args[1] : "3.0";
-    await AllocTraceHarness.RunAsync(version, clientOnly: false);
-    return;
-}
-
-if (args.Length > 0 && args[0] == "--alloc-trace-client")
-{
-    var version = args.Length > 1 ? args[1] : "3.0";
-    var download = args.Length > 2 && args[2].Equals("download", StringComparison.OrdinalIgnoreCase);
-    await AllocTraceHarness.RunAsync(version, clientOnly: true, download: download);
-    return;
-}
-
-if (args.Length > 0 && args[0] == "--bench-server")
-{
-    await AllocTraceHarness.RunServerProcessAsync();
-    return;
-}
-
-if (args.Length > 0 && args[0] == "--pool-bench")
-{
-    PoolBenchHarness.Run();
+    await ServerProcessHandle.RunServerAsync();
     return;
 }
 
