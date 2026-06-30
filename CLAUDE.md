@@ -81,13 +81,15 @@ offline, fed from the EventPipe total only.
 | `AllocationBenchmarkConfig` | `Client/Allocation` (out-of-process server) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
 | `MicroBenchmarkConfig`      | `Micro` (pool CPU stress) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
 
-Artifacts land in BenchmarkDotNet's default `src/BenchmarkDotNet.Artifacts/` (gitignored) — no custom
-artifacts path (one shared default avoids the `GetRootArtifactsFolderPath` crash when a run spans
-multiple configs). Charts:
+Artifacts land in a per-run timestamped folder `src/BenchmarkDotNet.Artifacts/{yyyyMMdd_HHmmss}/`
+(gitignored). All three configs share one timestamp captured once at process start
+(`BenchmarkArtifacts.Path`), so a run spanning multiple configs resolves to a single root — distinct
+per-config paths are what triggers the `GetRootArtifactsFolderPath` crash. Charts (point at the run
+folder you want):
 
 ```bash
 cd docs && npm install   # once, pulls chart.js for offline inlining
-npm run charts -- ../src/GaudiHTTP.Benchmarks/BenchmarkDotNet.Artifacts   # -> BenchmarkDotNet.Artifacts/charts.html
+npm run charts -- ../src/GaudiHTTP.Benchmarks/BenchmarkDotNet.Artifacts/20260630_120000   # -> .../charts.html
 ```
 
 `charts.html` is a single self-contained file (Chart.js inlined, no server): throughput, latency
