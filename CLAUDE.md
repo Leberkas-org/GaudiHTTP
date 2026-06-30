@@ -81,11 +81,13 @@ fed from the EventPipe total only.
 | `AllocationBenchmarkConfig` | `Client/Allocation` (out-of-process server) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
 | `MicroBenchmarkConfig`      | `Micro` (pool CPU stress) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
 
-Artifacts land in `src/BenchmarkDotNet.Artifacts/<run>/` (gitignored). Charts:
+Artifacts land in BenchmarkDotNet's default `src/BenchmarkDotNet.Artifacts/` (gitignored) — no custom
+artifacts path (one shared default avoids the `GetRootArtifactsFolderPath` crash when a run spans
+multiple configs). Charts:
 
 ```bash
 cd docs && npm install   # once, pulls chart.js for offline inlining
-npm run charts -- ../src/GaudiHTTP.Benchmarks/BenchmarkDotNet.Artifacts/<run>   # -> <run>/charts.html
+npm run charts -- ../src/GaudiHTTP.Benchmarks/BenchmarkDotNet.Artifacts   # -> BenchmarkDotNet.Artifacts/charts.html
 ```
 
 `charts.html` is a single self-contained file (Chart.js inlined, no server): throughput, latency
