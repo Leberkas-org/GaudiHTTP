@@ -55,7 +55,8 @@ select a class with `--filter`. Folders are scenario-based; each benchmark class
 `BenchmarkSuiteBase` for the throughput suites).
 
 ```
-Client/ColdStart  Latency  Throughput  Download  Allocation   Server/Throughput  Upload   Micro
+Client/ColdStart  Latency  Throughput  Download  Caching  Streaming  Allocation
+Server/Throughput  Upload   Micro
 ```
 
 ```bash
@@ -66,6 +67,13 @@ dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
 # CPU/pool micro — MicroBenchmarkConfig
 dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj -- --filter '*PoolBenchmarks*'
 ```
+
+**Advantage scenarios (GaudiHttp vs out-of-the-box HttpClient):** `Client/Caching` (cache-hit
+goodput — HttpClient has no built-in cache), `Client/Streaming` (sustained channel-API pipeline +
+backpressure), `Client/Throughput/HeavyConcurrent*` (heavy concurrent MB transfers). Each is a paired
+`*Gaudi*` / `*HttpClient*` class with identical params. The memory/bounded-allocation story is the
+out-of-process `Client/Allocation` pair (Gaudi vs HttpClient, each measured alone) — compared offline,
+fed from the EventPipe total only.
 
 | Config | Used by | Job | Native exporters | Metric to read |
 |--------|---------|-----|------------------|----------------|
