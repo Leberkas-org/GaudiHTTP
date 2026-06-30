@@ -1,17 +1,18 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
+using GaudiHTTP.Client;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Download;
 
 /// <summary>
-/// Baseline large-download throughput for .NET <see cref="HttpClient"/> (SocketsHttpHandler).
-/// Mirrors <see cref="KestrelGaudiDownloadBenchmarks"/> (same sizes, concurrency, fan-out cap, and
-/// drain-to-<see cref="Stream.Null"/>) so receive-path throughput is directly comparable.
+/// Large-download throughput for <see cref="IGaudiHttpClient.SendAsync"/> against a localhost
+/// Kestrel server. Exercises the response receive path (framing decode → QueuedBodyReader →
+/// transport reads) that the upload/light suites never touch. Each request fully drains the
+/// response body into <see cref="Stream.Null"/> so only receive-path cost is measured.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelHttpClientDownloadBenchmarks : KestrelBaseClass
+public class KestrelGaudiDownloadBenchmarks : KestrelBaseClass
 {
     [Params(1, 32)]
     public int ConcurrencyLevel { get; set; }
@@ -19,7 +20,7 @@ public class KestrelHttpClientDownloadBenchmarks : KestrelBaseClass
     [Params(1 * 1024 * 1024, 8 * 1024 * 1024)]
     public int DownloadBytes { get; set; }
 
-    private HttpClient _httpClient = null!;
+    private ClientHelper _clientHelper = null!;
     private Task[] _tasks = null!;
     private SemaphoreSlim _fanOutGate = null!;
     private Uri _downloadUri = null!;
@@ -28,7 +29,7 @@ public class KestrelHttpClientDownloadBenchmarks : KestrelBaseClass
     public override async Task GlobalSetup()
     {
         await base.GlobalSetup();
-        _httpClient = CreateBaselineHttpClient(timeout: TimeSpan.FromSeconds(120));
+        _clientHelper = ClientHelper.CreateClient(BaseAddress, HttpVersionValue);
         _downloadUri = DownloadUri(DownloadBytes);
         _tasks = new Task[ConcurrencyLevel];
         _fanOutGate = new SemaphoreSlim(MaxInFlight, MaxInFlight);
@@ -39,7 +40,7 @@ public class KestrelHttpClientDownloadBenchmarks : KestrelBaseClass
     public override async Task GlobalCleanup()
     {
         _fanOutGate.Dispose();
-        _httpClient.Dispose();
+        await _clientHelper.DisposeAsync();
         await base.GlobalCleanup();
     }
 
@@ -65,8 +66,8 @@ public class KestrelHttpClientDownloadBenchmarks : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var response = await _httpClient.GetAsync(
-                _downloadUri, HttpCompletionOption.ResponseHeadersRead);
+            using var request = new HttpRequestMessage(HttpMethod.Get, _downloadUri);
+            using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
             response.EnsureSuccessStatusCode();
             await response.Content.CopyToAsync(Stream.Null);
         }

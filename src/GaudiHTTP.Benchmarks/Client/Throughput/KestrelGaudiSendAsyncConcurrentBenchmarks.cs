@@ -2,14 +2,13 @@ using GaudiHTTP.Client;
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
 /// Benchmarks measuring <see cref="IGaudiHttpClient"/> performance using
 /// <see cref="IGaudiHttpClient.SendAsync"/> under concurrent load against
 /// a localhost Kestrel server.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
 public class KestrelGaudiSendAsyncConcurrentBenchmarks : KestrelBaseClass

@@ -2,7 +2,7 @@ using System.Buffers;
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks;
+namespace GaudiHTTP.Benchmarks.Client.Allocation;
 
 /// <summary>
 /// Client-only allocation for the Heavy (1 MB) streaming scenario, measured against a server running

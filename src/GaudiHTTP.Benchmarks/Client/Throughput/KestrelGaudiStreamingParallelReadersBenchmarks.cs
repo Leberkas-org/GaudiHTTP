@@ -3,7 +3,7 @@ using GaudiHTTP.Client;
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Throughput;
 
 /// <summary>
 /// Diagnostic variant of <see cref="KestrelGaudiStreamingConcurrentBenchmarks"/> that isolates
@@ -30,7 +30,6 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// Baseline equivalence: <c>ReaderCount = 1, ReadBody = true</c> is behaviourally identical to
 /// <see cref="KestrelGaudiStreamingConcurrentBenchmarks"/> and serves as the calibration point.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
 public class KestrelGaudiStreamingParallelReadersBenchmarks : KestrelBaseClass

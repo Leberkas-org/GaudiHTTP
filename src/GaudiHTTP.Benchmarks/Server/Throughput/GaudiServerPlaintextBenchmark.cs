@@ -1,12 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Server.Kestrel;
+namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class KestrelServerUploadBenchmark : KestrelBaseClass
+public class GaudiServerPlaintextBenchmark : GaudiServerBaseClass
 {
     private const int MaxFanOut = 1024;
 
@@ -54,22 +53,20 @@ public class KestrelServerUploadBenchmark : KestrelBaseClass
 
     public override async Task WarmupRequest()
     {
-        using var content = new ByteArrayContent(HeavyPayload);
-        using var response = await _httpClient.PostAsync(UploadUri, content);
+        using var response = await _httpClient.GetAsync(PlaintextUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task Upload_Sequential()
+    public async Task Plaintext_Sequential()
     {
-        using var content = new ByteArrayContent(HeavyPayload);
-        using var response = await _httpClient.PostAsync(UploadUri, content);
+        using var response = await _httpClient.GetAsync(PlaintextUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
     [BenchmarkCategory("Concurrent")]
-    public Task Upload_Concurrent()
+    public Task Plaintext_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
@@ -83,8 +80,7 @@ public class KestrelServerUploadBenchmark : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var content = new ByteArrayContent(HeavyPayload);
-            using var response = await _httpClient.PostAsync(UploadUri, content);
+            using var response = await _httpClient.GetAsync(PlaintextUri);
             response.EnsureSuccessStatusCode();
         }
         finally

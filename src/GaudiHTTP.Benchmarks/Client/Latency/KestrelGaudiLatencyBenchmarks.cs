@@ -2,9 +2,8 @@ using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 using GaudiHTTP.Client;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.Latency;
 
-[MemoryDiagnoser]
 [WarmupCount(5)]
 [IterationCount(15)]
 public class KestrelGaudiLatencyBenchmarks : KestrelBaseClass

@@ -1,12 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Server.Gaudi;
+namespace GaudiHTTP.Benchmarks.Server.Throughput;
 
-[MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-public class GaudiServerFortunesBenchmark : GaudiServerBaseClass
+public class KestrelServerJsonBenchmark : KestrelBaseClass
 {
     private const int MaxFanOut = 1024;
 
@@ -54,20 +53,20 @@ public class GaudiServerFortunesBenchmark : GaudiServerBaseClass
 
     public override async Task WarmupRequest()
     {
-        using var response = await _httpClient.GetAsync(FortunesUri);
+        using var response = await _httpClient.GetAsync(JsonUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
-    public async Task Fortunes_Sequential()
+    public async Task Json_Sequential()
     {
-        using var response = await _httpClient.GetAsync(FortunesUri);
+        using var response = await _httpClient.GetAsync(JsonUri);
         response.EnsureSuccessStatusCode();
     }
 
     [Benchmark]
     [BenchmarkCategory("Concurrent")]
-    public Task Fortunes_Concurrent()
+    public Task Json_Concurrent()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
@@ -81,7 +80,7 @@ public class GaudiServerFortunesBenchmark : GaudiServerBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var response = await _httpClient.GetAsync(FortunesUri);
+            using var response = await _httpClient.GetAsync(JsonUri);
             response.EnsureSuccessStatusCode();
         }
         finally

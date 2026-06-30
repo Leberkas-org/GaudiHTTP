@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using GaudiHTTP.Benchmarks.Internal;
 
-namespace GaudiHTTP.Benchmarks.Kestrel;
+namespace GaudiHTTP.Benchmarks.Client.ColdStart;
 
 /// <summary>
 /// Baseline cold-start cost for .NET <see cref="HttpClient"/> (SocketsHttpHandler): each measured
@@ -10,7 +10,6 @@ namespace GaudiHTTP.Benchmarks.Kestrel;
 /// <see cref="KestrelGaudiColdStartBenchmarks"/>; created clients are stashed and disposed in cleanup
 /// so teardown stays out of the measured region.
 /// </summary>
-[MemoryDiagnoser]
 [WarmupCount(2)]
 [IterationCount(8)]
 [InvocationCount(1, 1)]
