@@ -5,7 +5,6 @@ using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Body;
-using GaudiHTTP.Protocol.Multiplexed;
 using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Protocol.Syntax.Http2.Options;
 using GaudiHTTP.Pooling;

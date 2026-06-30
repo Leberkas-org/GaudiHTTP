@@ -33,8 +33,6 @@ public sealed class Http3QpackEncoderStreamSpec
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 4 * 1024,
         QpackBlockedStreams = 10,
-        MaxResponseBufferSize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
     };

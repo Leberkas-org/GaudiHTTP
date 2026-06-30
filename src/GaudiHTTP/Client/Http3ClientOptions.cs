@@ -56,15 +56,6 @@ public sealed class Http3ClientOptions
     public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
 
     /// <summary>
-    /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
-    /// Default is 64 KiB.
-    /// </summary>
-    [Obsolete("Ignored: outbound request-body memory is already bounded by the HTTP/3 stream " +
-              "flow-control window and the body pump. Retained for API compatibility; slated for " +
-              "removal in a future major version.")]
-    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
-
-    /// <summary>
     /// Maximum number of reconnect attempts when a QUIC connection drops with in-flight requests.
     /// After this many failed reconnects, the connection stage fails with an exception.
     /// Default is 3.
