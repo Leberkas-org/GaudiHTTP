@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
@@ -27,9 +28,9 @@ internal static class AllocTraceHarness
     private const int WarmupCount = 256;
     private const string PortsPrefix = "PORTS=";
 
-    public static Task RunAsync(string version) => RunAsync(version, clientOnly: false);
+    public static Task RunAsync(string version) => RunAsync(version, clientOnly: false, download: false);
 
-    public static async Task RunAsync(string version, bool clientOnly)
+    public static async Task RunAsync(string version, bool clientOnly, bool download = false)
     {
         ThreadPool.GetMinThreads(out var w, out var io);
         ThreadPool.SetMinThreads(Math.Max(w, 1024), Math.Max(io, 1024));
@@ -44,15 +45,15 @@ internal static class AllocTraceHarness
 
         if (clientOnly)
         {
-            await RunClientOnlyAsync(version, httpVersion, scheme);
+            await RunClientOnlyAsync(version, httpVersion, scheme, download);
         }
         else
         {
-            await RunInProcessAsync(version, httpVersion, scheme);
+            await RunInProcessAsync(version, httpVersion, scheme, download);
         }
     }
 
-    private static async Task RunInProcessAsync(string version, Version httpVersion, string scheme)
+    private static async Task RunInProcessAsync(string version, Version httpVersion, string scheme, bool download)
     {
         await using var server = new BenchmarkServer();
         await server.InitializeAsync();
@@ -66,10 +67,10 @@ internal static class AllocTraceHarness
 
         var baseAddress = new Uri($"{scheme}://127.0.0.1:{port}");
         Console.WriteLine($"[in-process server] HTTP/{version} on {baseAddress}; server allocations CONTAMINATE the totals.");
-        await MeasureClientAsync(baseAddress, httpVersion, version);
+        await MeasureClientAsync(baseAddress, httpVersion, version, download);
     }
 
-    private static async Task RunClientOnlyAsync(string version, Version httpVersion, string scheme)
+    private static async Task RunClientOnlyAsync(string version, Version httpVersion, string scheme, bool download)
     {
         using var child = StartServerProcess();
 
@@ -108,7 +109,7 @@ internal static class AllocTraceHarness
 
             var baseAddress = new Uri($"{scheme}://127.0.0.1:{port}");
             Console.WriteLine($"[out-of-process server, pid {child.Id}] HTTP/{version} on {baseAddress}; totals are CLIENT-ONLY.");
-            await MeasureClientAsync(baseAddress, httpVersion, version);
+            await MeasureClientAsync(baseAddress, httpVersion, version, download);
         }
         finally
         {
@@ -173,17 +174,31 @@ internal static class AllocTraceHarness
         _ => h30,
     };
 
-    private static async Task MeasureClientAsync(Uri baseAddress, Version httpVersion, string version)
+    private static async Task MeasureClientAsync(Uri baseAddress, Version httpVersion, string version, bool download)
     {
         var payload = KestrelBaseClass.GeneratePayload(1 * 1024 * 1024);
         var uploadUri = new Uri(baseAddress, "/upload");
-        Console.WriteLine($"Firing {RequestCount} x 1MB uploads through the streaming channel.");
+        var downloadUri = new Uri(baseAddress, "/download");
+        var verb = download ? "downloads" : "uploads";
+        Console.WriteLine($"Firing {RequestCount} x 1MB {verb} through the streaming channel.");
 
         await using var clientHelper = ClientHelper.CreateStreamingClient(baseAddress, httpVersion);
         var client = clientHelper.Client;
 
+        async Task Drive(int count)
+        {
+            if (download)
+            {
+                await StreamDownloads(client, downloadUri, count);
+            }
+            else
+            {
+                await StreamUploads(client, uploadUri, payload, count);
+            }
+        }
+
         // Warm up: connection setup, QPACK, JIT — excluded from the armed window.
-        await StreamUploads(client, uploadUri, payload, WarmupCount);
+        await Drive(WarmupCount);
 
         var profiler = new AllocationProfiler();
         profiler.Reset();
@@ -195,7 +210,7 @@ internal static class AllocTraceHarness
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         profiler.Arm();
-        await StreamUploads(client, uploadUri, payload, RequestCount);
+        await Drive(RequestCount);
         profiler.Disarm();
         sw.Stop();
 
@@ -204,11 +219,71 @@ internal static class AllocTraceHarness
         var rps = RequestCount / sw.Elapsed.TotalSeconds;
 
         Console.WriteLine();
-        Console.WriteLine($"Throughput: {RequestCount} uploads in {sw.ElapsedMilliseconds:N0} ms = {rps:N0} req/s");
-        Console.WriteLine($"Total managed allocated over {RequestCount} uploads: {totalAllocated:N0} B ({totalAllocated / (1024.0 * 1024.0):N1} MB)");
+        Console.WriteLine($"Throughput: {RequestCount} {verb} in {sw.ElapsedMilliseconds:N0} ms = {rps:N0} req/s");
+        Console.WriteLine($"Total managed allocated over {RequestCount} {verb}: {totalAllocated:N0} B ({totalAllocated / (1024.0 * 1024.0):N1} MB)");
         Console.WriteLine($"Per request: {(double)totalAllocated / RequestCount / 1024.0:N1} KB");
         Console.WriteLine($"GC collections during window: gen0={GC.CollectionCount(0) - g0}, gen1={GC.CollectionCount(1) - g1}, gen2={GC.CollectionCount(2) - g2}");
         profiler.Report(RequestCount, top: 25);
+    }
+
+    private static async Task StreamDownloads(IGaudiHttpClient client, Uri uri, int count)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        var ct = cts.Token;
+
+        while (client.Responses.TryRead(out var stale))
+        {
+            stale.Dispose();
+        }
+
+        using var throttle = new SemaphoreSlim(Math.Min(count, 512));
+
+        var writer = Task.Run(async () =>
+        {
+            for (var i = 0; i < count; i++)
+            {
+                await throttle.WaitAsync(ct);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                await client.Requests.WriteAsync(request, ct);
+            }
+        }, ct);
+
+        var received = 0;
+        while (received < count)
+        {
+            if (!await client.Responses.WaitToReadAsync(ct))
+            {
+                break;
+            }
+
+            while (client.Responses.TryRead(out var response))
+            {
+                // Drain the body into a pooled scratch buffer instead of materializing it with
+                // ReadAsByteArrayAsync — a 1 MB array per response would dwarf the production
+                // inbound allocation we are trying to isolate.
+                var scratch = ArrayPool<byte>.Shared.Rent(64 * 1024);
+                try
+                {
+                    await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                    while (await stream.ReadAsync(scratch, ct) > 0)
+                    {
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(scratch);
+                }
+
+                response.Dispose();
+                throttle.Release();
+                if (++received >= count)
+                {
+                    break;
+                }
+            }
+        }
+
+        await writer.WaitAsync(ct);
     }
 
     private static async Task StreamUploads(IGaudiHttpClient client, Uri uri, byte[] payload, int count)

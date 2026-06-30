@@ -12,7 +12,8 @@ if (args.Length > 0 && args[0] == "--alloc-trace")
 if (args.Length > 0 && args[0] == "--alloc-trace-client")
 {
     var version = args.Length > 1 ? args[1] : "3.0";
-    await AllocTraceHarness.RunAsync(version, clientOnly: true);
+    var download = args.Length > 2 && args[2].Equals("download", StringComparison.OrdinalIgnoreCase);
+    await AllocTraceHarness.RunAsync(version, clientOnly: true, download: download);
     return;
 }
 
