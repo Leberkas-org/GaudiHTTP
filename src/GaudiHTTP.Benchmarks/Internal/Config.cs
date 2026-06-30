@@ -11,6 +11,19 @@ using BenchmarkDotNet.Running;
 
 namespace GaudiHTTP.Benchmarks.Internal;
 
+/// <summary>
+/// One timestamped artifacts folder per run, shared by every config. A run can span multiple
+/// configs (Engine/Allocation/Micro) — each MUST resolve to the SAME path, otherwise BenchmarkDotNet's
+/// <c>GetRootArtifactsFolderPath</c> throws when it cannot pick a single root. The timestamp is
+/// captured once at process start (static initializer), so all configs in one run land together under
+/// <c>BenchmarkDotNet.Artifacts/{timestamp}/</c> instead of overwriting the default folder.
+/// </summary>
+public static class BenchmarkArtifacts
+{
+    public static readonly string Path =
+        System.IO.Path.Combine("BenchmarkDotNet.Artifacts", DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
+}
+
 public class RequestsPerSecondColumn : IColumn
 {
     public string Id => nameof(RequestsPerSecondColumn);
@@ -127,6 +140,7 @@ public class EngineBenchmarkConfig : ManualConfig
 {
     public EngineBenchmarkConfig()
     {
+        WithArtifactsPath(BenchmarkArtifacts.Path);
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
         AddDiagnoser(ThreadingDiagnoser.Default);
@@ -156,6 +170,7 @@ public class AllocationBenchmarkConfig : ManualConfig
 {
     public AllocationBenchmarkConfig()
     {
+        WithArtifactsPath(BenchmarkArtifacts.Path);
         // Monitoring strategy with a fixed, low iteration count: each invocation is an expensive
         // concurrent batch, so the default Throughput strategy would auto-scale to thousands of runs
         // and pin every core. EventPipe profiles the actual run (no extra benchmarks run) to avoid
@@ -186,6 +201,7 @@ public class MicroBenchmarkConfig : ManualConfig
 {
     public MicroBenchmarkConfig()
     {
+        WithArtifactsPath(BenchmarkArtifacts.Path);
         AddJob(Job.Default
             .WithGcServer(true)
             .WithStrategy(RunStrategy.Monitoring)
