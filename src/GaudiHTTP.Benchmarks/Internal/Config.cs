@@ -1,7 +1,9 @@
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Exporters;
+using BenchmarkDotNet.Exporters.Json;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
@@ -139,5 +141,66 @@ public class EngineBenchmarkConfig : ManualConfig
         AddColumn(StatisticColumn.P95);
         AddColumn(StatisticColumn.P100);
         AddColumn(new RequestsPerSecondColumn());
+    }
+}
+
+/// <summary>
+/// Config for allocation-focused benchmarks (client streaming, against an out-of-process server).
+/// Allocation is measured PROCESS-WIDE via EventPipe GCAllocationTick (sampled ~100 KB/tick) and
+/// surfaced by <see cref="AllocationByTypeExporter"/> — NOT via MemoryDiagnoser, whose
+/// GetAllocatedBytesForCurrentThread only sees the calling thread and so massively under-counts the
+/// Akka dispatcher / Task background-thread allocations this code does. Server GC, low iteration
+/// counts (allocation is deterministic), and machine-readable JSON for charting.
+/// </summary>
+public class AllocationBenchmarkConfig : ManualConfig
+{
+    public AllocationBenchmarkConfig()
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        WithArtifactsPath(Path.Combine("BenchmarkDotNet.Artifacts", string.Concat("alloc_", timestamp)));
+
+        // Monitoring strategy with a fixed, low iteration count: each invocation is an expensive
+        // concurrent batch, so the default Throughput strategy would auto-scale to thousands of runs
+        // and pin every core. EventPipe profiles the actual run (no extra benchmarks run) to avoid
+        // doubling that cost. Allocation is deterministic enough that a few iterations suffice.
+        AddJob(Job.Default
+            .WithGcServer(true)
+            .WithStrategy(RunStrategy.Monitoring)
+            .WithLaunchCount(1)
+            .WithWarmupCount(1)
+            .WithIterationCount(3));
+
+        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(JsonExporter.Full);
+        AddExporter(AllocationByTypeExporter.Default);
+    }
+}
+
+/// <summary>
+/// Config for in-memory micro-benchmarks that still allocate on background threads (e.g. the
+/// concurrent object-pool stress). Same rationale as <see cref="AllocationBenchmarkConfig"/>:
+/// process-wide EventPipe allocation, not the calling-thread MemoryDiagnoser. Uses the Monitoring
+/// strategy with a low fixed iteration count so a CPU-bound concurrent body is not auto-scaled into
+/// minutes of 100% CPU, and profiles the actual run (no extra run).
+/// </summary>
+public class MicroBenchmarkConfig : ManualConfig
+{
+    public MicroBenchmarkConfig()
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        WithArtifactsPath(Path.Combine("BenchmarkDotNet.Artifacts", string.Concat("micro_", timestamp)));
+
+        AddJob(Job.Default
+            .WithGcServer(true)
+            .WithStrategy(RunStrategy.Monitoring)
+            .WithLaunchCount(1)
+            .WithWarmupCount(1)
+            .WithIterationCount(3));
+
+        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
+        AddExporter(MarkdownExporter.GitHub);
+        AddExporter(JsonExporter.Full);
+        AddExporter(AllocationByTypeExporter.Default);
     }
 }
