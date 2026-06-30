@@ -63,7 +63,16 @@ public class CacheHttpClientBenchmarks : KestrelBaseClass
         await _gate.WaitAsync();
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri) { Version = HttpVersionValue };
+            // Set both Version and VersionPolicy per-request: HttpClient.PrepareRequestMessage does NOT
+            // propagate DefaultRequestVersion/DefaultVersionPolicy to explicit HttpRequestMessage instances —
+            // only the GetAsync/PostAsync convenience methods do (via the private CreateRequestMessage helper).
+            // Without VersionPolicy = RequestVersionExact the default RequestVersionOrLower causes
+            // SocketsHttpHandler to downgrade to HTTP/1.1 on the h2c-only Kestrel port -> 400.
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri)
+            {
+                Version = HttpVersionValue,
+                VersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            };
             using var response = await _client.SendAsync(request, CancellationToken.None);
             response.EnsureSuccessStatusCode();
             await response.Content.CopyToAsync(Stream.Null);
