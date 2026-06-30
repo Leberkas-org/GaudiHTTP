@@ -62,8 +62,13 @@ public sealed class AllocationByTypeExporter : IExporter
                 benchmarkName = benchmarkName[..dashIdx];
             }
 
+            var totalBytes = allocs.Sum(a => a.Bytes);
+            var totalTicks = allocs.Sum(a => a.Count);
+
             consoleLogger.WriteLine();
             consoleLogger.WriteLine(LogKind.Header, string.Concat("  --- ", benchmarkName, " ---"));
+            consoleLogger.WriteLine(LogKind.Statistic,
+                $"  Total (process-wide, sampled): {totalBytes / (1024.0 * 1024.0):N1} MB across {totalTicks:N0} ticks");
             consoleLogger.WriteLine(LogKind.Default, $"  {"Type",-62} {"~Bytes",12} {"Ticks",8}");
             consoleLogger.WriteLine(LogKind.Default, "  " + new string('-', 84));
 
@@ -78,6 +83,9 @@ public sealed class AllocationByTypeExporter : IExporter
             var mdPath = Path.ChangeExtension(traceFile, ".alloc-by-type.md");
             using var writer = new StreamWriter(mdPath);
             writer.WriteLine("# Allocation By Type");
+            writer.WriteLine();
+            writer.WriteLine($"**Total (process-wide, sampled):** {totalBytes:N0} B " +
+                $"({totalBytes / (1024.0 * 1024.0):N1} MB) across {totalTicks:N0} ticks");
             writer.WriteLine();
             writer.WriteLine($"| {"Type",-60} | {"~Bytes",12} | {"Ticks",8} |");
             writer.WriteLine($"|{new string('-', 62)}|{new string('-', 14)}|{new string('-', 10)}|");
