@@ -110,7 +110,7 @@ public class KestrelGaudiStreamingConcurrentBenchmarks : KestrelBaseClass
                 {
                     try
                     {
-                        await response.Content.ReadAsByteArrayAsync(ct).WaitAsync(ct);
+                        await response.Content.ReadAsByteArrayAsync(ct);
                     }
                     catch (OperationCanceledException)
                     {

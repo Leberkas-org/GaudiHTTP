@@ -2,6 +2,13 @@ using BenchmarkDotNet.Running;
 using GaudiHTTP.Benchmarks.Internal;
 using GaudiHTTP.Benchmarks.Kestrel;
 
+if (args.Length > 0 && args[0] == "--alloc-trace")
+{
+    var version = args.Length > 1 ? args[1] : "3.0";
+    await AllocTraceHarness.RunAsync(version);
+    return;
+}
+
 var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
 var enumerable = summaries.ToList();

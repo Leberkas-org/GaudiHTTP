@@ -174,7 +174,7 @@ public static class BenchmarkComparisonReport
         sb.AppendLine("| **Server** | localhost Kestrel (127.0.0.1, dynamic port) |");
         sb.AppendLine("| **Protocol** | HTTP/1.1 cleartext, HTTP/2 (h2c prior knowledge), HTTP/3 (QUIC+TLS) |");
         sb.AppendLine("| **Light endpoint** | `GET /benchmark/simple` (~3 B text/plain) |");
-        sb.AppendLine("| **Heavy endpoint** | `POST /benchmark/payload` (10 KB request body) |");
+        sb.AppendLine("| **Heavy endpoint** | `POST /upload` (1 MB request body) |");
         sb.AppendLine();
         sb.AppendLine("> **Legend:**");
         sb.AppendLine("> - ✓  faster than HttpClient by >5%");
@@ -190,7 +190,7 @@ public static class BenchmarkComparisonReport
         sb.AppendLine();
         sb.AppendLine("- All requests target a localhost Kestrel server over loopback (127.0.0.1).");
         sb.AppendLine("- HTTP/1.1 and HTTP/2 use cleartext (no TLS overhead). HTTP/3 requires TLS (QUIC mandates TLS 1.3).");
-        sb.AppendLine("- Light: `GET /benchmark/simple` returns `OK\\n` (~3 B). Heavy: `POST /benchmark/payload` with 10 KB body.");
+        sb.AppendLine("- Light: `GET /benchmark/simple` returns `OK\\n` (~3 B). Heavy: `POST /upload` with a 1 MB body.");
         sb.AppendLine("- HTTP/2 uses h2c prior knowledge on a dedicated listener port. HTTP/3 uses QUIC+TLS with a self-signed certificate.");
         sb.AppendLine("- Loopback eliminates network jitter — results reflect pure client+server overhead.");
         sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");

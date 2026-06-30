@@ -34,8 +34,28 @@ internal sealed class ClientHelper : IAsyncDisposable
     /// <param name="baseAddress">The remote base URI (scheme + host).</param>
     /// <param name="version">The HTTP version to use.</param>
     public static ClientHelper CreateClient(Uri baseAddress, Version version, int? maxConnectionsOverride = null)
-    {
-        var options = new GaudiClientOptions
+        => Build(baseAddress, version, BuildBenchmarkOptions(baseAddress, maxConnectionsOverride));
+
+    /// <summary>
+    /// Creates a new <see cref="ClientHelper"/> for channel-based (streaming) benchmarks.
+    /// The client configuration is IDENTICAL to <see cref="CreateClient"/> — "streaming" refers
+    /// only to how the benchmark drives the client (writing <see cref="IGaudiHttpClient.Requests"/>
+    /// and draining <see cref="IGaudiHttpClient.Responses"/>) versus <c>SendAsync</c>. The internal
+    /// request-body handling (buffer threshold, chunk size, connection topology) must match so the
+    /// channel-vs-SendAsync comparison is apples-to-apples.
+    /// </summary>
+    /// <param name="baseAddress">The remote base URI (scheme + host).</param>
+    /// <param name="version">The HTTP version to use.</param>
+    public static ClientHelper CreateStreamingClient(Uri baseAddress, Version version)
+        => Build(baseAddress, version, BuildBenchmarkOptions(baseAddress, maxConnectionsOverride: null));
+
+    /// <summary>
+    /// Single source of truth for the benchmark client configuration, shared by both the SendAsync
+    /// and channel-based helpers. Keeping one config guarantees the two usage patterns differ ONLY
+    /// in how the benchmark drives the client, never in internal body handling or connection topology.
+    /// </summary>
+    private static GaudiClientOptions BuildBenchmarkOptions(Uri baseAddress, int? maxConnectionsOverride)
+        => new()
         {
             BaseAddress = baseAddress,
             DangerousAcceptAnyServerCertificate = true,
@@ -44,7 +64,8 @@ internal sealed class ClientHelper : IAsyncDisposable
             Http1 = new Http1ClientOptions
             {
                 MaxConnectionsPerServer = maxConnectionsOverride ?? 512,
-                MaxPipelineDepth = 64
+                MaxPipelineDepth = 64,
+                MaxBufferedResponseBodySize = 2 * 1024 * 1024,
             },
             // H2: 16 connections × 512 streams = 8192 in-flight capacity.
             // MaxConcurrentStreams must not exceed Kestrel's MaxStreamsPerConnection (512).
@@ -69,45 +90,8 @@ internal sealed class ClientHelper : IAsyncDisposable
                 MaxReconnectBufferSize = 256,
                 MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
-        };
-
-        return Build(baseAddress, version, options);
-    }
-
-    /// <summary>
-    /// Creates a new <see cref="ClientHelper"/> with streaming-optimised options
-    /// targeting a remote URI for channel-based benchmarks.
-    /// </summary>
-    /// <param name="baseAddress">The remote base URI (scheme + host).</param>
-    /// <param name="version">The HTTP version to use.</param>
-    public static ClientHelper CreateStreamingClient(Uri baseAddress, Version version)
-    {
-        var options = new GaudiClientOptions
-        {
-            BaseAddress = baseAddress,
-            DangerousAcceptAnyServerCertificate = true,
-            // Streaming H1.x: enough connections to saturate high-CL scenarios
-            // (H1.1 is head-of-line blocked per connection, so depth alone doesn't help).
-            Http1 = new Http1ClientOptions { MaxConnectionsPerServer = 128, MaxPipelineDepth = 64 },
-            // H2: 16 connections × 1000 streams for high-CL streaming.
-            Http2 = new Http2ClientOptions { MaxConnectionsPerServer = 16, MaxConcurrentStreams = 1000 },
-            // H3: 64 connections × 100 streams — match Kestrel's MaxInboundBidirectionalStreams default.
-            Http3 = new Http3ClientOptions
-            {
-                MaxConnectionsPerServer = 64,
-                MaxConcurrentStreams = 100,
-                QpackMaxTableCapacity = 32_768,
-                QpackBlockedStreams = 200,
-                MaxFieldSectionSize = 65_536,
-                IdleTimeout = TimeSpan.FromMinutes(5),
-                MaxReconnectAttempts = 10,
-                MaxReconnectBufferSize = 256,
-            },
             MaxConcurrentEndpoints = 16384,
         };
-
-        return Build(baseAddress, version, options);
-    }
 
     private static ClientHelper Build(Uri baseAddress, Version version, GaudiClientOptions options)
     {
