@@ -28,8 +28,8 @@ dotnet run --project GaudiHTTP.Tests/GaudiHTTP.Tests.csproj -- -class "GaudiHTTP
 $env:GAUDIHTTP_TEST_BACKEND = "kestrel"   # force Kestrel (no Docker needed)
 $env:GAUDIHTTP_TEST_BACKEND = "docker"    # force Docker (fails if unavailable)
 
-# Benchmarks
-dotnet run --configuration Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj
+# Benchmarks (BenchmarkDotNet; filter by class) — see the "## Benchmarks" section below
+dotnet run --configuration Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj -- --filter '*PoolBenchmarks*'
 
 # Docs site (Node.js 20+)
 cd ../docs && npm install && npm run docs:dev
@@ -46,6 +46,56 @@ Protocol Layer  (GaudiHTTP/Protocol/)        - Http10/, Http11/, Http2/, Http3/,
 Features        (GaudiHTTP/Features/)        - Cookies/, Caching/, AltSvc/
 Diagnostics     (GaudiHTTP/Diagnostics/)     - Metrics, tracing, logging
 ```
+
+## Benchmarks
+
+`GaudiHTTP.Benchmarks` is a plain BenchmarkDotNet host (no custom report layer). Run from `src/`;
+select a class with `--filter`. Folders are scenario-based; each benchmark class is bound to exactly
+**one** of three per-type configs in `Internal/Config.cs` (via `[Config(...)]`, inherited through
+`BenchmarkSuiteBase` for the throughput suites).
+
+```
+Client/ColdStart  Latency  Throughput  Download  Allocation   Server/Throughput  Upload   Micro
+```
+
+```bash
+# Throughput / latency (in-process server ok) — EngineBenchmarkConfig
+dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj -- --filter '*GaudiServerPlaintextBenchmark*'
+# Client allocation (out-of-process server) — AllocationBenchmarkConfig
+dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj -- --filter '*ClientAllocationBenchmarks*'
+# CPU/pool micro — MicroBenchmarkConfig
+dotnet run -c Release --project GaudiHTTP.Benchmarks/GaudiHTTP.Benchmarks.csproj -- --filter '*PoolBenchmarks*'
+```
+
+| Config | Used by | Job | Native exporters | Metric to read |
+|--------|---------|-----|------------------|----------------|
+| `EngineBenchmarkConfig`     | Client/Server throughput, latency, coldstart, download | `Job.Default` + `MemoryDiagnoser` + `Req/sec` + P50/P95/P100 | JSON-full + CSV + GitHub-md (defaults) | **Mean / Req-per-sec / latency percentiles** |
+| `AllocationBenchmarkConfig` | `Client/Allocation` (out-of-process server) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
+| `MicroBenchmarkConfig`      | `Micro` (pool CPU stress) | Monitoring, low fixed iterations, `EventPipeProfiler(GcVerbose)` | + `AllocationByTypeExporter` | **process-wide alloc total** (`*.alloc-by-type.json`) |
+
+Artifacts land in `src/BenchmarkDotNet.Artifacts/<run>/` (gitignored). Charts:
+
+```bash
+cd docs && npm install   # once, pulls chart.js for offline inlining
+npm run charts -- ../src/GaudiHTTP.Benchmarks/BenchmarkDotNet.Artifacts/<run>   # -> <run>/charts.html
+```
+
+`charts.html` is a single self-contained file (Chart.js inlined, no server): throughput, latency
+percentiles, and allocation. **Allocation bars are fed only from the EventPipe total in
+`*.alloc-by-type.json` — never the MemoryDiagnoser "Allocated" column.**
+
+Four measurement constraints (non-obvious, baked into the configs — do not regress them):
+1. **MemoryDiagnoser only measures the calling thread** (`GetAllocatedBytesForCurrentThread`), so its
+   "Allocated" column is structurally wrong for the Akka client / Task workloads (≈46 KB vs real
+   ~3.5 MB). Measure allocation **only** process-wide via EventPipe + `AllocationByTypeExporter`.
+2. **Client allocation needs the server out-of-process** (`ServerProcessHandle`, internal
+   `--bench-server` entry in `Program.cs`). In-process Kestrel contaminates the process-wide total
+   and throttles the client (shared thread pool) → ~3.7× under-count.
+3. **CPU- or network-heavy benches must use `RunStrategy.Monitoring` + fixed low iteration counts +
+   `EventPipeProfiler(performExtraBenchmarksRun: false)`**, else the default Throughput strategy
+   auto-scales to thousands of invocations and pins every core for minutes.
+4. **Throughput comparisons may stay in-process** (combined allocation acceptable there); the metric
+   is Mean / Req-per-sec, not allocation.
 
 ## Debugging with Senf.Tracing
 
