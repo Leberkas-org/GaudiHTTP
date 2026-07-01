@@ -20,10 +20,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
     private const int MaxStatePoolCapacity = 1000;
 
-    // RFC 9114 §8.1 / CVE-2023-44487 (Rapid Reset): client-initiated stream aborts are counted within
-    // this sliding window; exceeding the configured budget closes the connection (H3_EXCESSIVE_LOAD).
-    private const long ResetWindowMs = 30_000;
-
     private const string DataRateCheck = "data-rate-check";
 
     private readonly IServerStageOperations _ops;
@@ -59,6 +55,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private bool _qpackDecoderPrefaceSent;
 
     private readonly int _maxResetStreamsPerWindow;
+    private readonly long _resetWindowMs;
     private int _resetCount;
     private long _resetWindowStart;
 
@@ -78,6 +75,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
+        _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
 
@@ -619,7 +617,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
 
         var now = Now();
-        if (now - _resetWindowStart >= ResetWindowMs)
+        if (now - _resetWindowStart >= _resetWindowMs)
         {
             _resetWindowStart = now;
             _resetCount = 0;

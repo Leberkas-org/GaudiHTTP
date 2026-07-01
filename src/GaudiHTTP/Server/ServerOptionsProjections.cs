@@ -75,11 +75,12 @@ internal static class ServerOptionsProjections
         double? minReqRate, TimeSpan? minReqGrace, double? minRespRate, TimeSpan? minRespGrace)
         => new(
             MaxRequestBodySize: maxBody ?? o.Limits.MaxRequestBodySize,
-            MaxResetStreamsPerWindow: o.Limits.MaxResetStreamsPerWindow,
             KeepAliveTimeout: keepAlive ?? o.Limits.KeepAliveTimeout,
             RequestHeadersTimeout: headersTimeout ?? o.Limits.RequestHeadersTimeout,
             MinRequestBodyDataRate: minReqRate ?? o.Limits.MinRequestBodyDataRate,
             MinRequestBodyDataRateGracePeriod: minReqGrace ?? o.Limits.MinRequestBodyDataRateGracePeriod,
             MinResponseDataRate: minRespRate ?? o.Limits.MinResponseDataRate,
-            MinResponseDataRateGracePeriod: minRespGrace ?? o.Limits.MinResponseDataRateGracePeriod);
+            MinResponseDataRateGracePeriod: minRespGrace ?? o.Limits.MinResponseDataRateGracePeriod,
+            MaxResetStreamsPerWindow: o.Limits.MaxResetStreamsPerWindow,
+            RapidResetDetectionWindow: o.Limits.RapidResetDetectionWindow);
 }

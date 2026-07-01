@@ -163,6 +163,7 @@ public sealed class GaudiServerOptions
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeadersTotalSize, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeaderCount, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.KeepAliveTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(Limits.RapidResetDetectionWindow, TimeSpan.Zero);
 
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerGracePeriod, TimeSpan.Zero);

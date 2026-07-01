@@ -32,6 +32,13 @@ public sealed class GaudiServerLimits
     /// </summary>
     public int MaxResetStreamsPerWindow { get; set; } = 200;
 
+    /// <summary>
+    /// Sliding time window for Rapid Reset (CVE-2023-44487) detection. If more than
+    /// <see cref="MaxResetStreamsPerWindow"/> stream resets occur within this window the connection
+    /// is closed. Default is 30 seconds.
+    /// </summary>
+    public TimeSpan RapidResetDetectionWindow { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>Gets or sets the keep-alive idle timeout for HTTP/1.x and HTTP/2 connections. Default is 130 seconds.</summary>
     public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(130);
     /// <summary>Gets or sets the maximum time to receive the complete request headers after the connection is accepted. Default is 30 seconds.</summary>

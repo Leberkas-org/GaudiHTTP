@@ -197,4 +197,25 @@ public sealed class ServerOptionsProjectionsSpec
         Assert.Equal(TimeSpan.FromSeconds(15), h2.KeepAlivePingDelay);
         Assert.Equal(TimeSpan.FromSeconds(5), h2.KeepAlivePingTimeout);
     }
+
+    [Fact(Timeout = 5000)]
+    public void RapidResetDetectionWindow_should_flow_to_resolved_limits()
+    {
+        var o = new GaudiServerOptions();
+        o.Limits.RapidResetDetectionWindow = TimeSpan.FromSeconds(15);
+
+        var h2 = o.ToHttp2Options();
+        var h3 = o.ToHttp3Options();
+
+        Assert.Equal(TimeSpan.FromSeconds(15), h2.Limits.RapidResetDetectionWindow);
+        Assert.Equal(TimeSpan.FromSeconds(15), h3.Limits.RapidResetDetectionWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void RapidResetDetectionWindow_default_should_be_30_seconds()
+    {
+        var o = new GaudiServerOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(30), o.ToHttp2Options().Limits.RapidResetDetectionWindow);
+    }
 }
