@@ -20,6 +20,8 @@ public sealed class Http11ServerDecoderSecuritySpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024,
         AllowObsFold = false
     };
 

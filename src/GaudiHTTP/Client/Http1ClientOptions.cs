@@ -73,5 +73,17 @@ public sealed class Http1ClientOptions
     /// guard against malicious servers.
     /// </summary>
     public int MaxChunkExtensionLength { get; set; } = int.MaxValue;
+
+    /// <summary>
+    /// Maximum length (in bytes) of a chunk-size control line in chunked transfer encoding.
+    /// Guards against oversized chunk headers. Default is 64 KiB.
+    /// </summary>
+    public int MaxChunkedControlLineLength { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum total size (in bytes) of the trailer section in chunked transfer encoding.
+    /// Guards against trailer bombs. Default is 32 KiB.
+    /// </summary>
+    public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;
 }
 

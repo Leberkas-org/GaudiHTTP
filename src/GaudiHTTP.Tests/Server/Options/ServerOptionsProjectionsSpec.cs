@@ -218,4 +218,22 @@ public sealed class ServerOptionsProjectionsSpec
 
         Assert.Equal(TimeSpan.FromSeconds(30), o.ToHttp2Options().Limits.RapidResetDetectionWindow);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Http1_chunked_limits_should_flow_to_connection_options()
+    {
+        var o = new GaudiServerOptions
+        {
+            Http1 =
+            {
+                MaxChunkedControlLineLength = 32 * 1024,
+                MaxChunkedTrailerSize = 16 * 1024
+            }
+        };
+
+        var h1 = o.ToHttp1Options();
+
+        Assert.Equal(32 * 1024, h1.MaxChunkedControlLineLength);
+        Assert.Equal(16 * 1024, h1.MaxChunkedTrailerSize);
+    }
 }

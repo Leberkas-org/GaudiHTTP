@@ -13,6 +13,8 @@ internal static class ServerOptionsProjections
             MaxRequestTargetLength = o.Http1.MaxRequestTargetLength,
             MaxPipelinedRequests = o.Http1.MaxPipelinedRequests,
             MaxChunkExtensionLength = o.Http1.MaxChunkExtensionLength,
+            MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+            MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
             MaxHeaderListSize = o.Http1.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             AllowObsFold = false,

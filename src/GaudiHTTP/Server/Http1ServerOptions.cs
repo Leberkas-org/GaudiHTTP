@@ -27,6 +27,18 @@ public sealed class Http1ServerOptions
     public int MaxChunkExtensionLength { get; set; } = 4 * 1024;
 
     /// <summary>
+    /// Maximum length (in bytes) of a chunk-size control line in chunked transfer encoding.
+    /// Guards against oversized chunk headers. Default is 64 KiB.
+    /// </summary>
+    public int MaxChunkedControlLineLength { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum total size (in bytes) of the trailer section in chunked transfer encoding.
+    /// Guards against trailer bombs. Default is 32 KiB.
+    /// </summary>
+    public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;
+
+    /// <summary>
     /// Gets or sets the maximum request body size (in bytes) that is buffered fully in memory.
     /// Bodies larger than this are exposed as a streaming pipe with back-pressure. Default is 64 KiB.
     /// </summary>

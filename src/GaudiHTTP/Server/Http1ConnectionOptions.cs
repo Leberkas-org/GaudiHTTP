@@ -8,6 +8,8 @@ internal sealed record Http1ConnectionOptions
     public required int MaxRequestTargetLength { get; init; }
     public required int MaxPipelinedRequests { get; init; }
     public required int MaxChunkExtensionLength { get; init; }
+    public required int MaxChunkedControlLineLength { get; init; }
+    public required int MaxChunkedTrailerSize { get; init; }
     public required int MaxHeaderListSize { get; init; }
     public required int MaxHeaderCount { get; init; }
     public required bool AllowObsFold { get; init; }
