@@ -286,7 +286,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartBodyDrain(Stream bodyStream)
     {
-        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
+            _options.Http1.RequestBodyChunkSize ?? _options.RequestBodyChunkSize ?? _options.BodyChunkSize, maxCapacity: 2);
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 

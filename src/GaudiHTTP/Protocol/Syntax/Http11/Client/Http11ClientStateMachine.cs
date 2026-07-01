@@ -487,7 +487,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _isChunked = contentLength is null && !httpVersion.Equals(HttpVersion.Version10);
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
-        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
+            _options.Http1.RequestBodyChunkSize ?? _options.RequestBodyChunkSize ?? _options.BodyChunkSize, maxCapacity: 2);
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 

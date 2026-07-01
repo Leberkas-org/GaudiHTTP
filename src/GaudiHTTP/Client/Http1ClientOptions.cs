@@ -8,10 +8,26 @@ namespace GaudiHTTP.Client;
 public sealed class Http1ClientOptions
 {
     /// <summary>
-    /// Maximum response body size (in bytes) that is buffered fully in memory.
-    /// Bodies larger than this are exposed as a streaming pipe. Default is 64 KiB.
+    /// Per-protocol override for response body size (in bytes) that is buffered fully in memory.
+    /// Bodies larger than this are exposed as a streaming pipe. When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.MaxBufferedResponseBodySize"/> then
+    /// <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public int MaxBufferedResponseBodySize { get; set; } = 64 * 1024;
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body size (in bytes) that is buffered fully in memory.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiClientOptions.MaxBufferedRequestBodySize"/>
+    /// then <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.RequestBodyChunkSize"/> then
+    /// <see cref="GaudiClientOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/1.x.

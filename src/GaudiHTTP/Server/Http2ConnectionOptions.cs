@@ -18,4 +18,6 @@ internal sealed record Http2ConnectionOptions
     public required bool UseHuffman { get; init; }
     public required TimeSpan KeepAlivePingDelay { get; init; }
     public required TimeSpan KeepAlivePingTimeout { get; init; }
+    public required int MaxBufferedBodySize { get; init; }
+    public required int ResponseBodyChunkSize { get; init; }
 }

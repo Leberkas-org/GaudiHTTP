@@ -57,6 +57,8 @@ public sealed class Http3DataRateViolationSpec
         QpackBlockedStreams = 0,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static void Send(Http3ServerSessionManager sm, long streamId, byte[] bytes)

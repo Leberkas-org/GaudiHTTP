@@ -151,7 +151,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         }
 
         if (contentLength is > 0 and { } knownLength
-            && knownLength <= _options.Http3.MaxBufferedRequestBodySize
+            && knownLength <= (_options.Http3.MaxBufferedRequestBodySize
+                                ?? _options.MaxBufferedRequestBodySize
+                                ?? _options.MaxBufferedBodySize)
             && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
         {
             return;

@@ -49,11 +49,27 @@ public sealed class Http3ClientOptions
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Maximum request body size (in bytes) that is serialized inline (single ArrayPool rent,
-    /// no background encoder). Bodies larger than this are streamed in chunks with backpressure.
-    /// Default is 64 KiB.
+    /// Per-protocol override for request body size (in bytes) that is serialized inline (single
+    /// ArrayPool rent, no background encoder). Bodies larger than this are streamed in chunks with
+    /// backpressure. When <see langword="null"/>, inherits from
+    /// <see cref="GaudiClientOptions.MaxBufferedRequestBodySize"/> then
+    /// <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for response body size (in bytes) that is buffered fully in memory.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiClientOptions.MaxBufferedResponseBodySize"/>
+    /// then <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.RequestBodyChunkSize"/> then
+    /// <see cref="GaudiClientOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>
     /// Maximum number of reconnect attempts when a QUIC connection drops with in-flight requests.

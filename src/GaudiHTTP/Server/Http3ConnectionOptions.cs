@@ -11,4 +11,6 @@ internal sealed record Http3ConnectionOptions
     public required int QpackBlockedStreams { get; init; }
     public required TimeSpan BodyConsumptionTimeout { get; init; }
     public required bool UseHuffman { get; init; }
+    public required int MaxBufferedBodySize { get; init; }
+    public required int ResponseBodyChunkSize { get; init; }
 }

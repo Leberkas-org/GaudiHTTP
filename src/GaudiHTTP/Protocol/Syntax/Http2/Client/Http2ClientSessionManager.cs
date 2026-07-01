@@ -232,8 +232,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         // round, causing multi-second GC pauses that stall the Akka dispatcher. The async
         // drain path (StartStreamBodyDrain) reads in 64 KB chunks instead, keeping peak
         // memory at ~32 MB even at extreme concurrency.
-        if (contentLength is > 0 and var knownLength && knownLength <= _options.Http2.MaxBufferedRequestBodySize
-                                                     && _flow.ConnectionSendWindow > 0
+        if (contentLength is > 0 and var knownLength
+                                     && knownLength <= (_options.Http2.MaxBufferedRequestBodySize
+                                                         ?? _options.MaxBufferedRequestBodySize
+                                                         ?? _options.MaxBufferedBodySize)
+                                     && _flow.ConnectionSendWindow > 0
                                                      && TrySerializeBodyDirect(request.Content!, streamId, state,
                                                          (int)knownLength))
         {

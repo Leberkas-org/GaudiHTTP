@@ -19,8 +19,12 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             AllowObsFold = false,
             BodyReadTimeout = o.Http1.BodyReadTimeout,
-            MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize,
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
+            MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http1.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout
         };
 
@@ -44,7 +48,13 @@ internal static class ServerOptionsProjections
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
             UseHuffman = o.AllowResponseHeaderCompression,
             KeepAlivePingDelay = o.Http2.KeepAlivePingDelay,
-            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout
+            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout,
+            MaxBufferedBodySize = o.Http2.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http2.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize
         };
 
     public static Http3ConnectionOptions ToHttp3Options(this GaudiServerOptions o)
@@ -60,7 +70,13 @@ internal static class ServerOptionsProjections
             QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
             QpackBlockedStreams = o.Http3.QpackBlockedStreams,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
-            UseHuffman = o.AllowResponseHeaderCompression
+            UseHuffman = o.AllowResponseHeaderCompression,
+            MaxBufferedBodySize = o.Http3.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http3.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize
         };
 
     public static DataRateOptions ToRateMonitor(this Http1ConnectionOptions o) => RateOf(o.Limits);

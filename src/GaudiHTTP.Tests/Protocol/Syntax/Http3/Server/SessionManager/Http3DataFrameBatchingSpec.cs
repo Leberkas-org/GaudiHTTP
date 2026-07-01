@@ -28,6 +28,8 @@ public sealed class Http3DataFrameBatchingSpec
         QpackBlockedStreams = 0,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static List<Http3Frame> DecodeDataFrames(FakeServerOps ops, long streamId)

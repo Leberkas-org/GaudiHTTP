@@ -14,8 +14,12 @@ internal static class ClientOptionsProjections
 {
     public static Http10ClientDecoderOptions ToHttp10DecoderOptions(this GaudiClientOptions o) => new()
     {
-        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
-        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
@@ -27,8 +31,12 @@ internal static class ClientOptionsProjections
 
     public static Http11ClientDecoderOptions ToHttp11DecoderOptions(this GaudiClientOptions o) => new()
     {
-        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
-        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
