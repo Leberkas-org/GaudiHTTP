@@ -8,6 +8,7 @@ internal sealed class MultiplexedBodyPump(
     CancellationTokenSource connectionCts,
     ConnectionObjectPool poolContext,
     int chunkSize,
+    int maxCapacity,
     int maxConcurrentReads = 4)
 {
     private const int MaxSyncReadsPerDispatch = 64;
@@ -16,6 +17,13 @@ internal sealed class MultiplexedBodyPump(
     private readonly Dictionary<long, PumpSlot<long>> _activeSlots = new();
 
     private int _asyncInFlight;
+
+    // Connection-level outbound credit shared across all multiplexed streams. Decremented once per
+    // emitted DATA frame and replenished by OnCapacityAvailable when the transport drains an
+    // outbound item. Without this gate the pump reads an entire in-memory body as fast as the
+    // mailbox cycles, flooding the per-stream output pipes and exhausting the shared array pool.
+    private readonly int _maxCapacity = maxCapacity;
+    private int _availableCapacity = maxCapacity;
 
     public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
@@ -75,6 +83,16 @@ internal sealed class MultiplexedBodyPump(
         target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();
         poolContext.Return(slot);
+    }
+
+    public void OnCapacityAvailable()
+    {
+        if (_availableCapacity < _maxCapacity)
+        {
+            _availableCapacity++;
+        }
+
+        TryScheduleReads();
     }
 
     public void HandleBodyReadContinue(long streamId)
@@ -141,7 +159,7 @@ internal sealed class MultiplexedBodyPump(
 
     private void TryScheduleReads()
     {
-        while (_asyncInFlight < maxConcurrentReads && _readyQueue.Count > 0)
+        while (_asyncInFlight < maxConcurrentReads && _availableCapacity > 0 && _readyQueue.Count > 0)
         {
             var streamId = _readyQueue.Dequeue();
 
@@ -152,7 +170,8 @@ internal sealed class MultiplexedBodyPump(
             }
 
             // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads so
-            // the actor thread can process other messages between bursts.
+            // the actor thread can process other messages between bursts. This yield does not emit
+            // a frame, so it must not consume outbound credit.
             if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
             {
                 slot.ResetSyncReads();
@@ -163,6 +182,7 @@ internal sealed class MultiplexedBodyPump(
                 continue;
             }
 
+            _availableCapacity--;
             slot.EnsureBuffer(chunkSize);
 
             StartRead(slot);
