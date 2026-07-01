@@ -20,10 +20,10 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     private readonly UpgradeAwareOps _wrappedOps;
     private readonly bool _http1Allowed;
     private readonly bool _http2Allowed;
+    private readonly int _maxSniffBytes;
 
     // Pre-protocol guards: the sniffing window has no state machine yet, so it must bound how much
     // it buffers and how long it waits before a protocol is identified (memory-exhaustion / slow-loris).
-    private const int MaxSniffBytes = 64 * 1024;
     private const string NegotiationTimer = "negotiation-headers";
 
     private Phase _phase = Phase.WaitingForConnect;
@@ -49,6 +49,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         _wrappedOps = new UpgradeAwareOps(ops, this);
         _http1Allowed = (allowedProtocols & HttpProtocols.Http1) != 0;
         _http2Allowed = (allowedProtocols & HttpProtocols.Http2) != 0;
+        _maxSniffBytes = options.Limits.MaxProtocolSniffBytes;
     }
 
     public void PreStart()
@@ -224,7 +225,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         // cap without identification means garbage/abuse — abort before any state machine exists.
         // The cap is checked AFTER identification so a large first segment carrying a valid preface
         // plus request data (common for concurrent / large HTTP/2) is recognized rather than aborted.
-        if (_bufferedBytes > MaxSniffBytes)
+        if (_bufferedBytes > _maxSniffBytes)
         {
             _sniffAborted = true;
             CancelNegotiationTimer();

@@ -26,4 +26,20 @@ public sealed class GaudiServerLimitsSpec
 
         Assert.Equal(TimeSpan.FromSeconds(60), o.StartupTimeout);
     }
+
+    [Fact(Timeout = 5000)]
+    public void MaxProtocolSniffBytes_default_should_be_64KB()
+    {
+        var limits = new GaudiServerLimits();
+
+        Assert.Equal(64 * 1024, limits.MaxProtocolSniffBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MaxProtocolSniffBytes_should_be_settable()
+    {
+        var limits = new GaudiServerLimits { MaxProtocolSniffBytes = 128 * 1024 };
+
+        Assert.Equal(128 * 1024, limits.MaxProtocolSniffBytes);
+    }
 }

@@ -51,4 +51,11 @@ public sealed class GaudiServerLimits
     public double MinResponseDataRate { get; set; } = 240;
     /// <summary>Gets or sets the grace period before the minimum response data rate is enforced. Default is 5 seconds.</summary>
     public TimeSpan MinResponseDataRateGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Maximum bytes buffered during cleartext protocol detection (HTTP/1.1 vs h2c).
+    /// Guards against slow-loris attacks during the protocol sniffing phase.
+    /// Must be at least 24 bytes (minimum to detect the h2c connection preface). Default is 64 KiB.
+    /// </summary>
+    public int MaxProtocolSniffBytes { get; set; } = 64 * 1024;
 }
