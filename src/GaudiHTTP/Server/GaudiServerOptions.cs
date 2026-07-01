@@ -18,6 +18,12 @@ public sealed class GaudiServerOptions
     /// <summary>Gets or sets the time allowed for in-flight requests to complete during shutdown. Default is 30 seconds.</summary>
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// Gets or sets the maximum time to wait for all listeners to bind during server startup.
+    /// If exceeded, the server throws and fails to start. Default is 25 seconds.
+    /// </summary>
+    public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(25);
+
     /// <summary>Gets or sets the maximum time a request handler may run before it is cancelled. Default is 30 seconds.</summary>
     public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
@@ -165,6 +171,7 @@ public sealed class GaudiServerOptions
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.KeepAliveTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(Limits.RapidResetDetectionWindow, TimeSpan.Zero);
 
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(StartupTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerGracePeriod, TimeSpan.Zero);
 
