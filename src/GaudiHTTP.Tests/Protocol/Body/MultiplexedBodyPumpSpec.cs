@@ -49,11 +49,42 @@ public sealed class MultiplexedBodyPumpSpec
                && target.Failed.Count == 0
                && iterations++ < maxIterations)
         {
+            // Simulate the transport draining outbound frames: replenish pump capacity each
+            // turn so the credit gate never stalls a healthy drain.
+            pump.OnCapacityAvailable();
+
             if (target.PendingMessages.Count == 0)
             {
                 break;
             }
 
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            switch (msg)
+            {
+                case BodyReadComplete<long> rc:
+                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    break;
+                case BodyReadContinue<long> dc:
+                    pump.HandleBodyReadContinue(dc.StreamId);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drives read completions WITHOUT ever granting outbound capacity, simulating a transport
+    /// that has stopped draining. A backpressured pump must stall after emitting at most
+    /// <c>maxCapacity</c> frames rather than reading the whole body into outbound buffers.
+    /// </summary>
+    private static void DriveReadsWithoutCapacity(
+        MultiplexedBodyPump pump,
+        FakeTarget target,
+        int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (target.PendingMessages.Count > 0 && iterations++ < maxIterations)
+        {
             var msg = target.PendingMessages[0];
             target.PendingMessages.RemoveAt(0);
             switch (msg)
@@ -79,9 +110,9 @@ public sealed class MultiplexedBodyPumpSpec
         return new MemoryStream(data);
     }
 
-    private static MultiplexedBodyPump MakePump(FakeTarget target, int chunkSize = 16 * 1024)
+    private static MultiplexedBodyPump MakePump(FakeTarget target, int chunkSize = 16 * 1024, int maxCapacity = 64)
     {
-        return new MultiplexedBodyPump(target, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize);
+        return new MultiplexedBodyPump(target, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize, maxCapacity);
     }
 
     [Fact(Timeout = 5000)]
@@ -243,6 +274,37 @@ public sealed class MultiplexedBodyPumpSpec
 
         Assert.Single(target.Failed);
         Assert.Equal(7L, target.Failed[0].StreamId);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Pump_should_bound_in_flight_emissions_to_capacity_without_drain_signal()
+    {
+        var target = new FakeTarget();
+        // 40 chunks of body, but only 4 credits and no transport drain: the pump must stall.
+        var pump = MakePump(target, chunkSize: 16, maxCapacity: 4);
+
+        pump.Register(1L, MakeBody(16 * 40), contentLength: null, CancellationToken.None);
+        DriveReadsWithoutCapacity(pump, target);
+
+        var emittedData = target.Emitted.Count(e => !e.EndStream);
+        Assert.True(
+            emittedData <= 4,
+            $"expected at most 4 in-flight emissions without a drain signal, got {emittedData}");
+        Assert.Empty(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnCapacityAvailable_should_resume_and_complete_drain()
+    {
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 16, maxCapacity: 4);
+
+        pump.Register(1L, MakeBody(16 * 40), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target);
+
+        Assert.Single(target.Completed);
+        var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.Equal(16 * 40, total);
     }
 
     /// <summary>

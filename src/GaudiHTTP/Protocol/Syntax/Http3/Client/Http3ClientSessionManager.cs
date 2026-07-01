@@ -28,6 +28,12 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     private readonly Http3ClientEncoder _requestEncoder;
     private readonly QpackTableSync _tableSync;
 
+    // Connection-level outbound credit for the multiplexed body pump. Each emitted DATA frame
+    // consumes one unit; the transport replenishes one unit per drained outbound item via
+    // OnOutboundFlushed. Caps the in-flight (emitted-but-unflushed) 16 KB frames per connection,
+    // keeping the shared array pool warm instead of exhausting it under concurrent uploads.
+    private const int OutboundBodyCapacity = 16;
+
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
     private readonly ConnectionObjectPool _poolContext = new();
@@ -161,7 +167,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024, OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }
 
@@ -277,6 +283,11 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     public void OnTransportDisconnected()
     {
         _transportConnected = false;
+    }
+
+    public void OnOutboundFlushed()
+    {
+        _pump?.OnCapacityAvailable();
     }
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()

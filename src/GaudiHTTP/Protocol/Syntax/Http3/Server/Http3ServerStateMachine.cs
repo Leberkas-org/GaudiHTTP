@@ -72,6 +72,11 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
         _sessionManager.FlushAllPendingRequests();
     }
 
+    public void OnOutboundFlushed()
+    {
+        _sessionManager.OnOutboundFlushed();
+    }
+
     public void OnTimerFired(string name)
     {
         if (name == KeepAliveTimeout)
