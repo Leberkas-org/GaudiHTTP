@@ -83,6 +83,31 @@ public sealed class GaudiClientOptions
     public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
 
     /// <summary>
+    /// Initial delay before the first retry when the Akka Streams pipeline fails to materialize
+    /// (transport error, TLS failure, etc.). Subsequent retries use exponential backoff up to
+    /// <see cref="StreamRetryMaxBackoff"/>. Default is 100 ms.
+    /// </summary>
+    public TimeSpan StreamRetryInitialBackoff { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Maximum delay between stream materialization retries. The exponential backoff is capped
+    /// at this value. Default is 30 seconds.
+    /// </summary>
+    public TimeSpan StreamRetryMaxBackoff { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Multiplier applied to the retry delay on each successive attempt (exponential backoff).
+    /// Default is 2.0.
+    /// </summary>
+    public double StreamRetryBackoffMultiplier { get; set; } = 2.0;
+
+    /// <summary>
+    /// Maximum number of stream materialization retry attempts before the client gives up and
+    /// reports a failure. Default is 10.
+    /// </summary>
+    public int MaxStreamRetryAttempts { get; set; } = 10;
+
+    /// <summary>
     /// Maximum number of distinct endpoints (identified by <c>(scheme, host, port, version)</c>)
     /// that may be active concurrently. Controls the ceiling for per-endpoint multiplexing and connection pooling.
     /// Must be at least 1. Default is 256. GaudiHTTP-specific.

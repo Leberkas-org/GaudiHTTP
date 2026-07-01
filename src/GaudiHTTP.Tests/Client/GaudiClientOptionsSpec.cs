@@ -378,4 +378,36 @@ public sealed class GaudiClientOptionsSpec
         Assert.False(safeResult);
         Assert.True(dangerousResult);
     }
+
+    [Fact(Timeout = 5000)]
+    public void StreamRetryInitialBackoff_default_should_be_100ms()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(TimeSpan.FromMilliseconds(100), o.StreamRetryInitialBackoff);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamRetryMaxBackoff_default_should_be_30_seconds()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(30), o.StreamRetryMaxBackoff);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamRetryBackoffMultiplier_default_should_be_2()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(2.0, o.StreamRetryBackoffMultiplier);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MaxStreamRetryAttempts_default_should_be_10()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(10, o.MaxStreamRetryAttempts);
+    }
 }
