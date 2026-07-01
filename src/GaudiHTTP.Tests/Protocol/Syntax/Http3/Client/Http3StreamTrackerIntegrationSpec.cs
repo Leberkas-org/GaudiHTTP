@@ -17,7 +17,7 @@ public sealed class Http3StreamTrackerIntegrationSpec
     {
         var tableSync = new QpackTableSync(0, 0, 0, 0);
         var decoder = new Http3ClientDecoder(tableSync, 32 * 1024);
-        return new StreamManager(ops, decoder, tableSync, long.MaxValue)
+        return new StreamManager(ops, decoder, tableSync, long.MaxValue, 64 * 1024)
         {
             OnStreamClosedCallback = onStreamClosed
         };
@@ -27,7 +27,7 @@ public sealed class Http3StreamTrackerIntegrationSpec
     {
         var tableSync = new QpackTableSync(0, 0, 0, 0);
         var decoder = new Http3ClientDecoder(tableSync, 32 * 1024);
-        return new StreamManager(ops, decoder, tableSync, long.MaxValue);
+        return new StreamManager(ops, decoder, tableSync, long.MaxValue, 64 * 1024);
     }
 
     [Fact(Timeout = 5000)]

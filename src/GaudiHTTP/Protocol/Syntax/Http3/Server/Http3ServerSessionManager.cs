@@ -30,6 +30,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
+    private readonly int _maxBufferedRequestBodySize;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
     private readonly int _responseBodyChunkSize;
@@ -75,6 +76,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxBufferedRequestBodySize = options.MaxBufferedBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
@@ -688,8 +690,22 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     {
         if (!state.HasBodyReader)
         {
-            var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
-            state.InitBodyReader(queued, _maxRequestBodySize);
+            var contentLength = state.PeekContentLength();
+            if (contentLength is > 0 and var n && n <= _maxBufferedRequestBodySize)
+            {
+                // Small, known-length body: collect every DATA frame into a single buffer instead
+                // of paying QueuedBodyReader's channel overhead. Safe here — unlike H2, the H3
+                // server never hands the body Stream to the handler before FlushPendingRequest
+                // (transport FIN), so BufferedBodyReader.AsStream() is only called once complete.
+                var buffered = _ops.PoolContext!.Rent(static () => new BufferedBodyReader());
+                buffered.Reset((int)n);
+                state.InitBodyReader(buffered, _maxRequestBodySize);
+            }
+            else
+            {
+                var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
+                state.InitBodyReader(queued, _maxRequestBodySize);
+            }
         }
 
         try

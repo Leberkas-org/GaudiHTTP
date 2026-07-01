@@ -33,6 +33,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private readonly Dictionary<int, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
     private FlowControlledBodyPump? _scheduler;
+    private readonly int _maxBufferedResponseBodySize;
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -64,6 +65,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _decoderOptions = options.ToHttp2DecoderOptions();
         _options = options;
         _ops = ops;
+        _maxBufferedResponseBodySize = options.ResolveMaxBufferedResponseBodySize(options.Http2);
         var clock = timeProvider ?? TimeProvider.System;
         _tracker = new StreamTracker(1, _decoderOptions.MaxConcurrentStreams);
 
@@ -778,7 +780,12 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         if (frame.EndStream)
         {
-            state.DetachBodyReader();
+            var reader = state.TakeBodyReader();
+            if (reader is BufferedBodyReader buffered)
+            {
+                DispatchBufferedResponse(frame.StreamId, state, buffered);
+            }
+
             state.MarkRemoteClosed();
 
             if (!state.HasBodyDrain || state.IsBodyDrainComplete)
@@ -789,6 +796,32 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 _poolContext.Return(state);
             }
         }
+    }
+
+    /// <summary>
+    /// Completes a response whose body was buffered (Content-Length within the configured
+    /// threshold): the body reader collected every DATA frame, so the final byte[] is materialized
+    /// here — after completion, not at HEADERS time — because <see cref="BufferedBodyReader.AsStream"/>
+    /// snapshots the received length at call time.
+    /// </summary>
+    private void DispatchBufferedResponse(int streamId, StreamState state, BufferedBodyReader buffered)
+    {
+        var response = state.GetResponse();
+        response.Content = new StreamContent(buffered.AsStream());
+        state.ApplyContentHeadersTo(response.Content);
+
+        if (_correlationMap.Remove(streamId, out var request))
+        {
+            response.RequestMessage = request;
+        }
+
+        var partialResult = PartialContentValidator.Validate(response);
+        if (!partialResult.IsValid)
+        {
+            Tracing.For("Protocol").Warning(this, "HTTP/2: {0}", partialResult.ErrorMessage!);
+        }
+
+        _ops.OnResponse(response);
     }
 
     private void DecodeHeaders(int streamId, bool endStream)
@@ -806,9 +839,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             state.ClearHeaderBuffer();
             if (endStream)
             {
-                _streams.Remove(streamId);
                 state.FeedBody([], endStream: true);
-                state.DetachBodyReader();
+                var reader = state.TakeBodyReader();
+                if (reader is BufferedBodyReader buffered)
+                {
+                    DispatchBufferedResponse(streamId, state, buffered);
+                }
+
+                _streams.Remove(streamId);
                 ReturnBodyReader(state);
                 state.Reset();
                 _poolContext.Return(state);
@@ -875,6 +913,29 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
+        // Peek the correlated request without removing it yet: for the buffered path the
+        // correlation entry must stay alive until DispatchBufferedResponse (so a mid-buffer
+        // RST_STREAM/GOAWAY/disconnect still fails the caller's Task via the existing paths).
+        _correlationMap.TryGetValue(streamId, out var pendingRequest);
+
+        // RFC 9113 §8.1.1: a stream ending before the declared Content-Length is malformed.
+        // HEAD/204/304 legitimately carry Content-Length without a body.
+        var noBodyExpected = pendingRequest?.Method == HttpMethod.Head
+                             || streamingResponse.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotModified;
+
+        var contentLength = noBodyExpected ? null : state.PeekContentLength();
+        if (!noBodyExpected && contentLength is > 0 and var n && n <= _maxBufferedResponseBodySize)
+        {
+            // Small, known-length body: collect every DATA frame and deliver the full body once
+            // complete instead of paying QueuedBodyReader's channel overhead. OnResponse is
+            // deferred to DispatchBufferedResponse (see HandleData / trailers branch above).
+            var buffered = _poolContext.Rent(static () => new BufferedBodyReader());
+            buffered.Reset((int)n);
+            state.InitBodyReader(buffered);
+            state.ExpectedBodyLength = contentLength;
+            return;
+        }
+
         var queued = _poolContext.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued);
         var stageActor = _ops.StageActor;
@@ -884,16 +945,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);
 
-        if (_correlationMap.Remove(streamId, out var request))
-        {
-            streamingResponse.RequestMessage = request;
-        }
+        _correlationMap.Remove(streamId);
+        streamingResponse.RequestMessage = pendingRequest;
 
-        // RFC 9113 §8.1.1: a stream ending before the declared Content-Length is malformed.
-        // Record the expectation so END_STREAM faults the body instead of completing it.
-        // HEAD/204/304 legitimately carry Content-Length without a body.
-        var noBodyExpected = request?.Method == HttpMethod.Head
-                             || streamingResponse.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotModified;
         if (!noBodyExpected)
         {
             state.ExpectedBodyLength = streamingResponse.Content.Headers.ContentLength;
