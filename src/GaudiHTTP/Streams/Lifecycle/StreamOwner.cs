@@ -23,16 +23,10 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         ChannelWriter<HttpResponseMessage> FallbackResponseWriter);
     internal sealed record UnregisterConsumer(Guid ConsumerId);
 
-    private static readonly TimeSpan DefaultInitialBackoff = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
-    private const double BackoffMultiplier = 2.0;
-
-    private const int MaxRetryAttempts = 10;
-
     private TimeSpan CalculateBackoff(int attempt) =>
         TimeSpan.FromMilliseconds(
-            Math.Min(_initialBackoff.TotalMilliseconds * Math.Pow(BackoffMultiplier, attempt),
-                MaxBackoff.TotalMilliseconds));
+            Math.Min(_initialBackoff.TotalMilliseconds * Math.Pow(_backoffMultiplier, attempt),
+                _maxBackoff.TotalMilliseconds));
 
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
 
@@ -45,6 +39,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private readonly PipelineDescriptor _pipeline;
     private readonly TransportRegistry? _transportOverride;
     private readonly TimeSpan _initialBackoff;
+    private readonly TimeSpan _maxBackoff;
+    private readonly double _backoffMultiplier;
+    private readonly int _maxRetryAttempts;
 
     private int _retryAttempts;
     private Exception? _lastError;
@@ -74,7 +71,10 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         _clientOptions = clientOptions;
         _pipeline = pipeline;
         _transportOverride = transportOverride;
-        _initialBackoff = initialBackoffOverride ?? DefaultInitialBackoff;
+        _initialBackoff = initialBackoffOverride ?? clientOptions.StreamRetryInitialBackoff;
+        _maxBackoff = clientOptions.StreamRetryMaxBackoff;
+        _backoffMultiplier = clientOptions.StreamRetryBackoffMultiplier;
+        _maxRetryAttempts = clientOptions.MaxStreamRetryAttempts;
 
         Initializing();
     }
@@ -292,9 +292,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         _retryAttempts++;
 
         _log.Warning(ex, "Stream materialization failed (attempt {0}/{1})",
-            _retryAttempts, MaxRetryAttempts);
+            _retryAttempts, _maxRetryAttempts);
 
-        if (_retryAttempts <= MaxRetryAttempts && !_shuttingDown && !IsSystemTerminating)
+        if (_retryAttempts <= _maxRetryAttempts && !_shuttingDown && !IsSystemTerminating)
         {
             var backoff = CalculateBackoff(_retryAttempts - 1);
             _log.Info("Scheduling retry attempt {0} after {1}ms backoff",
@@ -318,8 +318,8 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             return;
         }
 
-        Tracing.For("Request").Debug(this, "Pipeline retry {0}/{1}", _retryAttempts, MaxRetryAttempts);
-        _log.Info("Executing retry attempt {0}/{1}", _retryAttempts, MaxRetryAttempts);
+        Tracing.For("Request").Debug(this, "Pipeline retry {0}/{1}", _retryAttempts, _maxRetryAttempts);
+        _log.Info("Executing retry attempt {0}/{1}", _retryAttempts, _maxRetryAttempts);
         Become(Initializing);
         CleanupForRetry();
         MaterializeStream();
