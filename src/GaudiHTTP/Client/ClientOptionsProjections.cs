@@ -84,4 +84,31 @@ internal static class ClientOptionsProjections
         QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
         QpackBlockedStreams = o.Http3.QpackBlockedStreams
     };
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
 }

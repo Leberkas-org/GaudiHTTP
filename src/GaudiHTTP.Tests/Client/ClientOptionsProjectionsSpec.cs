@@ -217,4 +217,25 @@ public sealed class ClientOptionsProjectionsSpec
 
         Assert.Equal(8 * 1024, dec.MaxBufferedBodySize);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Http2_request_buffer_should_resolve_three_tiers()
+    {
+        var global = new GaudiClientOptions { MaxBufferedBodySize = 128 * 1024 };
+        var tier2 = new GaudiClientOptions
+        {
+            MaxBufferedBodySize = 128 * 1024,
+            MaxBufferedRequestBodySize = 32 * 1024
+        };
+        var tier3 = new GaudiClientOptions
+        {
+            MaxBufferedBodySize = 128 * 1024,
+            MaxBufferedRequestBodySize = 32 * 1024,
+            Http2 = { MaxBufferedRequestBodySize = 8 * 1024 }
+        };
+
+        Assert.Equal(128 * 1024, global.ResolveMaxBufferedRequestBodySize(global.Http2));
+        Assert.Equal(32 * 1024, tier2.ResolveMaxBufferedRequestBodySize(tier2.Http2));
+        Assert.Equal(8 * 1024, tier3.ResolveMaxBufferedRequestBodySize(tier3.Http2));
+    }
 }

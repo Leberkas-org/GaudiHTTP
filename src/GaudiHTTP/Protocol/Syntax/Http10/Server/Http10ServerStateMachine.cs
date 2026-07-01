@@ -19,6 +19,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     private readonly Http10ServerDecoder _decoder;
     private readonly Http10ServerEncoder _encoder;
     private readonly long _maxRequestBodySize;
+    private readonly int _responseBodyChunkSize;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly List<long> _rateViolations = [];
@@ -50,6 +51,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _responseBodyChunkSize = options.ResponseBodyChunkSize;
         _clock = timeProvider ?? TimeProvider.System;
 
         var rate = options.ToRateMonitor();
@@ -248,7 +250,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                     _closeAfterBody = true;
                 }
 
-                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 2);
+                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _responseBodyChunkSize, maxCapacity: 2);
                 EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
                 _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
                 return;

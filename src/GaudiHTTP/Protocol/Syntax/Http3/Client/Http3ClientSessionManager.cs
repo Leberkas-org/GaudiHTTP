@@ -151,9 +151,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         }
 
         if (contentLength is > 0 and { } knownLength
-            && knownLength <= (_options.Http3.MaxBufferedRequestBodySize
-                                ?? _options.MaxBufferedRequestBodySize
-                                ?? _options.MaxBufferedBodySize)
+            && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
             && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
         {
             return;
@@ -169,7 +167,8 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024, OutboundBodyCapacity);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext,
+            _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }
 
