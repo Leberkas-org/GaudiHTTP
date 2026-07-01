@@ -12,7 +12,7 @@ public sealed class StreamManagerPoolSpec
         var ops = new FakeClientOps();
         var tableSync = new QpackTableSync(0, 4 * 1024, 100, 4 * 1024);
         var decoder = new Http3ClientDecoder(tableSync, 16 * 1024);
-        var mgr = new StreamManager(ops, decoder, tableSync, long.MaxValue);
+        var mgr = new StreamManager(ops, decoder, tableSync, long.MaxValue, 64 * 1024);
 
         for (var i = 0; i < 256; i++)
         {

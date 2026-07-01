@@ -30,6 +30,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     private readonly FlowController _flow;
     private readonly StreamTracker _tracker;
     private readonly long _maxRequestBodySize;
+    private readonly int _maxBufferedRequestBodySize;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
     private readonly int _initialStreamWindowSize;
@@ -97,6 +98,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             _clock);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxBufferedRequestBodySize = options.MaxBufferedBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
@@ -630,6 +632,11 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             if (data.EndStream)
             {
                 _ops.OnCancelTimer(state.BodyConsumptionTimerKey);
+
+                if (state.TryTakeBufferedBodyReader(out var buffered))
+                {
+                    DispatchBufferedRequest(streamId, state, buffered!);
+                }
             }
 
             if (!data.Data.IsEmpty)
@@ -790,8 +797,37 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         state.ClearHeaderBuffer();
         state.FeedBody([], endStream: true);
+
+        if (state.TryTakeBufferedBodyReader(out var buffered))
+        {
+            DispatchBufferedRequest(streamId, state, buffered!);
+        }
+
         // RFC 9113 §5.1: trailers carry END_STREAM — the stream is now half-closed(remote).
         state.MarkRemoteClosed();
+    }
+
+    /// <summary>
+    /// Dispatches a request whose body was buffered (Content-Length within the configured
+    /// threshold): the body reader collected every DATA frame, so the handler is invoked here —
+    /// after completion, not at HEADERS time — because <see cref="BufferedBodyReader.AsStream"/>
+    /// snapshots the received length at call time.
+    /// </summary>
+    private void DispatchBufferedRequest(int streamId, StreamState state, BufferedBodyReader buffered)
+    {
+        var features = state.GetFeatures();
+        var requestFeature = state.GetRequestFeature();
+        if (features is null || requestFeature is null)
+        {
+            buffered.Dispose();
+            return;
+        }
+
+        requestFeature.Body = buffered.AsStream();
+
+        Tracing.For("Protocol")
+            .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody=True, buffered=True)", streamId);
+        _ops.OnRequest(features);
     }
 
     private void DecodeAndEmitRequest(int streamId, StreamState state, bool endStream)
@@ -812,8 +848,38 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                 state.MarkRemoteClosed();
             }
 
+            features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
+
+            var capturedStreamId = streamId;
+            features.Set<IHttpResetFeature>(new GaudiHttpResetFeature(errorCode =>
+                EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
+            features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
+                SendInformational(capturedStreamId, statusCode, headers)));
+
+            var expectsContinue = string.Equals(requestFeature.Headers[WellKnownHeaders.Expect], "100-continue",
+                StringComparison.OrdinalIgnoreCase);
+
             if (hasBody)
             {
+                var contentLength = state.PeekContentLength();
+                if (contentLength is > 0 and var n && n <= _maxBufferedRequestBodySize)
+                {
+                    // Small, known-length body: collect every DATA frame and dispatch the handler
+                    // once complete instead of paying QueuedBodyReader's channel overhead.
+                    // Dispatch is deferred to HandleDataFrame/HandleTrailers (see DispatchBufferedRequest).
+                    var buffered = _ops.PoolContext!.Rent(static () => new BufferedBodyReader());
+                    buffered.Reset((int)n);
+                    state.InitBodyReader(buffered, _maxRequestBodySize);
+                    state.SetFeatures(features);
+
+                    if (expectsContinue)
+                    {
+                        SendInformational(capturedStreamId, 100, new HeaderDictionary());
+                    }
+
+                    return;
+                }
+
                 var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
@@ -823,20 +889,11 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                     _ops.StageActor.Tell(new StreamBodyConsumed(capturedBodyStreamId), ActorRefs.NoSender);
             }
 
-            features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
-
-            var capturedStreamId = streamId;
-            features.Set<IHttpResetFeature>(new GaudiHttpResetFeature(errorCode =>
-                EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
-            features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
-                SendInformational(capturedStreamId, statusCode, headers)));
-
             Tracing.For("Protocol")
                 .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody={1})", streamId, hasBody);
             _ops.OnRequest(features);
 
-            if (string.Equals(requestFeature.Headers[WellKnownHeaders.Expect], "100-continue",
-                    StringComparison.OrdinalIgnoreCase))
+            if (expectsContinue)
             {
                 SendInformational(capturedStreamId, 100, new HeaderDictionary());
             }

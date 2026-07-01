@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.Features;
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3;
 
@@ -114,6 +115,30 @@ internal sealed class StreamState : IResettable
         }
     }
 
+    /// <summary>
+    /// Peeks the declared Content-Length from the accumulated content headers without
+    /// materializing an <see cref="HttpContent"/>. Used to decide buffered-vs-streaming body
+    /// handling before a body reader is created (the reader must exist before DATA frames arrive).
+    /// </summary>
+    public long? PeekContentLength()
+    {
+        if (_contentHeaders is null)
+        {
+            return null;
+        }
+
+        foreach (var (name, value) in _contentHeaders)
+        {
+            if (string.Equals(name, WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(value, out var length))
+            {
+                return length;
+            }
+        }
+
+        return null;
+    }
+
     public void InitBodyReader(IBodyReader reader, long maxBodySize = long.MaxValue)
     {
         _bodyReader = reader;
@@ -131,6 +156,25 @@ internal sealed class StreamState : IResettable
         var reader = _bodyReader;
         _bodyReader = null;
         return reader;
+    }
+
+    /// <summary>
+    /// Detaches and returns the body reader only if it is a still-pending <see cref="BufferedBodyReader"/>
+    /// (dispatch deferred until the body completed). Non-buffered readers (e.g. <c>QueuedBodyReader</c>)
+    /// are left attached — their lifecycle is owned by the already-handed-out <see cref="Stream"/>, and
+    /// detaching them here would prevent the owning session manager from returning them to the pool later.
+    /// </summary>
+    public bool TryTakeBufferedBodyReader(out BufferedBodyReader? reader)
+    {
+        if (_bodyReader is BufferedBodyReader buffered)
+        {
+            reader = buffered;
+            _bodyReader = null;
+            return true;
+        }
+
+        reader = null;
+        return false;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)

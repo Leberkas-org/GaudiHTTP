@@ -20,7 +20,8 @@ internal sealed class StreamManager(
     IClientStageOperations ops,
     Http3ClientDecoder responseDecoder,
     QpackTableSync tableSync,
-    long maxResponseBodySize)
+    long maxResponseBodySize,
+    int maxBufferedResponseBodySize)
 {
     private readonly ConnectionObjectPool _objectPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
@@ -80,7 +81,16 @@ internal sealed class StreamManager(
         if (_streams.TryGetValue(streamId, out var state) && state.HasBodyReader)
         {
             state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-            state.DetachBodyReader();
+
+            if (state.TryTakeBufferedBodyReader(out var buffered))
+            {
+                DispatchBufferedResponse(streamId, state, buffered!);
+            }
+            else
+            {
+                state.DetachBodyReader();
+            }
+
             ReturnStreamState(streamId);
             return;
         }
@@ -141,7 +151,16 @@ internal sealed class StreamManager(
             if (state.HasBodyReader)
             {
                 state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-                state.DetachBodyReader();
+
+                if (state.TryTakeBufferedBodyReader(out var buffered))
+                {
+                    DispatchBufferedResponse(streamId, state, buffered!);
+                }
+                else
+                {
+                    state.DetachBodyReader();
+                }
+
                 handledStreamIds.Add(streamId);
             }
         }
@@ -192,28 +211,38 @@ internal sealed class StreamManager(
 
                 if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
-                    state.InitBodyReader(queued, maxResponseBodySize);
-                    var response = state.GetResponse();
-                    var stageActor = ops.StageActor;
-                    var capturedId = streamId;
-                    var bodyStream = queued.AsStream(onAbandoned: () =>
-                        stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
-                    response.Content = new StreamContent(bodyStream);
-                    state.ApplyContentHeadersTo(response.Content);
-
-                    if (_correlationMap.Remove(streamId, out var request))
+                    var contentLength = state.PeekContentLength();
+                    if (contentLength is > 0 and var n && n <= maxBufferedResponseBodySize)
                     {
-                        response.RequestMessage = request;
+                        var buffered = _objectPool.Rent(static () => new BufferedBodyReader());
+                        buffered.Reset((int)n);
+                        state.InitBodyReader(buffered, maxResponseBodySize);
                     }
-
-                    var partialContentResult = PartialContentValidator.Validate(response);
-                    if (!partialContentResult.IsValid)
+                    else
                     {
-                        Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
-                    }
+                        var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
+                        state.InitBodyReader(queued, maxResponseBodySize);
+                        var response = state.GetResponse();
+                        var stageActor = ops.StageActor;
+                        var capturedId = streamId;
+                        var bodyStream = queued.AsStream(onAbandoned: () =>
+                            stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
+                        response.Content = new StreamContent(bodyStream);
+                        state.ApplyContentHeadersTo(response.Content);
 
-                    ops.OnResponse(response);
+                        if (_correlationMap.Remove(streamId, out var request))
+                        {
+                            response.RequestMessage = request;
+                        }
+
+                        var partialContentResult = PartialContentValidator.Validate(response);
+                        if (!partialContentResult.IsValid)
+                        {
+                            Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
+                        }
+
+                        ops.OnResponse(response);
+                    }
 
                     // Replay DATA buffered while the stream was blocked, then honor a FIN that
                     // arrived during the block so the body completes.
@@ -223,7 +252,16 @@ internal sealed class StreamManager(
                     if (state.PendingEndStream)
                     {
                         state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-                        state.DetachBodyReader();
+
+                        if (state.TryTakeBufferedBodyReader(out var pendingBuffered))
+                        {
+                            DispatchBufferedResponse(streamId, state, pendingBuffered!);
+                        }
+                        else
+                        {
+                            state.DetachBodyReader();
+                        }
+
                         ReturnStreamState(streamId);
                     }
                 }
@@ -371,6 +409,18 @@ internal sealed class StreamManager(
         }
 
         var streamId = state.StreamId;
+        var contentLength = state.PeekContentLength();
+
+        if (contentLength is > 0 and var n && n <= maxBufferedResponseBodySize)
+        {
+            // Small, known-length body: collect every DATA frame and deliver the full body once
+            // complete instead of paying QueuedBodyReader's channel overhead. OnResponse is
+            // deferred to DispatchBufferedResponse (see FlushPendingResponse / FlushAllPendingResponses).
+            var buffered = _objectPool.Rent(static () => new BufferedBodyReader());
+            buffered.Reset((int)n);
+            state.InitBodyReader(buffered, maxResponseBodySize);
+            return;
+        }
 
         var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
@@ -380,6 +430,32 @@ internal sealed class StreamManager(
         var bodyStream = queued.AsStream(onAbandoned: () =>
             stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
         response.Content = new StreamContent(bodyStream);
+        state.ApplyContentHeadersTo(response.Content);
+
+        if (_correlationMap.Remove(streamId, out var request))
+        {
+            response.RequestMessage = request;
+        }
+
+        var partialContentResult = PartialContentValidator.Validate(response);
+        if (!partialContentResult.IsValid)
+        {
+            Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
+        }
+
+        ops.OnResponse(response);
+    }
+
+    /// <summary>
+    /// Completes a response whose body was buffered (Content-Length within the configured
+    /// threshold): the body reader collected every DATA frame, so the final byte[] is materialized
+    /// here — after completion, not at HEADERS time — because <see cref="BufferedBodyReader.AsStream"/>
+    /// snapshots the received length at call time.
+    /// </summary>
+    private void DispatchBufferedResponse(long streamId, StreamState state, BufferedBodyReader buffered)
+    {
+        var response = state.GetResponse();
+        response.Content = new StreamContent(buffered.AsStream());
         state.ApplyContentHeadersTo(response.Content);
 
         if (_correlationMap.Remove(streamId, out var request))

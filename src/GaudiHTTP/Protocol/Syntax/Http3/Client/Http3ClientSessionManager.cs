@@ -69,7 +69,12 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         _requestEncoder = new Http3ClientEncoder(_tableSync);
         var responseDecoder = new Http3ClientDecoder(_tableSync, decoderOptions.MaxFieldSectionSize);
         _qpackStreamManager = new QpackStreamManager(ops, _requestEncoder, responseDecoder, _tableSync);
-        _streamManager = new StreamManager(ops, responseDecoder, _tableSync, _options.MaxStreamedResponseBodySize ?? long.MaxValue)
+        _streamManager = new StreamManager(
+            ops,
+            responseDecoder,
+            _tableSync,
+            _options.MaxStreamedResponseBodySize ?? long.MaxValue,
+            _options.ResolveMaxBufferedResponseBodySize(_options.Http3))
         {
             OnStreamClosedCallback = OnStreamClosed
         };
