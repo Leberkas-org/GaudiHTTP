@@ -233,9 +233,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         // drain path (StartStreamBodyDrain) reads in 64 KB chunks instead, keeping peak
         // memory at ~32 MB even at extreme concurrency.
         if (contentLength is > 0 and var knownLength
-                                     && knownLength <= (_options.Http2.MaxBufferedRequestBodySize
-                                                         ?? _options.MaxBufferedRequestBodySize
-                                                         ?? _options.MaxBufferedBodySize)
+                                     && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http2)
                                      && _flow.ConnectionSendWindow > 0
                                                      && TrySerializeBodyDirect(request.Content!, streamId, state,
                                                          (int)knownLength))

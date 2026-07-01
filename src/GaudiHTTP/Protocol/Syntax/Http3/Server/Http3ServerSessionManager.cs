@@ -32,6 +32,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly long _maxRequestBodySize;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
+    private readonly int _responseBodyChunkSize;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     // Connection-level outbound credit for the multiplexed response-body pump. Each emitted DATA
@@ -78,6 +79,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
+        _responseBodyChunkSize = options.ResponseBodyChunkSize;
 
         _tableSync = new QpackTableSync(
             encoderMaxCapacity: 0,
@@ -231,7 +233,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, 16 * 1024, OutboundBodyCapacity);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, _responseBodyChunkSize, OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
