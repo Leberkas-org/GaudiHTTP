@@ -27,6 +27,8 @@ public sealed class Http3ConnectionErrorTeardownSpec
         QpackBlockedStreams = 0,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     [Fact(Timeout = 5000)]

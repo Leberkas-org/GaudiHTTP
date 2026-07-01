@@ -39,10 +39,19 @@ public sealed class Http1ServerOptions
     public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;
 
     /// <summary>
-    /// Gets or sets the maximum request body size (in bytes) that is buffered fully in memory.
-    /// Bodies larger than this are exposed as a streaming pipe with back-pressure. Default is 64 KiB.
+    /// Per-protocol override for the maximum request body size (in bytes) that is buffered fully
+    /// in memory. Bodies larger than this are exposed as a streaming pipe with back-pressure.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiServerOptions.MaxBufferedRequestBodySize"/>
+    /// then <see cref="GaudiServerOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public int MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for response body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiServerOptions.ResponseBodyChunkSize"/> then
+    /// <see cref="GaudiServerOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? ResponseBodyChunkSize { get; set; }
 
     /// <summary>Gets or sets the timeout for reading the complete request body after headers are received. Default is 30 seconds.</summary>
     public TimeSpan BodyReadTimeout { get; set; } = TimeSpan.FromSeconds(30);

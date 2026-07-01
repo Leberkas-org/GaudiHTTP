@@ -33,6 +33,8 @@ public sealed class Http3HeadersTimerLeakSpec
         QpackBlockedStreams = 0,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = false,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static byte[] BuildHeadersFrame(string method = "GET", string path = "/")

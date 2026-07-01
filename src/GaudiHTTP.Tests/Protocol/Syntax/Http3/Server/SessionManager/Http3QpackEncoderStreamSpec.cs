@@ -37,6 +37,8 @@ public sealed class Http3QpackEncoderStreamSpec
         QpackBlockedStreams = 10,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static void Feed(Http3ServerSessionManager sm, ReadOnlyMemory<byte> bytes, long streamId)

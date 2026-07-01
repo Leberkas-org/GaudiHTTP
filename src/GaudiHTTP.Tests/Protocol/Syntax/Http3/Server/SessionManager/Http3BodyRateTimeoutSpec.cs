@@ -59,6 +59,8 @@ public sealed class Http3BodyRateTimeoutSpec
         QpackBlockedStreams = 0,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)

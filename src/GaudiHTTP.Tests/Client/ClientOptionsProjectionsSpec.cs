@@ -122,4 +122,99 @@ public sealed class ClientOptionsProjectionsSpec
 
         Assert.Equal(16 * 1024, dec.MaxChunkedTrailerSize);
     }
+
+    [Fact(Timeout = 5000)]
+    public void MaxBufferedBodySize_default_should_be_64_KiB()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(64 * 1024, o.MaxBufferedBodySize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void BodyChunkSize_default_should_be_16_KiB()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(16 * 1024, o.BodyChunkSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Tier2_overrides_should_default_to_null()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Null(o.MaxBufferedRequestBodySize);
+        Assert.Null(o.MaxBufferedResponseBodySize);
+        Assert.Null(o.RequestBodyChunkSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http1_per_protocol_body_overrides_should_default_to_null()
+    {
+        var o = new Http1ClientOptions();
+
+        Assert.Null(o.MaxBufferedRequestBodySize);
+        Assert.Null(o.MaxBufferedResponseBodySize);
+        Assert.Null(o.RequestBodyChunkSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http2_per_protocol_body_overrides_should_default_to_null()
+    {
+        var o = new Http2ClientOptions();
+
+        Assert.Null(o.MaxBufferedRequestBodySize);
+        Assert.Null(o.MaxBufferedResponseBodySize);
+        Assert.Null(o.RequestBodyChunkSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http3_per_protocol_body_overrides_should_default_to_null()
+    {
+        var o = new Http3ClientOptions();
+
+        Assert.Null(o.MaxBufferedRequestBodySize);
+        Assert.Null(o.MaxBufferedResponseBodySize);
+        Assert.Null(o.RequestBodyChunkSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http10_response_buffer_should_resolve_from_global_default()
+    {
+        var o = new GaudiClientOptions { MaxBufferedBodySize = 128 * 1024 };
+
+        var dec = o.ToHttp10DecoderOptions();
+
+        Assert.Equal(128 * 1024, dec.MaxBufferedBodySize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http10_response_buffer_tier2_should_override_global()
+    {
+        var o = new GaudiClientOptions
+        {
+            MaxBufferedBodySize = 128 * 1024,
+            MaxBufferedResponseBodySize = 32 * 1024
+        };
+
+        var dec = o.ToHttp10DecoderOptions();
+
+        Assert.Equal(32 * 1024, dec.MaxBufferedBodySize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http10_response_buffer_tier3_should_override_tier2()
+    {
+        var o = new GaudiClientOptions
+        {
+            MaxBufferedBodySize = 128 * 1024,
+            MaxBufferedResponseBodySize = 32 * 1024,
+            Http1 = { MaxBufferedResponseBodySize = 8 * 1024 }
+        };
+
+        var dec = o.ToHttp10DecoderOptions();
+
+        Assert.Equal(8 * 1024, dec.MaxBufferedBodySize);
+    }
 }
