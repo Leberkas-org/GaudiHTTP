@@ -10,7 +10,6 @@ namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
 {
-    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(25);
     private const string StartupTimerKey = "startup-timeout";
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
@@ -66,7 +65,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             return;
         }
 
-        Timers.StartSingleTimer(StartupTimerKey, new StartupTimedOut(), StartupTimeout);
+        Timers.StartSingleTimer(StartupTimerKey, new StartupTimedOut(), msg.Options.StartupTimeout);
 
         for (var i = 0; i < msg.Bindings.Count; i++)
         {

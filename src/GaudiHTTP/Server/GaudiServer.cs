@@ -83,7 +83,7 @@ public sealed class GaudiServer : IServer
 
         var response = await _supervisor.Ask<object>(
             new ServerSupervisorActor.StartServer(bridgeFlow, _options, resolvedEndpoints),
-            TimeSpan.FromSeconds(30),
+            _options.StartupTimeout + TimeSpan.FromSeconds(5),
             cancellationToken);
 
         if (response is ServerSupervisorActor.ListenersFailed failed)

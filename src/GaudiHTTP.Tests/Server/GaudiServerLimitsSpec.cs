@@ -10,4 +10,20 @@ public sealed class GaudiServerLimitsSpec
         var limits = new GaudiServerLimits();
         Assert.Equal(0, limits.MaxConcurrentConnections);
     }
+
+    [Fact(Timeout = 5000)]
+    public void StartupTimeout_default_should_be_25_seconds()
+    {
+        var o = new GaudiServerOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(25), o.StartupTimeout);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StartupTimeout_should_be_settable()
+    {
+        var o = new GaudiServerOptions { StartupTimeout = TimeSpan.FromSeconds(60) };
+
+        Assert.Equal(TimeSpan.FromSeconds(60), o.StartupTimeout);
+    }
 }
