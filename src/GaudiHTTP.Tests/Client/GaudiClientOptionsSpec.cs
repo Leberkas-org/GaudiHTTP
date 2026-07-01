@@ -410,4 +410,20 @@ public sealed class GaudiClientOptionsSpec
 
         Assert.Equal(10, o.MaxStreamRetryAttempts);
     }
+
+    [Fact(Timeout = 5000)]
+    public void DefaultRequestTimeout_default_should_be_60_seconds()
+    {
+        var o = new GaudiClientOptions();
+
+        Assert.Equal(TimeSpan.FromSeconds(60), o.DefaultRequestTimeout);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DefaultRequestTimeout_should_accept_infinite()
+    {
+        var o = new GaudiClientOptions { DefaultRequestTimeout = Timeout.InfiniteTimeSpan };
+
+        Assert.Equal(Timeout.InfiniteTimeSpan, o.DefaultRequestTimeout);
+    }
 }

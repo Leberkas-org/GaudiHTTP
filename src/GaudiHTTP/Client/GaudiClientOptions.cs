@@ -69,6 +69,14 @@ public sealed class GaudiClientOptions
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
+    /// Default timeout applied to every request sent through <see cref="IGaudiHttpClient"/> when no
+    /// per-request <see cref="CancellationToken"/> timeout is configured. Equivalent to
+    /// <see cref="HttpClient.Timeout"/>. Set to <see cref="Timeout.InfiniteTimeSpan"/> to disable.
+    /// Default is 60 seconds.
+    /// </summary>
+    public TimeSpan DefaultRequestTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
     /// Time a connection may remain idle in the pool before it is evicted.
     /// Default is 90 seconds.
     /// </summary>
