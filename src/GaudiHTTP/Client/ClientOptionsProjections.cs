@@ -20,6 +20,8 @@ internal static class ClientOptionsProjections
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
         HeaderLineMaxLength = o.Http1.MaxResponseHeaderLineLength,
+        MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
         AllowObsFold = false
     };
 
@@ -32,6 +34,8 @@ internal static class ClientOptionsProjections
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
         HeaderLineMaxLength = o.Http1.MaxResponseHeaderLineLength,
         MaxChunkExtensionLength = o.Http1.MaxChunkExtensionLength,
+        MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
         AllowObsFold = false
     };
 

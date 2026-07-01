@@ -4,6 +4,8 @@ internal sealed record Http11ServerDecoderOptions
 {
     public required int MaxPipelinedRequests { get; init; }
     public required int MaxChunkExtensionLength { get; init; }
+    public required int MaxChunkedControlLineLength { get; init; }
+    public required int MaxChunkedTrailerSize { get; init; }
     public required long StreamingThreshold { get; init; }
     public required long MaxBufferedBodySize { get; init; }
     public required long? MaxStreamedBodySize { get; init; }

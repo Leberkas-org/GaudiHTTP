@@ -26,7 +26,8 @@ internal static class BodyReaderPoolExtensions
         if (classification.IsChunked)
         {
             var decoder = pool.Rent(static () => new ChunkedFramingDecoder());
-            decoder.Reset(options.MaxStreamedBodySize ?? long.MaxValue, options.MaxChunkExtensionLength);
+            decoder.Reset(options.MaxStreamedBodySize ?? long.MaxValue, options.MaxChunkExtensionLength,
+                options.MaxChunkedControlLineLength, options.MaxChunkedTrailerSize);
             return (streamingReader, decoder);
         }
 

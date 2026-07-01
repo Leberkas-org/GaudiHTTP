@@ -27,6 +27,8 @@ internal static class Http1ConnectionOptionsExtensions
         HeaderLineMaxLength = o.MaxRequestLineLength,
         RequestLineMaxLength = o.MaxRequestLineLength,
         MaxRequestTargetLength = o.MaxRequestTargetLength,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize,
         AllowObsFold = o.AllowObsFold
     };
 
@@ -42,6 +44,8 @@ internal static class Http1ConnectionOptionsExtensions
     {
         MaxPipelinedRequests = o.MaxPipelinedRequests,
         MaxChunkExtensionLength = o.MaxChunkExtensionLength,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize,
         StreamingThreshold = o.MaxBufferedBodySize,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.Limits.MaxRequestBodySize,

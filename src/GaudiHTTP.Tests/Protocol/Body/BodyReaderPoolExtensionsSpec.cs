@@ -10,7 +10,9 @@ public sealed class BodyReaderPoolExtensionsSpec
         StreamingThreshold = 64 * 1024,
         MaxBufferedBodySize = 64 * 1024,
         MaxStreamedBodySize = 8 * 1024 * 1024,
-        MaxChunkExtensionLength = 256
+        MaxChunkExtensionLength = 256,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024
     };
 
     [Fact(Timeout = 5000)]

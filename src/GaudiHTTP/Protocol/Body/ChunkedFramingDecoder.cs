@@ -15,9 +15,6 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
         Complete
     }
 
-    private const int MaxControlLineLength = 64 * 1024;
-    private const int MaxTrailerSectionBytes = 32 * 1024;
-
     private Phase _phase;
     private int _currentChunkRemaining;
     private byte[] _stash = [];
@@ -25,6 +22,8 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
     private long _totalBodyBytes;
     private long _maxBodySize;
     private int _maxChunkExtensionLength;
+    private int _maxControlLineLength;
+    private int _maxTrailerSectionBytes;
     private List<(string Name, string Value)>? _trailers;
     private int _trailerSectionBytes;
 
@@ -34,7 +33,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
     public IReadOnlyList<(string Name, string Value)> Trailers
         => _trailers ?? (IReadOnlyList<(string Name, string Value)>)[];
 
-    public void Reset(long maxBodySize, int maxChunkExtensionLength)
+    public void Reset(long maxBodySize, int maxChunkExtensionLength, int maxControlLineLength, int maxTrailerSectionBytes)
     {
         _phase = Phase.ChunkSize;
         _currentChunkRemaining = 0;
@@ -42,11 +41,13 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
         _totalBodyBytes = 0;
         _maxBodySize = maxBodySize;
         _maxChunkExtensionLength = maxChunkExtensionLength;
+        _maxControlLineLength = maxControlLineLength;
+        _maxTrailerSectionBytes = maxTrailerSectionBytes;
         _trailers?.Clear();
         _trailerSectionBytes = 0;
     }
 
-    void IResettable.Reset() => Reset(long.MaxValue, 8 * 1024);
+    void IResettable.Reset() => Reset(long.MaxValue, 8 * 1024, 64 * 1024, 32 * 1024);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {
@@ -177,7 +178,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
 
                         var trailerLine = work[pos..crlf];
                         _trailerSectionBytes += trailerLine.Length + 2;
-                        if (_trailerSectionBytes > MaxTrailerSectionBytes)
+                        if (_trailerSectionBytes > _maxTrailerSectionBytes)
                         {
                             throw new HttpProtocolException("Trailer section exceeds maximum size.");
                         }
@@ -198,7 +199,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
     stash:
         var remaining = work.Length - pos;
         if (incompleteLine && _phase is Phase.ChunkSize or Phase.Trailer
-                           && remaining > Math.Max(MaxControlLineLength, _maxChunkExtensionLength))
+                           && remaining > Math.Max(_maxControlLineLength, _maxChunkExtensionLength))
         {
             throw new HttpProtocolException("Chunk control line exceeds maximum length.");
         }

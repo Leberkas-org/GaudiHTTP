@@ -96,4 +96,30 @@ public sealed class ClientOptionsProjectionsSpec
         Assert.Equal(256 * 1024, dec.MaxHeaderSize);
         Assert.Equal(256 * 1024, dec.MaxHeaderListSize);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Http11_chunked_control_line_length_should_flow_to_decoder_options()
+    {
+        var o = new GaudiClientOptions
+        {
+            Http1 = { MaxChunkedControlLineLength = 32 * 1024 }
+        };
+
+        var dec = o.ToHttp11DecoderOptions();
+
+        Assert.Equal(32 * 1024, dec.MaxChunkedControlLineLength);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http11_chunked_trailer_size_should_flow_to_decoder_options()
+    {
+        var o = new GaudiClientOptions
+        {
+            Http1 = { MaxChunkedTrailerSize = 16 * 1024 }
+        };
+
+        var dec = o.ToHttp11DecoderOptions();
+
+        Assert.Equal(16 * 1024, dec.MaxChunkedTrailerSize);
+    }
 }

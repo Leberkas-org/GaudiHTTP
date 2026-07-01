@@ -10,7 +10,9 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
-        MaxChunkExtensionLength = int.MaxValue
+        MaxChunkExtensionLength = int.MaxValue,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http11ClientDecoderOptions o) => new()
@@ -18,7 +20,9 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
-        MaxChunkExtensionLength = o.MaxChunkExtensionLength
+        MaxChunkExtensionLength = o.MaxChunkExtensionLength,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http10ServerDecoderOptions o) => new()
@@ -26,7 +30,9 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
-        MaxChunkExtensionLength = int.MaxValue
+        MaxChunkExtensionLength = int.MaxValue,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http11ServerDecoderOptions o) => new()
@@ -34,6 +40,8 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
-        MaxChunkExtensionLength = o.MaxChunkExtensionLength
+        MaxChunkExtensionLength = o.MaxChunkExtensionLength,
+        MaxChunkedControlLineLength = o.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.MaxChunkedTrailerSize
     };
 }
