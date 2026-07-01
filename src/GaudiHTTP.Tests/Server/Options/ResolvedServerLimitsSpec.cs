@@ -14,7 +14,9 @@ public sealed class ResolvedServerLimitsSpec
             MinRequestBodyDataRate: 1,
             MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(3),
             MinResponseDataRate: 2,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(4));
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(4),
+            MaxResetStreamsPerWindow: 200,
+            RapidResetDetectionWindow: TimeSpan.FromSeconds(30));
 
         Assert.Equal(123, r.MaxRequestBodySize);
         Assert.Equal(2, r.MinResponseDataRate);

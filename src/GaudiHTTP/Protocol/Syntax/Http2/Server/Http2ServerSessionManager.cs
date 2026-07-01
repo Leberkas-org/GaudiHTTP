@@ -18,10 +18,6 @@ namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
 internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 {
-    // RFC 9113 §5.1 / CVE-2023-44487 (Rapid Reset): client-initiated resets are counted within this
-    // sliding window; exceeding the configured budget closes the connection with ENHANCE_YOUR_CALM.
-    private const long ResetWindowMs = 30_000;
-
     private const string DataRateCheck = "data-rate-check";
 
 
@@ -60,6 +56,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
 
     private readonly int _maxResetStreamsPerWindow;
+    private readonly long _resetWindowMs;
     private int _resetCount;
     private long _resetWindowStart;
 
@@ -101,6 +98,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
+        _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
         _initialStreamWindowSize = options.InitialStreamWindowSize;
@@ -761,7 +759,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
 
         var now = Now();
-        if (now - _resetWindowStart >= ResetWindowMs)
+        if (now - _resetWindowStart >= _resetWindowMs)
         {
             _resetWindowStart = now;
             _resetCount = 0;
