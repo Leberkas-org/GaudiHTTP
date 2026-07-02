@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -12,7 +13,7 @@ internal sealed class SerialBodyPump(
     private const int MaxSyncReadsPerDispatch = 64;
 
     private Stream? _activeStream;
-    private IMemoryOwner<byte>? _buffer;
+    private IMemoryOwner<byte>? _activeOwner;
     private CancellationTokenSource? _linkedCts;
     private bool _isReadInFlight;
     private int _availableCapacity;
@@ -26,7 +27,6 @@ internal sealed class SerialBodyPump(
     public void Register(Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         _activeStream = bodyStream;
-        _buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(chunkSize, 256));
         _linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
@@ -56,6 +56,8 @@ internal sealed class SerialBodyPump(
     {
         _isReadInFlight = false;
         _consecutiveSyncReads = 0;
+        _activeOwner?.Dispose();
+        _activeOwner = null;
         _activeStream = null;
         target.OnDrainFailed(0, reason);
         CompleteDrain();
@@ -70,8 +72,8 @@ internal sealed class SerialBodyPump(
     public void Cancel()
     {
         _linkedCts?.Cancel();
-        _buffer?.Dispose();
-        _buffer = null;
+        _activeOwner?.Dispose();
+        _activeOwner = null;
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
@@ -81,8 +83,8 @@ internal sealed class SerialBodyPump(
 
     public void Cleanup()
     {
-        _buffer?.Dispose();
-        _buffer = null;
+        _activeOwner?.Dispose();
+        _activeOwner = null;
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
@@ -113,14 +115,15 @@ internal sealed class SerialBodyPump(
         _availableCapacity--;
         var token = _linkedCts?.Token ?? connectionCts.Token;
         _isReadInFlight = true;
-        var vt = _activeStream.ReadAsync(_buffer!.Memory[..chunkSize], token);
+        _activeOwner = PooledArrayMemoryOwner.Create(chunkSize);
+        var vt = _activeStream.ReadAsync(_activeOwner.Memory[..chunkSize], token);
 
         if (vt.IsCompletedSuccessfully)
         {
-            // Force-async: the bytes sit in the shared _buffer until the Tell'd completion is
+            // Force-async: the bytes sit in _activeOwner until the Tell'd completion is
             // processed. Keep _isReadInFlight = true across the mailbox hop (exactly like the
             // PipeTo path below) so an interleaved OnCapacityAvailable -> TryStartRead cannot
-            // start the next read and overwrite _buffer before HandleReadComplete emits it.
+            // start the next read before HandleReadComplete hands off the current owner.
             _consecutiveSyncReads = 0;
             target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
             return;
@@ -135,22 +138,26 @@ internal sealed class SerialBodyPump(
 
     private void ProcessReadResult(int bytesRead)
     {
+        var owner = _activeOwner;
+        _activeOwner = null;
+
         if (bytesRead == 0)
         {
+            owner?.Dispose();
             target.EmitDataFrames(0, default, endStream: true);
             CompleteDrain();
             return;
         }
 
-        target.EmitDataFrames(0, _buffer!.Memory[..bytesRead], endStream: false);
+        target.EmitOwnedDataFrames(0, owner!, bytesRead, endStream: false);
         TryStartRead();
     }
 
     private void CompleteDrain()
     {
         var wasActive = _activeStream is not null;
-        _buffer?.Dispose();
-        _buffer = null;
+        _activeOwner?.Dispose();
+        _activeOwner = null;
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;

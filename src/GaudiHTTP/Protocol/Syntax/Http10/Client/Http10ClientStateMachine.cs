@@ -1,3 +1,4 @@
+using System.Buffers;
 using Akka.Actor;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -84,6 +85,26 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
             // H1.0 has no OnOutboundFlushed — drive the pump inline after each chunk.
             _serialPump!.OnCapacityAvailable();
+        }
+
+        if (endStream)
+        {
+            _outboundBodyPending = false;
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body complete (pump)");
+        }
+    }
+
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", bytesWritten);
+            _serialPump!.OnCapacityAvailable();
+        }
+        else
+        {
+            owner.Dispose();
         }
 
         if (endStream)

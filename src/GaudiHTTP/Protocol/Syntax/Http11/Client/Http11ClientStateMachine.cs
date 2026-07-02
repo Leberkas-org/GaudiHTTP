@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Akka.Actor;
 using Servus.Akka.Transport;
@@ -124,6 +125,48 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         else
         {
             Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", data.Length);
+        }
+    }
+
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            if (_isChunked)
+            {
+                var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
+                var buf = TransportBuffer.Rent(framedSize);
+                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
+                buf.Length = framedSize;
+                _ops.OnOutbound(TransportData.Rent(buf));
+                owner.Dispose();
+            }
+            else
+            {
+                _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            }
+        }
+        else
+        {
+            owner.Dispose();
+        }
+
+        if (endStream)
+        {
+            if (_isChunked)
+            {
+                var buf = TransportBuffer.Rent(5);
+                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
+                buf.Length = 5;
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+
+            _outboundBodyPending = false;
+            Tracing.For("Protocol").Debug(this, "request body complete");
+        }
+        else
+        {
+            Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", bytesWritten);
         }
     }
 
