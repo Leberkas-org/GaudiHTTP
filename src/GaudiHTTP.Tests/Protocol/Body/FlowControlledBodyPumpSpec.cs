@@ -1,5 +1,4 @@
 using Akka.Actor;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -113,7 +112,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
@@ -131,7 +130,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         flow.OnDataSent(1, 65535);
@@ -155,7 +154,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 65535);
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         // Exhaust connection window completely
@@ -183,7 +182,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 64, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 64, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         flow.InitStreamSendWindow(3);
@@ -206,7 +205,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
@@ -221,7 +220,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         scheduler.Cleanup();
         scheduler.Cleanup();
@@ -232,7 +231,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
@@ -247,7 +246,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 1024 * 1024);
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 16, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 16, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         flow.OnSendWindowUpdate(1, 1024 * 1024);
@@ -272,7 +271,7 @@ public sealed class FlowControlledBodyPumpSpec
         var target = new FakeTarget();
         // Start with very small connection window
         var flow = MakeFlow(connWindow: 65535);
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 16 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 16 * 1024, hardCap: 16);
 
         // Connection window = 65535, chunkSize = 16384
         // With reservation, reads are bounded by min(chunkSize, streamWindow, connWindow)
@@ -288,7 +287,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(10), 10, CancellationToken.None);
@@ -310,7 +309,7 @@ public sealed class FlowControlledBodyPumpSpec
         var flow = MakeFlow();
         var connCts = new CancellationTokenSource();
         var reqCts = new CancellationTokenSource();
-        var scheduler = new FlowControlledBodyPump(target, flow, connCts, new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, connCts, chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         scheduler.Register(1, MakeBody(100), 100, reqCts.Token);
@@ -325,7 +324,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow(connWindow: 65535);
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         var windowBefore = flow.ConnectionSendWindow;
@@ -345,7 +344,7 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var target = new FakeTarget();
         var flow = MakeFlow();
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         var windowBefore = flow.ConnectionSendWindow;
@@ -377,7 +376,7 @@ public sealed class FlowControlledBodyPumpSpec
         // chunkSize = 1024, minReadSize = 512
         // Set connection window to 256 (below minReadSize)
         var flow = MakeFlow(connWindow: 65535);
-        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize: 1 * 1024, hardCap: 16);
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
         // Leave stream window at 65535 but exhaust connection window to 256

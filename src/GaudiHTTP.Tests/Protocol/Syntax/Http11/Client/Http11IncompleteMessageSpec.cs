@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.TestSupport;
@@ -8,7 +7,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11IncompleteMessageSpec
 {
-    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.3")]

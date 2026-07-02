@@ -2,7 +2,6 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Streams.Stages.Server;
@@ -12,8 +11,6 @@ namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
 {
-    private readonly ConnectionObjectPool _pool = new();
-
     private sealed class CallbackTrackingApplication(Func<IFeatureCollection, Task> handler)
         : IHttpApplication<IFeatureCollection>
     {
@@ -25,7 +22,7 @@ public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
     private IFeatureCollection RequestWithCallbacks()
     {
         var requestFeature = new GaudiHttpRequestFeature { Protocol = "HTTP/2" };
-        return FeatureCollectionFactory.Create(_pool, requestFeature, hasBody: false);
+        return FeatureCollectionFactory.Create(requestFeature, hasBody: false);
     }
 
     private static ApplicationBridgeStage<IFeatureCollection> CreateStage(

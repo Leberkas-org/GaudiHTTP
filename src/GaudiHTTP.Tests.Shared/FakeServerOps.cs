@@ -3,7 +3,6 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Streams.Stages.Server;
 
 namespace GaudiHTTP.Tests.Shared;
@@ -47,7 +46,6 @@ internal sealed class FakeServerOps : IServerStageOperations
     public ILoggingAdapter Log => NoLogger.Instance;
     public IActorRef StageActor { get; set; }
     public IMaterializer Materializer { get; set; } = null!;
-    public ConnectionObjectPool? PoolContext { get; } = new();
 
     private sealed class CapturingActorRef(List<object> messages) : MinimalActorRef
     {

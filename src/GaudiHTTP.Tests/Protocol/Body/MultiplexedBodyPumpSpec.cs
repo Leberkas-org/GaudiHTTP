@@ -1,5 +1,4 @@
 using Akka.Actor;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 
 namespace GaudiHTTP.Tests.Protocol.Body;
@@ -112,7 +111,7 @@ public sealed class MultiplexedBodyPumpSpec
 
     private static MultiplexedBodyPump MakePump(FakeTarget target, int chunkSize = 16 * 1024, int maxCapacity = 64)
     {
-        return new MultiplexedBodyPump(target, new CancellationTokenSource(), new ConnectionObjectPool(), chunkSize, maxCapacity);
+        return new MultiplexedBodyPump(target, new CancellationTokenSource(), chunkSize, maxCapacity);
     }
 
     [Fact(Timeout = 5000)]

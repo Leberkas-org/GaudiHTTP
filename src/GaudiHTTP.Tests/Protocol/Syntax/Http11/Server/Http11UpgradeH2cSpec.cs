@@ -4,7 +4,6 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
@@ -37,8 +36,6 @@ public sealed class Http11UpgradeH2CSpec
             get => _inner.Materializer;
             set => _inner.Materializer = value;
         }
-
-        public ConnectionObjectPool? PoolContext => _inner.PoolContext;
 
         public void OnRequest(IFeatureCollection features) => _inner.OnRequest(features);
         public void OnOutbound(ITransportOutbound item) => _inner.OnOutbound(item);

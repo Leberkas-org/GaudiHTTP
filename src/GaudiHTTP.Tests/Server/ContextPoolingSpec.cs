@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http.Features;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 
@@ -7,7 +6,6 @@ namespace GaudiHTTP.Tests.Server;
 
 public sealed class ContextPoolingSpec
 {
-    private readonly ConnectionObjectPool _pool = new();
 
     [Fact(Timeout = 5000)]
     public void GaudiHttpResponseFeature_Reset_clears_status_code()
@@ -82,12 +80,11 @@ public sealed class ContextPoolingSpec
     [Fact(Timeout = 5000)]
     public void FeatureCollectionFactory_Return_stores_context_in_pool()
     {
-        var ctx = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
+        var ctx = FeatureCollectionFactory.Create(new GaudiHttpRequestFeature(), hasBody: false);
 
-        FeatureCollectionFactory.Return(_pool, ctx);
+        FeatureCollectionFactory.Return(ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool,
             new GaudiHttpRequestFeature(),
             hasBody: false,
             connectionFeature: null);
@@ -171,14 +168,14 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_reuse_response_feature_from_pool()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: false);
+            new GaudiHttpRequestFeature(), hasBody: false);
         var originalResponse = ctx.Get<IHttpResponseFeature>();
         originalResponse!.StatusCode = 404;
 
-        FeatureCollectionFactory.Return(_pool, ctx);
+        FeatureCollectionFactory.Return(ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: true);
+            new GaudiHttpRequestFeature(), hasBody: true);
         var reusedResponse = ctx2.Get<IHttpResponseFeature>();
 
         Assert.Same(originalResponse, reusedResponse);
@@ -189,13 +186,13 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_reuse_lifetime_feature_from_pool()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: false);
+            new GaudiHttpRequestFeature(), hasBody: false);
         var originalLifetime = ctx.Get<IHttpRequestLifetimeFeature>();
 
-        FeatureCollectionFactory.Return(_pool, ctx);
+        FeatureCollectionFactory.Return(ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: false);
+            new GaudiHttpRequestFeature(), hasBody: false);
         var reusedLifetime = ctx2.Get<IHttpRequestLifetimeFeature>();
 
         Assert.Same(originalLifetime, reusedLifetime);
@@ -206,13 +203,13 @@ public sealed class ContextPoolingSpec
     public void FeatureCollectionFactory_should_recycle_response_body_feature()
     {
         var ctx = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: false);
+            new GaudiHttpRequestFeature(), hasBody: false);
         var originalBody = ctx.Get<IHttpResponseBodyFeature>();
 
-        FeatureCollectionFactory.Return(_pool, ctx);
+        FeatureCollectionFactory.Return(ctx);
 
         var ctx2 = FeatureCollectionFactory.Create(
-            _pool, new GaudiHttpRequestFeature(), hasBody: false);
+            new GaudiHttpRequestFeature(), hasBody: false);
         var recycledBody = ctx2.Get<IHttpResponseBodyFeature>();
 
         Assert.Same(originalBody, recycledBody);
@@ -222,11 +219,11 @@ public sealed class ContextPoolingSpec
     [Fact(Timeout = 5000)]
     public void FeatureCollectionFactory_should_reuse_same_GaudiFeatureCollection_instance_from_pool()
     {
-        var ctx1 = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
+        var ctx1 = FeatureCollectionFactory.Create(new GaudiHttpRequestFeature(), hasBody: false);
 
-        FeatureCollectionFactory.Return(_pool, ctx1);
+        FeatureCollectionFactory.Return(ctx1);
 
-        var ctx2 = FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature(), hasBody: false);
+        var ctx2 = FeatureCollectionFactory.Create(new GaudiHttpRequestFeature(), hasBody: false);
 
         Assert.Same(ctx1, ctx2);
     }

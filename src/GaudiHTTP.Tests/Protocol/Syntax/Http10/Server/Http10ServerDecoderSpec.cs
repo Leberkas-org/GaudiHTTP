@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http10.Options;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
@@ -23,7 +22,7 @@ public sealed class Http10ServerDecoderSpec
         AllowObsFold = false
     };
 
-    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions(), new ConnectionObjectPool());
+    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
