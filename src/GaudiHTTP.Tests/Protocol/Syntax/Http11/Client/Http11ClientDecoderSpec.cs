@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.TestSupport;
@@ -8,7 +7,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11ClientDecoderSpec
 {
-    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder());
 
     [Fact(Timeout = 5000)]
     public void Feed_should_decode_simple_response()
@@ -67,7 +66,7 @@ public sealed class Http11ClientDecoderSpec
     public void Feed_should_handle_bare_cr_in_status_line()
     {
         var raw = "HTTP/1.1 200\rOK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
 
@@ -83,7 +82,7 @@ public sealed class Http11ClientDecoderSpec
             "Transfer-Encoding: chunked\r\n" +
             "\r\n" +
             "5\r\nhello\r\n0\r\n\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         var ex = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, requestMethodWasHead: false, out _));
         Assert.Contains("Transfer-Encoding", ex.Message);
@@ -101,7 +100,7 @@ public sealed class Http11ClientDecoderSpec
             "0\r\n" +
             "X-Checksum: abc123\r\n" +
             "\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
 
@@ -123,7 +122,7 @@ public sealed class Http11ClientDecoderSpec
             "5\r\nhello\r\n" +
             "0\r\n" +
             "\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
 
@@ -146,7 +145,7 @@ public sealed class Http11ClientDecoderSpec
             "Content-Length: 999\r\n" +
             "X-Custom: allowed\r\n" +
             "\r\n");
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
 

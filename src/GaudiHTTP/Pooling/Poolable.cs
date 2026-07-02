@@ -13,8 +13,12 @@ internal abstract class Poolable<TSelf> : IResetable
 
     public void Reset()
     {
-        Interlocked.Exchange(ref _returned, 0);
         OnReset();
+    }
+
+    public void OnRented()
+    {
+        Interlocked.Exchange(ref _returned, 0);
     }
 
     public void Dispose()

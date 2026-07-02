@@ -13,7 +13,11 @@ internal sealed class ConnectionObjectPool
     private readonly ConcurrentDictionary<Type, object> _pools = new();
 
     public T Rent<T>(Func<T> factory) where T : class, IResetable
-        => GetPool(factory).Get();
+    {
+        var obj = GetPool(factory).Get();
+        obj.OnRented();
+        return obj;
+    }
 
     public void Return<T>(T obj) where T : class, IResetable
         => GetPool<T>(null).Return(obj);

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.TestSupport;
@@ -26,7 +25,7 @@ public sealed class Http11RoundTripStatusCodeSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionObjectPool());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();

@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Options;
@@ -129,7 +128,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
+            var decoder = new Http11ClientDecoder(DecoderOptions);
 
             var sb = new StringBuilder();
             sb.Append("HTTP/1.1 200 OK\r\n");
@@ -178,7 +177,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
+            var decoder = new Http11ClientDecoder(DecoderOptions);
 
             var claimedLengths = new[]
             {
@@ -235,7 +234,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
+            var decoder = new Http11ClientDecoder(DecoderOptions);
 
             var body = "Hello, World!";
             var validResponse = BuildValidResponse(200, "OK", body,
@@ -278,7 +277,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionObjectPool());
+            var decoder = new Http11ClientDecoder(DecoderOptions);
 
             byte[] fullResponse;
             if (rng.Next(2) == 0)

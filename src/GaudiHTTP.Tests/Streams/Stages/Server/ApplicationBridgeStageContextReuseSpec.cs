@@ -3,7 +3,6 @@ using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Abstractions;
 using Microsoft.AspNetCore.Http.Features;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Streams.Stages.Server;
@@ -13,8 +12,6 @@ namespace GaudiHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
 {
-    private readonly ConnectionObjectPool _pool = new();
-
     // Mirrors how Microsoft.AspNetCore.Hosting.HostingApplication caches its context: it checks the
     // feature collection for IHostContextContainer<TContext> and reuses HostContext when present.
     private sealed class ReusableContext
@@ -55,7 +52,7 @@ public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
         => new(app, 10, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
 
     private IFeatureCollection Request()
-        => FeatureCollectionFactory.Create(_pool, new GaudiHttpRequestFeature { Protocol = "HTTP/1.1" }, hasBody: false);
+        => FeatureCollectionFactory.Create(new GaudiHttpRequestFeature { Protocol = "HTTP/1.1" }, hasBody: false);
 
     [Fact(Timeout = 5000)]
     public void CreateContext_should_reuse_host_context_across_requests_on_pooled_collection()
@@ -73,7 +70,7 @@ public sealed class ApplicationBridgeStageContextReuseSpec : StreamTestBase
         var first = Request();
         upstream.SendNext(first, TestContext.Current.CancellationToken);
         downstream.ExpectNext(TestContext.Current.CancellationToken);
-        FeatureCollectionFactory.Return(_pool, first);
+        FeatureCollectionFactory.Return(first);
 
         // Second request re-rents the SAME pooled collection (and thus its cached host context wrapper).
         downstream.Request(1);

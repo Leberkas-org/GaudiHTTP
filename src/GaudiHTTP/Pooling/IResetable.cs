@@ -5,4 +5,5 @@ namespace GaudiHTTP.Pooling;
 internal interface IResetable : IDisposable
 {
     void Reset();
+    void OnRented() { }
 }

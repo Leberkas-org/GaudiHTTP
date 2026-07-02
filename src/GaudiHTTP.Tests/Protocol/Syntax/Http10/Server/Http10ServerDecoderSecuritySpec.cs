@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http10.Options;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
@@ -25,7 +24,7 @@ public sealed class Http10ServerDecoderSecuritySpec
 
     private static Http10ServerDecoder MakeDecoder(Http10ServerDecoderOptions? options = null)
     {
-        return new Http10ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionObjectPool());
+        return new Http10ServerDecoder(options ?? DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]

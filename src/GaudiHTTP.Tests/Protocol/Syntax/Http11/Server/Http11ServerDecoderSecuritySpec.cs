@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Options;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
@@ -27,7 +26,7 @@ public sealed class Http11ServerDecoderSecuritySpec
 
     private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)
     {
-        return new Http11ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionObjectPool());
+        return new Http11ServerDecoder(options ?? DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]
