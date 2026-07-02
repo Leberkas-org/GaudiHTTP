@@ -41,7 +41,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     internal readonly record struct StreamBodyConsumed(int StreamId);
 
-    private readonly ConnectionObjectPool _poolContext = new();
     private readonly CancellationTokenSource _connectionCts = new();
     private readonly FlowControlledBodyPump? _pump;
 
@@ -109,7 +108,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        _pump = new FlowControlledBodyPump(this, _flow, _connectionCts, _poolContext, _responseEncoder.MaxFrameSize, 256);
+        _pump = new FlowControlledBodyPump(this, _flow, _connectionCts, _responseEncoder.MaxFrameSize, 256);
     }
 
     public void PreStart()
@@ -485,8 +484,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         foreach (var state in _streams.Values)
         {
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -835,7 +833,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         try
         {
             var hasBody = !endStream;
-            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+            var features = FeatureCollectionFactory.Create(hasBody,
                 out var requestFeature, _ops.ConnectionFeature,
                 _ops.TlsHandshakeFeature, _maxRequestBodySize);
 
@@ -862,12 +860,10 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             if (hasBody)
             {
                 var contentLength = state.PeekContentLength();
+
                 if (contentLength is > 0 and var n && n <= _maxBufferedRequestBodySize)
                 {
-                    // Small, known-length body: collect every DATA frame and dispatch the handler
-                    // once complete instead of paying QueuedBodyReader's channel overhead.
-                    // Dispatch is deferred to HandleDataFrame/HandleTrailers (see DispatchBufferedRequest).
-                    var buffered = _ops.PoolContext!.Rent(static () => new BufferedBodyReader());
+                    var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
                     buffered.Reset((int)n);
                     state.InitBodyReader(buffered, _maxRequestBodySize);
                     state.SetFeatures(features);
@@ -880,7 +876,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                     return;
                 }
 
-                var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
+                var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
 
@@ -925,7 +921,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             return existing;
         }
 
-        var state = _poolContext.Rent(() => new StreamState());
+        var state = ConnectionObjectPool.Instance.Rent(() => new StreamState());
         state.SetTimerKeys(streamId);
         _streams[streamId] = state;
         return state;
@@ -953,8 +949,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             _flow.RemoveStreamSendWindow(streamId);
 
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
 
             _streams.Remove(streamId);
         }
@@ -1216,7 +1211,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         if (reader is QueuedBodyReader queued)
         {
             queued.ClearSlotFreed();
-            _ops.PoolContext!.Return(queued);
+            queued.Dispose();
         }
         else
         {

@@ -8,7 +8,6 @@ using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Diagnostics;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -38,7 +37,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
-    private readonly ConnectionObjectPool _poolContext = new();
     private GaudiHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
@@ -152,7 +150,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 var hasBody = bodyFeature is not null;
                 if (!hasBody)
                 {
-                    FeatureCollectionFactory.Return(_poolContext, response);
+                    FeatureCollectionFactory.Return(response);
                 }
 
                 // A handler slot just freed: release the next pipelined request (a no-op for
@@ -478,11 +476,9 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 
-    ConnectionObjectPool? IServerStageOperations.PoolContext => _poolContext;
-
     void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
     {
-        FeatureCollectionFactory.Return(_poolContext, features);
+        FeatureCollectionFactory.Return(features);
     }
 
     private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;

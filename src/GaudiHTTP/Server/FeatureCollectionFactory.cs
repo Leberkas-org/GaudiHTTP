@@ -12,14 +12,13 @@ internal static class FeatureCollectionFactory
     private const int MaxPoolSize = 32;
 
     public static IFeatureCollection Create(
-        ConnectionObjectPool pool,
         GaudiHttpRequestFeature requestFeature,
         bool hasBody,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
     {
-        var features = pool.Rent(static () => new GaudiFeatureCollection());
+        var features = ConnectionObjectPool.Instance.Rent(static () => new GaudiFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         if (!recycled || !ReferenceEquals(features.Get<IHttpRequestFeature>(), requestFeature))
@@ -31,14 +30,13 @@ internal static class FeatureCollectionFactory
     }
 
     public static IFeatureCollection Create(
-        ConnectionObjectPool pool,
         bool hasBody,
         out GaudiHttpRequestFeature requestFeature,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
     {
-        var features = pool.Rent(static () => new GaudiFeatureCollection());
+        var features = ConnectionObjectPool.Instance.Rent(static () => new GaudiFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         if (recycled && features.Get<IHttpRequestFeature>() is GaudiHttpRequestFeature existingRequest)
@@ -165,7 +163,7 @@ internal static class FeatureCollectionFactory
         return features;
     }
 
-    internal static void Return(ConnectionObjectPool pool, IFeatureCollection features)
+    internal static void Return(IFeatureCollection features)
     {
         if (features is not GaudiFeatureCollection gaudiFeatures)
         {
@@ -177,7 +175,7 @@ internal static class FeatureCollectionFactory
             lifetime.Reset();
         }
 
-        pool.Return(gaudiFeatures);
+        gaudiFeatures.Dispose();
     }
 
     internal static ArrayBufferWriter<byte> RentBuffer()
