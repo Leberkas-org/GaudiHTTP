@@ -18,27 +18,47 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
     public void Reset(int contentLength)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(contentLength);
-        _owner?.Dispose();
         _expected = contentLength;
         _openEnded = false;
         _received = 0;
         IsCompleted = contentLength == 0;
-        _owner = contentLength > 0
-            ? PooledArrayMemoryOwner.Create(contentLength)
-            : null;
+
+        if (contentLength > 0)
+        {
+            if (_owner is null || _owner.Memory.Length < contentLength)
+            {
+                _owner?.Dispose();
+                _owner = PooledArrayMemoryOwner.Create(contentLength);
+            }
+        }
     }
 
     public void ResetOpenEnded()
     {
-        _owner?.Dispose();
         _expected = 0;
         _openEnded = true;
         _received = 0;
         IsCompleted = false;
-        _owner = PooledArrayMemoryOwner.Create(4 * 1024);
+
+        if (_owner is null || _owner.Memory.Length < 4 * 1024)
+        {
+            _owner?.Dispose();
+            _owner = PooledArrayMemoryOwner.Create(4 * 1024);
+        }
     }
 
-    protected override void OnReset() => ResetOpenEnded();
+    protected override void OnReset()
+    {
+        _expected = 0;
+        _openEnded = false;
+        _received = 0;
+        IsCompleted = false;
+        if (_owner is not null && _owner.Memory.Length > 1024 * 1024)
+        {
+            _owner.Dispose();
+            _owner = null;
+        }
+    }
 
     public void MarkComplete()
     {
@@ -94,17 +114,29 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
 
     public Stream AsStream()
         => _owner is not null
-            ? new PooledMemoryStream(_owner, _received)
+            ? new PooledMemoryStream(_owner.Memory[.._received], ownedOwner: null)
             : Stream.Null;
 
-    private sealed class PooledMemoryStream(IMemoryOwner<byte> owner, int length) : Stream
+    public Stream AsOwningStream()
+    {
+        if (_owner is null)
+        {
+            return Stream.Null;
+        }
+
+        var stream = new PooledMemoryStream(_owner.Memory[.._received], _owner);
+        _owner = null;
+        return stream;
+    }
+
+    private sealed class PooledMemoryStream(ReadOnlyMemory<byte> memory, IMemoryOwner<byte>? ownedOwner) : Stream
     {
         private int _position;
 
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => false;
-        public override long Length => length;
+        public override long Length => memory.Length;
 
         public override long Position
         {
@@ -114,28 +146,28 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            var available = length - _position;
+            var available = memory.Length - _position;
             if (available <= 0)
             {
                 return 0;
             }
 
             var toCopy = Math.Min(count, available);
-            owner.Memory.Span.Slice(_position, toCopy).CopyTo(buffer.AsSpan(offset, toCopy));
+            memory.Span.Slice(_position, toCopy).CopyTo(buffer.AsSpan(offset, toCopy));
             _position += toCopy;
             return toCopy;
         }
 
         public override int Read(Span<byte> buffer)
         {
-            var available = length - _position;
+            var available = memory.Length - _position;
             if (available <= 0)
             {
                 return 0;
             }
 
             var toCopy = Math.Min(buffer.Length, available);
-            owner.Memory.Span.Slice(_position, toCopy).CopyTo(buffer[..toCopy]);
+            memory.Span.Slice(_position, toCopy).CopyTo(buffer[..toCopy]);
             _position += toCopy;
             return toCopy;
         }
@@ -146,7 +178,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
             {
                 SeekOrigin.Begin => (int)offset,
                 SeekOrigin.Current => _position + (int)offset,
-                SeekOrigin.End => length + (int)offset,
+                SeekOrigin.End => memory.Length + (int)offset,
                 _ => _position
             };
             return _position;
@@ -160,7 +192,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
         {
             if (disposing)
             {
-                owner.Dispose();
+                ownedOwner?.Dispose();
             }
 
             base.Dispose(disposing);

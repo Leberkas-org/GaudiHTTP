@@ -821,7 +821,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             return;
         }
 
-        requestFeature.Body = buffered.AsStream();
+        requestFeature.Body = buffered.AsOwningStream();
 
         Tracing.For("Protocol")
             .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody=True, buffered=True)", streamId);

@@ -454,7 +454,7 @@ internal sealed class StreamManager(
     private void DispatchBufferedResponse(long streamId, StreamState state, BufferedBodyReader buffered)
     {
         var response = state.GetResponse();
-        response.Content = new StreamContent(buffered.AsStream());
+        response.Content = new StreamContent(buffered.AsOwningStream());
         state.ApplyContentHeadersTo(response.Content);
 
         if (_correlationMap.Remove(streamId, out var request))

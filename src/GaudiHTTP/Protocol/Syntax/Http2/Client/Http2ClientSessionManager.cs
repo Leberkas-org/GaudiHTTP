@@ -802,7 +802,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private void DispatchBufferedResponse(int streamId, StreamState state, BufferedBodyReader buffered)
     {
         var response = state.GetResponse();
-        response.Content = new StreamContent(buffered.AsStream());
+        response.Content = new StreamContent(buffered.AsOwningStream());
         state.ApplyContentHeadersTo(response.Content);
 
         if (_correlationMap.Remove(streamId, out var request))
