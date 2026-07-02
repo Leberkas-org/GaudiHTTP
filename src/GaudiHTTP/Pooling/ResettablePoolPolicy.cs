@@ -5,7 +5,7 @@ namespace GaudiHTTP.Pooling;
 // Creates instances via an injected factory (handles ctor args) and resets them on return. One
 // policy type serves every pooled object kind.
 internal sealed class ResettablePoolPolicy<T>(Func<T> factory) : IPooledObjectPolicy<T>
-    where T : class, IResettable
+    where T : class, IResetable
 {
     public T Create() => factory();
 
