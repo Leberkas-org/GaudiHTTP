@@ -3,7 +3,7 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class PumpSlot<TStreamId> : IResettable
+internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
 {
     public TStreamId StreamId { get; private set; } = default!;
     public Stream? BodyStream { get; private set; }
@@ -71,7 +71,7 @@ internal sealed class PumpSlot<TStreamId> : IResettable
         LinkedCts?.Dispose();
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         StreamId = default!;
         BodyStream = null;
