@@ -5,7 +5,7 @@ using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<BodyReadResult>, IResettable
+internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingBodyReader, IValueTaskSource<BodyReadResult>
 {
     // This reader is a true cross-thread boundary: the connection-stage (actor) thread
     // produces via TryEnqueue/Complete/Fault while the application thread consumes via
@@ -244,7 +244,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
         _tail = _count;
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         bool deliver;
 
@@ -305,8 +305,6 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
     Stream IBodyReader.AsStream() => new QueuedBodyStream(this);
 
     public Stream AsStream(Action? onAbandoned = null) => new QueuedBodyStream(this, onAbandoned);
-
-    public void Dispose() => Reset();
 
     BodyReadResult IValueTaskSource<BodyReadResult>.GetResult(short token) => _core.GetResult(token);
 

@@ -23,7 +23,6 @@ internal sealed class StreamManager(
     long maxResponseBodySize,
     int maxBufferedResponseBodySize)
 {
-    private readonly ConnectionObjectPool _objectPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
 
@@ -120,7 +119,7 @@ internal sealed class StreamManager(
         if (_streams.TryGetValue(streamId, out var state))
         {
             AbortAndReturnBodyReader(state);
-            _objectPool.Return(state);
+            state.Dispose();
             _streams.Remove(streamId);
         }
 
@@ -214,13 +213,13 @@ internal sealed class StreamManager(
                     var contentLength = state.PeekContentLength();
                     if (contentLength is > 0 and var n && n <= maxBufferedResponseBodySize)
                     {
-                        var buffered = _objectPool.Rent(static () => new BufferedBodyReader());
+                        var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
                         buffered.Reset((int)n);
                         state.InitBodyReader(buffered, maxResponseBodySize);
                     }
                     else
                     {
-                        var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
+                        var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
                         state.InitBodyReader(queued, maxResponseBodySize);
                         var response = state.GetResponse();
                         var stageActor = ops.StageActor;
@@ -349,7 +348,7 @@ internal sealed class StreamManager(
         foreach (var (_, state) in _streams)
         {
             AbortAndReturnBodyReader(state);
-            _objectPool.Return(state);
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -362,7 +361,7 @@ internal sealed class StreamManager(
     {
         foreach (var decoder in _streamDecoders.Values)
         {
-            _objectPool.Return(decoder);
+            decoder.Dispose();
         }
 
         _streamDecoders.Clear();
@@ -378,7 +377,7 @@ internal sealed class StreamManager(
         foreach (var state in _streams.Values)
         {
             AbortAndReturnBodyReader(state);
-            state.Reset();
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -416,13 +415,13 @@ internal sealed class StreamManager(
             // Small, known-length body: collect every DATA frame and deliver the full body once
             // complete instead of paying QueuedBodyReader's channel overhead. OnResponse is
             // deferred to DispatchBufferedResponse (see FlushPendingResponse / FlushAllPendingResponses).
-            var buffered = _objectPool.Rent(static () => new BufferedBodyReader());
+            var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
             buffered.Reset((int)n);
             state.InitBodyReader(buffered, maxResponseBodySize);
             return;
         }
 
-        var queued = _objectPool.Rent(() => new QueuedBodyReader(capacity: 8));
+        var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
         var stageActor = ops.StageActor;
@@ -544,7 +543,7 @@ internal sealed class StreamManager(
 
         if (reader is QueuedBodyReader queued)
         {
-            _objectPool.Return(queued);
+            ConnectionObjectPool.Instance.Return(queued);
         }
         else
         {
@@ -554,7 +553,7 @@ internal sealed class StreamManager(
 
     private StreamState RentStreamState(long streamId)
     {
-        var state = _objectPool.Rent(static () => new StreamState());
+        var state = ConnectionObjectPool.Instance.Rent(static () => new StreamState());
         state.Initialize(streamId);
         return state;
     }
@@ -568,20 +567,20 @@ internal sealed class StreamManager(
 
         OnStreamClosedCallback?.Invoke(streamId);
 
-        _objectPool.Return(state);
+        state.Dispose();
         ReturnDecoder(streamId);
     }
 
     private FrameDecoder RentDecoder()
     {
-        return _objectPool.Rent(static () => new FrameDecoder());
+        return ConnectionObjectPool.Instance.Rent(static () => new FrameDecoder());
     }
 
     private void ReturnDecoder(long streamId)
     {
         if (_streamDecoders.Remove(streamId, out var decoder))
         {
-            _objectPool.Return(decoder);
+            decoder.Dispose();
         }
     }
 

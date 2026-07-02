@@ -1,5 +1,4 @@
 using System.Net;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.LineBased;
 using GaudiHTTP.Protocol.Semantics;
@@ -7,7 +6,7 @@ using GaudiHTTP.Protocol.Syntax.Http11.Options;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options, ConnectionObjectPool poolContext)
+internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 {
     private enum Phase
     {
@@ -59,7 +58,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options, Co
 
                 var http09Classification = BodyReaderClassification.FromBodyClassification(
                     new BodyClassification(BodyFraming.Close, null), options.ToBodyDecoderOptions());
-                var (reader, decoder) = poolContext.RentBodyReader(http09Classification, options.ToBodyDecoderOptions());
+                var (reader, decoder) = BodyReaderPoolExtensions.RentBodyReader(http09Classification, options.ToBodyDecoderOptions());
                 _bodyReader = reader;
                 _framingDecoder = decoder;
                 if (reader is IStreamingBodyReader streaming)
@@ -102,7 +101,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options, Co
 
             var readerClassification = BodyReaderClassification.FromBodyClassification(
                 classification, options.ToBodyDecoderOptions());
-            var (reader, decoder) = poolContext.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
+            var (reader, decoder) = BodyReaderPoolExtensions.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
             _bodyReader = reader;
             _framingDecoder = decoder;
             if (reader is IStreamingBodyReader streaming)

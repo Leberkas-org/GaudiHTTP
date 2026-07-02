@@ -4,7 +4,7 @@ using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
+internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBufferedBodyReader
 {
     private IMemoryOwner<byte>? _owner;
     private int _expected;
@@ -38,7 +38,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         _owner = PooledArrayMemoryOwner.Create(4 * 1024);
     }
 
-    void IResettable.Reset() => ResetOpenEnded();
+    protected override void OnReset() => ResetOpenEnded();
 
     public void MarkComplete()
     {
@@ -96,12 +96,6 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         => _owner is not null
             ? new PooledMemoryStream(_owner, _received)
             : Stream.Null;
-
-    public void Dispose()
-    {
-        _owner?.Dispose();
-        _owner = null;
-    }
 
     private sealed class PooledMemoryStream(IMemoryOwner<byte> owner, int length) : Stream
     {

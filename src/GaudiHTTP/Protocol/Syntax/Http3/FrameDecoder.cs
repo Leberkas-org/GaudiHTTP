@@ -14,7 +14,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// and are returned via <see cref="IDisposable"/> on the frame objects.
 /// Call <see cref="Dispose"/> when the decoder is no longer needed.
 /// </summary>
-internal sealed class FrameDecoder : IResettable, IDisposable
+internal sealed class FrameDecoder : Poolable<FrameDecoder>
 {
     // MemoryPool-rented buffer holding the partial frame from the previous call.
     // _remainderOwner is null when not rented; _remainderLength tracks actual content.
@@ -167,17 +167,12 @@ internal sealed class FrameDecoder : IResettable, IDisposable
     /// <summary>
     /// Resets the decoder state, discarding any buffered partial frame data.
     /// </summary>
-    public void Reset()
+    protected override void OnReset()
     {
         _remainderOwner?.Dispose();
         _remainderOwner = null;
         _remainderLength = 0;
     }
-
-    /// <summary>
-    /// Disposes the decoder, returning any pooled remainder buffer to the pool.
-    /// </summary>
-    public void Dispose() => Reset();
 
     /// <summary>
     /// Returns <c>true</c> if the decoder has buffered partial frame data.

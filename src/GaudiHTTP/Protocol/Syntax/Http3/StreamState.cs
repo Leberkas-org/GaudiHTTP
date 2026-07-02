@@ -11,7 +11,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// Manages response/request assembly, pseudo-headers, content headers, body buffering,
 /// and body reader handling. Pooled and reused via <see cref="Reset"/>.
 /// </summary>
-internal sealed class StreamState : IResettable
+internal sealed class StreamState : Poolable<StreamState>
 {
     private HttpResponseMessage? _response;
     private GaudiHttpRequestFeature? _requestFeature;
@@ -144,6 +144,7 @@ internal sealed class StreamState : IResettable
         _bodyReader = reader;
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
+        ExpectedContentLength = PeekContentLength();
     }
 
     public void DetachBodyReader()
@@ -198,6 +199,13 @@ internal sealed class StreamState : IResettable
 
             if (endStream)
             {
+                if (ExpectedContentLength is { } expected && _totalBodyBytes != expected)
+                {
+                    throw new HttpProtocolException(
+                        string.Concat("Buffered body ended after ", _totalBodyBytes.ToString(),
+                            " bytes but Content-Length declared ", expected.ToString(), "."));
+                }
+
                 buffered.MarkComplete();
             }
 
@@ -213,7 +221,15 @@ internal sealed class StreamState : IResettable
 
             if (endStream)
             {
-                streaming.Complete();
+                if (ExpectedContentLength is { } expected && _totalBodyBytes != expected)
+                {
+                    streaming.Fault(new HttpRequestException(
+                        $"Response body ended after {_totalBodyBytes} bytes but Content-Length declared {expected}."));
+                }
+                else
+                {
+                    streaming.Complete();
+                }
             }
         }
     }
@@ -288,7 +304,7 @@ internal sealed class StreamState : IResettable
 
     public IFeatureCollection? GetFeatures() => _features;
 
-    public void Reset()
+    protected override void OnReset()
     {
         StreamId = -1;
         _response = null;
