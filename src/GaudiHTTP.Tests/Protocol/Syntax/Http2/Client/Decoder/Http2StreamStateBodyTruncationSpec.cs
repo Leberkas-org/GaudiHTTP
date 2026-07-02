@@ -15,10 +15,14 @@ public sealed class Http2StreamStateBodyTruncationSpec
     private static (StreamState State, Stream Body) CreateStreamingState(long? expectedLength)
     {
         var state = new StreamState();
+        if (expectedLength is { } cl)
+        {
+            state.AddContentHeader("Content-Length", cl.ToString());
+        }
+
         var reader = new QueuedBodyReader(capacity: 8);
         reader.Reset();
         state.InitBodyReader(reader);
-        state.ExpectedBodyLength = expectedLength;
         return (state, state.GetBodyStream());
     }
 

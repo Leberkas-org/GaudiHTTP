@@ -130,6 +130,29 @@ public sealed class Http2ServerBufferedRequestSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-8.1.1")]
+    public void Buffered_request_should_reset_stream_on_short_body()
+    {
+        var ops = new FakeServerOps();
+        var options = new GaudiServerOptions().ToHttp2Options();
+        var encoder = new HpackEncoder(useHuffman: false);
+        var sm = new Http2ServerSessionManager(options, ops);
+        sm.PreStart();
+        ops.Outbound.Clear();
+
+        var headersFrame = BuildHeadersFrame(1, PostHeaders(10), endStream: false, encoder);
+        sm.DecodeClientData(WrapFrame(headersFrame));
+        Assert.Empty(ops.Requests);
+
+        sm.DecodeClientData(WrapFrame(BuildDataFrame(1, "short"u8.ToArray(), endStream: true)));
+
+        Assert.Empty(ops.Requests);
+        Assert.True(ops.Outbound.Any(o =>
+            o is TransportData { Buffer.Length: >= 9 } td
+            && (FrameType)td.Buffer.FullMemory.Span[3] == FrameType.RstStream));
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.1")]
     public async Task Small_request_body_split_across_multiple_DATA_frames_should_reassemble_correctly()
     {

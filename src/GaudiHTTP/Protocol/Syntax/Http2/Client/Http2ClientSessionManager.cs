@@ -20,7 +20,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly GaudiClientOptions _options;
     private readonly IClientStageOperations _ops;
-    private readonly ConnectionObjectPool _poolContext = new();
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -93,7 +92,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
         // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in the preface on inbound frames.
         _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
-        _scheduler = new FlowControlledBodyPump(this, _flow, _connectionCts, _poolContext, _requestEncoder.MaxFrameSize, 256);
+        _scheduler = new FlowControlledBodyPump(this, _flow, _connectionCts, _requestEncoder.MaxFrameSize, 256);
     }
 
     public TransportData? TryBuildPreface()
@@ -197,7 +196,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         if (!_streams.TryGetValue(streamId, out var state))
         {
-            state = _poolContext.Rent(() => new StreamState());
+            state = ConnectionObjectPool.Instance.Rent(() => new StreamState());
             _streams[streamId] = state;
         }
 
@@ -281,8 +280,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             {
                 _streams.Remove(streamId);
                 ReturnBodyReader(state);
-                state.Reset();
-                _poolContext.Return(state);
+                state.Dispose();
             }
 
             return;
@@ -467,8 +465,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         foreach (var (_, state) in _streams)
         {
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -569,8 +566,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         {
             _streams.Remove(streamId);
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
         }
     }
 
@@ -729,7 +725,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            state = _poolContext.Rent(() => new StreamState());
+            state = ConnectionObjectPool.Instance.Rent(() => new StreamState());
             _streams[frame.StreamId] = state;
         }
 
@@ -792,8 +788,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             {
                 _streams.Remove(frame.StreamId);
                 ReturnBodyReader(state);
-                state.Reset();
-                _poolContext.Return(state);
+                state.Dispose();
             }
         }
     }
@@ -848,8 +843,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
                 _streams.Remove(streamId);
                 ReturnBodyReader(state);
-                state.Reset();
-                _poolContext.Return(state);
+                state.Dispose();
             }
 
             return;
@@ -878,8 +872,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                     _correlationMap.Remove(streamId);
                     _streams.Remove(streamId);
                     ReturnBodyReader(state);
-                    state.Reset();
-                    _poolContext.Return(state);
+                    state.Dispose();
                 }
 
                 return;
@@ -900,8 +893,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
             _streams.Remove(streamId);
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
             return;
         }
 
@@ -929,14 +921,13 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             // Small, known-length body: collect every DATA frame and deliver the full body once
             // complete instead of paying QueuedBodyReader's channel overhead. OnResponse is
             // deferred to DispatchBufferedResponse (see HandleData / trailers branch above).
-            var buffered = _poolContext.Rent(static () => new BufferedBodyReader());
+            var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
             buffered.Reset((int)n);
             state.InitBodyReader(buffered);
-            state.ExpectedBodyLength = contentLength;
             return;
         }
 
-        var queued = _poolContext.Rent(() => new QueuedBodyReader(capacity: 8));
+        var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued);
         var stageActor = _ops.StageActor;
         var capturedStreamId = streamId;
@@ -947,11 +938,6 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         _correlationMap.Remove(streamId);
         streamingResponse.RequestMessage = pendingRequest;
-
-        if (!noBodyExpected)
-        {
-            state.ExpectedBodyLength = streamingResponse.Content.Headers.ContentLength;
-        }
 
         var partialResult = PartialContentValidator.Validate(streamingResponse);
         if (!partialResult.IsValid)
@@ -998,8 +984,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         EmitFrame(new RstStreamFrame(streamId, Http2ErrorCode.NoError));
         _streams.Remove(streamId);
         ReturnBodyReader(state);
-        state.Reset();
-        _poolContext.Return(state);
+        state.Dispose();
 
         if (!_tracker.OnStreamClosed(streamId))
         {
@@ -1025,7 +1010,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         var reader = state.TakeBodyReader();
         if (reader is QueuedBodyReader queued)
         {
-            _poolContext.Return(queued);
+            queued.Dispose();
         }
         else
         {

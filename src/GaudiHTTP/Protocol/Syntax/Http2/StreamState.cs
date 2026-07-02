@@ -11,7 +11,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http2;
 /// Per-stream header and body buffer management for HTTP/2.
 /// Extracted from Http20ConnectionStage for independent testability.
 /// </summary>
-internal sealed class StreamState : IResettable
+internal sealed class StreamState : Poolable<StreamState>
 {
     private IMemoryOwner<byte>? _headerOwner;
     private Memory<byte> _headerBuffer;
@@ -64,7 +64,7 @@ internal sealed class StreamState : IResettable
     /// arriving before (or after) exactly this many bytes faults the body reader instead of
     /// completing it, so a truncated body surfaces as an error rather than silent success.
     /// </summary>
-    public long? ExpectedBodyLength { get; set; }
+    public long? ExpectedBodyLength { get; private set; }
 
     public bool IsRemoteClosed { get; private set; }
 
@@ -160,6 +160,7 @@ internal sealed class StreamState : IResettable
         _bodyReader = reader;
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
+        ExpectedBodyLength = PeekContentLength();
     }
 
     public void DetachBodyReader()
@@ -215,6 +216,13 @@ internal sealed class StreamState : IResettable
 
             if (endStream)
             {
+                if (ExpectedBodyLength is { } expected && _totalBodyBytes != expected)
+                {
+                    throw new HttpProtocolException(
+                        string.Concat("Buffered body ended after ", _totalBodyBytes.ToString(),
+                            " bytes but Content-Length declared ", expected.ToString(), "."));
+                }
+
                 buffered.MarkComplete();
             }
 
@@ -279,7 +287,7 @@ internal sealed class StreamState : IResettable
         IsRemoteClosed = true;
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         _headerOwner?.Dispose();
         _headerOwner = null;

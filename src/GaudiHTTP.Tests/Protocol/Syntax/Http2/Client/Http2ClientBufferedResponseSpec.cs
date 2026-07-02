@@ -139,4 +139,23 @@ public sealed class Http2ClientBufferedResponseSpec
 
         Assert.Empty(ops.Responses);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-8.1.1")]
+    public void Buffered_response_should_reject_short_body_on_end_stream()
+    {
+        var ops = new FakeClientOps();
+        var sm = CreateSession(ops);
+
+        sm.EncodeRequest(MakeGet());
+
+        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: 10));
+        Assert.Empty(ops.Responses);
+
+        var ex = Assert.Throws<HttpProtocolException>(() =>
+            sm.ProcessFrame(new DataFrame(1, "short"u8.ToArray(), endStream: true)));
+
+        Assert.Contains("5", ex.Message);
+        Assert.Contains("10", ex.Message);
+    }
 }
