@@ -8,7 +8,6 @@ internal sealed class FlowControlledBodyPump(
     IBodyDrainTarget target,
     FlowController flowController,
     CancellationTokenSource connectionCts,
-    ConnectionObjectPool poolContext,
     int chunkSize,
     int hardCap)
 {
@@ -27,7 +26,7 @@ internal sealed class FlowControlledBodyPump(
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
-        var slot = poolContext.Rent(static () => new PumpSlot<int>());
+        var slot = ConnectionObjectPool.Instance.Rent(static () => new PumpSlot<int>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
@@ -99,7 +98,7 @@ internal sealed class FlowControlledBodyPump(
             }
 
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -127,7 +126,7 @@ internal sealed class FlowControlledBodyPump(
             }
 
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -135,7 +134,7 @@ internal sealed class FlowControlledBodyPump(
         _activeSlots.Remove(streamId);
         target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();
-        poolContext.Return(slot);
+        slot.Dispose();
     }
 
     public void HandleBodyReadContinue(int streamId)
@@ -150,7 +149,7 @@ internal sealed class FlowControlledBodyPump(
         if (slot.IsOrphaned)
         {
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -178,7 +177,7 @@ internal sealed class FlowControlledBodyPump(
         {
             _activeSlots.Remove(streamId);
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             return;
         }
 
@@ -194,7 +193,7 @@ internal sealed class FlowControlledBodyPump(
             if (!slot.IsOrphaned)
             {
                 slot.DisposeResources();
-                poolContext.Return(slot);
+                slot.Dispose();
             }
         }
 
@@ -223,7 +222,7 @@ internal sealed class FlowControlledBodyPump(
                 {
                     _activeSlots.Remove(streamId);
                     cancelled.DisposeResources();
-                    poolContext.Return(cancelled);
+                    cancelled.Dispose();
                 }
 
                 continue;
@@ -322,7 +321,7 @@ internal sealed class FlowControlledBodyPump(
         _activeSlots.Remove(slot.StreamId);
         target.OnDrainComplete(slot.StreamId);
         slot.DisposeResources();
-        poolContext.Return(slot);
+        slot.Dispose();
     }
 
 }

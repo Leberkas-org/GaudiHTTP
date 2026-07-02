@@ -6,7 +6,6 @@ namespace GaudiHTTP.Protocol.Body;
 internal sealed class MultiplexedBodyPump(
     IMultiplexedBodyDrainTarget target,
     CancellationTokenSource connectionCts,
-    ConnectionObjectPool poolContext,
     int chunkSize,
     int maxCapacity,
     int maxConcurrentReads = 4)
@@ -30,7 +29,7 @@ internal sealed class MultiplexedBodyPump(
         var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
-        var slot = poolContext.Rent(static () => new PumpSlot<long>());
+        var slot = ConnectionObjectPool.Instance.Rent(static () => new PumpSlot<long>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
@@ -52,7 +51,7 @@ internal sealed class MultiplexedBodyPump(
         if (slot.IsOrphaned)
         {
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -74,7 +73,7 @@ internal sealed class MultiplexedBodyPump(
         if (slot.IsOrphaned)
         {
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -82,7 +81,7 @@ internal sealed class MultiplexedBodyPump(
         _activeSlots.Remove(streamId);
         target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();
-        poolContext.Return(slot);
+        slot.Dispose();
     }
 
     public void OnCapacityAvailable()
@@ -108,7 +107,7 @@ internal sealed class MultiplexedBodyPump(
         if (slot.IsOrphaned)
         {
             slot.DisposeResources();
-            poolContext.Return(slot);
+            slot.Dispose();
             _activeSlots.Remove(streamId);
             return;
         }
@@ -137,7 +136,7 @@ internal sealed class MultiplexedBodyPump(
         // since the slot will simply be missing from _activeSlots when dequeued)
         _activeSlots.Remove(streamId);
         slot.DisposeResources();
-        poolContext.Return(slot);
+        slot.Dispose();
     }
 
     public void Cleanup()
@@ -149,7 +148,7 @@ internal sealed class MultiplexedBodyPump(
             if (!slot.IsOrphaned)
             {
                 slot.DisposeResources();
-                poolContext.Return(slot);
+                slot.Dispose();
             }
         }
 
@@ -236,7 +235,7 @@ internal sealed class MultiplexedBodyPump(
         _activeSlots.Remove(slot.StreamId);
         target.OnDrainComplete(slot.StreamId);
         slot.DisposeResources();
-        poolContext.Return(slot);
+        slot.Dispose();
     }
 
 }
