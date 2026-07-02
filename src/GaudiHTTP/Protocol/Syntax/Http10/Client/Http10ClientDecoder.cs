@@ -7,7 +7,7 @@ using GaudiHTTP.Protocol.Syntax.Http10.Options;
 
 namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, ConnectionObjectPool poolContext)
+internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
 {
     private enum Phase
     {
@@ -50,7 +50,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, Co
                 _version = HttpVersion.Version10;
                 _statusCode = 200;
                 _reason = "OK";
-                var buffered = poolContext.Rent(static () => new BufferedBodyReader());
+                var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
                 buffered.ResetOpenEnded();
                 _bodyReader = buffered;
                 _phase = Phase.Body;
@@ -87,7 +87,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, Co
 
             if (_isHttp09 && classification.Framing == BodyFraming.Close)
             {
-                var buffered = poolContext.Rent(static () => new BufferedBodyReader());
+                var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
                 buffered.ResetOpenEnded();
                 _bodyReader = buffered;
                 _framingDecoder = null;
@@ -96,7 +96,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, Co
             {
                 var readerClassification = BodyReaderClassification.FromBodyClassification(
                     classification, options.ToBodyDecoderOptions());
-                var (reader, decoder) = poolContext.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
+                var (reader, decoder) = BodyReaderPoolExtensions.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
                 _bodyReader = reader;
                 _framingDecoder = decoder;
                 if (reader is IStreamingBodyReader streaming)

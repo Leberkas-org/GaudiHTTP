@@ -43,7 +43,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private const int OutboundBodyCapacity = 16;
 
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
@@ -235,7 +234,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext, _responseBodyChunkSize, OutboundBodyCapacity);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, ConnectionObjectPool.Instance, _responseBodyChunkSize, OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
@@ -300,8 +299,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             ReturnDecoder(decoder);
             state.AbortBody();
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -484,7 +482,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
             var frameDecoder = RentDecoder();
-            var streamState = _poolContext.Rent(() => new StreamState());
+            var streamState = ConnectionObjectPool.Instance.Rent(() => new StreamState());
             streamState.Initialize(streamId);
             streamData = (frameDecoder, streamState);
             _streams[streamId] = streamData;
@@ -666,7 +664,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 requestFeature.Body = state.GetBodyStream();
             }
 
-            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, requestFeature, hasBody,
+            var features = FeatureCollectionFactory.Create(ConnectionObjectPool.Instance, requestFeature, hasBody,
                 _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
             features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 
@@ -691,19 +689,20 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         if (!state.HasBodyReader)
         {
             var contentLength = state.PeekContentLength();
+
             if (contentLength is > 0 and var n && n <= _maxBufferedRequestBodySize)
             {
                 // Small, known-length body: collect every DATA frame into a single buffer instead
                 // of paying QueuedBodyReader's channel overhead. Safe here — unlike H2, the H3
                 // server never hands the body Stream to the handler before FlushPendingRequest
                 // (transport FIN), so BufferedBodyReader.AsStream() is only called once complete.
-                var buffered = _ops.PoolContext!.Rent(static () => new BufferedBodyReader());
+                var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
                 buffered.Reset((int)n);
                 state.InitBodyReader(buffered, _maxRequestBodySize);
             }
             else
             {
-                var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
+                var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
                 state.InitBodyReader(queued, _maxRequestBodySize);
             }
         }
@@ -751,16 +750,15 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
             ReturnDecoder(decoder);
             ReturnBodyReader(state);
-            state.Reset();
-            _poolContext.Return(state);
+            state.Dispose();
 
             _streams.Remove(streamId);
         }
     }
 
-    private FrameDecoder RentDecoder() => _poolContext.Rent(static () => new FrameDecoder());
+    private FrameDecoder RentDecoder() => ConnectionObjectPool.Instance.Rent(static () => new FrameDecoder());
 
-    private void ReturnDecoder(FrameDecoder decoder) => _poolContext.Return(decoder);
+    private void ReturnDecoder(FrameDecoder decoder) => decoder.Dispose();
 
 
     IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
@@ -924,7 +922,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         var reader = state.TakeBodyReader();
         if (reader is QueuedBodyReader queued)
         {
-            _ops.PoolContext!.Return(queued);
+            ConnectionObjectPool.Instance.Return(queued);
         }
         else
         {

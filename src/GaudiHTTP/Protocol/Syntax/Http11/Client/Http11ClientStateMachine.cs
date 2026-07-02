@@ -3,7 +3,6 @@ using Akka.Actor;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
@@ -16,7 +15,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
-    private readonly ConnectionObjectPool _poolContext = new();
 
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
     private Queue<HttpRequestMessage>? _reconnectBufferedQueue;
@@ -72,7 +70,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         var decoderOpts = options.ToHttp11DecoderOptions();
         var encoderOpts = options.ToHttp11EncoderOptions();
 
-        _decoder = new Http11ClientDecoder(decoderOpts, _poolContext);
+        _decoder = new Http11ClientDecoder(decoderOpts);
         _encoder = new Http11ClientEncoder(encoderOpts);
         // Pipeline depth is a connection concern, not a decoder concern — read it straight from options.
         _effectivePipelineDepth = options.Http1.MaxPipelineDepth;

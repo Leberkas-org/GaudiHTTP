@@ -36,7 +36,6 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionObjectPool _poolContext = new();
     private MultiplexedBodyPump? _pump;
 
     private bool _controlPrefaceSent;
@@ -172,7 +171,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _poolContext,
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, ConnectionObjectPool.Instance,
             _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }

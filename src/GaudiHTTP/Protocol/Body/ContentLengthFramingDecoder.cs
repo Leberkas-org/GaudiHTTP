@@ -2,7 +2,7 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class ContentLengthFramingDecoder : IFramingDecoder, IResettable
+internal sealed class ContentLengthFramingDecoder : Poolable<ContentLengthFramingDecoder>, IFramingDecoder
 {
     private long _remaining;
 
@@ -16,7 +16,7 @@ internal sealed class ContentLengthFramingDecoder : IFramingDecoder, IResettable
         _remaining = contentLength;
     }
 
-    void IResettable.Reset() => Reset(0);
+    protected override void OnReset() => Reset(0);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {

@@ -3,7 +3,6 @@ using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.LineBased;
 using GaudiHTTP.Protocol.Semantics;
@@ -53,7 +52,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
 
-    private readonly ConnectionObjectPool _poolContext = new();
     private bool _isChunked;
     private IFeatureCollection? _activeResponseFeatures;
     private SerialBodyPump? _serialPump;
@@ -95,7 +93,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             throw new ArgumentException("MaxPipelinedRequests must be greater than zero.", nameof(options));
         }
 
-        _decoder = new Http11ServerDecoder(decOpts, _poolContext);
+        _decoder = new Http11ServerDecoder(decOpts);
         _encoder = new Http11ServerEncoder(encOpts);
         _keepAliveTimeout = encOpts.KeepAliveTimeout;
         _requestHeadersTimeout = encOpts.RequestHeadersTimeout;
@@ -273,7 +271,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 }
 
                 var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
-                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                var features = FeatureCollectionFactory.Create(hasBody,
                     out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);

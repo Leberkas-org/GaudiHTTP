@@ -2,7 +2,6 @@ using Akka.Actor;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
@@ -15,7 +14,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly Http10ClientDecoder _decoder;
     private readonly Http10ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
-    private readonly ConnectionObjectPool _poolContext = new();
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
     private HttpRequestMessage? _reconnectBufferedRequest;
@@ -59,7 +57,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
         var decoderOpts = options.ToHttp10DecoderOptions();
 
-        _decoder = new Http10ClientDecoder(decoderOpts, _poolContext);
+        _decoder = new Http10ClientDecoder(decoderOpts);
         _encoder = new Http10ClientEncoder();
     }
 

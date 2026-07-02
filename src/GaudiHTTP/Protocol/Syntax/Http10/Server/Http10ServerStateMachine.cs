@@ -1,7 +1,6 @@
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Server;
@@ -28,7 +27,6 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
-    private readonly ConnectionObjectPool _poolContext = new();
     private IFeatureCollection? _deferredFeatures;
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
@@ -58,7 +56,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions(), _poolContext);
+        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions());
         _encoder = new Http10ServerEncoder(options.ToHttp10EncoderOptions());
     }
 
@@ -171,7 +169,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             if (result is DecodeOutcome.Complete or DecodeOutcome.HeadersReady)
             {
                 var hasBody = result == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
-                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                var features = FeatureCollectionFactory.Create(hasBody,
                     out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);

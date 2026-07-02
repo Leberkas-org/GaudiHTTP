@@ -4,7 +4,7 @@ using GaudiHTTP.Protocol.Semantics;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
+internal sealed class ChunkedFramingDecoder : Poolable<ChunkedFramingDecoder>, IFramingDecoder
 {
     private enum Phase
     {
@@ -47,7 +47,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
         _trailerSectionBytes = 0;
     }
 
-    void IResettable.Reset() => Reset(long.MaxValue, 8 * 1024, 64 * 1024, 32 * 1024);
+    protected override void OnReset() => Reset(long.MaxValue, 8 * 1024, 64 * 1024, 32 * 1024);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {
