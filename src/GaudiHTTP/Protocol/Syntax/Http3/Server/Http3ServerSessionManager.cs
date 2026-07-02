@@ -234,7 +234,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, ConnectionObjectPool.Instance, _responseBodyChunkSize, OutboundBodyCapacity);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize, OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
@@ -664,7 +664,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 requestFeature.Body = state.GetBodyStream();
             }
 
-            var features = FeatureCollectionFactory.Create(ConnectionObjectPool.Instance, requestFeature, hasBody,
+            var features = FeatureCollectionFactory.Create(requestFeature, hasBody,
                 _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
             features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 

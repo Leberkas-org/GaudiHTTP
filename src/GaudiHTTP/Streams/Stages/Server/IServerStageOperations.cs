@@ -3,7 +3,6 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Server.Context.Features;
 
 namespace GaudiHTTP.Streams.Stages.Server;
@@ -20,7 +19,6 @@ internal interface IServerStageOperations
     IServiceProvider? Services => null;
     GaudiHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
-    ConnectionObjectPool? PoolContext => null;
     void OnResponseBodyComplete(IFeatureCollection features) { }
     bool HasPendingDemand => false;
 }

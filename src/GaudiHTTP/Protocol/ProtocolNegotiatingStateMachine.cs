@@ -310,7 +310,6 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IServiceProvider? Services => real.Services;
         public GaudiHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
         public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
-        public GaudiHTTP.Pooling.ConnectionObjectPool? PoolContext => real.PoolContext;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {
