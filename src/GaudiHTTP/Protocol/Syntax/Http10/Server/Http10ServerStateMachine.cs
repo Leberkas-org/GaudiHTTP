@@ -1,3 +1,4 @@
+using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
@@ -86,6 +87,29 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             _serialPump!.OnCapacityAvailable();
         }
 
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            _responseRate.Observe(0, bytesWritten, Now());
+            EnsureRateTimer();
+            _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", bytesWritten);
+            _serialPump!.OnCapacityAvailable();
+        }
+        else
+        {
+            owner.Dispose();
+        }
+
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    private void EmitEndStreamIfNeeded(bool endStream)
+    {
         if (endStream)
         {
             _responseRate.Remove(0);

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http;
@@ -143,6 +144,48 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             _serialPump?.OnCapacityAvailable();
         }
 
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            if (_isChunked)
+            {
+                var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
+                var buf = TransportBuffer.Rent(framedSize);
+                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
+                buf.Length = framedSize;
+                _responseRate.Observe(0, framedSize, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(buf));
+                owner.Dispose();
+            }
+            else
+            {
+                _responseRate.Observe(0, bytesWritten, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            }
+
+            Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesWritten);
+        }
+        else
+        {
+            owner.Dispose();
+        }
+
+        if (!endStream)
+        {
+            _serialPump?.OnCapacityAvailable();
+        }
+
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    private void EmitEndStreamIfNeeded(bool endStream)
+    {
         if (endStream)
         {
             if (_isChunked)
