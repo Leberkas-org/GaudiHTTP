@@ -6,37 +6,33 @@ namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBufferedBodyReader
 {
-    private IMemoryOwner<byte>? _owner;
+    private PooledArrayMemoryOwner? _owner;
     private int _expected;
     private int _received;
-    private bool _openEnded;
 
     public bool IsBuffered => true;
     public bool IsCompleted { get; private set; }
-    public bool IsOpenEnded => _openEnded;
+    public bool IsOpenEnded { get; private set; }
 
     public void Reset(int contentLength)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(contentLength);
         _expected = contentLength;
-        _openEnded = false;
+        IsOpenEnded = false;
         _received = 0;
         IsCompleted = contentLength == 0;
 
-        if (contentLength > 0)
+        if (contentLength > 0 && (_owner is null || _owner.Memory.Length < contentLength))
         {
-            if (_owner is null || _owner.Memory.Length < contentLength)
-            {
-                _owner?.Dispose();
-                _owner = PooledArrayMemoryOwner.Create(contentLength);
-            }
+            _owner?.Dispose();
+            _owner = PooledArrayMemoryOwner.Create(contentLength);
         }
     }
 
     public void ResetOpenEnded()
     {
         _expected = 0;
-        _openEnded = true;
+        IsOpenEnded = true;
         _received = 0;
         IsCompleted = false;
 
@@ -50,7 +46,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
     protected override void OnReset()
     {
         _expected = 0;
-        _openEnded = false;
+        IsOpenEnded = false;
         _received = 0;
         IsCompleted = false;
         if (_owner is not null && _owner.Memory.Length > 1024 * 1024)
@@ -67,7 +63,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
 
     public int Feed(ReadOnlySpan<byte> data)
     {
-        if (_openEnded)
+        if (IsOpenEnded)
         {
             if (data.IsEmpty)
             {
@@ -112,10 +108,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
     public ReadOnlyMemory<byte> GetBody()
         => _owner?.Memory[.._received] ?? ReadOnlyMemory<byte>.Empty;
 
-    public Stream AsStream()
-        => _owner is not null
-            ? new PooledMemoryStream(_owner.Memory[.._received], ownedOwner: null)
-            : Stream.Null;
+    public Stream AsStream() => AsOwningStream();
 
     public Stream AsOwningStream()
     {

@@ -61,6 +61,22 @@ public abstract class GaudiServerBaseClass : BenchmarkSuiteBase
         }
     }
 
+    protected async Task WarmupWithRetry()
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            try
+            {
+                await WarmupRequest();
+                return;
+            }
+            catch when (attempt < 19)
+            {
+                await Task.Delay(500);
+            }
+        }
+    }
+
     public override async Task GlobalCleanup()
     {
         await ServerLock.WaitAsync();

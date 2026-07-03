@@ -67,6 +67,34 @@ public sealed class GaudiBenchmarkServer : IAsyncDisposable
         Http30Port = new Uri(addresses[2]).Port;
 
         _app = app;
+
+        await WaitForReadyAsync();
+    }
+
+    private async Task WaitForReadyAsync()
+    {
+        using var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
+        };
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
+
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            try
+            {
+                using var response = await client.GetAsync(
+                    string.Concat("http://127.0.0.1:", Http11Port.ToString(), "/plaintext"));
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch
+            {
+            }
+
+            await Task.Delay(250);
+        }
     }
 
     public async ValueTask DisposeAsync()

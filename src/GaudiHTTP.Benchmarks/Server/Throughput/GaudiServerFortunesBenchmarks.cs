@@ -40,7 +40,7 @@ public class GaudiServerFortunesBenchmarks : GaudiServerBaseClass
 
         _tasks = new Task[ConcurrencyLevel];
         _fanOutGate = new SemaphoreSlim(MaxFanOut, MaxFanOut);
-        await WarmupRequest();
+        await WarmupWithRetry();
     }
 
     [GlobalCleanup]
