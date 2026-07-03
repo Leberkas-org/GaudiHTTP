@@ -57,58 +57,47 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
         _sm = smFactory(this);
         _metricsEnabled = Metrics.ServerActiveRequests().Enabled
-            || Metrics.ServerRequestDuration().Enabled
-            || Tracing.IsServerTracingActive();
+                          || Metrics.ServerRequestDuration().Enabled
+                          || Tracing.IsServerTracingActive();
 
         SetHandler(_inNetwork,
             onPush: OnNetworkPush,
             onUpstreamFinish: () =>
             {
-                Tracing.For(TraceCategory).Debug(this, "network upstream finished");
-                _sm.OnDownstreamFinished();
-                CompleteStage();
+                Tracing.For(TraceCategory).Info(this, "network upstream finished (connection closed)");
+                CloseAllPorts();
             },
             onUpstreamFailure: ex =>
             {
-                Tracing.For(TraceCategory).Info(this, "network upstream failure: {0}", ex.Message);
-                _sm.OnDownstreamFinished();
-                if (!IsClosed(_outRequest))
-                {
-                    Complete(_outRequest);
-                }
-
-                if (!IsClosed(_inResponse))
-                {
-                    Cancel(_inResponse);
-                }
-
-                if (!IsClosed(_outNetwork))
-                {
-                    Complete(_outNetwork);
-                }
+                Tracing.For(TraceCategory).Warning(this, "network upstream failure: {0}", ex.Message);
+                CloseAllPorts();
             });
 
-        SetHandler(_outRequest, onPull: () =>
-        {
-            if (_requestQueue.Count > 0)
+        SetHandler(_outRequest,
+            onPull: () =>
             {
-                if (CanDispatch)
+                if (_requestQueue.Count > 0)
                 {
-                    Push(_outRequest, _requestQueue.Dequeue());
-                    _handlerInFlight++;
+                    if (CanDispatch)
+                    {
+                        Push(_outRequest, _requestQueue.Dequeue());
+                        _handlerInFlight++;
+                    }
+
+                    return;
                 }
 
-                // Otherwise the handler is busy: leave the demand outstanding so a completing
-                // response releases the next queued request via TryPushRequest. OnNetworkPush keeps
-                // reading the wire ahead independently, so requests still drain off the socket.
-                return;
-            }
-
-            if (!HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+                if (!HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+                {
+                    Pull(_inNetwork);
+                }
+            },
+            onDownstreamFinish: cause =>
             {
-                Pull(_inNetwork);
-            }
-        });
+                Tracing.For(TraceCategory).Info(this, "request downstream finished (bridge cancelled): {0}",
+                    cause?.Message ?? "normal");
+                CloseAllPorts();
+            });
 
         SetHandler(_inResponse,
             onPush: () =>
@@ -136,6 +125,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     {
                         OnResponseInstrumented(response);
                     }
+
                     Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
                     CompleteAfterFlushingOutbound();
                     return;
@@ -153,60 +143,33 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     FeatureCollectionFactory.Return(response);
                 }
 
-                // A handler slot just freed: release the next pipelined request (a no-op for
-                // multiplexed protocols, whose queue is already drained) before pulling the
-                // following response.
                 TryPushRequest();
                 TryPullResponse();
             },
             onUpstreamFinish: () =>
             {
-                Tracing.For(TraceCategory).Debug(this, "response upstream finished");
-                CompleteStage();
+                Tracing.For(TraceCategory).Info(this, "response upstream finished (bridge completed)");
+                CloseAllPorts();
             },
-            onUpstreamFailure: _ =>
+            onUpstreamFailure: ex =>
             {
-                _sm.OnDownstreamFinished();
-                if (!IsClosed(_outRequest))
-                {
-                    Complete(_outRequest);
-                }
-
-                if (!IsClosed(_inNetwork))
-                {
-                    Cancel(_inNetwork);
-                }
-
-                if (!IsClosed(_outNetwork))
-                {
-                    Complete(_outNetwork);
-                }
+                Tracing.For(TraceCategory).Warning(this, "response upstream failure (bridge failed): {0}", ex.Message);
+                CloseAllPorts();
             });
 
         SetHandler(_outNetwork,
             onPull: OnNetworkPull,
-            onDownstreamFinish: _ =>
+            onDownstreamFinish: cause =>
             {
-                _sm.OnDownstreamFinished();
-                if (!IsClosed(_outRequest))
-                {
-                    Complete(_outRequest);
-                }
-
-                if (!IsClosed(_inResponse))
-                {
-                    Cancel(_inResponse);
-                }
-
-                if (!IsClosed(_inNetwork))
-                {
-                    Cancel(_inNetwork);
-                }
+                Tracing.For(TraceCategory).Info(this, "network downstream finished: {0}",
+                    cause?.Message ?? "normal");
+                CloseAllPorts();
             });
     }
 
     public override void PreStart()
     {
+        Tracing.For(TraceCategory).Info(this, "PreStart: initializing protocol stage");
         _stageActor = GetStageActor(OnStageActorMessage).Ref;
         _sm.PreStart();
         Pull(_inNetwork);
@@ -378,7 +341,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         {
             gaudi.RequestTimestamp = Stopwatch.GetTimestamp();
             var headers = requestFeature.Headers;
-            gaudi.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, headers.TraceParent, headers.TraceState);
+            gaudi.RequestActivity =
+                Tracing.StartRequestActivity(method, path, scheme, headers.TraceParent, headers.TraceState);
         }
     }
 
@@ -412,7 +376,10 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 var elapsed = Stopwatch.GetElapsedTime(gaudi.RequestTimestamp);
                 var durationTags = new TagList
                 {
-                    { "http.request.method", GaudiClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
+                    {
+                        "http.request.method",
+                        GaudiClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method)
+                    },
                     { "http.response.status_code", statusCode },
                     { "url.scheme", requestFeature.Scheme }
                 };
@@ -536,11 +503,33 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         }
     }
 
+    private void CloseAllPorts()
+    {
+        _sm.OnDownstreamFinished();
+
+        if (!IsClosed(_outRequest))
+        {
+            Complete(_outRequest);
+        }
+
+        if (!IsClosed(_inResponse))
+        {
+            Cancel(_inResponse);
+        }
+
+        if (!IsClosed(_outNetwork))
+        {
+            Complete(_outNetwork);
+        }
+
+        if (!IsClosed(_inNetwork))
+        {
+            Cancel(_inNetwork);
+        }
+    }
+
     public override void PostStop()
     {
-        Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} requests",
-            _outboundQueue.Count, _requestQueue.Count);
-
         if (_metricsEnabled)
         {
             OnConnectionClosed();

@@ -6,11 +6,14 @@ using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Server;
+using static Servus.Senf;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
 internal sealed class ServerListenerActor : ReceiveActor
 {
+    private const string TraceCategory = "Lifecycle";
+
     private readonly ILoggingAdapter _log = Context.GetLogger();
     private readonly IMaterializer _materializer = Context.Materializer();
     private readonly IListenerFactory _factory;
@@ -102,12 +105,17 @@ internal sealed class ServerListenerActor : ReceiveActor
         var limit = _serverOptions.Limits.MaxConcurrentConnections;
         if (limit > 0 && _activeConnections >= limit)
         {
+            Tracing.For(TraceCategory).Warning(this, "connection rejected (limit={0}, active={1})",
+                limit, _activeConnections);
             RejectConnection(msg.Connection);
             return;
         }
 
         var connectionId = ++_connectionIdCounter;
         _activeConnections++;
+
+        Tracing.For(TraceCategory).Debug(this, "connection {0} arrived (active={1})",
+            connectionId, _activeConnections);
 
         var child = Context.ActorOf(
             ServerConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions,
@@ -133,6 +141,7 @@ internal sealed class ServerListenerActor : ReceiveActor
     private void OnConnectionStopped()
     {
         _activeConnections--;
+        Tracing.For(TraceCategory).Debug(this, "connection stopped (active={0})", _activeConnections);
         TryComplete();
     }
 
@@ -175,6 +184,8 @@ internal sealed class ServerListenerActor : ReceiveActor
     {
         return new OneForOneStrategy(ex =>
         {
+            Tracing.For(TraceCategory).Error(this, "connection actor failed: {0}: {1}",
+                ex.GetType().Name, ex.Message);
             _log.Warning(ex, "ServerConnectionActor failed");
             return Directive.Stop;
         });
