@@ -1,5 +1,6 @@
 using System.Buffers;
 using GaudiHTTP.Pooling;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -42,7 +43,7 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
 
     public void EnsureBuffer(int chunkSize)
     {
-        Buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(chunkSize, 256));
+        Buffer ??= PooledArrayMemoryOwner.Create(Math.Max(chunkSize, 256));
     }
 
     public void BeginRead() => IsReadInFlight = true;
