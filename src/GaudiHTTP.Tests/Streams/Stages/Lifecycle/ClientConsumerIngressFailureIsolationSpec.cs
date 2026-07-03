@@ -58,7 +58,7 @@ public sealed class ClientConsumerIngressFailureIsolationSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubs();
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             Options,

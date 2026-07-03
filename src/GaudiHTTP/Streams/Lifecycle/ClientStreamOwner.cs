@@ -13,7 +13,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
-internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
+internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
 {
     internal sealed record Shutdown;
     internal sealed record RegisterConsumer(
@@ -64,7 +64,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     public ITimerScheduler Timers { get; set; } = null!;
     public IStash Stash { get; set; } = null!;
 
-    public StreamOwner(GaudiClientOptions clientOptions, PipelineDescriptor pipeline,
+    public ClientStreamOwner(GaudiClientOptions clientOptions, PipelineDescriptor pipeline,
         TransportRegistry? transportOverride = null,
         TimeSpan? initialBackoffOverride = null)
     {
@@ -232,7 +232,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private void CreateConsumerChild(RegisterConsumer message)
     {
         var childName = $"consumer-{message.ConsumerId:N}";
-        Context.ActorOf(Consumer.Props(
+        Context.ActorOf(ClientConsumer.Props(
             message.ConsumerId,
             message.RequestReader,
             message.OptionsFactory,

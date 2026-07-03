@@ -11,7 +11,7 @@ using GaudiHTTP.Streams.Lifecycle;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class ListenerActorSpec : TestKit
+public sealed class ServerListenerActorSpec : TestKit
 {
     private sealed class DummyListenerFactory : IListenerFactory
     {
@@ -96,16 +96,16 @@ public sealed class ListenerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public void Listener_should_reply_ListeningStarted_on_successful_bind()
     {
-        var listener = Sys.ActorOf(ListenerActor.Create(
+        var listener = Sys.ActorOf(ServerListenerActor.Create(
             new DummyListenerFactory(9000),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             DefaultOptions(),
             PassthroughBridgeGraph(),
             new DummyProtocolEngine()));
 
-        listener.Tell(new ListenerActor.StartListening(), TestActor);
+        listener.Tell(new ServerListenerActor.StartListening(), TestActor);
 
-        var listening = ExpectMsg<ListenerActor.ListeningStarted>(
+        var listening = ExpectMsg<ServerListenerActor.ListeningStarted>(
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(9000, listening.BoundPort);
@@ -115,7 +115,7 @@ public sealed class ListenerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public void Listener_should_stop_self_on_bind_failure()
     {
-        var listener = Sys.ActorOf(ListenerActor.Create(
+        var listener = Sys.ActorOf(ServerListenerActor.Create(
             new FailingListenerFactory(),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             DefaultOptions(),
@@ -123,7 +123,7 @@ public sealed class ListenerActorSpec : TestKit
             new DummyProtocolEngine()));
 
         Watch(listener);
-        listener.Tell(new ListenerActor.StartListening(), TestActor);
+        listener.Tell(new ServerListenerActor.StartListening(), TestActor);
 
         ExpectTerminated(listener, TimeSpan.FromSeconds(3),
             cancellationToken: TestContext.Current.CancellationToken);
@@ -135,16 +135,16 @@ public sealed class ListenerActorSpec : TestKit
         var options = new GaudiServerOptions();
         options.Limits.MaxConcurrentConnections = 1;
 
-        var listener = Sys.ActorOf(ListenerActor.Create(
+        var listener = Sys.ActorOf(ServerListenerActor.Create(
             new ConnectionEmittingFactory(9000, connectionCount: 2),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             options,
             PassthroughBridgeGraph(),
             new DummyProtocolEngine()));
 
-        listener.Tell(new ListenerActor.StartListening(), TestActor);
+        listener.Tell(new ServerListenerActor.StartListening(), TestActor);
 
-        var listening = ExpectMsg<ListenerActor.ListeningStarted>(
+        var listening = ExpectMsg<ServerListenerActor.ListeningStarted>(
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(9000, listening.BoundPort);
@@ -153,19 +153,19 @@ public sealed class ListenerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public void Listener_should_complete_drain_when_no_active_connections()
     {
-        var listener = Sys.ActorOf(ListenerActor.Create(
+        var listener = Sys.ActorOf(ServerListenerActor.Create(
             new DummyListenerFactory(9000),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             DefaultOptions(),
             PassthroughBridgeGraph(),
             new DummyProtocolEngine()));
 
-        listener.Tell(new ListenerActor.StartListening(), TestActor);
-        ExpectMsg<ListenerActor.ListeningStarted>(
+        listener.Tell(new ServerListenerActor.StartListening(), TestActor);
+        ExpectMsg<ServerListenerActor.ListeningStarted>(
             cancellationToken: TestContext.Current.CancellationToken);
 
         Watch(listener);
-        listener.Tell(new ListenerActor.DrainConnections());
+        listener.Tell(new ServerListenerActor.DrainConnections());
 
         // Listener with 0 connections should complete its TCS immediately.
         // The actor itself remains alive — the supervisor handles stopping it.

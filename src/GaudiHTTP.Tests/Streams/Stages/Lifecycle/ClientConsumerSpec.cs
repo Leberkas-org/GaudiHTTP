@@ -28,7 +28,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubs();
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -61,7 +61,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubsWithTap(enrichedRequests);
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -102,7 +102,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubsWithTap(enrichedRequests);
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -142,7 +142,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubs();
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -188,7 +188,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubsWithManualResponses(responseInjectChannel.Reader);
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -231,7 +231,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubs();
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -265,7 +265,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
         var responseFanout = Source.Failed<HttpResponseMessage>(
             new InvalidOperationException("sink exploded"));
 
-        var consumer = Sys.ActorOf(Consumer.Props(
+        var consumer = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,
@@ -297,7 +297,7 @@ public sealed class ClientConsumerSpec : StreamTestBase
         var requestSink = Sink.Ignore<HttpRequestMessage>().MapMaterializedValue(_ => NotUsed.Instance);
         var responseFanout = Source.Empty<HttpResponseMessage>();
 
-        var consumer = Sys.ActorOf(Consumer.Props(
+        var consumer = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,

@@ -24,7 +24,7 @@ public sealed class ClientStreamOwnerSpec : TestKit
     [Fact(Timeout = 10000)]
     public void StreamOwner_should_stop_after_retry_exhaustion()
     {
-        var owner = Sys.ActorOf(Props.Create(() => new StreamOwner(
+        var owner = Sys.ActorOf(Props.Create(() => new ClientStreamOwner(
             DefaultClientOptions(),
             EmptyPipeline(),
             transportOverride: null,
@@ -39,7 +39,7 @@ public sealed class ClientStreamOwnerSpec : TestKit
         var failEx = new InvalidOperationException("simulated stream failure");
         for (var i = 0; i <= 10; i++)
         {
-            owner.Tell(new StreamOwner.StreamSinkCompleted(failEx));
+            owner.Tell(new ClientStreamOwner.StreamSinkCompleted(failEx));
         }
 
         ExpectTerminated(owner, TimeSpan.FromSeconds(5),
@@ -54,13 +54,13 @@ public sealed class ClientStreamOwnerSpec : TestKit
     [Fact(Timeout = 5000)]
     public void StreamOwner_should_stop_on_shutdown_after_stream_drains()
     {
-        var owner = Sys.ActorOf(Props.Create(() => new StreamOwner(
+        var owner = Sys.ActorOf(Props.Create(() => new ClientStreamOwner(
             DefaultClientOptions(),
             EmptyPipeline(),
             transportOverride: null)));
 
         Watch(owner);
-        owner.Tell(new StreamOwner.Shutdown());
+        owner.Tell(new ClientStreamOwner.Shutdown());
 
         ExpectTerminated(owner, TimeSpan.FromSeconds(4),
             cancellationToken: TestContext.Current.CancellationToken);

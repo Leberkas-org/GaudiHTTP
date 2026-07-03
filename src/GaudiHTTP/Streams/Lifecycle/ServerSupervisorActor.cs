@@ -8,12 +8,16 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
+internal sealed record ServerListenerHandle(
+    UniqueKillSwitch AcceptSwitch,
+    Task<Done> CompletionTask);
+
 internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
 {
     private const string StartupTimerKey = "startup-timeout";
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
-    private readonly List<ListenerHandle> _handles = [];
+    private readonly List<ServerListenerHandle> _handles = [];
     private readonly List<IActorRef> _listenerActors = [];
     private readonly List<int> _boundPorts = [];
     private IActorRef _startRequester = ActorRefs.Nobody;
@@ -28,13 +32,19 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
         IReadOnlyList<ListenerBinding> Bindings);
 
     public sealed record ListenersReady(IReadOnlyList<int> BoundPorts);
+
     public sealed record ListenersFailed(Exception Error);
+
     public sealed record StopAccepting;
+
     public sealed record BeginDrain(TimeSpan Timeout);
+
     public sealed record DrainComplete(bool TimedOut);
 
     private sealed record StartupTimedOut;
+
     private sealed record DrainTimedOut;
+
     private sealed record DrainSucceeded;
 
     public ITimerScheduler Timers { get; set; } = null!;
@@ -42,7 +52,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
     public ServerSupervisorActor()
     {
         Receive<StartServer>(OnStartServer);
-        Receive<ListenerActor.ListeningStarted>(OnListenerReady);
+        Receive<ServerListenerActor.ListeningStarted>(OnListenerReady);
         Receive<Terminated>(OnListenerTerminated);
         Receive<StartupTimedOut>(_ => OnStartupTimedOut());
         Receive<StopAccepting>(_ => OnStopAccepting());
@@ -74,7 +84,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
                 ? ProtocolRouter.ResolveEngine(new Version(3, 0), msg.Options)
                 : ProtocolRouter.ResolveNegotiating(msg.Options, binding.Protocols);
 
-            var props = ListenerActor.Create(
+            var props = ServerListenerActor.Create(
                 binding.Factory,
                 binding.Options,
                 msg.Options,
@@ -86,11 +96,11 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             var listener = Context.ActorOf(props, name);
             Context.Watch(listener);
             _listenerActors.Add(listener);
-            listener.Tell(new ListenerActor.StartListening());
+            listener.Tell(new ServerListenerActor.StartListening());
         }
     }
 
-    private void OnListenerReady(ListenerActor.ListeningStarted msg)
+    private void OnListenerReady(ServerListenerActor.ListeningStarted msg)
     {
         if (_startupComplete)
         {
@@ -119,12 +129,10 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             Timers.Cancel(StartupTimerKey);
             _log.Error("Listener {0} died during startup", msg.ActorRef.Path.Name);
 
-            foreach (var listener in _listenerActors)
+            foreach (var listener in _listenerActors.Where(x =>
+                         !_listenerActors.Any(actorRef => actorRef.Equals(msg.ActorRef))))
             {
-                if (!listener.Equals(msg.ActorRef))
-                {
-                    Context.Stop(listener);
-                }
+                Context.Stop(listener);
             }
 
             _startRequester.Tell(new ListenersFailed(
@@ -186,7 +194,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
 
         foreach (var listenerActor in _listenerActors)
         {
-            listenerActor.Tell(new ListenerActor.DrainConnections());
+            listenerActor.Tell(new ServerListenerActor.DrainConnections());
         }
 
         foreach (var handle in _handles)

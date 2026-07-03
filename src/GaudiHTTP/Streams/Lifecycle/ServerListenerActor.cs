@@ -9,7 +9,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
-internal sealed class ListenerActor : ReceiveActor
+internal sealed class ServerListenerActor : ReceiveActor
 {
     private readonly ILoggingAdapter _log = Context.GetLogger();
     private readonly IMaterializer _materializer = Context.Materializer();
@@ -23,7 +23,7 @@ internal sealed class ListenerActor : ReceiveActor
     public sealed record StartListening;
     public sealed record DrainConnections;
 
-    internal sealed record ListeningStarted(int BoundPort, ListenerHandle Handle);
+    internal sealed record ListeningStarted(int BoundPort, ServerListenerHandle Handle);
 
     private sealed record ConnectionArrived(Flow<ITransportOutbound, ITransportInbound, NotUsed> Connection);
     private sealed record ListenerCompleted;
@@ -35,7 +35,7 @@ internal sealed class ListenerActor : ReceiveActor
     private bool _draining;
     private TaskCompletionSource<Done>? _completionTcs;
 
-    public ListenerActor(
+    public ServerListenerActor(
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         GaudiServerOptions serverOptions,
@@ -75,7 +75,7 @@ internal sealed class ListenerActor : ReceiveActor
                 connectionFlow => self.Tell(new ConnectionArrived(connectionFlow))))
             .Run(_materializer);
 
-        var handle = new ListenerHandle(acceptSwitch, _completionTcs.Task);
+        var handle = new ServerListenerHandle(acceptSwitch, _completionTcs.Task);
 
         boundTask.ContinueWith(t =>
         {
@@ -110,7 +110,7 @@ internal sealed class ListenerActor : ReceiveActor
         _activeConnections++;
 
         var child = Context.ActorOf(
-            ConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions,
+            ServerConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions,
                 loggingCategory: _loggingCategory),
             string.Concat("conn-", connectionId));
 
@@ -124,7 +124,7 @@ internal sealed class ListenerActor : ReceiveActor
 
         foreach (var child in Context.GetChildren())
         {
-            child.Tell(new ConnectionActor.Drain());
+            child.Tell(new ServerConnectionActor.Drain());
         }
 
         TryComplete();
@@ -175,7 +175,7 @@ internal sealed class ListenerActor : ReceiveActor
     {
         return new OneForOneStrategy(ex =>
         {
-            _log.Warning(ex, "ConnectionActor failed");
+            _log.Warning(ex, "ServerConnectionActor failed");
             return Directive.Stop;
         });
     }
@@ -187,6 +187,6 @@ internal sealed class ListenerActor : ReceiveActor
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine,
         string? loggingCategory = null)
-        => Props.Create(() => new ListenerActor(
+        => Props.Create(() => new ServerListenerActor(
             factory, listenerOptions, serverOptions, bridgeGraph, engine, loggingCategory));
 }

@@ -9,7 +9,7 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
-internal sealed class ConnectionActor : ReceiveActor
+internal sealed class ServerConnectionActor : ReceiveActor
 {
     public sealed record Drain;
     private sealed record ConnectionCompleted;
@@ -27,10 +27,10 @@ internal sealed class ConnectionActor : ReceiveActor
         GaudiServerOptions options,
         IServiceProvider? services = null,
         string? loggingCategory = null)
-        => Akka.Actor.Props.Create(() => new ConnectionActor(
+        => Akka.Actor.Props.Create(() => new ServerConnectionActor(
             connectionId, connectionFlow, bridgeGraph, engine, options, services, loggingCategory));
 
-    public ConnectionActor(
+    public ServerConnectionActor(
         int connectionId,
         Flow<ITransportOutbound, ITransportInbound, NotUsed> connectionFlow,
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,

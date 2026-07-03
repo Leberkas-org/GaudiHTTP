@@ -36,7 +36,7 @@ public sealed class ClientConsumerStaleResponseSpec : StreamTestBase
 
         var (mergeHubSink, broadcastHubSource) = CreateTestHubsWithManualResponses(responseInjectChannel.Reader);
 
-        var actor = Sys.ActorOf(Consumer.Props(
+        var actor = Sys.ActorOf(ClientConsumer.Props(
             consumerId,
             requestChannel.Reader,
             optionsFactory,

@@ -63,9 +63,9 @@ public sealed class ServerConnectionActorSpec : TestKit
     }
 
     [Fact(Timeout = 10000)]
-    public void ConnectionActor_should_stop_on_stream_completion()
+    public void ServerConnectionActor_should_stop_on_stream_completion()
     {
-        var actor = Sys.ActorOf(ConnectionActor.Props(
+        var actor = Sys.ActorOf(ServerConnectionActor.Props(
             1, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
@@ -73,9 +73,9 @@ public sealed class ServerConnectionActorSpec : TestKit
     }
 
     [Fact(Timeout = 10000)]
-    public void ConnectionActor_should_stop_on_stream_failure()
+    public void ServerConnectionActor_should_stop_on_stream_failure()
     {
-        var actor = Sys.ActorOf(ConnectionActor.Props(
+        var actor = Sys.ActorOf(ServerConnectionActor.Props(
             2, FailingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
@@ -83,18 +83,18 @@ public sealed class ServerConnectionActorSpec : TestKit
     }
 
     [Fact(Timeout = 10000)]
-    public void ConnectionActor_should_drain_on_drain_message()
+    public void ServerConnectionActor_should_drain_on_drain_message()
     {
-        var actor = Sys.ActorOf(ConnectionActor.Props(
+        var actor = Sys.ActorOf(ServerConnectionActor.Props(
             3, HangingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new GaudiServerOptions()));
 
         Watch(actor);
-        actor.Tell(new ConnectionActor.Drain());
+        actor.Tell(new ServerConnectionActor.Drain());
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10000)]
-    public void ConnectionActor_should_log_lifecycle_under_configured_category()
+    public void ServerConnectionActor_should_log_lifecycle_under_configured_category()
     {
         // UseConnectionLogging(category): connection accepted events must be logged under a logger
         // whose source IS the configured category. Previously the category was completely dead.
@@ -102,7 +102,7 @@ public sealed class ServerConnectionActorSpec : TestKit
         var probe = CreateTestProbe();
         Sys.EventStream.Subscribe(probe.Ref, typeof(Akka.Event.Info));
 
-        Sys.ActorOf(ConnectionActor.Props(
+        Sys.ActorOf(ServerConnectionActor.Props(
             7, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(),
             new GaudiServerOptions(), services: null, loggingCategory: category));
 

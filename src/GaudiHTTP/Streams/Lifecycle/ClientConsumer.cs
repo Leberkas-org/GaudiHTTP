@@ -10,7 +10,7 @@ using GaudiHTTP.Streams.Stages.Client;
 
 namespace GaudiHTTP.Streams.Lifecycle;
 
-internal sealed class Consumer : ReceiveActor
+internal sealed class ClientConsumer : ReceiveActor
 {
     internal sealed record ConsumerSinkCompleted(Exception? Error);
 
@@ -50,9 +50,9 @@ internal sealed class Consumer : ReceiveActor
         Sink<HttpRequestMessage, NotUsed> requestIngress,
         Source<HttpResponseMessage, NotUsed> responseFanoutSource) : IIndirectActorProducer
     {
-        public Type ActorType => typeof(Consumer);
+        public Type ActorType => typeof(ClientConsumer);
 
-        public ActorBase Produce() => new Consumer(
+        public ActorBase Produce() => new ClientConsumer(
             consumerId, requestReader,
             fallbackResponseWriter, optionsFactory,
             requestIngress, responseFanoutSource);
@@ -62,7 +62,7 @@ internal sealed class Consumer : ReceiveActor
         }
     }
 
-    private Consumer(
+    private ClientConsumer(
         Guid consumerId,
         ChannelReader<HttpRequestMessage> requestReader,
         ChannelWriter<HttpResponseMessage> responseEgress,

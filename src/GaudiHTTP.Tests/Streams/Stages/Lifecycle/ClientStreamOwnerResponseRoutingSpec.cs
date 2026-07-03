@@ -17,38 +17,38 @@ public sealed class ClientStreamOwnerResponseRoutingSpec
     [Fact(Timeout = 5000)]
     public void First_consumer_should_map_to_partition_zero()
     {
-        Assert.Equal(0, StreamOwner.ResolvePartitionIndex([A, B], A, consumerCount: 2));
+        Assert.Equal(0, ClientStreamOwner.ResolvePartitionIndex([A, B], A, consumerCount: 2));
     }
 
     [Fact(Timeout = 5000)]
     public void Second_consumer_should_map_to_partition_one()
     {
-        Assert.Equal(1, StreamOwner.ResolvePartitionIndex([A, B], B, consumerCount: 2));
+        Assert.Equal(1, ClientStreamOwner.ResolvePartitionIndex([A, B], B, consumerCount: 2));
     }
 
     [Fact(Timeout = 5000)]
     public void Third_consumer_should_map_to_its_index()
     {
-        Assert.Equal(2, StreamOwner.ResolvePartitionIndex([A, B, C], C, consumerCount: 3));
+        Assert.Equal(2, ClientStreamOwner.ResolvePartitionIndex([A, B, C], C, consumerCount: 3));
     }
 
     [Fact(Timeout = 5000)]
     public void Index_should_compact_after_an_earlier_consumer_unregisters()
     {
         // A unregistered: B is now the only consumer and occupies the hub's slot 0.
-        Assert.Equal(0, StreamOwner.ResolvePartitionIndex([B], B, consumerCount: 1));
+        Assert.Equal(0, ClientStreamOwner.ResolvePartitionIndex([B], B, consumerCount: 1));
     }
 
     [Fact(Timeout = 5000)]
     public void Unknown_consumer_should_fall_back_to_partition_zero()
     {
-        Assert.Equal(0, StreamOwner.ResolvePartitionIndex([A, B], C, consumerCount: 2));
+        Assert.Equal(0, ClientStreamOwner.ResolvePartitionIndex([A, B], C, consumerCount: 2));
     }
 
     [Fact(Timeout = 5000)]
     public void Index_beyond_consumer_count_should_fall_back_to_partition_zero()
     {
         // Defensive: a stale index outside the live partition set must not route out of bounds.
-        Assert.Equal(0, StreamOwner.ResolvePartitionIndex([A, B, C], C, consumerCount: 2));
+        Assert.Equal(0, ClientStreamOwner.ResolvePartitionIndex([A, B, C], C, consumerCount: 2));
     }
 }
