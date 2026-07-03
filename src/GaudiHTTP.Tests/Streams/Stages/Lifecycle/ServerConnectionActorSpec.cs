@@ -12,9 +12,9 @@ using GaudiHTTP.Streams.Lifecycle;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class ConnectionActorSpec : TestKit
+public sealed class ServerConnectionActorSpec : TestKit
 {
-    public ConnectionActorSpec() : base("akka.loglevel = INFO")
+    public ServerConnectionActorSpec() : base("akka.loglevel = INFO")
     {
     }
 

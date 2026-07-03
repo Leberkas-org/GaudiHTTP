@@ -6,7 +6,7 @@ using GaudiHTTP.Streams.Lifecycle;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class StreamOwnerSpec : TestKit
+public sealed class ClientStreamOwnerSpec : TestKit
 {
     private static GaudiClientOptions DefaultClientOptions() => new()
     {

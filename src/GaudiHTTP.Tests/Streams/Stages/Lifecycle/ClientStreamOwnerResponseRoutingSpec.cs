@@ -8,7 +8,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 /// 1-based monotonic counter that did not compact on unregister, so responses were misrouted to
 /// the wrong consumer when two clients shared a StreamOwner (same client name).
 /// </summary>
-public sealed class StreamOwnerResponseRoutingSpec
+public sealed class ClientStreamOwnerResponseRoutingSpec
 {
     private static readonly Guid A = Guid.NewGuid();
     private static readonly Guid B = Guid.NewGuid();

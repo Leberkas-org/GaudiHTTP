@@ -9,7 +9,7 @@ using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class ConsumerSpec : StreamTestBase
+public sealed class ClientConsumerSpec : StreamTestBase
 {
     [Fact(Timeout = 10_000)]
     public async Task ConsumerActor_should_be_created_and_stopped_cleanly()

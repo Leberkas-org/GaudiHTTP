@@ -16,7 +16,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 /// disposing in one consumer would corrupt the body stream that another consumer is reading.
 /// The orphaned response is GC-reclaimable.
 /// </summary>
-public sealed class ConsumerStaleResponseSpec : StreamTestBase
+public sealed class ClientConsumerStaleResponseSpec : StreamTestBase
 {
     [Fact(Timeout = 5000)]
     public async Task Consumer_should_not_dispose_stale_response_because_broadcast_hub_shares_objects()

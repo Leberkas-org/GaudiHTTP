@@ -35,7 +35,7 @@ namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 /// enrichment is made failure-isolating (catch per element, complete that request's pending with the
 /// error, drop it from the stream — never fail the Select / MergeHub producer).
 /// </summary>
-public sealed class ConsumerIngressFailureIsolationSpec : StreamTestBase
+public sealed class ClientConsumerIngressFailureIsolationSpec : StreamTestBase
 {
     // DefaultRequestVersion = 2.0 is what makes RequestEnricher Rule 2 execute `request.Version = ...`
     // (set_Version), the exact call that throws on the disposed message in the benchmark.
