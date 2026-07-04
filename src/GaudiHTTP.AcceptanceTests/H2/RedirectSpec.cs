@@ -27,9 +27,9 @@ public sealed class RedirectSpec : AcceptanceTestBase
 
     private static ResponseMap CreateBaseMap() => new ResponseMap()
         .On("/hello", HttpStatusCode.OK, "Hello World")
-        .On("/echo", req =>
+        .On("/echo", async req =>
         {
-            var body = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult() ?? "";
+            var body = req.Content != null ? await req.Content.ReadAsStringAsync() : "";
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(body)

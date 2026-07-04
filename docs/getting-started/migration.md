@@ -10,7 +10,7 @@ This guide shows how to migrate common `HttpClient` patterns to GaudiHTTP. The A
 | `IHttpClientFactory`       | `IGaudiHttpClientFactory`                                |
 | `services.AddHttpClient()` | `services.AddGaudiHttpClient()`                          |
 | `client.GetAsync(url)`     | `client.SendAsync(new HttpRequestMessage(Get, url), ct)` |
-| `DelegatingHandler`        | `TurboHandler` (stream-compatible)                       |
+| `DelegatingHandler`        | `GaudiHandler` (stream-compatible)                       |
 | Polly retry policies       | Built-in `.WithRetry()`                                  |
 | No caching                 | Built-in `.WithCache()`                                  |
 | `CookieContainer` (manual) | `CookieJar` (automatic)                                  |
@@ -79,7 +79,7 @@ public class MyService(IGaudiHttpClientFactory factory)
 {
     private readonly IGaudiHttpClient _client = factory.CreateClient("my-api");
 
-    // DefaultRequestHeaders are set on the client instance, not on TurboClientOptions
+    // DefaultRequestHeaders are set on the client instance, not on GaudiClientOptions
     // _client.DefaultRequestHeaders.Add("Accept", "application/json");
 }
 ```
@@ -162,10 +162,10 @@ builder.Services.AddHttpClient("my-api")
     .AddHttpMessageHandler<LoggingHandler>();
 ```
 
-**After (GaudiHTTP TurboHandler):**
+**After (GaudiHTTP GaudiHandler):**
 
 ```csharp
-public sealed class LoggingHandler : TurboHandler
+public sealed class LoggingHandler : GaudiHandler
 {
     public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
     {
@@ -189,8 +189,8 @@ builder.Services.AddGaudiHttpClient("my-api", options =>
 ```
 
 ::: info
-`TurboHandler.ProcessRequest` sees initial requests only (not retries or redirects).
-`TurboHandler.ProcessResponse` sees final responses only (after all retries and redirects).
+`GaudiHandler.ProcessRequest` sees initial requests only (not retries or redirects).
+`GaudiHandler.ProcessResponse` sees final responses only (after all retries and redirects).
 :::
 
 ## HTTP/2

@@ -222,7 +222,7 @@ public sealed class Http3StateMachineSpec
         _clientOps.Outbound.Clear();
         _clientOps.Responses.Clear();
 
-        var qpack = new GaudiHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
         var headers = new HeadersFrame(qpack.Encode([(":status", "200")]));
         var buffer = SerializeFrame(headers);
         sm.DecodeServerData(MultiplexedData.Rent(buffer, 0));
@@ -390,7 +390,7 @@ public sealed class Http3StateMachineSpec
         Assert.True(sm.HasInFlightRequests);
 
         // After response assembly and flush
-        var qpack = new GaudiHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
         var headersFrame = new HeadersFrame(qpack.Encode([(":status", "200")]));
         sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(headersFrame), 0));
         sm.DecodeServerData(new StreamReadCompleted(0));
@@ -404,7 +404,7 @@ public sealed class Http3StateMachineSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        var qpack = new GaudiHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
 
         sm.OnRequest(CreateGetRequest("https://example.com/a"));
         sm.OnRequest(CreateGetRequest("https://example.com/b"));
@@ -427,7 +427,7 @@ public sealed class Http3StateMachineSpec
         sm.PreStart();
 
         // Build minimal QPACK-encoded HEADERS for two different status codes
-        var qpack = new GaudiHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
         var headers200 = new HeadersFrame(qpack.Encode([(":status", "200")]));
         var headers404 = new HeadersFrame(qpack.Encode([(":status", "404")]));
 
@@ -459,7 +459,7 @@ public sealed class Http3StateMachineSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        var qpack = new GaudiHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
 
         // Send two requests — stream IDs allocated as 0 and 4
         var req1 = CreateGetRequest("https://example.com/first");

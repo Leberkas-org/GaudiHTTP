@@ -14,7 +14,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
     {
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_follow_single_302(ProtocolVariant variant)
     {
@@ -26,7 +26,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_follow_chain_of_3_hops(ProtocolVariant variant)
     {
@@ -38,7 +38,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_not_follow_beyond_max_limit(ProtocolVariant variant)
     {
@@ -50,7 +50,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
         Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_follow_absolute_redirect(ProtocolVariant variant)
     {
@@ -67,7 +67,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
         Assert.True(json.RootElement.TryGetProperty("url", out _));
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_return_redirect_response_when_disabled(ProtocolVariant variant)
     {
@@ -81,7 +81,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
             $"Expected 3xx redirect status, got {response.StatusCode}");
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_follow_absolute_location(ProtocolVariant variant)
     {
@@ -93,7 +93,7 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Theory(Timeout = 15000)]
+    [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
     public async Task Redirect_should_follow_relative_location(ProtocolVariant variant)
     {

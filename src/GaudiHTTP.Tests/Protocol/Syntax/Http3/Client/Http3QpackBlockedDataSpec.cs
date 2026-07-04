@@ -19,7 +19,7 @@ public sealed class Http3QpackBlockedDataSpec
             encoderMaxCapacity: 4 * 1024, decoderMaxCapacity: 4 * 1024,
             maxBlockedStreams: 10, configuredEncoderLimit: null);
         var decoder = new Http3ClientDecoder(sync, maxFieldSectionSize: 16 * 1024);
-        var manager = new StreamManager(ops, decoder, sync, maxResponseBodySize: long.MaxValue);
+        var manager = new StreamManager(ops, decoder, sync, maxResponseBodySize: long.MaxValue, maxBufferedResponseBodySize: 64 * 1024);
         return (manager, sync);
     }
 

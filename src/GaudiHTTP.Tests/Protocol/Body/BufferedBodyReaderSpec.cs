@@ -1,13 +1,17 @@
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 
 namespace GaudiHTTP.Tests.Protocol.Body;
 
 public sealed class BufferedBodyReaderSpec
 {
+    private static BufferedBodyReader RentReader()
+        => ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
+
     [Fact(Timeout = 5000)]
     public void Feed_should_complete_when_all_bytes_received()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(5);
 
         var consumed = reader.Feed("hello"u8);
@@ -20,7 +24,7 @@ public sealed class BufferedBodyReaderSpec
     [Fact(Timeout = 5000)]
     public void Feed_should_accumulate_across_multiple_calls()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(5);
 
         Assert.Equal(2, reader.Feed("he"u8));
@@ -32,7 +36,7 @@ public sealed class BufferedBodyReaderSpec
     [Fact(Timeout = 5000)]
     public void GetBody_should_return_accumulated_bytes()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(3);
 
         reader.Feed("ab"u8);
@@ -44,7 +48,7 @@ public sealed class BufferedBodyReaderSpec
     [Fact(Timeout = 5000)]
     public void Reset_should_allow_reuse_for_next_request()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(3);
         reader.Feed("abc"u8);
         Assert.True(reader.IsCompleted);
@@ -59,7 +63,7 @@ public sealed class BufferedBodyReaderSpec
     [Fact(Timeout = 5000)]
     public void Zero_length_body_should_complete_immediately()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(0);
 
         Assert.True(reader.IsCompleted);
@@ -69,7 +73,7 @@ public sealed class BufferedBodyReaderSpec
     [Fact(Timeout = 5000)]
     public async Task AsStream_should_return_readable_stream_with_buffered_content()
     {
-        using var reader = new BufferedBodyReader();
+        using var reader = RentReader();
         reader.Reset(5);
         reader.Feed("hello"u8);
 

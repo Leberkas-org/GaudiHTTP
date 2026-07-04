@@ -8,7 +8,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_parse_single_chunk_and_terminator()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         var input = "5\r\nhello\r\n0\r\n\r\n"u8;
         var bodyBytes = new List<byte>();
@@ -33,7 +33,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_parse_multiple_chunks()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         var input = "3\r\nabc\r\n2\r\nde\r\n0\r\n\r\n"u8;
         var bodyBytes = new List<byte>();
@@ -58,7 +58,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_handle_partial_input_across_calls()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         var bodyBytes = new List<byte>();
 
@@ -76,7 +76,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_collect_trailers()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         var input = "0\r\nX-Checksum: abc123\r\n\r\n"u8;
         decoder.Decode(input, out _);
@@ -91,7 +91,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_reject_invalid_chunk_size()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         Assert.Throws<HttpProtocolException>(
             () => decoder.Decode("ZZZZ\r\n"u8, out _));
@@ -101,7 +101,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_handle_chunk_extensions()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
 
         var input = "3;ext=val\r\nabc\r\n0\r\n\r\n"u8;
         var bodyBytes = new List<byte>();
@@ -151,7 +151,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_not_duplicate_partial_chunk_size_line_after_chunk_data()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
         var body = new List<byte>();
 
         // Segment ends after complete chunk data + a partial next chunk-size line ("3\r").
@@ -166,7 +166,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_not_duplicate_partial_chunk_data_crlf_after_chunk_data()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
         var body = new List<byte>();
 
         // Segment ends after complete chunk data + a partial trailing CRLF ("\r").
@@ -181,7 +181,7 @@ public sealed class ChunkedFramingDecoderSpec
     public void Decode_should_not_duplicate_partial_trailer_line()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
         var body = new List<byte>();
 
         // Segment ends after the last chunk + a partial trailer line ("X-Tr").
@@ -199,11 +199,11 @@ public sealed class ChunkedFramingDecoderSpec
     public void Reset_should_allow_reuse()
     {
         var decoder = new ChunkedFramingDecoder();
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
         decoder.Decode("0\r\n\r\n"u8, out _);
         Assert.True(decoder.IsComplete);
 
-        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256);
+        decoder.Reset(long.MaxValue, maxChunkExtensionLength: 256, maxControlLineLength: 64 * 1024, maxTrailerSectionBytes: 32 * 1024);
         Assert.False(decoder.IsComplete);
     }
 }

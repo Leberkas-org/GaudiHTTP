@@ -1,10 +1,11 @@
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class QueuedBodyStream(QueuedBodyReader reader) : Stream
+internal sealed class QueuedBodyStream(QueuedBodyReader reader, Action? onAbandoned = null) : Stream
 {
     private ReadOnlyMemory<byte> _current;
     private int _offset;
     private bool _done;
+    private bool _disposed;
 
     public override bool CanRead => true;
     public override bool CanSeek => false;
@@ -137,6 +138,23 @@ internal sealed class QueuedBodyStream(QueuedBodyReader reader) : Stream
         }
 
         return vt.Result;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        if (disposing && !_done)
+        {
+            onAbandoned?.Invoke();
+        }
+
+        base.Dispose(disposing);
     }
 
     public override void Flush()

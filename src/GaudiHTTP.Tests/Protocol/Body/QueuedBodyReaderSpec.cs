@@ -248,7 +248,7 @@ public sealed class QueuedBodyReaderSpec
 
     private sealed class TrackingArrayPool : System.Buffers.ArrayPool<byte>
     {
-        private readonly System.Buffers.ArrayPool<byte> _inner = System.Buffers.ArrayPool<byte>.Shared;
+        private readonly System.Buffers.ArrayPool<byte> _inner = Shared;
 
         public int RentedCount { get; private set; }
         public int ReturnedCount { get; private set; }

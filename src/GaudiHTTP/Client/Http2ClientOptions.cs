@@ -26,7 +26,7 @@ public sealed class Http2ClientOptions
     /// <summary>
     /// Connection-level flow control window size in bytes (RFC 9113 §6.9).
     /// Advertised via WINDOW_UPDATE on stream 0 during the connection preface.
-    /// Default is 16 MB. Higher values improve throughput on high-bandwidth links
+    /// Default is 64 MB. Higher values improve throughput on high-bandwidth links
     /// but increase per-connection memory when consumers read slowly.
     /// </summary>
     public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;
@@ -84,17 +84,27 @@ public sealed class Http2ClientOptions
     public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;
 
     /// <summary>
-    /// Maximum request body size (in bytes) that is serialized inline (single ArrayPool rent,
-    /// no background encoder). Bodies larger than this are streamed in chunks with backpressure.
-    /// Default is 64 KiB.
+    /// Per-protocol override for request body size (in bytes) that is serialized inline (single
+    /// ArrayPool rent, no background encoder). Bodies larger than this are streamed in chunks with
+    /// backpressure. When <see langword="null"/>, inherits from
+    /// <see cref="GaudiClientOptions.MaxBufferedRequestBodySize"/> then
+    /// <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+    public int? MaxBufferedRequestBodySize { get; set; }
 
     /// <summary>
-    /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
-    /// Prevents unbounded memory growth during concurrent uploads. Default is 64 KiB.
+    /// Per-protocol override for response body size (in bytes) that is buffered fully in memory.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiClientOptions.MaxBufferedResponseBodySize"/>
+    /// then <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.RequestBodyChunkSize"/> then
+    /// <see cref="GaudiClientOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.

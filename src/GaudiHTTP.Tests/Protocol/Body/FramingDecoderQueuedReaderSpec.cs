@@ -31,7 +31,7 @@ public sealed class FramingDecoderQueuedReaderSpec
     public async Task Chunked_decoder_should_enqueue_body_chunks()
     {
         var framing = new ChunkedFramingDecoder();
-        framing.Reset(1 * 1024 * 1024, 256);
+        framing.Reset(1 * 1024 * 1024, 256, 64 * 1024, 32 * 1024);
         var reader = new QueuedBodyReader(capacity: 4);
         reader.Reset();
 

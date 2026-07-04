@@ -1,13 +1,19 @@
+using System.Buffers;
 using Akka.Actor;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal interface IBodyDrainTarget<TStreamId>
+internal interface IBodyDrainTarget
 {
-    IActorRef PipeToTarget { get; }
-    bool HasPendingDemand { get; }
-    int PreferredChunkSize { get; }
-    void EmitDataFrames(TStreamId streamId, ReadOnlyMemory<byte> data, bool endStream);
-    void OnDrainComplete(TStreamId streamId);
-    void OnDrainFailed(TStreamId streamId, Exception reason);
+    IActorRef StageActor { get; }
+    void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream);
+
+    void EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        EmitDataFrames(streamId, owner.Memory[..bytesWritten], endStream);
+        owner.Dispose();
+    }
+
+    void OnDrainComplete(int streamId);
+    void OnDrainFailed(int streamId, Exception reason);
 }

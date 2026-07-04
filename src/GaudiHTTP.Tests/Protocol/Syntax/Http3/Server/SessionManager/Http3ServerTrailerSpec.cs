@@ -22,16 +22,18 @@ public sealed class Http3ServerTrailerSpec
             MinRequestBodyDataRate: 240,
             MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
             MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MaxResetStreamsPerWindow: 200,
+            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
         MaxConcurrentStreams = 100,
         MaxHeaderListSize = 32 * 1024,
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 0,
         QpackBlockedStreams = 0,
-        MaxResponseBufferSize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static byte[] BuildRequest(string method, string path)

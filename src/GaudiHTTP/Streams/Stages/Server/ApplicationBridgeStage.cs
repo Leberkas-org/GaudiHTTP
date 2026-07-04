@@ -87,11 +87,18 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 onPush: OnPush,
                 onUpstreamFinish: () =>
                 {
+                    Tracing.For("Handler").Info(this, "bridge upstream finished (protocol completed), inFlight={0}", _inFlight);
                     _upstreamFinished = true;
                     if (_inFlight == 0)
                     {
                         CompleteStage();
                     }
+                },
+                onUpstreamFailure: ex =>
+                {
+                    Tracing.For("Handler").Warning(this, "bridge upstream failure: {0}, inFlight={1}", ex.Message, _inFlight);
+                    CancelAllInFlight();
+                    FailStage(ex);
                 });
 
             SetHandler(stage._out,
@@ -100,11 +107,22 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     _downstreamReady = true;
                     TryEmitPending();
                     TryPullNext();
+                },
+                onDownstreamFinish: cause =>
+                {
+                    Tracing.For("Handler").Info(this, "bridge downstream finished: {0}, inFlight={1}",
+                        cause?.Message ?? "normal", _inFlight);
+                    CancelAllInFlight();
+                    if (!IsClosed(stage._in))
+                    {
+                        Cancel(stage._in);
+                    }
                 });
         }
 
         public override void PreStart()
         {
+            Tracing.For("Handler").Debug(this, "bridge PreStart");
             _stageActor = GetStageActor(OnMessage).Ref;
             Pull(_stage._in);
         }
@@ -476,6 +494,14 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
         }
 
+        private void CancelAllInFlight()
+        {
+            foreach (var (_, cts) in _activeTimeouts)
+            {
+                cts.Cancel();
+            }
+        }
+
         private void CleanupTimeout(int seq)
         {
             if (_timerKeys.Remove(seq, out var timerKeys))
@@ -486,12 +512,9 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             _gracePhase.Remove(seq);
             _activeFeatures.Remove(seq);
-            if (_activeTimeouts.Remove(seq, out var cts))
+            if (_activeTimeouts.Remove(seq, out var cts) && (!cts.TryReset() || !_ctsPool.TryReturn(cts)))
             {
-                if (!cts.TryReset() || !_ctsPool.TryReturn(cts))
-                {
-                    cts.Dispose();
-                }
+                cts.Dispose();
             }
         }
 
@@ -541,8 +564,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private static void FireOnCompleted(IFeatureCollection features)
         {
-            if (features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature responseFeature
-                && responseFeature.HasOnCompletedCallbacks)
+            if (features.Get<IHttpResponseFeature>() is GaudiHttpResponseFeature { HasOnCompletedCallbacks: true } responseFeature)
             {
                 responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
             }
@@ -571,6 +593,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         public override void PostStop()
         {
+            Tracing.For("Handler").Info(this, "bridge PostStop (upstreamFinished={0}, inFlight={1})",
+                _upstreamFinished, _inFlight);
             foreach (var (_, features) in _activeFeatures)
             {
                 if (features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)

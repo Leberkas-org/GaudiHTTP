@@ -8,5 +8,7 @@ internal sealed record Http10ClientDecoderOptions
     public required int MaxHeaderBytes { get; init; }
     public required int MaxHeaderCount { get; init; }
     public required int HeaderLineMaxLength { get; init; }
+    public required int MaxChunkedControlLineLength { get; init; }
+    public required int MaxChunkedTrailerSize { get; init; }
     public required bool AllowObsFold { get; init; }
 }

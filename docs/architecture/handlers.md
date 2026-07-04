@@ -54,7 +54,7 @@ services.AddGaudiHttpClient<IGitHubClient, GitHubClient>(options =>
 
 The return value is `IGaudiHttpClientBuilder` — all further options are registered as extension methods on it. The graph is not materialized here, but on the first `CreateClient(name)` call of the factory.
 
-HTTP version and default headers are set on the `IGaudiHttpClient` instance, not on `TurboClientOptions`:
+HTTP version and default headers are set on the `IGaudiHttpClient` instance, not on `GaudiClientOptions`:
 
 ```csharp
 var client = factory.CreateClient("myapi");
@@ -88,7 +88,7 @@ These methods only register their configuration in `IServiceCollection` (as `IOp
 
 > **Note:** Feature configuration (redirect, retry, cache, cookies) is done exclusively through the
 > builder extensions (`.WithRedirect()`, `.WithRetry()`, `.WithCache()`, `.WithCookies()`).
-> These are not properties on `TurboClientOptions`.
+> These are not properties on `GaudiClientOptions`.
 
 ---
 
@@ -97,7 +97,7 @@ These methods only register their configuration in `IServiceCollection` (as `IOp
 Instead of `DelegatingHandler`, GaudiHTTP provides its own stream-compatible middleware abstraction. The interface is intentionally simple — no Akka knowledge required:
 
 ```csharp
-public abstract class TurboHandler
+public abstract class GaudiHandler
 {
     // Optional: request transform — default is pass-through
     public virtual HttpRequestMessage ProcessRequest(
@@ -212,7 +212,7 @@ public class PaymentService(IGaudiHttpClientFactory factory)
 
 ```csharp
 // Custom handler
-public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
+public sealed class AuthHandler(ITokenProvider tokens) : GaudiHandler
 {
     public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
     {
@@ -224,28 +224,28 @@ public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
 
 ---
 
-## Difference from `TurboClientOptions`
+## Difference from `GaudiClientOptions`
 
-`TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `IGaudiHttpClientBuilder` extensions.
+`GaudiClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `IGaudiHttpClientBuilder` extensions.
 
 | Configuration Type                                       | Where                                                               |
 | -------------------------------------------------------- | ------------------------------------------------------------------- |
-| Connection parameters (timeouts, TLS, HTTP/2 frame size) | `TurboClientOptions` via `AddGaudiHttpClient(name, options => ...)` |
+| Connection parameters (timeouts, TLS, HTTP/2 frame size) | `GaudiClientOptions` via `AddGaudiHttpClient(name, options => ...)` |
 | Redirect / Retry / Cookie / Cache                        | `IGaudiHttpClientBuilder` extensions (`.WithRedirect()` etc.)       |
 | User handlers                                            | `IGaudiHttpClientBuilder` (`.AddHandler<T>()`)                      |
-| BaseAddress                                              | `TurboClientOptions`                                                |
+| BaseAddress                                              | `GaudiClientOptions`                                                |
 | DefaultRequestHeaders / DefaultRequestVersion            | `IGaudiHttpClient` (set on the client instance after creation)      |
 
 ---
 
 ## How Configuration Becomes a Pipeline
 
-### `TurboClientDescriptor`
+### `GaudiClientDescriptor`
 
 Collects all the settings you register via the builder extensions (`.WithRedirect()`, `.AddHandler<T>()`, etc.):
 
 ```csharp
-internal sealed class TurboClientDescriptor
+internal sealed class GaudiClientDescriptor
 {
     public RedirectPolicy? RedirectPolicy { get; set; }
     public RetryPolicy? RetryPolicy { get; set; }
@@ -263,7 +263,7 @@ internal sealed class TurboClientDescriptor
     // Unified FIFO factory list: covers both type-based (AddHandler<T>) AND
     // delegate-based (UseRequest/UseResponse) handlers.
     // AddHandler<T> registers into BOTH lists; UseRequest/UseResponse only here.
-    public List<Func<IServiceProvider, TurboHandler>> HandlerFactories { get; } = [];
+    public List<Func<IServiceProvider, GaudiHandler>> HandlerFactories { get; } = [];
 }
 ```
 
@@ -280,7 +280,7 @@ internal sealed record PipelineDescriptor(
     CookieJar?       CookieJar,
     Cache?           CacheStore,
     CachePolicy?     CachePolicy,
-    IReadOnlyList<TurboHandler> Handlers,
+    IReadOnlyList<GaudiHandler> Handlers,
     bool AutomaticDecompression = true,
     AltSvcCache? AltSvcCache = null,
     bool UseProxy = true,
@@ -314,7 +314,7 @@ The engine reads this descriptor and wires up only the stages you have actually 
 | Retry         | off — Polly via `.AddStandardResilienceHandler()` | off — opt-in via `.WithRetry(policy)`      |
 | Cache         | not available                                     | off — opt-in via `.WithCache(policy)`      |
 | Cookies       | off (SocketsHttpHandler)                          | off — opt-in via `.WithCookies()`          |
-| Handler base  | `DelegatingHandler` (sync/async, per request)     | `TurboHandler` (async, stream-compatible)  |
+| Handler base  | `DelegatingHandler` (sync/async, per request)     | `GaudiHandler` (async, stream-compatible)  |
 | Factory       | `IHttpClientFactory`                              | `IGaudiHttpClientFactory`                  |
 | Typed Clients | `AddHttpClient<TClient>()`                        | `AddGaudiHttpClient<TClient>()`            |
 

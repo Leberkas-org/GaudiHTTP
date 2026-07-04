@@ -53,7 +53,6 @@
         <InternalsVisibleTo Include="GaudiHTTP.IntegrationTests.Server" />
         <InternalsVisibleTo Include="GaudiHTTP.Tests.Shared" />
         <InternalsVisibleTo Include="GaudiHTTP.Benchmarks" />
-        <InternalsVisibleTo Include="GaudiHTTP.StressBenchmarks" />
     </ItemGroup>
     <!-- ALPHA packaging: bundle the locally-developed Servus.Akka transport into this package
          instead of taking it from NuGet. PrivateAssets=all keeps it from becoming a package

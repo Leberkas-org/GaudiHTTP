@@ -28,7 +28,7 @@ builder.Services.AddGaudiHttpClient("bare", options =>
 
 ### Does GaudiHTTP support HTTPS?
 
-Yes. TLS is handled automatically for `https://` URIs. Configure TLS options via `TurboClientOptions`:
+Yes. TLS is handled automatically for `https://` URIs. Configure TLS options via `GaudiClientOptions`:
 
 ```csharp
 options.EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;

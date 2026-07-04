@@ -187,6 +187,13 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.ProcessFrame(new WindowUpdateFrame(streamId: 0, increment: 1024 * 1024));
         sm.ProcessFrame(new WindowUpdateFrame(streamId: 1, increment: 1024 * 1024));
 
+        for (var guard = 0; guard < 1000 && ops.BodyMessages.Count > 0; guard++)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+
         var frames = DecodeOutbound(ops);
         var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 1).ToList();
         var assembled = dataFrames.SelectMany(f => f.Data.ToArray()).ToArray();

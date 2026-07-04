@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Options;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
@@ -20,12 +19,14 @@ public sealed class Http11ServerDecoderSecuritySpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024,
         AllowObsFold = false
     };
 
     private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)
     {
-        return new Http11ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionPoolContext());
+        return new Http11ServerDecoder(options ?? DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]

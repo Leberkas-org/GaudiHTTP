@@ -34,7 +34,7 @@ public sealed class CacheInvalidationSpec
 
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_invalidate_when_post_with_location()
     {
         var targetUri = "http://example.com/created-resource";
@@ -47,7 +47,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_invalidate_when_put_with_content_location()
     {
         var targetUri = "http://example.com/updated-resource";
@@ -60,7 +60,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_not_invalidate_when_cross_origin_location()
     {
         var store = CreateStoreWithEntry();
@@ -75,7 +75,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_not_invalidate_when_safe_method()
     {
         var store = CreateStoreWithEntry();
@@ -87,7 +87,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_not_invalidate_when_error_response()
     {
         var store = CreateStoreWithEntry();
@@ -100,7 +100,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_invalidate_both_uris_when_delete_with_location()
     {
         var requestUri = "http://example.com/item/42";
@@ -126,7 +126,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_invalidate_when_same_origin_different_path()
     {
         var requestUri = new Uri("http://example.com/action");
@@ -136,7 +136,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_not_invalidate_when_different_port()
     {
         var requestUri = new Uri("http://example.com:80/action");
@@ -146,7 +146,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_not_invalidate_when_different_scheme()
     {
         var requestUri = new Uri("http://example.com/action");
@@ -156,7 +156,7 @@ public sealed class CacheInvalidationSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheInvalidation_should_resolve_relative_location_against_request_uri()
     {
         var requestUri = new Uri("http://example.com/api/action");

@@ -27,16 +27,18 @@ public sealed class Http3QpackEncoderStreamSpec
             MinRequestBodyDataRate: 240,
             MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
             MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MaxResetStreamsPerWindow: 200,
+            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
         MaxConcurrentStreams = 100,
         MaxHeaderListSize = 32 * 1024,
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 4 * 1024,
         QpackBlockedStreams = 10,
-        MaxResponseBufferSize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static void Feed(Http3ServerSessionManager sm, ReadOnlyMemory<byte> bytes, long streamId)

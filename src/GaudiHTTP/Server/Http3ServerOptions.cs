@@ -20,9 +20,6 @@ public sealed class Http3ServerOptions
     /// <summary>Gets or sets the maximum number of blocked streams waiting for QPACK decoder instructions. Default is 100.</summary>
     public int QpackBlockedStreams { get; set; } = 100;
 
-    /// <summary>Gets or sets the maximum size of the per-stream response write buffer in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxResponseBufferSize"/>.</summary>
-    public long? MaxResponseBufferSize { get; set; }
-
     /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
 
@@ -43,4 +40,27 @@ public sealed class Http3ServerOptions
 
     /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="GaudiServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinResponseDataRateGracePeriod { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for the maximum request body size (in bytes) that is buffered fully
+    /// in memory. When <see langword="null"/>, inherits from
+    /// <see cref="GaudiServerOptions.MaxBufferedRequestBodySize"/> then
+    /// <see cref="GaudiServerOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for the maximum response body size (in bytes) that is buffered fully
+    /// in memory. When <see langword="null"/>, inherits from
+    /// <see cref="GaudiServerOptions.MaxBufferedResponseBodySize"/> then
+    /// <see cref="GaudiServerOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for response body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiServerOptions.ResponseBodyChunkSize"/> then
+    /// <see cref="GaudiServerOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? ResponseBodyChunkSize { get; set; }
 }

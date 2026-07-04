@@ -42,6 +42,8 @@ internal static class OptionsFactory
                 Port = port,
                 PoolKey = poolKey,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
+                ClientCertificates = clientOptions.ClientCertificates,
+                EnabledSslProtocols = clientOptions.EnabledSslProtocols,
                 ConnectTimeout = clientOptions.ConnectTimeout,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,

@@ -13,13 +13,13 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Stages;
 
 public sealed class Http10DecompressionPipelineSpec : EngineTestBase
 {
-    private static readonly Http10ClientEngine Engine = new(new GaudiClientOptions());
+    private static Http10ClientEngine MakeEngine() => new(new GaudiClientOptions());
 
     private static BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed>
         CreateDecompressingEngine()
     {
         var decomp = BidiFlow.FromGraph(new ContentEncodingBidiStage());
-        return decomp.Atop(Engine.CreateFlow());
+        return decomp.Atop(MakeEngine().CreateFlow());
     }
 
     private static byte[] GzipCompress(byte[] data)

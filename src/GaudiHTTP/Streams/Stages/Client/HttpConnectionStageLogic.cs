@@ -40,31 +40,36 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         SetHandler(_inServer, onPush: OnServerPush,
             onUpstreamFinish: () =>
             {
-                Tracing.For(TraceCategory).Debug(this, "server upstream finished");
-                _sm.OnUpstreamFinished();
-                CompleteStage();
+                Tracing.For(TraceCategory).Info(this, "server upstream finished (connection closed)");
+                CloseAllPorts();
             },
             onUpstreamFailure: ex =>
             {
-                Tracing.For(TraceCategory).Info(this, "server upstream failure: {0}", ex.Message);
-                _sm.OnUpstreamFinished();
-                CompleteStage();
+                Tracing.For(TraceCategory).Warning(this, "server upstream failure: {0}", ex.Message);
+                CloseAllPorts();
             });
 
-        SetHandler(_outResponse, onPull: () =>
-        {
-            if (_responseQueue.Count > 0)
+        SetHandler(_outResponse,
+            onPull: () =>
             {
-                Push(_outResponse, _responseQueue.Dequeue());
-                return;
-            }
+                if (_responseQueue.Count > 0)
+                {
+                    Push(_outResponse, _responseQueue.Dequeue());
+                    return;
+                }
 
-            if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
+                if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
+                {
+                    Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inServer");
+                    Pull(_inServer);
+                }
+            },
+            onDownstreamFinish: cause =>
             {
-                Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inServer");
-                Pull(_inServer);
-            }
-        });
+                Tracing.For(TraceCategory).Info(this, "response downstream finished: {0}",
+                    cause?.Message ?? "normal");
+                CloseAllPorts();
+            });
 
         SetHandler(_inApp, onPush: () =>
             {
@@ -100,12 +105,26 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
                     _sm.HasInFlightRequests, _sm.IsReconnecting);
                 if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
                 {
-                    CompleteStage();
+                    CloseAllPorts();
                 }
             },
-            onUpstreamFailure: _ => { _sm.OnUpstreamFinished(); });
+            onUpstreamFailure: ex =>
+            {
+                Tracing.For(TraceCategory).Warning(this, "request upstream failure: {0}", ex.Message);
+                if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
+                {
+                    CloseAllPorts();
+                }
+            });
 
-        SetHandler(_outNetwork, onPull: OnNetworkPull);
+        SetHandler(_outNetwork,
+            onPull: OnNetworkPull,
+            onDownstreamFinish: cause =>
+            {
+                Tracing.For(TraceCategory).Info(this, "network downstream finished: {0}",
+                    cause?.Message ?? "normal");
+                CloseAllPorts();
+            });
     }
 
     public override void PreStart()
@@ -344,6 +363,31 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
             && !IsTimerActive(DrainCompleteTimerKey))
         {
             ScheduleOnce(DrainCompleteTimerKey, TimeSpan.FromMilliseconds(100));
+        }
+    }
+
+    private void CloseAllPorts()
+    {
+        _sm.OnUpstreamFinished();
+
+        if (!IsClosed(_outResponse))
+        {
+            Complete(_outResponse);
+        }
+
+        if (!IsClosed(_inApp))
+        {
+            Cancel(_inApp);
+        }
+
+        if (!IsClosed(_outNetwork))
+        {
+            Complete(_outNetwork);
+        }
+
+        if (!IsClosed(_inServer))
+        {
+            Cancel(_inServer);
         }
     }
 

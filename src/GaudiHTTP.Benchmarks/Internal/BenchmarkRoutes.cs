@@ -8,6 +8,9 @@ public static class BenchmarkRoutes
     /// <summary>Reusable 64 KB chunk for the streaming /download endpoint (server-side, not measured).</summary>
     private static readonly byte[] DownloadChunk = new byte[64 * 1024];
 
+    /// <summary>Reusable 100 KB buffer for the cacheable/uncacheable endpoints (server-side, not measured).</summary>
+    private static readonly byte[] CacheBody = new byte[100 * 1024];
+
     public static void Register(WebApplication app, IAllocationProfiler? profiler = null)
     {
         // Server-process GC counters for out-of-process allocation measurement.
@@ -92,6 +95,35 @@ public static class BenchmarkRoutes
             var response = string.Concat("received:", count.ToString());
             ctx.Response.ContentType = "text/plain";
             await ctx.Response.WriteAsync(response);
+        });
+
+        // Cacheable: fresh for `maxage` seconds with a stable strong ETag. GaudiHttp's cache serves
+        // repeat requests without a network round-trip; HttpClient (no cache) always re-fetches.
+        app.MapGet("/cacheable", async (HttpContext ctx, int? maxage, int? size) =>
+        {
+            var bytes = Math.Clamp(size ?? 1024, 0, CacheBody.Length);
+            ctx.Response.Headers.CacheControl = string.Concat("public, max-age=", (maxage ?? 60).ToString());
+            ctx.Response.Headers.ETag = "\"gaudi-cacheable\"";
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = bytes;
+            await ctx.Response.Body.WriteAsync(CacheBody.AsMemory(0, bytes));
+        });
+
+        // Uncacheable: forces a network round-trip for BOTH clients (the cache-miss fraction).
+        app.MapGet("/uncacheable/{nonce}", async (HttpContext ctx, string nonce, int? size) =>
+        {
+            var bytes = Math.Clamp(size ?? 1024, 0, CacheBody.Length);
+            ctx.Response.Headers.CacheControl = "no-store";
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = bytes;
+            await ctx.Response.Body.WriteAsync(CacheBody.AsMemory(0, bytes));
+        });
+
+        // Slow: delays the response to create a backpressure / drip workload.
+        app.MapGet("/slow", async (int? ms, CancellationToken ct) =>
+        {
+            await Task.Delay(ms ?? 1, ct);
+            return Results.Content("OK\n", "text/plain");
         });
 
         app.MapGet("/download", async ctx =>

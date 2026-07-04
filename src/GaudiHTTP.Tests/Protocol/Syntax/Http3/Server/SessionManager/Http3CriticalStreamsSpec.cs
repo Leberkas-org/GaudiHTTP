@@ -17,16 +17,18 @@ public sealed class Http3CriticalStreamsSpec
             MinRequestBodyDataRate: 240,
             MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
             MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MaxResetStreamsPerWindow: 200,
+            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
         MaxConcurrentStreams = 100,
         MaxHeaderListSize = 32 * 1024,
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 0,
         QpackBlockedStreams = 0,
-        MaxResponseBufferSize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
@@ -87,6 +89,50 @@ public sealed class Http3CriticalStreamsSpec
             .ToList();
 
         Assert.NotEmpty(settingsData);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-7.2.4.1")]
+    public void PreStart_should_advertise_max_field_section_size()
+    {
+        // Regression: the server enforced MaxFieldSectionSize locally but never advertised
+        // SETTINGS_MAX_FIELD_SECTION_SIZE, so peers could not pre-trim oversized header blocks.
+        // DefaultConnectionOptions maps MaxHeaderListSize (32 KiB) → decoder MaxFieldSectionSize.
+        var ops = new FakeServerOps();
+        var sm = CreateSM(ops);
+
+        sm.PreStart();
+
+        var settings = ExtractControlSettings(ops);
+        Assert.NotNull(settings);
+        Assert.Equal(32L * 1024, settings!.MaxFieldSectionSize);
+    }
+
+    private static Settings? ExtractControlSettings(FakeServerOps ops)
+    {
+        var control = ops.Outbound.OfType<MultiplexedData>()
+            .FirstOrDefault(m => m.StreamId == CriticalStreamId.ControlId);
+        if (control is null)
+        {
+            return null;
+        }
+
+        var span = control.Buffer.Span;
+        QuicVarInt.TryDecode(span, out _, out var streamTypeBytes);
+        span = span[streamTypeBytes..];
+        if (!QuicVarInt.TryDecode(span, out _, out var frameTypeBytes))
+        {
+            return null;
+        }
+
+        span = span[frameTypeBytes..];
+        if (!QuicVarInt.TryDecode(span, out var payloadLength, out var payloadLenBytes))
+        {
+            return null;
+        }
+
+        span = span[payloadLenBytes..];
+        return Settings.Deserialize(span[..(int)payloadLength]);
     }
 
     [Fact(Timeout = 5000)]

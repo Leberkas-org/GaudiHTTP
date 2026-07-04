@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
-using GaudiHTTP.Protocol.Multiplexed;
 using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -17,13 +16,9 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
-internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
+internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
     private const int MaxStatePoolCapacity = 1000;
-
-    // RFC 9114 §8.1 / CVE-2023-44487 (Rapid Reset): client-initiated stream aborts are counted within
-    // this sliding window; exceeding the configured budget closes the connection (H3_EXCESSIVE_LOAD).
-    private const long ResetWindowMs = 30_000;
 
     private const string DataRateCheck = "data-rate-check";
 
@@ -35,16 +30,20 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
-    private readonly int _responseBodyChunkSize;
+    private readonly int _maxBufferedRequestBodySize;
     private readonly TimeSpan _bodyConsumptionTimeout;
+    private readonly TimeSpan _requestHeadersTimeout;
+    private readonly int _responseBodyChunkSize;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
+    // Connection-level outbound credit for the multiplexed response-body pump. Each emitted DATA
+    // frame consumes one unit; the transport replenishes one unit per drained outbound item via
+    // OnOutboundFlushed. Bounds in-flight (emitted-but-unflushed) 16 KB frames per connection so
+    // concurrent responses cannot flood the per-stream output pipes and exhaust the shared pool.
+    private const int OutboundBodyCapacity = 16;
+
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _poolContext = new();
     private MultiplexedBodyPump? _pump;
-    private readonly StackStreamStatePool<StreamState> _statePool;
-    private readonly Stack<FrameDecoder> _decoderPool = new();
-    private const int MaxDecoderPoolSize = 256;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly List<long> _rateViolations = [];
@@ -57,6 +56,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     private bool _qpackDecoderPrefaceSent;
 
     private readonly int _maxResetStreamsPerWindow;
+    private readonly long _resetWindowMs;
     private int _resetCount;
     private long _resetWindowStart;
 
@@ -75,15 +75,19 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxBufferedRequestBodySize = options.MaxBufferedBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
-        _responseBodyChunkSize = options.ToBodyEncoderOptions().ChunkSize;
+        _resetWindowMs = (long)options.Limits.RapidResetDetectionWindow.TotalMilliseconds;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
+        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
+        _responseBodyChunkSize = options.ResponseBodyChunkSize;
 
         _tableSync = new QpackTableSync(
             encoderMaxCapacity: 0,
             decoderMaxCapacity: _encoderOptions.QpackMaxTableCapacity,
             maxBlockedStreams: _encoderOptions.QpackBlockedStreams,
-            configuredEncoderLimit: _encoderOptions.QpackMaxTableCapacity);
+            configuredEncoderLimit: _encoderOptions.QpackMaxTableCapacity,
+            useHuffman: _encoderOptions.UseHuffman);
 
         _requestDecoder = new Http3ServerDecoder(_tableSync, _decoderOptions);
         _responseEncoder = new Http3ServerEncoder(_tableSync, _encoderOptions);
@@ -95,9 +99,6 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         var statePoolCapacity = Math.Min(
             _decoderOptions.MaxConcurrentStreams > 0 ? _decoderOptions.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
-        _statePool = new StackStreamStatePool<StreamState>(
-            statePoolCapacity,
-            () => new StreamState());
     }
 
     public void PreStart()
@@ -124,42 +125,42 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         switch (data)
         {
             case ServerStreamAccepted { Id: var id }:
-            {
-                _streamResolver.OnServerStreamOpened(id);
-                return;
-            }
-
-            case MultiplexedData multiplexed:
-            {
-                HandleTaggedStreamData(multiplexed);
-                multiplexed.Return();
-                return;
-            }
-
-            case StreamReadCompleted { Id.Value: >= 0 } readCompleted:
-            {
-                FlushPendingRequest(readCompleted.Id.Value);
-                return;
-            }
-
-            case StreamClosed { Id.Value: >= 0 } streamClosed:
-            {
-                if (streamClosed.Reason == DisconnectReason.Error)
                 {
-                    TrackStreamReset();
+                    _streamResolver.OnServerStreamOpened(id);
+                    return;
                 }
 
-                FlushPendingRequest(streamClosed.Id.Value);
-                return;
-            }
+            case MultiplexedData multiplexed:
+                {
+                    HandleTaggedStreamData(multiplexed);
+                    multiplexed.Return();
+                    return;
+                }
+
+            case StreamReadCompleted { Id.Value: >= 0 } readCompleted:
+                {
+                    FlushPendingRequest(readCompleted.Id.Value);
+                    return;
+                }
+
+            case StreamClosed { Id.Value: >= 0 } streamClosed:
+                {
+                    if (streamClosed.Reason == DisconnectReason.Error)
+                    {
+                        TrackStreamReset();
+                    }
+
+                    FlushPendingRequest(streamClosed.Id.Value);
+                    return;
+                }
 
             case TransportData rawData:
-            {
-                Tracing.For("Protocol").Warning(this,
-                    "Received untagged TransportData - dropping to prevent stream ID misrouting.");
-                rawData.Buffer.Dispose();
-                return;
-            }
+                {
+                    Tracing.For("Protocol").Warning(this,
+                        "Received untagged TransportData - dropping to prevent stream ID misrouting.");
+                    rawData.Buffer.Dispose();
+                    return;
+                }
         }
     }
 
@@ -233,8 +234,8 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         var bodyStream = gaudiBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
-        _pump.Register(streamId, bodyStream, CancellationToken.None, initialCredits: 16);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize, OutboundBodyCapacity);
+        _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
 
@@ -261,14 +262,23 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     {
         switch (msg)
         {
-            case DrainReadComplete<long> read:
+            case BodyReadContinue<long> cont:
+                _pump?.HandleBodyReadContinue(cont.StreamId);
+                break;
+
+            case BodyReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed<long> failed:
+            case BodyReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
+    }
+
+    public void OnOutboundFlushed()
+    {
+        _pump?.OnCapacityAvailable();
     }
 
     public void FlushAllPendingRequests()
@@ -289,8 +299,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             ReturnDecoder(decoder);
             state.AbortBody();
             ReturnBodyReader(state);
-            state.Reset();
-            _statePool.Return(state);
+            state.Dispose();
         }
 
         _streams.Clear();
@@ -473,7 +482,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
             var frameDecoder = RentDecoder();
-            var streamState = _statePool.Rent();
+            var streamState = ConnectionObjectPool.Instance.Rent(() => new StreamState());
             streamState.Initialize(streamId);
             streamData = (frameDecoder, streamState);
             _streams[streamId] = streamData;
@@ -505,53 +514,53 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
                 switch (frame)
                 {
                     case HeadersFrame headersFrame:
-                    {
-                        if (state.GetRequestFeature() is not null)
                         {
-                            _requestDecoder.DecodeTrailers(headersFrame, state);
-                            state.FeedBody([], endStream: true);
-                        }
-                        else
-                        {
-                            var requestFeature =
-                                _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
-                            if (requestFeature is not null)
+                            if (state.GetRequestFeature() is not null)
                             {
-                                state.InitRequestFeature(requestFeature);
+                                _requestDecoder.DecodeTrailers(headersFrame, state);
+                                state.FeedBody([], endStream: true);
                             }
                             else
                             {
-                                if (state.GetRequestFeature() is null)
+                                var requestFeature =
+                                    _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
+                                if (requestFeature is not null)
                                 {
-                                    // QPACK-blocked: the header block is queued in the table sync
-                                    // awaiting encoder-stream instructions. Mark it so the FIN is
-                                    // deferred and ProcessQpackEncoderStream redrives dispatch.
-                                    state.IsHeadersBlocked = true;
+                                    state.InitRequestFeature(requestFeature);
                                 }
+                                else
+                                {
+                                    if (state.GetRequestFeature() is null)
+                                    {
+                                        // QPACK-blocked: the header block is queued in the table sync
+                                        // awaiting encoder-stream instructions. Mark it so the FIN is
+                                        // deferred and ProcessQpackEncoderStream redrives dispatch.
+                                        state.IsHeadersBlocked = true;
+                                    }
 
-                                _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
+                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
+                                }
                             }
+
+                            break;
                         }
 
-                        break;
-                    }
-
                     case DataFrame dataFrame:
-                    {
-                        HandleDataFrame(dataFrame, streamId, state);
-                        break;
-                    }
+                        {
+                            HandleDataFrame(dataFrame, streamId, state);
+                            break;
+                        }
 
                     case SettingsFrame settings:
-                    {
-                        HandleSettingsFrame(settings);
-                        break;
-                    }
+                        {
+                            HandleSettingsFrame(settings);
+                            break;
+                        }
 
                     case GoAwayFrame:
-                    {
-                        break;
-                    }
+                        {
+                            break;
+                        }
                 }
             }
             catch (QpackException ex)
@@ -610,7 +619,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
 
         var now = Now();
-        if (now - _resetWindowStart >= ResetWindowMs)
+        if (now - _resetWindowStart >= _resetWindowMs)
         {
             _resetWindowStart = now;
             _resetCount = 0;
@@ -655,7 +664,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
                 requestFeature.Body = state.GetBodyStream();
             }
 
-            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, requestFeature, hasBody,
+            var features = FeatureCollectionFactory.Create(requestFeature, hasBody,
                 _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
             features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
 
@@ -679,8 +688,23 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     {
         if (!state.HasBodyReader)
         {
-            var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
-            state.InitBodyReader(queued, _maxRequestBodySize);
+            var contentLength = state.PeekContentLength();
+
+            if (contentLength is > 0 and var n && n <= _maxBufferedRequestBodySize)
+            {
+                // Small, known-length body: collect every DATA frame into a single buffer instead
+                // of paying QueuedBodyReader's channel overhead. Safe here — unlike H2, the H3
+                // server never hands the body Stream to the handler before FlushPendingRequest
+                // (transport FIN), so BufferedBodyReader.AsStream() is only called once complete.
+                var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
+                buffered.Reset((int)n);
+                state.InitBodyReader(buffered, _maxRequestBodySize);
+            }
+            else
+            {
+                var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
+                state.InitBodyReader(queued, _maxRequestBodySize);
+            }
         }
 
         try
@@ -726,60 +750,28 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
             ReturnDecoder(decoder);
             ReturnBodyReader(state);
-            state.Reset();
-            _statePool.Return(state);
+            state.Dispose();
 
             _streams.Remove(streamId);
         }
     }
 
-    private FrameDecoder RentDecoder()
-    {
-        if (_decoderPool.TryPop(out var decoder))
-        {
-            decoder.Reset();
-            return decoder;
-        }
+    private FrameDecoder RentDecoder() => ConnectionObjectPool.Instance.Rent(static () => new FrameDecoder());
 
-        return new FrameDecoder();
-    }
+    private void ReturnDecoder(FrameDecoder decoder) => decoder.Dispose();
 
-    private void ReturnDecoder(FrameDecoder decoder)
-    {
-        decoder.Reset();
-        if (_decoderPool.Count < MaxDecoderPoolSize)
-        {
-            _decoderPool.Push(decoder);
-        }
-        else
-        {
-            decoder.Dispose();
-        }
-    }
 
-    public void OnOutboundFlushed()
-    {
-        _pump?.AddCredit();
-    }
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
 
-    IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<long>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
-
-    void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
             EmitBufferedDataFrames(streamId, data, endStream);
-
-            if (!endStream)
-            {
-                _pump?.AddCredit();
-            }
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", streamId);
 
@@ -791,7 +783,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this,
             "HTTP/3: Response body drain failed for stream {0}: {1}", streamId, reason.Message);
@@ -891,6 +883,9 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         var settings = new Settings();
         settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
         settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
+        // RFC 9114 §7.2.4.1: advertise the largest header section we will accept so the peer can
+        // pre-trim oversized header blocks instead of having them rejected after the fact.
+        settings.Set(SettingsIdentifier.MaxFieldSectionSize, _decoderOptions.MaxFieldSectionSize);
         var settingsFrame = settings.ToFrame();
 
         var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);
@@ -927,7 +922,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         var reader = state.TakeBodyReader();
         if (reader is QueuedBodyReader queued)
         {
-            _ops.PoolContext!.Return(queued);
+            ConnectionObjectPool.Instance.Return(queued);
         }
         else
         {

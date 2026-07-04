@@ -1,38 +1,37 @@
+using System.Buffers;
 using Akka.Actor;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget<int>
+internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget
 {
     private readonly IClientStageOperations _ops;
     private readonly Http10ClientDecoder _decoder;
     private readonly Http10ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
-    private readonly ConnectionPoolContext _poolContext = new();
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
     private HttpRequestMessage? _reconnectBufferedRequest;
     private int _reconnectAttempts;
     private bool _lastRequestWasHead;
     private bool _outboundBodyPending;
-    private HttpRequestMessage? _deferredRequest;
     private IStreamingBodyReader? _activeStreamingReader;
     private bool _connectionClosed;
+    private bool _connectionDead;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
 
     internal sealed record StreamingSlotFreed;
 
-    public bool CanAcceptRequest => _inFlightRequest is null && !IsReconnecting && !_outboundBodyPending;
+    public bool CanAcceptRequest => _inFlightRequest is null && !IsReconnecting && !_outboundBodyPending && !_connectionDead;
 
-    public bool HasInFlightRequests => _inFlightRequest is not null;
+    public bool HasInFlightRequests => _inFlightRequest is not null || _outboundBodyPending;
 
     public bool IsReconnecting { get; private set; }
 
@@ -47,7 +46,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 return _reconnectBufferedRequest is not null ? 1 : 0;
             }
 
-            return _inFlightRequest is not null ? 1 : 0;
+            return (_inFlightRequest is not null || _outboundBodyPending) ? 1 : 0;
         }
     }
 
@@ -60,7 +59,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
         var decoderOpts = options.ToHttp10DecoderOptions();
 
-        _decoder = new Http10ClientDecoder(decoderOpts, _poolContext);
+        _decoder = new Http10ClientDecoder(decoderOpts);
         _encoder = new Http10ClientEncoder();
     }
 
@@ -73,11 +72,9 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => false;
-    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -87,32 +84,50 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
 
-            // H1.0 has no OnOutboundFlushed — drive the pump inline.
-            _serialPump!.AddCredit();
+            // H1.0 has no OnOutboundFlushed — drive the pump inline after each chunk.
+            _serialPump!.OnCapacityAvailable();
         }
 
         if (endStream)
         {
             _outboundBodyPending = false;
-            _inFlightRequest = _deferredRequest;
-            _deferredRequest = null;
             Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body complete (pump)");
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", bytesWritten);
+            _serialPump!.OnCapacityAvailable();
+        }
+        else
+        {
+            owner.Dispose();
+        }
+
+        if (endStream)
+        {
+            _outboundBodyPending = false;
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body complete (pump)");
+        }
+    }
+
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body drain complete");
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
         _outboundBodyPending = false;
-        if (_deferredRequest is not null)
+        if (_inFlightRequest is not null)
         {
-            _deferredRequest.Fail(new HttpRequestException("Failed to read HTTP/1.0 request body.", reason));
-            _deferredRequest = null;
+            _inFlightRequest.Fail(new HttpRequestException("Failed to read HTTP/1.0 request body.", reason));
+            _inFlightRequest = null;
         }
     }
 
@@ -190,12 +205,16 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             case StreamingSlotFreed:
                 break;
 
-            case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
+            case BodyReadComplete<int> read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
+            case BodyReadFailed<int> failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case BodyReadContinue<int>:
+                _serialPump?.HandleBodyReadContinue();
                 break;
         }
     }
@@ -205,8 +224,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         _inFlightRequest = null;
         _outboundBodyPending = false;
         _activeStreamingReader = null;
-        _deferredRequest = null;
         _connectionClosed = false;
+        _connectionDead = false;
         _serialPump?.Cleanup();
         _serialPump = null;
         _connectionCts?.Cancel();
@@ -263,8 +282,10 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
                 var headerWritten = _encoder.EncodeHeadersOnly(span, request, knownCl.Value);
                 item.Length = headerWritten;
                 _ops.OnOutbound(TransportData.Rent(item));
-                _deferredRequest = request;
-                _inFlightRequest = null;
+                // Correlate from headers-dispatch onward: with force-async the body drains via the
+                // mailbox, so a response may arrive before the body completes. Keeping the request
+                // in-flight (rather than deferring _inFlightRequest until endStream) lets it correlate.
+                _inFlightRequest = request;
                 _outboundBodyPending = true;
                 StartBodyDrain(bodyStream);
             }
@@ -286,8 +307,9 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartBodyDrain(Stream bodyStream)
     {
-        _serialPump = new SerialBodyPump(this, _poolContext, EnsureConnectionCts());
-        _serialPump.Register(bodyStream, CancellationToken.None);
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
+            _options.ResolveRequestBodyChunkSize(_options.Http1), maxCapacity: 2);
+        _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
     private void DecodeResponse(TransportBuffer buffer)
@@ -462,6 +484,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
             IsReconnecting = false;
             _reconnectAttempts = 0;
+            _connectionDead = true;
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
 

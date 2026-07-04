@@ -26,6 +26,7 @@ jobs:
             docs
             chore
             refactor
+            style
             test
             ci
             build

@@ -5,7 +5,6 @@ namespace GaudiHTTP.Protocol.Body;
 internal static class BodyReaderPoolExtensions
 {
     public static (IBodyReader? Reader, IFramingDecoder? Decoder) RentBodyReader(
-        this ConnectionPoolContext pool,
         BodyReaderClassification classification,
         BodyDecoderOptions options)
     {
@@ -13,6 +12,8 @@ internal static class BodyReaderPoolExtensions
         {
             return (null, null);
         }
+
+        var pool = ConnectionObjectPool.Instance;
 
         if (classification.IsBuffered)
         {
@@ -26,7 +27,8 @@ internal static class BodyReaderPoolExtensions
         if (classification.IsChunked)
         {
             var decoder = pool.Rent(static () => new ChunkedFramingDecoder());
-            decoder.Reset(options.MaxStreamedBodySize ?? long.MaxValue, options.MaxChunkExtensionLength);
+            decoder.Reset(options.MaxStreamedBodySize ?? long.MaxValue, options.MaxChunkExtensionLength,
+                options.MaxChunkedControlLineLength, options.MaxChunkedTrailerSize);
             return (streamingReader, decoder);
         }
 
@@ -42,32 +44,9 @@ internal static class BodyReaderPoolExtensions
         return (streamingReader, closeDecoder);
     }
 
-    public static void ReturnBodyReader(
-        this ConnectionPoolContext pool,
-        IBodyReader? reader,
-        IFramingDecoder? decoder)
+    public static void ReturnBodyReader(IBodyReader? reader, IFramingDecoder? decoder)
     {
-        switch (reader)
-        {
-            case QueuedBodyReader qr:
-                pool.Return(qr);
-                break;
-            case BufferedBodyReader br:
-                pool.Return(br);
-                break;
-        }
-
-        switch (decoder)
-        {
-            case ChunkedFramingDecoder cd:
-                pool.Return(cd);
-                break;
-            case ContentLengthFramingDecoder cl:
-                pool.Return(cl);
-                break;
-            case CloseDelimitedFramingDecoder cld:
-                pool.Return(cld);
-                break;
-        }
+        (reader as IDisposable)?.Dispose();
+        (decoder as IDisposable)?.Dispose();
     }
 }

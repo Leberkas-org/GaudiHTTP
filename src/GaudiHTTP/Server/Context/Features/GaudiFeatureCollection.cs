@@ -6,7 +6,7 @@ using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Server.Context.Features;
 
-internal sealed class GaudiFeatureCollection : IFeatureCollection, IResettable
+internal sealed class GaudiFeatureCollection : Poolable<GaudiFeatureCollection>, IFeatureCollection
 {
     private IHttpRequestFeature? _request;
     private IHttpResponseFeature? _response;
@@ -383,7 +383,7 @@ internal sealed class GaudiFeatureCollection : IFeatureCollection, IResettable
         _revision++;
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         // Clear ONLY per-request transient state. Do NOT null the IHttp*Feature backing fields —
         // the factory's `recycled` branch detects reuse via the response-feature slot and resets
@@ -452,7 +452,10 @@ internal sealed class GaudiFeatureCollection : IFeatureCollection, IResettable
 
         if (_extras is not null)
         {
-            foreach (var kv in _extras) yield return kv;
+            foreach (var kv in _extras)
+            {
+                yield return kv;
+            }
         }
     }
 

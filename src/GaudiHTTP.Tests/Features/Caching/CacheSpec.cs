@@ -26,7 +26,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_be_cacheable_when_200_ok_with_max_age()
     {
         var response = OkResponse();
@@ -51,7 +51,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_be_cacheable_when_500_internal_server_error()
     {
         var response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
@@ -60,14 +60,14 @@ public sealed class CacheSpec
 
 
     [Trait("RFC", "RFC9111-3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_store_entry_when_get_200_with_max_age()
     {
         Assert.True(Cache.ShouldStore(GetRequest(), OkResponse()));
     }
 
     [Trait("RFC", "RFC9111-3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_entry_when_post_200_unsafe_method()
     {
         var post = new HttpRequestMessage(HttpMethod.Post, "http://example.com/resource");
@@ -75,7 +75,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.1.5")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_entry_when_request_has_no_store()
     {
         var request = GetRequest();
@@ -84,7 +84,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.5")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_entry_when_response_has_no_store()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -94,7 +94,7 @@ public sealed class CacheSpec
 
 
     [Trait("RFC", "RFC9111-4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_return_null_when_store_is_empty()
     {
         var store = new Cache();
@@ -103,7 +103,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_return_cached_entry_when_put_then_get_same_uri()
     {
         var store = new Cache();
@@ -119,7 +119,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-4.4")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_remove_entry_when_invalidated()
     {
         var store = new Cache();
@@ -133,7 +133,7 @@ public sealed class CacheSpec
 
 
     [Trait("RFC", "RFC9111-4.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_return_miss_when_vary_header_and_different_accept()
     {
         var store = new Cache();
@@ -153,7 +153,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-4.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_return_hit_when_vary_header_and_matching_accept()
     {
         var store = new Cache();
@@ -174,7 +174,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-4.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_never_match_when_vary_is_star()
     {
         var store = new Cache();
@@ -189,7 +189,7 @@ public sealed class CacheSpec
 
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_store_when_must_understand_and_200()
     {
         var request = GetRequest();
@@ -201,7 +201,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_when_must_understand_and_unknown_status()
     {
         var request = GetRequest();
@@ -213,7 +213,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_store_when_no_must_understand()
     {
         var request = GetRequest();
@@ -226,7 +226,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_when_206_partial_content()
     {
         var request = GetRequest();
@@ -238,7 +238,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_when_response_has_content_range()
     {
         var request = GetRequest();
@@ -253,7 +253,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_store_when_200_without_content_range()
     {
         var request = GetRequest();
@@ -263,7 +263,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_merge_trailers_when_cached_with_trailers()
     {
         var store = new Cache();
@@ -293,7 +293,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_not_store_connection_header_when_connection_header()
     {
         var store = new Cache();
@@ -337,7 +337,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3.1")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_store_custom_headers()
     {
         var store = new Cache();
@@ -363,7 +363,7 @@ public sealed class CacheSpec
     }
 
     [Trait("RFC", "RFC9111-3")]
-    [Fact]
+    [Fact(Timeout = 5000)]
     public void CacheStore_should_evict_entries_when_max_entries_exceeded()
     {
         var policy = new CachePolicy { MaxEntries = 2 };

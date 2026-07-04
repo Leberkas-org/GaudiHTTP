@@ -55,7 +55,7 @@ public sealed class Http3FrameBatchingSpec
     {
         var ops = new FakeClientOps();
         var session = CreateSession(ops);
-        var target = (IBodyDrainTarget<long>)session;
+        var target = (IMultiplexedBodyDrainTarget)session;
 
         const long streamId = 0;
         var body = new byte[256];
@@ -77,7 +77,7 @@ public sealed class Http3FrameBatchingSpec
     {
         var ops = new FakeClientOps();
         var session = CreateSession(ops);
-        var target = (IBodyDrainTarget<long>)session;
+        var target = (IMultiplexedBodyDrainTarget)session;
 
         const long streamId = 4;
         var body = new byte[128];
@@ -99,7 +99,7 @@ public sealed class Http3FrameBatchingSpec
     {
         var ops = new FakeClientOps();
         var session = CreateSession(ops);
-        var target = (IBodyDrainTarget<long>)session;
+        var target = (IMultiplexedBodyDrainTarget)session;
 
         const long streamId = 8;
         var body = new byte[64];
@@ -119,7 +119,7 @@ public sealed class Http3FrameBatchingSpec
     {
         var ops = new FakeClientOps();
         var session = CreateSession(ops);
-        var target = (IBodyDrainTarget<long>)session;
+        var target = (IMultiplexedBodyDrainTarget)session;
 
         const long streamId = 12;
 

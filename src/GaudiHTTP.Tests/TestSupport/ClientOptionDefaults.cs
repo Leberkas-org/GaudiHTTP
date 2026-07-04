@@ -22,6 +22,8 @@ internal static class ClientOptionDefaults
         MaxHeaderBytes = 32 * 1024,
         MaxHeaderCount = 100,
         HeaderLineMaxLength = 8 * 1024,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024,
         AllowObsFold = false,
     };
 
@@ -34,6 +36,8 @@ internal static class ClientOptionDefaults
         MaxHeaderCount = 100,
         HeaderLineMaxLength = 8 * 1024,
         MaxChunkExtensionLength = int.MaxValue,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024,
         AllowObsFold = false,
     };
 
@@ -41,7 +45,6 @@ internal static class ClientOptionDefaults
     {
         AutoHost = true,
         AutoAcceptEncoding = true,
-        ChunkSize = 16 * 1024,
     };
 
     public static Http2ClientDecoderOptions Http2Decoder() => new()

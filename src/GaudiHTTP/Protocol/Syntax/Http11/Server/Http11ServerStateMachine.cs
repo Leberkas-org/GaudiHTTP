@@ -1,9 +1,9 @@
+using System.Buffers;
 using System.Net;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.LineBased;
 using GaudiHTTP.Protocol.Semantics;
@@ -16,7 +16,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
+internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget
 {
     private const string KeepAliveTimer = "keep-alive";
     private const string RequestHeadersTimer = "request-headers";
@@ -35,6 +35,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly long _maxRequestBodySize;
     private readonly Http2ConnectionOptions _h2UpgradeOptions;
+    private readonly bool _allowH2cUpgrade;
 
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
@@ -52,7 +53,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
 
-    private readonly ConnectionPoolContext _poolContext = new();
     private bool _isChunked;
     private IFeatureCollection? _activeResponseFeatures;
     private SerialBodyPump? _serialPump;
@@ -69,12 +69,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     public int MaxConcurrentRequests => 1;
 
     public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions,
-        IServerStageOperations ops, TimeProvider? timeProvider = null)
+        IServerStageOperations ops, TimeProvider? timeProvider = null, bool allowH2cUpgrade = true)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(h2UpgradeOptions);
         _h2UpgradeOptions = h2UpgradeOptions;
+        _allowH2cUpgrade = allowH2cUpgrade;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _bodyReadTimeout = options.BodyReadTimeout;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
@@ -93,7 +94,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             throw new ArgumentException("MaxPipelinedRequests must be greater than zero.", nameof(options));
         }
 
-        _decoder = new Http11ServerDecoder(decOpts, _poolContext);
+        _decoder = new Http11ServerDecoder(decOpts);
         _encoder = new Http11ServerEncoder(encOpts);
         _keepAliveTimeout = encOpts.KeepAliveTimeout;
         _requestHeadersTimeout = encOpts.RequestHeadersTimeout;
@@ -109,11 +110,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<int>.PreferredChunkSize => _bodyEncoderOptions.ChunkSize;
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -140,11 +139,53 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
         }
 
-        if (!endStream && _serialPump is not null)
+        if (!endStream)
         {
-            _serialPump.AddCredit();
+            _serialPump?.OnCapacityAvailable();
         }
 
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    void IBodyDrainTarget.EmitOwnedDataFrames(int streamId, IMemoryOwner<byte> owner, int bytesWritten, bool endStream)
+    {
+        if (bytesWritten > 0)
+        {
+            if (_isChunked)
+            {
+                var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
+                var buf = TransportBuffer.Rent(framedSize);
+                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
+                buf.Length = framedSize;
+                _responseRate.Observe(0, framedSize, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(buf));
+                owner.Dispose();
+            }
+            else
+            {
+                _responseRate.Observe(0, bytesWritten, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            }
+
+            Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesWritten);
+        }
+        else
+        {
+            owner.Dispose();
+        }
+
+        if (!endStream)
+        {
+            _serialPump?.OnCapacityAvailable();
+        }
+
+        EmitEndStreamIfNeeded(endStream);
+    }
+
+    private void EmitEndStreamIfNeeded(bool endStream)
+    {
         if (endStream)
         {
             if (_isChunked)
@@ -168,12 +209,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
     }
 
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "response body drain complete");
     }
 
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
         _outboundBodyPending = false;
         _responseRate.Remove(0);
@@ -273,7 +314,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 }
 
                 var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
-                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                var features = FeatureCollectionFactory.Create(hasBody,
                     out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);
@@ -285,7 +326,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     ShouldComplete = true;
                 }
 
-                if (TryHandleH2cUpgrade(features))
+                if (_allowH2cUpgrade && TryHandleH2cUpgrade(features))
                 {
                     _decoder.Reset();
                     break;
@@ -490,8 +531,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             var bodyStream = gaudiBody.GetResponseStream();
 
             _serialPump =
-                new SerialBodyPump(this, _poolContext, EnsureConnectionCts(), initialCredits: 16);
-            _serialPump.Register(bodyStream, CancellationToken.None);
+                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+            _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
         }
         else
         {
@@ -676,22 +717,23 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         switch (msg)
         {
-            case DrainReadComplete<int> read:
-                _serialPump?.HandleReadComplete(read.StreamId, read.BytesRead);
+            case BodyReadComplete<int> read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed<int> failed:
-                _serialPump?.HandleReadFailed(failed.StreamId, failed.Reason);
+            case BodyReadFailed<int> failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case BodyReadContinue<int>:
+                _serialPump?.HandleBodyReadContinue();
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
-        if (_serialPump is not null)
-        {
-            _serialPump.AddCredit();
-        }
+        _serialPump?.OnCapacityAvailable();
     }
 
     internal readonly struct ResponseHeaderScan(long? contentLength, bool hasExplicitChunked, int estimatedSize)

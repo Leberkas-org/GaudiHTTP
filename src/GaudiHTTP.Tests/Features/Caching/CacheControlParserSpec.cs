@@ -4,7 +4,7 @@ namespace GaudiHTTP.Tests.Features.Caching;
 
 public sealed class CacheControlParserSpec
 {
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_return_null_when_input_is_null()
     {
@@ -12,7 +12,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_return_null_when_input_is_empty()
     {
@@ -20,7 +20,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_return_null_when_input_is_whitespace()
     {
@@ -28,7 +28,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_correctly_when_no_cache_directive()
     {
@@ -38,7 +38,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.NoCacheFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_no_store_when_no_store_directive()
     {
@@ -47,7 +47,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.NoStore);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_max_age_when_max_age_3600()
     {
@@ -56,7 +56,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(3600), result.MaxAge);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_s_max_age_when_s_max_age_600()
     {
@@ -65,7 +65,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(600), result.SMaxAge);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_max_stale_when_max_stale_300()
     {
@@ -74,7 +74,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(300), result.MaxStale);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_min_fresh_when_min_fresh_60()
     {
@@ -83,7 +83,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(60), result.MinFresh);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_must_revalidate_when_must_revalidate_directive()
     {
@@ -92,7 +92,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.MustRevalidate);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_public_when_public_directive()
     {
@@ -101,7 +101,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.Public);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_private_when_private_directive()
     {
@@ -111,7 +111,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.PrivateFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_immutable_when_immutable_directive()
     {
@@ -120,7 +120,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.Immutable);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_only_if_cached_when_only_if_cached_directive()
     {
@@ -129,7 +129,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.OnlyIfCached);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_all_directives_when_multiple_directives_in_header()
     {
@@ -140,7 +140,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.Public);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_no_cache_with_field_list_when_no_cache_has_quoted_fields()
     {
@@ -151,7 +151,7 @@ public sealed class CacheControlParserSpec
         Assert.Contains("Authorization", result.NoCacheFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_ignore_unknown_directive_when_unknown_directive_present()
     {
@@ -160,7 +160,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(30), result.MaxAge);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_max_age_when_max_age_is_uppercase()
     {
@@ -169,7 +169,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(3600), result.MaxAge);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_parse_no_transform_when_no_transform_directive()
     {
@@ -178,7 +178,7 @@ public sealed class CacheControlParserSpec
         Assert.True(result.NoTransform);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2")]
     public void CacheControlParser_should_accept_any_stale_when_max_stale_has_no_value()
     {
@@ -188,7 +188,7 @@ public sealed class CacheControlParserSpec
     }
 
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_parse_field_list_when_no_cache_qualified()
     {
@@ -200,7 +200,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal("Set-Cookie", result.NoCacheFields[0]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_parse_multiple_fields_when_no_cache_qualified()
     {
@@ -213,7 +213,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal("B", result.NoCacheFields[1]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_set_flag_when_unqualified_no_cache()
     {
@@ -223,7 +223,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.NoCacheFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_treat_as_unqualified_when_empty_quotes()
     {
@@ -233,7 +233,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.NoCacheFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_parse_field_list_and_other_directives_when_no_cache_with_fields_and_max_age()
     {
@@ -247,7 +247,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal(TimeSpan.FromSeconds(300), result.MaxAge);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.3")]
     public void CacheControlParser_should_parse_field_when_private_qualified()
     {
@@ -259,7 +259,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal("Authorization", result.PrivateFields[0]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.7")]
     public void CacheControlParser_should_set_flag_when_unqualified_private()
     {
@@ -269,7 +269,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.PrivateFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.7")]
     public void CacheControlParser_should_parse_multiple_fields_when_private_qualified()
     {
@@ -282,7 +282,7 @@ public sealed class CacheControlParserSpec
         Assert.Equal("B", result.PrivateFields[1]);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.7")]
     public void CacheControlParser_should_treat_as_unqualified_when_private_empty_quotes()
     {
@@ -292,7 +292,7 @@ public sealed class CacheControlParserSpec
         Assert.Null(result.PrivateFields);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9111-5.2.2.7")]
     public void CacheControlParser_should_parse_field_list_and_other_directives_when_private_with_fields_and_max_age()
     {

@@ -13,8 +13,9 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3.Client;
 
-internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
+internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 {
+    internal sealed record AbandonedResponseBody(long StreamId);
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
     private readonly GaudiClientOptions _options;
@@ -27,9 +28,14 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     private readonly Http3ClientEncoder _requestEncoder;
     private readonly QpackTableSync _tableSync;
 
+    // Connection-level outbound credit for the multiplexed body pump. Each emitted DATA frame
+    // consumes one unit; the transport replenishes one unit per drained outbound item via
+    // OnOutboundFlushed. Caps the in-flight (emitted-but-unflushed) 16 KB frames per connection,
+    // keeping the shared array pool warm instead of exhausting it under concurrent uploads.
+    private const int OutboundBodyCapacity = 16;
+
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _poolContext = new();
     private MultiplexedBodyPump? _pump;
 
     private bool _controlPrefaceSent;
@@ -62,7 +68,12 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         _requestEncoder = new Http3ClientEncoder(_tableSync);
         var responseDecoder = new Http3ClientDecoder(_tableSync, decoderOptions.MaxFieldSectionSize);
         _qpackStreamManager = new QpackStreamManager(ops, _requestEncoder, responseDecoder, _tableSync);
-        _streamManager = new StreamManager(ops, responseDecoder, _tableSync, _options.MaxStreamedResponseBodySize ?? long.MaxValue)
+        _streamManager = new StreamManager(
+            ops,
+            responseDecoder,
+            _tableSync,
+            _options.MaxStreamedResponseBodySize ?? long.MaxValue,
+            _options.ResolveMaxBufferedResponseBodySize(_options.Http3))
         {
             OnStreamClosedCallback = OnStreamClosed
         };
@@ -144,7 +155,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
 
         if (contentLength is > 0 and { } knownLength
-            && knownLength <= _options.Http3.MaxBufferedRequestBodySize
+            && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
             && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
         {
             return;
@@ -160,20 +171,29 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts);
-        _pump.Register(streamId, bodyStream!, CancellationToken.None, initialCredits: 16);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts,
+            _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
+        _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
     {
         switch (msg)
         {
-            case DrainReadComplete<long> read:
+            case BodyReadContinue<long> cont:
+                _pump?.HandleBodyReadContinue(cont.StreamId);
+                break;
+
+            case BodyReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed<long> failed:
+            case BodyReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                break;
+
+            case AbandonedResponseBody abandoned:
+                _streamManager.OnResponseBodyAbandoned(abandoned.StreamId);
                 break;
         }
     }
@@ -268,6 +288,11 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     public void OnTransportDisconnected()
     {
         _transportConnected = false;
+    }
+
+    public void OnOutboundFlushed()
+    {
+        _pump?.OnCapacityAvailable();
     }
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()
@@ -371,23 +396,12 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         return true;
     }
 
-    public void OnOutboundFlushed()
-    {
-        _pump?.AddCredit();
-    }
 
-    IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<long>.HasPendingDemand => _ops.HasPendingDemand;
-    int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         EmitBufferedDataFrames(streamId, data, endStream);
-
-        if (!endStream && !data.IsEmpty)
-        {
-            _pump?.AddCredit();
-        }
     }
 
     private void EmitBufferedDataFrames(long streamId, ReadOnlyMemory<byte> body, bool endStream)
@@ -424,7 +438,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
         _drainContentOwners.Remove(streamId);
 
@@ -436,7 +450,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
     }
 
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
         _drainContentOwners.Remove(streamId);
         Tracing.For("Protocol").Warning(this,

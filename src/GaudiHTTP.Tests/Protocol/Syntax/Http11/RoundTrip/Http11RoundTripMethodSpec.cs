@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.TestSupport;
@@ -9,11 +8,12 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
 public sealed class Http11RoundTripMethodSpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
+    private static Http11ClientEncoder MakeEncoder() => new(ClientOptionDefaults.Http11Encoder());
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
-        return Encoder.Encode(buffer, request, out _, out _);
+        var encoder = MakeEncoder();
+        return encoder.Encode(buffer, request, out _, out _);
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int status, string reason, string body,
@@ -33,7 +33,7 @@ public sealed class Http11RoundTripMethodSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();
@@ -149,7 +149,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buf, 0, written);
         Assert.StartsWith("HEAD /resource HTTP/1.1", encoded);
 
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Content-Type", "application/octet-stream"));

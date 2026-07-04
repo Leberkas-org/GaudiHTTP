@@ -685,8 +685,15 @@ public sealed class Http11StateMachineSpec
         };
         sm.OnRequest(request);
 
-        // The 1000-byte in-memory body completes synchronously, so the inline pump drains it fully
-        // within OnRequest (no mailbox round-trip) and the connection is dispatchable again.
+        // Force-async: body read results are dispatched to StageActor — drain them now.
+        while (ops.BodyMessages.Count > 0)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+
+        // After draining, the 1000-byte body has completed and the connection is dispatchable again.
         Assert.True(sm.CanAcceptRequest);
     }
 }

@@ -1,10 +1,11 @@
 using System.Buffers;
 using System.Threading.Tasks.Sources;
 using GaudiHTTP.Pooling;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<BodyReadResult>, IResettable
+internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingBodyReader, IValueTaskSource<BodyReadResult>
 {
     // This reader is a true cross-thread boundary: the connection-stage (actor) thread
     // produces via TryEnqueue/Complete/Fault while the application thread consumes via
@@ -14,12 +15,12 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
     private readonly object _sync = new();
 
     // Body buffers are rented on the connection-stage thread and returned on the application thread.
-    // The shared process-wide pool uses global, locked per-bucket stacks (no core affinity), so the
-    // rent/return survives that hop where the per-core ArrayPool<byte>.Shared would miss and force a
-    // fresh allocation (measured ~2x on H1.1, ~12x on H2 at CL=32). See CrossThreadBufferPool.
-    private static readonly ArrayPool<byte> CrossThreadPool = CrossThreadBufferPool.Shared;
-
+    // PooledArrayMemoryOwner.SharedPool uses global, locked per-bucket stacks (no core affinity), so
+    // the rent/return survives that hop where the per-core ArrayPool<byte>.Shared would miss and force
+    // a fresh allocation (measured ~2x on H1.1, ~12x on H2 at CL=32). Rented as raw byte[] — not an
+    // IMemoryOwner — because this is a per-chunk path and a wrapper per chunk would re-add allocation.
     private readonly ArrayPool<byte> _pool;
+
     private OwnedChunk[] _slots;
     private readonly int _backpressureThreshold;
     private int _head;
@@ -35,7 +36,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
     public QueuedBodyReader(int capacity, ArrayPool<byte>? pool = null)
     {
-        _pool = pool ?? CrossThreadPool;
+        _pool = pool ?? PooledArrayMemoryOwner.SharedPool;
         _backpressureThreshold = capacity;
         _initialSlotCount = capacity * 2;
         _slots = new OwnedChunk[_initialSlotCount];
@@ -243,7 +244,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
         _tail = _count;
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         bool deliver;
 
@@ -301,9 +302,9 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
         }
     }
 
-    public Stream AsStream() => new QueuedBodyStream(this);
+    Stream IBodyReader.AsStream() => new QueuedBodyStream(this);
 
-    public void Dispose() => Reset();
+    public Stream AsStream(Action? onAbandoned = null) => new QueuedBodyStream(this, onAbandoned);
 
     BodyReadResult IValueTaskSource<BodyReadResult>.GetResult(short token) => _core.GetResult(token);
 

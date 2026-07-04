@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http10.Options;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
@@ -18,10 +17,12 @@ public sealed class Http10ServerDecoderSpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
+        MaxChunkedControlLineLength = 64 * 1024,
+        MaxChunkedTrailerSize = 32 * 1024,
         AllowObsFold = false
     };
 
-    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions(), new ConnectionPoolContext());
+    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]

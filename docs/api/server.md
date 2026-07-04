@@ -70,19 +70,19 @@ public sealed class GaudiServerOptions
     Http3ServerOptions Http3 { get; }
 
     void Listen(IPAddress address, ushort port);
-    void Listen(IPAddress address, ushort port, Action<TurboListenOptions> configure);
+    void Listen(IPAddress address, ushort port, Action<GaudiListenOptions> configure);
     void Listen(string url);
-    void Listen(string url, Action<TurboListenOptions> configure);
+    void Listen(string url, Action<GaudiListenOptions> configure);
     void ListenLocalhost(ushort port);
-    void ListenLocalhost(ushort port, Action<TurboListenOptions> configure);
+    void ListenLocalhost(ushort port, Action<GaudiListenOptions> configure);
     void ListenAnyIP(ushort port);
-    void ListenAnyIP(ushort port, Action<TurboListenOptions> configure);
+    void ListenAnyIP(ushort port, Action<GaudiListenOptions> configure);
     void BindTcp(string host, ushort port);
     void Bind(TcpListenerOptions options);
     void Bind(QuicListenerOptions options);
     void Bind(ListenerOptions options, IListenerFactory factory);
     void ConfigureHttpsDefaults(Action<GaudiHttpsOptions> configure);
-    void ConfigureEndpointDefaults(Action<TurboListenOptions> configure);
+    void ConfigureEndpointDefaults(Action<GaudiListenOptions> configure);
 
     IList<ListenerBinding> Endpoints { get; }  // read-only, populated by Bind() overloads only
     IList<string> Urls { get; }                // mutable list — add URL strings manually or via hosting configuration; resolved to bindings at startup
@@ -117,7 +117,7 @@ public sealed class GaudiServerLimits
 ## Listen Options
 
 ```csharp
-public sealed class TurboListenOptions(IPAddress address, ushort port)
+public sealed class GaudiListenOptions(IPAddress address, ushort port)
 {
     IPAddress Address { get; }
     ushort Port { get; }
@@ -139,7 +139,7 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
 
 ## Transport Buffer Options
 
-Controls backpressure thresholds on the read/write pipes between the OS socket and the HTTP pipeline. Applied per-connection for TCP and per-stream for QUIC. Set via `TurboListenOptions.Transport`. Every property is nullable — properties left at `null` fall back to the protocol-optimized default individually, so you only need to set the thresholds you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
+Controls backpressure thresholds on the read/write pipes between the OS socket and the HTTP pipeline. Applied per-connection for TCP and per-stream for QUIC. Set via `GaudiListenOptions.Transport`. Every property is nullable — properties left at `null` fall back to the protocol-optimized default individually, so you only need to set the thresholds you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
 
 ```csharp
 public sealed class TransportBufferOptions

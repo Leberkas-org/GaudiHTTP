@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -68,6 +69,17 @@ public sealed class Http10ServerBodyPumpStallSpec
         sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
     }
 
+    private static void DrainBodyMessages(Http10ServerStateMachine sm, FakeServerOps ops, int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (ops.BodyMessages.Count > 0 && iterations++ < maxIterations)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+    }
+
     [Fact(Timeout = 5000)]
     public void OnResponse_should_emit_all_available_pipe_data_inline()
     {
@@ -79,8 +91,9 @@ public sealed class Http10ServerBodyPumpStallSpec
         // Writer NOT completed → streaming path, but data is in the pipe
         var (context, _) = CreateStreamingResponseContext(bodySize, setContentLength: true);
         sm.OnResponse(context);
+        DrainBodyMessages(sm, ops);
 
-        // Pump reads all available pipe data inline via inline driving
+        // Pump reads all available pipe data, producing body chunks
         var bodyItems = ops.Outbound.Skip(1).OfType<TransportData>().ToList();
         Assert.True(bodyItems.Count >= 4,
             $"Expected at least 4 body chunks from {bodySize} bytes, got {bodyItems.Count}.");

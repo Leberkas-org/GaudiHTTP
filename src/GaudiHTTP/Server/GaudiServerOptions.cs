@@ -18,6 +18,12 @@ public sealed class GaudiServerOptions
     /// <summary>Gets or sets the time allowed for in-flight requests to complete during shutdown. Default is 30 seconds.</summary>
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// Gets or sets the maximum time to wait for all listeners to bind during server startup.
+    /// If exceeded, the server throws and fails to start. Default is 25 seconds.
+    /// </summary>
+    public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(25);
+
     /// <summary>Gets or sets the maximum time a request handler may run before it is cancelled. Default is 30 seconds.</summary>
     public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
@@ -27,11 +33,43 @@ public sealed class GaudiServerOptions
     /// <summary>Gets or sets the timeout for the application to consume the complete request body. Default is 30 seconds.</summary>
     public TimeSpan BodyConsumptionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>Gets or sets the size of each chunk written to the response body stream. Default is 16 KiB.</summary>
-    public int ResponseBodyChunkSize { get; set; } = 16 * 1024;
+    /// <summary>
+    /// Default body size threshold (in bytes) for both request and response buffering across
+    /// all HTTP versions. Bodies at or below this size are buffered fully in memory; larger
+    /// bodies are streamed. Per-direction and per-protocol overrides take precedence.
+    /// Default is 64 KiB.
+    /// </summary>
+    public int MaxBufferedBodySize { get; set; } = 64 * 1024;
 
-    /// <summary>Obsolete. The transport now uses vectored I/O (writev) and handles scattered segments natively; this property is ignored. Retained for API compatibility. Default is 32.</summary>
-    public int MaxOutboundCoalesceCount { get; set; } = 32;
+    /// <summary>
+    /// Default chunk size (in bytes) for streaming body reads/writes across all HTTP versions.
+    /// Per-direction and per-protocol overrides take precedence. Default is 16 KiB.
+    /// </summary>
+    public int BodyChunkSize { get; set; } = 16 * 1024;
+
+    /// <summary>
+    /// Per-direction override for request body buffering threshold. When set, overrides
+    /// <see cref="MaxBufferedBodySize"/> for request bodies. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-direction override for response body buffering threshold. When set, overrides
+    /// <see cref="MaxBufferedBodySize"/> for response bodies. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-direction override for response body chunk size. When set, overrides
+    /// <see cref="BodyChunkSize"/> for response body writes. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? ResponseBodyChunkSize { get; set; }
+
+    /// <summary>
+    /// Per-direction override for request body chunk size. When set, overrides
+    /// <see cref="BodyChunkSize"/> for request body reads. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>Gets or sets whether response headers may use Huffman compression (HPACK/QPACK). Disabling mitigates CRIME/BREACH-style side-channel attacks. Default is true.</summary>
     public bool AllowResponseHeaderCompression { get; set; } = true;
@@ -166,7 +204,10 @@ public sealed class GaudiServerOptions
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeadersTotalSize, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeaderCount, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(Limits.KeepAliveTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(Limits.RapidResetDetectionWindow, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxProtocolSniffBytes, 24);
 
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(StartupTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerGracePeriod, TimeSpan.Zero);
 

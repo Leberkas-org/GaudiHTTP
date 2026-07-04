@@ -48,6 +48,7 @@ public sealed class ResponseMapFake
         private readonly ResponseMapFake _stage;
         private readonly Queue<HttpResponseMessage> _pendingResponses = new();
         private bool _responseRequested;
+        private Action<HttpResponseMessage> _onResponseResolved = null!;
 
         public Logic(ResponseMapFake stage) : base(stage.Shape)
         {
@@ -58,20 +59,20 @@ public sealed class ResponseMapFake
                 onPush: () =>
                 {
                     var request = Grab(stage._inRequest);
-                    var response = stage._map.Resolve(request);
+                    var task = stage._map.ResolveAsync(request);
 
                     // Pass request through to outbound (enables downstream stages to see it)
                     Push(stage._outRequest, request);
 
-                    // Queue the resolved response for the inbound direction
-                    if (_responseRequested)
+                    if (task.IsCompletedSuccessfully)
                     {
-                        _responseRequested = false;
-                        Push(stage._outResponse, response);
+                        EnqueueOrPushResponse(task.Result);
                     }
                     else
                     {
-                        _pendingResponses.Enqueue(response);
+                        task.ContinueWith(
+                            t => _onResponseResolved(t.Result),
+                            TaskContinuationOptions.OnlyOnRanToCompletion);
                     }
                 },
                 onUpstreamFinish: () => Complete(stage._outRequest),
@@ -113,11 +114,27 @@ public sealed class ResponseMapFake
                 });
         }
 
+        private void EnqueueOrPushResponse(HttpResponseMessage response)
+        {
+            if (_responseRequested)
+            {
+                _responseRequested = false;
+                Push(_stage._outResponse, response);
+            }
+            else
+            {
+                _pendingResponses.Enqueue(response);
+            }
+        }
+
         public override void PreStart()
         {
             // Pull inResponse so the downstream flow's output port is not blocked.
             // Responses from the downstream are discarded — the map generates them.
             Pull(_stage._inResponse);
+
+            // Callback for async response resolution (thread-safe re-entry into stage logic)
+            _onResponseResolved = GetAsyncCallback<HttpResponseMessage>(EnqueueOrPushResponse);
         }
     }
 }

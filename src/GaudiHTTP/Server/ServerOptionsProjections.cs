@@ -13,12 +13,18 @@ internal static class ServerOptionsProjections
             MaxRequestTargetLength = o.Http1.MaxRequestTargetLength,
             MaxPipelinedRequests = o.Http1.MaxPipelinedRequests,
             MaxChunkExtensionLength = o.Http1.MaxChunkExtensionLength,
+            MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+            MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
             MaxHeaderListSize = o.Http1.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             AllowObsFold = false,
             BodyReadTimeout = o.Http1.BodyReadTimeout,
-            MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize,
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
+            MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http1.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout
         };
 
@@ -39,12 +45,16 @@ internal static class ServerOptionsProjections
             HeaderTableSize = o.Http2.HeaderTableSize,
             MaxHeaderListSize = o.Http2.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
-            MaxResponseBufferSize = o.Http2.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
             UseHuffman = o.AllowResponseHeaderCompression,
             KeepAlivePingDelay = o.Http2.KeepAlivePingDelay,
-            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout
+            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout,
+            MaxBufferedBodySize = o.Http2.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http2.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize
         };
 
     public static Http3ConnectionOptions ToHttp3Options(this GaudiServerOptions o)
@@ -59,10 +69,14 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
             QpackBlockedStreams = o.Http3.QpackBlockedStreams,
-            MaxResponseBufferSize = o.Http3.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
-            ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
-            UseHuffman = o.AllowResponseHeaderCompression
+            UseHuffman = o.AllowResponseHeaderCompression,
+            MaxBufferedBodySize = o.Http3.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedRequestBodySize
+                ?? o.MaxBufferedBodySize,
+            ResponseBodyChunkSize = o.Http3.ResponseBodyChunkSize
+                ?? o.ResponseBodyChunkSize
+                ?? o.BodyChunkSize
         };
 
     public static DataRateOptions ToRateMonitor(this Http1ConnectionOptions o) => RateOf(o.Limits);
@@ -79,11 +93,12 @@ internal static class ServerOptionsProjections
         double? minReqRate, TimeSpan? minReqGrace, double? minRespRate, TimeSpan? minRespGrace)
         => new(
             MaxRequestBodySize: maxBody ?? o.Limits.MaxRequestBodySize,
-            MaxResetStreamsPerWindow: o.Limits.MaxResetStreamsPerWindow,
             KeepAliveTimeout: keepAlive ?? o.Limits.KeepAliveTimeout,
             RequestHeadersTimeout: headersTimeout ?? o.Limits.RequestHeadersTimeout,
             MinRequestBodyDataRate: minReqRate ?? o.Limits.MinRequestBodyDataRate,
             MinRequestBodyDataRateGracePeriod: minReqGrace ?? o.Limits.MinRequestBodyDataRateGracePeriod,
             MinResponseDataRate: minRespRate ?? o.Limits.MinResponseDataRate,
-            MinResponseDataRateGracePeriod: minRespGrace ?? o.Limits.MinResponseDataRateGracePeriod);
+            MinResponseDataRateGracePeriod: minRespGrace ?? o.Limits.MinResponseDataRateGracePeriod,
+            MaxResetStreamsPerWindow: o.Limits.MaxResetStreamsPerWindow,
+            RapidResetDetectionWindow: o.Limits.RapidResetDetectionWindow);
 }

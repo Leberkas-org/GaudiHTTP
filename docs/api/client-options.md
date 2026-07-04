@@ -1,7 +1,7 @@
-# TurboClientOptions
+# GaudiClientOptions
 
 ```csharp
-public sealed class TurboClientOptions
+public sealed class GaudiClientOptions
 {
     // Base address
     public Uri? BaseAddress { get; set; }

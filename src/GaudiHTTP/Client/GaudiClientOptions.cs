@@ -57,16 +57,50 @@ public sealed class GaudiClientOptions
     public long? MaxStreamedResponseBodySize { get; set; } = null;
 
     /// <summary>
-    /// Chunk size (in bytes) for streaming request body uploads. Larger values reduce allocation
-    /// overhead and syscalls but increase per-stream memory. Default is 16 KiB.
+    /// Default body size threshold (in bytes) for both request and response buffering across
+    /// all HTTP versions. Bodies at or below this size are buffered fully in memory; larger
+    /// bodies are streamed. Per-direction and per-protocol overrides take precedence.
+    /// Default is 64 KiB.
     /// </summary>
-    public int RequestBodyChunkSize { get; set; } = 16 * 1024;
+    public int MaxBufferedBodySize { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Default chunk size (in bytes) for streaming body reads/writes across all HTTP versions.
+    /// Per-direction and per-protocol overrides take precedence. Default is 16 KiB.
+    /// </summary>
+    public int BodyChunkSize { get; set; } = 16 * 1024;
+
+    /// <summary>
+    /// Per-direction override for request body buffering threshold. When set, overrides
+    /// <see cref="MaxBufferedBodySize"/> for request bodies. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-direction override for response body buffering threshold. When set, overrides
+    /// <see cref="MaxBufferedBodySize"/> for response bodies. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-direction override for request body chunk size. When set, overrides
+    /// <see cref="BodyChunkSize"/> for request body uploads. Default is <see langword="null"/> (inherit global).
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>
     /// Timeout for establishing a new TCP connection.
     /// Default is 15 seconds.
     /// </summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// Default timeout applied to every request sent through <see cref="IGaudiHttpClient"/> when no
+    /// per-request <see cref="CancellationToken"/> timeout is configured. Equivalent to
+    /// <see cref="HttpClient.Timeout"/>. Set to <see cref="Timeout.InfiniteTimeSpan"/> to disable.
+    /// Default is 60 seconds.
+    /// </summary>
+    public TimeSpan DefaultRequestTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// Time a connection may remain idle in the pool before it is evicted.
@@ -81,6 +115,31 @@ public sealed class GaudiClientOptions
     /// Default is <see cref="Timeout.InfiniteTimeSpan"/> (no lifetime limit).
     /// </summary>
     public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
+
+    /// <summary>
+    /// Initial delay before the first retry when the Akka Streams pipeline fails to materialize
+    /// (transport error, TLS failure, etc.). Subsequent retries use exponential backoff up to
+    /// <see cref="StreamRetryMaxBackoff"/>. Default is 100 ms.
+    /// </summary>
+    public TimeSpan StreamRetryInitialBackoff { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Maximum delay between stream materialization retries. The exponential backoff is capped
+    /// at this value. Default is 30 seconds.
+    /// </summary>
+    public TimeSpan StreamRetryMaxBackoff { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Multiplier applied to the retry delay on each successive attempt (exponential backoff).
+    /// Default is 2.0.
+    /// </summary>
+    public double StreamRetryBackoffMultiplier { get; set; } = 2.0;
+
+    /// <summary>
+    /// Maximum number of stream materialization retry attempts before the client gives up and
+    /// reports a failure. Default is 10.
+    /// </summary>
+    public int MaxStreamRetryAttempts { get; set; } = 10;
 
     /// <summary>
     /// Maximum number of distinct endpoints (identified by <c>(scheme, host, port, version)</c>)
@@ -161,14 +220,18 @@ public sealed class GaudiClientOptions
 
     /// <summary>
     /// Credentials for server authentication (e.g., Basic, Digest).
-    /// When set, the <c>Authorization</c> header is injected into requests
-    /// during enrichment. Default is <see langword="null"/>.
+    /// These are only applied when <see cref="PreAuthenticate"/> is <see langword="true"/>,
+    /// in which case the <c>Authorization</c> header is injected during request enrichment.
+    /// Reactive (401-challenge) authentication is not currently supported, so credentials have
+    /// no effect unless <see cref="PreAuthenticate"/> is enabled. Default is <see langword="null"/>.
     /// </summary>
     public ICredentials? Credentials { get; set; }
 
     /// <summary>
-    /// When <see langword="true"/>, an <c>Authorization</c> header is sent with
-    /// the initial request instead of waiting for a 401 challenge.
+    /// When <see langword="true"/>, an <c>Authorization</c> header derived from
+    /// <see cref="Credentials"/> is sent pre-emptively with every request.
+    /// This is currently the only supported authentication mode — there is no reactive
+    /// 401-challenge handling, so credentials are ignored when this is <see langword="false"/>.
     /// Only effective when <see cref="Credentials"/> is set. Default is <see langword="false"/>.
     /// </summary>
     public bool PreAuthenticate { get; set; }

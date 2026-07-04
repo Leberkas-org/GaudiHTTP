@@ -21,7 +21,10 @@ public sealed class GroupByRequestEndpointBackpressureSpec : StreamTestBase
     {
         var endpoint = new RequestEndpoint
         {
-            Host = "x", Port = 80, Scheme = "http", Version = HttpVersion.Version11,
+            Host = "x",
+            Port = 80,
+            Scheme = "http",
+            Version = HttpVersion.Version11,
         };
 
         var stage = new GroupByRequestEndpointStage<HttpRequestMessage>(

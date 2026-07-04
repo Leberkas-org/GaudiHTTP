@@ -18,10 +18,12 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     private readonly GaudiServerOptions _options;
     private readonly UpgradeAwareOps _wrappedOps;
+    private readonly bool _http1Allowed;
+    private readonly bool _http2Allowed;
+    private readonly int _maxSniffBytes;
 
     // Pre-protocol guards: the sniffing window has no state machine yet, so it must bound how much
     // it buffers and how long it waits before a protocol is identified (memory-exhaustion / slow-loris).
-    private const int MaxSniffBytes = 64 * 1024;
     private const string NegotiationTimer = "negotiation-headers";
 
     private Phase _phase = Phase.WaitingForConnect;
@@ -40,10 +42,14 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     // the conservative default of 1 is safe.
     public int MaxConcurrentRequests => _phase == Phase.Running ? _inner!.MaxConcurrentRequests : 1;
 
-    public ProtocolNegotiatingStateMachine(GaudiServerOptions options, IServerStageOperations ops)
+    public ProtocolNegotiatingStateMachine(GaudiServerOptions options, IServerStageOperations ops,
+        HttpProtocols allowedProtocols = HttpProtocols.Http1AndHttp2)
     {
         _options = options;
         _wrappedOps = new UpgradeAwareOps(ops, this);
+        _http1Allowed = (allowedProtocols & HttpProtocols.Http1) != 0;
+        _http2Allowed = (allowedProtocols & HttpProtocols.Http2) != 0;
+        _maxSniffBytes = options.Limits.MaxProtocolSniffBytes;
     }
 
     public void PreStart()
@@ -137,7 +143,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         {
             var h1Options = _options.ToHttp1Options();
             var h2UpgradeOptions = _options.ToHttp2Options();
-            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
             _inner!.DecodeClientData(data);
             return;
         }
@@ -166,6 +172,15 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         {
             if (span.StartsWith(Http2PrefixMagic))
             {
+                // Per-endpoint Protocols restriction: a cleartext endpoint that does not allow HTTP/2
+                // must reject a prior-knowledge h2c preface rather than silently upgrading.
+                if (!_http2Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h2Options = _options.ToHttp2Options();
                 Activate(ops => new Http2ServerStateMachine(h2Options, ops));
                 ReplayBuffered();
@@ -174,6 +189,13 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
             if (DetectHttp10())
             {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h1Options = _options.ToHttp1Options();
                 Activate(ops => new Http10ServerStateMachine(h1Options, ops));
                 ReplayBuffered();
@@ -182,9 +204,16 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
             if (ContainsRequestLineCrlf())
             {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    return;
+                }
+
                 var h1Options = _options.ToHttp1Options();
                 var h2UpgradeOptions = _options.ToHttp2Options();
-                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
                 ReplayBuffered();
                 return;
             }
@@ -196,7 +225,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         // cap without identification means garbage/abuse — abort before any state machine exists.
         // The cap is checked AFTER identification so a large first segment carrying a valid preface
         // plus request data (common for concurrent / large HTTP/2) is recognized rather than aborted.
-        if (_bufferedBytes > MaxSniffBytes)
+        if (_bufferedBytes > _maxSniffBytes)
         {
             _sniffAborted = true;
             CancelNegotiationTimer();
@@ -281,7 +310,6 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IServiceProvider? Services => real.Services;
         public GaudiHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
         public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
-        public GaudiHTTP.Pooling.ConnectionPoolContext? PoolContext => real.PoolContext;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {

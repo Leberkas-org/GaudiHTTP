@@ -1,5 +1,4 @@
 using System.Text;
-using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.TestSupport;
@@ -8,11 +7,12 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
 public sealed class Http11RoundTripBodySpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
+    private static Http11ClientEncoder MakeEncoder() => new(ClientOptionDefaults.Http11Encoder());
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
-        return Encoder.Encode(buffer, request, out _, out _);
+        var encoder = MakeEncoder();
+        return encoder.Encode(buffer, request, out _, out _);
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int status, string reason, string body,
@@ -64,7 +64,7 @@ public sealed class Http11RoundTripBodySpec
 
     private static List<HttpResponseMessage> Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
         var offset = 0;
         while (offset < data.Length)
@@ -236,7 +236,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_after_reset_when_content_length_roundtrip()
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var r1 = BuildResponse(200, "OK", "first", ("Content-Length", "5"));
         decoder.Feed(r1, false, out _);
         decoder.Reset();
@@ -253,7 +253,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_all_sizes_when_keep_alive_varying_body_sizes()
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var sizes = new[] { 1, 10, 100, 1000 };
 
         foreach (var size in sizes)

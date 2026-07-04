@@ -1,6 +1,6 @@
 # Configuration
 
-GaudiHTTP is configured through `TurboClientOptions` — a mutable class covering connection pool settings and TLS configuration. Features like caching, retries, and redirects are composed separately via the fluent builder API returned by `AddGaudiHttpClient`.
+GaudiHTTP is configured through `GaudiClientOptions` — a mutable class covering connection pool settings and TLS configuration. Features like caching, retries, and redirects are composed separately via the fluent builder API returned by `AddGaudiHttpClient`.
 
 ## DI Registration
 
@@ -55,7 +55,7 @@ var publicClient   = factory.CreateClient("public-api");
 var internalClient = factory.CreateClient("internal");
 ```
 
-## TurboClientOptions Reference
+## GaudiClientOptions Reference
 
 ### Base Address
 
@@ -180,7 +180,7 @@ Setting `DangerousAcceptAnyServerCertificate = true` disables all certificate va
 
 ## Feature Configuration via Builder
 
-Features are **not** set on `TurboClientOptions`. Instead, they are composed using the builder returned by `AddGaudiHttpClient`:
+Features are **not** set on `GaudiClientOptions`. Instead, they are composed using the builder returned by `AddGaudiHttpClient`:
 
 ```csharp
 builder.Services.AddGaudiHttpClient("full-featured", options =>

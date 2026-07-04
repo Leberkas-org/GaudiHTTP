@@ -1,13 +1,28 @@
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Exporters;
+using BenchmarkDotNet.Exporters.Json;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 
 namespace GaudiHTTP.Benchmarks.Internal;
+
+/// <summary>
+/// One timestamped artifacts folder per run, shared by every config. A run can span multiple
+/// configs (Engine/Allocation/Micro) — each MUST resolve to the SAME path, otherwise BenchmarkDotNet's
+/// <c>GetRootArtifactsFolderPath</c> throws when it cannot pick a single root. The timestamp is
+/// captured once at process start (static initializer), so all configs in one run land together under
+/// <c>BenchmarkDotNet.Artifacts/{timestamp}/</c> instead of overwriting the default folder.
+/// </summary>
+public static class BenchmarkArtifacts
+{
+    public static readonly string Path =
+        System.IO.Path.Combine("BenchmarkDotNet.Artifacts", DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
+}
 
 public class RequestsPerSecondColumn : IColumn
 {
@@ -125,19 +140,79 @@ public class EngineBenchmarkConfig : ManualConfig
 {
     public EngineBenchmarkConfig()
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var artifactsPath = Path.Combine("BenchmarkDotNet.Artifacts", timestamp);
-
-        WithArtifactsPath(artifactsPath);
+        WithArtifactsPath(BenchmarkArtifacts.Path);
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
-        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose));
-        AddExporter(MarkdownExporter.GitHub);
+        AddDiagnoser(ThreadingDiagnoser.Default);
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom log exporter are added explicitly (adding the defaults again warns).
+        // No AllocationByTypeExporter here: this config runs no EventPipeProfiler, so there are no
+        // traces to post-process, and in-process throughput allocation would be server-contaminated
+        // anyway. Per-type allocation lives only on the Allocation/Micro configs.
+        AddExporter(JsonExporter.Full);
         AddExporter(HttpVersionColorExporter.Default);
-        AddExporter(AllocationByTypeExporter.Default);
         AddColumn(StatisticColumn.P50);
         AddColumn(StatisticColumn.P95);
         AddColumn(StatisticColumn.P100);
         AddColumn(new RequestsPerSecondColumn());
+    }
+}
+
+/// <summary>
+/// Config for allocation-focused benchmarks (client streaming, against an out-of-process server).
+/// Allocation is measured PROCESS-WIDE via EventPipe GCAllocationTick (sampled ~100 KB/tick) and
+/// surfaced by <see cref="AllocationByTypeExporter"/> — NOT via MemoryDiagnoser, whose
+/// GetAllocatedBytesForCurrentThread only sees the calling thread and so massively under-counts the
+/// Akka dispatcher / Task background-thread allocations this code does. Server GC, low iteration
+/// counts (allocation is deterministic), and machine-readable JSON for charting.
+/// </summary>
+public class AllocationBenchmarkConfig : ManualConfig
+{
+    public AllocationBenchmarkConfig()
+    {
+        WithArtifactsPath(BenchmarkArtifacts.Path);
+        // Monitoring strategy with a fixed, low iteration count: each invocation is an expensive
+        // concurrent batch, so the default Throughput strategy would auto-scale to thousands of runs
+        // and pin every core. EventPipe profiles the actual run (no extra benchmarks run) to avoid
+        // doubling that cost. Allocation is deterministic enough that a few iterations suffice.
+        AddJob(Job.Default
+            .WithGcServer(true)
+            .WithStrategy(RunStrategy.Monitoring)
+            .WithLaunchCount(1)
+            .WithWarmupCount(1)
+            .WithIterationCount(3));
+
+        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom exporters are added explicitly (adding the defaults again warns).
+        AddExporter(JsonExporter.Full);
+        AddExporter(AllocationByTypeExporter.Default);
+    }
+}
+
+/// <summary>
+/// Config for in-memory micro-benchmarks that still allocate on background threads (e.g. the
+/// concurrent object-pool stress). Same rationale as <see cref="AllocationBenchmarkConfig"/>:
+/// process-wide EventPipe allocation, not the calling-thread MemoryDiagnoser. Uses the Monitoring
+/// strategy with a low fixed iteration count so a CPU-bound concurrent body is not auto-scaled into
+/// minutes of 100% CPU, and profiles the actual run (no extra run).
+/// </summary>
+public class MicroBenchmarkConfig : ManualConfig
+{
+    public MicroBenchmarkConfig()
+    {
+        WithArtifactsPath(BenchmarkArtifacts.Path);
+        AddJob(Job.Default
+            .WithGcServer(true)
+            .WithStrategy(RunStrategy.Monitoring)
+            .WithLaunchCount(1)
+            .WithWarmupCount(1)
+            .WithIterationCount(3));
+
+        AddDiagnoser(new EventPipeProfiler(EventPipeProfile.GcVerbose, performExtraBenchmarksRun: false));
+        // CSV + GitHub-markdown come from BenchmarkDotNet's default exporters; only the non-default
+        // JSON-full and the custom exporters are added explicitly (adding the defaults again warns).
+        AddExporter(JsonExporter.Full);
+        AddExporter(AllocationByTypeExporter.Default);
     }
 }

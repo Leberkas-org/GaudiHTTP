@@ -8,7 +8,9 @@ using GaudiHTTP.Streams.Stages.Server;
 
 namespace GaudiHTTP.Streams;
 
-internal sealed class NegotiatingServerEngine(GaudiServerOptions options) : IServerProtocolEngine
+internal sealed class NegotiatingServerEngine(
+    GaudiServerOptions options,
+    HttpProtocols allowedProtocols = HttpProtocols.Http1AndHttp2) : IServerProtocolEngine
 {
     public Version ProtocolVersion => new(1, 1);
 
@@ -16,7 +18,7 @@ internal sealed class NegotiatingServerEngine(GaudiServerOptions options) : ISer
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new ProtocolNegotiatorConnectionStage(options, services));
+            var connection = b.Add(new ProtocolNegotiatorConnectionStage(options, allowedProtocols, services));
 
             return new BidiShape<
                 ITransportInbound,

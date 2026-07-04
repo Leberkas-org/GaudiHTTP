@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3;
 
@@ -9,7 +11,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// Manages response/request assembly, pseudo-headers, content headers, body buffering,
 /// and body reader handling. Pooled and reused via <see cref="Reset"/>.
 /// </summary>
-internal sealed class StreamState
+internal sealed class StreamState : Poolable<StreamState>
 {
     private HttpResponseMessage? _response;
     private GaudiHttpRequestFeature? _requestFeature;
@@ -113,11 +115,36 @@ internal sealed class StreamState
         }
     }
 
+    /// <summary>
+    /// Peeks the declared Content-Length from the accumulated content headers without
+    /// materializing an <see cref="HttpContent"/>. Used to decide buffered-vs-streaming body
+    /// handling before a body reader is created (the reader must exist before DATA frames arrive).
+    /// </summary>
+    public long? PeekContentLength()
+    {
+        if (_contentHeaders is null)
+        {
+            return null;
+        }
+
+        foreach (var (name, value) in _contentHeaders)
+        {
+            if (string.Equals(name, WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(value, out var length))
+            {
+                return length;
+            }
+        }
+
+        return null;
+    }
+
     public void InitBodyReader(IBodyReader reader, long maxBodySize = long.MaxValue)
     {
         _bodyReader = reader;
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
+        ExpectedContentLength = PeekContentLength();
     }
 
     public void DetachBodyReader()
@@ -130,6 +157,25 @@ internal sealed class StreamState
         var reader = _bodyReader;
         _bodyReader = null;
         return reader;
+    }
+
+    /// <summary>
+    /// Detaches and returns the body reader only if it is a still-pending <see cref="BufferedBodyReader"/>
+    /// (dispatch deferred until the body completed). Non-buffered readers (e.g. <c>QueuedBodyReader</c>)
+    /// are left attached — their lifecycle is owned by the already-handed-out <see cref="Stream"/>, and
+    /// detaching them here would prevent the owning session manager from returning them to the pool later.
+    /// </summary>
+    public bool TryTakeBufferedBodyReader(out BufferedBodyReader? reader)
+    {
+        if (_bodyReader is BufferedBodyReader buffered)
+        {
+            reader = buffered;
+            _bodyReader = null;
+            return true;
+        }
+
+        reader = null;
+        return false;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
@@ -153,6 +199,13 @@ internal sealed class StreamState
 
             if (endStream)
             {
+                if (ExpectedContentLength is { } expected && _totalBodyBytes != expected)
+                {
+                    throw new HttpProtocolException(
+                        string.Concat("Buffered body ended after ", _totalBodyBytes.ToString(),
+                            " bytes but Content-Length declared ", expected.ToString(), "."));
+                }
+
                 buffered.MarkComplete();
             }
 
@@ -168,7 +221,15 @@ internal sealed class StreamState
 
             if (endStream)
             {
-                streaming.Complete();
+                if (ExpectedContentLength is { } expected && _totalBodyBytes != expected)
+                {
+                    streaming.Fault(new HttpRequestException(
+                        $"Response body ended after {_totalBodyBytes} bytes but Content-Length declared {expected}."));
+                }
+                else
+                {
+                    streaming.Complete();
+                }
             }
         }
     }
@@ -243,7 +304,7 @@ internal sealed class StreamState
 
     public IFeatureCollection? GetFeatures() => _features;
 
-    public void Reset()
+    protected override void OnReset()
     {
         StreamId = -1;
         _response = null;

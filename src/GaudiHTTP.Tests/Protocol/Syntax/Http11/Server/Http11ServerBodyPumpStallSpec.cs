@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -66,6 +67,17 @@ public sealed class Http11ServerBodyPumpStallSpec
         sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
     }
 
+    private static void DrainBodyMessages(Http11ServerStateMachine sm, FakeServerOps ops, int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (ops.BodyMessages.Count > 0 && iterations++ < maxIterations)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+    }
+
     [Fact(Timeout = 5000)]
     public void OnResponse_should_drain_entire_body_inline_when_pipe_has_data()
     {
@@ -77,10 +89,11 @@ public sealed class Http11ServerBodyPumpStallSpec
         var (context, bodyFeature) = CreateStreamingResponseContext(bodySize);
         bodyFeature.Writer.Complete();
         sm.OnResponse(context);
+        DrainBodyMessages(sm, ops);
 
-        // Inline driving: pump reads all 8 data chunks + EOF during OnResponse
+        // Pump reads all 8 data chunks + EOF, then body drain completes
         Assert.True(ops.ResponseBodyCompletions.Count > 0,
-            "Body drain should complete inline during OnResponse.");
+            "Body drain should complete after draining body messages.");
 
         // headers (1) + 8 chunked data frames + 1 chunked terminator = 10
         Assert.Equal(10, ops.Outbound.Count);
@@ -97,6 +110,7 @@ public sealed class Http11ServerBodyPumpStallSpec
         var (context, bodyFeature) = CreateStreamingResponseContext(bodySize);
         bodyFeature.Writer.Complete();
         sm.OnResponse(context);
+        DrainBodyMessages(sm, ops);
 
         var bodyDataBytes = ops.Outbound
             .Skip(1)
@@ -125,8 +139,9 @@ public sealed class Http11ServerBodyPumpStallSpec
         var (context, _) = CreateStreamingResponseContext(bodySize);
         // Writer NOT completed — simulates handler still writing
         sm.OnResponse(context);
+        DrainBodyMessages(sm, ops);
 
-        // Pump reads all available data inline, then goes async (pipe not complete)
+        // Pump reads all available data, then goes async (pipe not complete)
         var bodyItems = ops.Outbound.Skip(1).OfType<TransportData>().ToList();
         Assert.True(bodyItems.Count >= 4,
             $"Expected at least 4 body chunks from {bodySize} bytes, got {bodyItems.Count}.");

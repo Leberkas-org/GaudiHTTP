@@ -26,16 +26,18 @@ public sealed class Http3ResponseBodyDrainTeardownSpec
             MinRequestBodyDataRate: 240,
             MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
             MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MaxResetStreamsPerWindow: 200,
+            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
         MaxConcurrentStreams = 100,
         MaxHeaderListSize = 32 * 1024,
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 0,
         QpackBlockedStreams = 0,
-        MaxResponseBufferSize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
         UseHuffman = true,
+        MaxBufferedBodySize = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
     };
 
     private static byte[] BuildRequest(string method, string path)
@@ -102,7 +104,7 @@ public sealed class Http3ResponseBodyDrainTeardownSpec
 
         // When the in-flight read finally completes, the pump cleans up the orphaned slot.
         var ex = Record.Exception(() =>
-            sm.OnBodyMessage(new DrainReadComplete<long>(streamId, 0)));
+            sm.OnBodyMessage(new BodyReadComplete<long>(streamId, 0)));
 
         Assert.Null(ex);
     }

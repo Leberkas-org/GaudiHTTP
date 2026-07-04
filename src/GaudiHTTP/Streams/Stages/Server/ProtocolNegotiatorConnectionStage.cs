@@ -7,7 +7,10 @@ using GaudiHTTP.Server;
 
 namespace GaudiHTTP.Streams.Stages.Server;
 
-internal sealed class ProtocolNegotiatorConnectionStage(GaudiServerOptions options, IServiceProvider? services = null)
+internal sealed class ProtocolNegotiatorConnectionStage(
+    GaudiServerOptions options,
+    HttpProtocols allowedProtocols = HttpProtocols.Http1AndHttp2,
+    IServiceProvider? services = null)
     : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("NegotiatorConnection.In.Network");
@@ -19,6 +22,6 @@ internal sealed class ProtocolNegotiatorConnectionStage(GaudiServerOptions optio
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<ProtocolNegotiatingStateMachine>(this,
-            ops => new ProtocolNegotiatingStateMachine(options, ops),
+            ops => new ProtocolNegotiatingStateMachine(options, ops, allowedProtocols),
             services);
 }

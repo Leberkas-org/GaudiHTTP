@@ -109,7 +109,7 @@ internal sealed class GaudiHttpClientFactory(
             DefaultRequestHeaders: new HttpRequestMessage().Headers,
             DefaultRequestVersion: HttpVersion.Version11,
             DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: TimeSpan.FromSeconds(60),
+            Timeout: clientOptions.DefaultRequestTimeout,
             Credentials: clientOptions.Credentials,
             PreAuthenticate: clientOptions.PreAuthenticate,
             UseProxy: clientOptions.UseProxy,

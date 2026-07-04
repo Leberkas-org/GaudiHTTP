@@ -1,7 +1,9 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
+using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Protocol;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -9,7 +11,7 @@ namespace GaudiHTTP.Protocol.Syntax.Http2;
 /// Per-stream header and body buffer management for HTTP/2.
 /// Extracted from Http20ConnectionStage for independent testability.
 /// </summary>
-internal sealed class StreamState
+internal sealed class StreamState : Poolable<StreamState>
 {
     private IMemoryOwner<byte>? _headerOwner;
     private Memory<byte> _headerBuffer;
@@ -25,6 +27,15 @@ internal sealed class StreamState
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
+    private ReadOnlyMemory<byte> _bufferedRemainder;
+
+    // Unsent slice of a buffered response body that did not fit the H2 send window. Held with no
+    // copy (it points into the response feature's still-live WrittenMemory) and emitted directly on
+    // WINDOW_UPDATE — see Http2ServerSessionManager.DrainBufferedRemainder.
+    public bool HasBufferedRemainder => !_bufferedRemainder.IsEmpty;
+    public ReadOnlyMemory<byte> BufferedRemainder => _bufferedRemainder;
+    public void SetBufferedRemainder(ReadOnlyMemory<byte> remainder) => _bufferedRemainder = remainder;
+    public void AdvanceBufferedRemainder(int count) => _bufferedRemainder = _bufferedRemainder[count..];
 
     public string BodyConsumptionTimerKey { get; private set; } = "";
     public string HeadersTimeoutTimerKey { get; private set; } = "";
@@ -53,7 +64,7 @@ internal sealed class StreamState
     /// arriving before (or after) exactly this many bytes faults the body reader instead of
     /// completing it, so a truncated body surfaces as an error rather than silent success.
     /// </summary>
-    public long? ExpectedBodyLength { get; set; }
+    public long? ExpectedBodyLength { get; private set; }
 
     public bool IsRemoteClosed { get; private set; }
 
@@ -120,11 +131,36 @@ internal sealed class StreamState
         }
     }
 
+    /// <summary>
+    /// Peeks the declared Content-Length from the accumulated content headers without
+    /// materializing an <see cref="HttpContent"/>. Used to decide buffered-vs-streaming body
+    /// handling before a body reader is created (the reader must exist before DATA frames arrive).
+    /// </summary>
+    public long? PeekContentLength()
+    {
+        if (_contentHeaders is null)
+        {
+            return null;
+        }
+
+        foreach (var (name, value) in _contentHeaders)
+        {
+            if (string.Equals(name, WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && long.TryParse(value, out var length))
+            {
+                return length;
+            }
+        }
+
+        return null;
+    }
+
     public void InitBodyReader(IBodyReader reader, long maxBodySize = long.MaxValue)
     {
         _bodyReader = reader;
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
+        ExpectedBodyLength = PeekContentLength();
     }
 
     public void DetachBodyReader()
@@ -137,6 +173,25 @@ internal sealed class StreamState
         var reader = _bodyReader;
         _bodyReader = null;
         return reader;
+    }
+
+    /// <summary>
+    /// Detaches and returns the body reader only if it is a still-pending <see cref="BufferedBodyReader"/>
+    /// (dispatch deferred until the body completed). Non-buffered readers (e.g. <c>QueuedBodyReader</c>)
+    /// are left attached — their lifecycle is owned by the already-handed-out <see cref="Stream"/>, and
+    /// detaching them here would prevent the owning session manager from returning them to the pool later.
+    /// </summary>
+    public bool TryTakeBufferedBodyReader(out BufferedBodyReader? reader)
+    {
+        if (_bodyReader is BufferedBodyReader buffered)
+        {
+            reader = buffered;
+            _bodyReader = null;
+            return true;
+        }
+
+        reader = null;
+        return false;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
@@ -161,6 +216,13 @@ internal sealed class StreamState
 
             if (endStream)
             {
+                if (ExpectedBodyLength is { } expected && _totalBodyBytes != expected)
+                {
+                    throw new HttpProtocolException(
+                        string.Concat("Buffered body ended after ", _totalBodyBytes.ToString(),
+                            " bytes but Content-Length declared ", expected.ToString(), "."));
+                }
+
                 buffered.MarkComplete();
             }
 
@@ -225,7 +287,7 @@ internal sealed class StreamState
         IsRemoteClosed = true;
     }
 
-    public void Reset()
+    protected override void OnReset()
     {
         _headerOwner?.Dispose();
         _headerOwner = null;
@@ -241,6 +303,7 @@ internal sealed class StreamState
         _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
+        _bufferedRemainder = default;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;

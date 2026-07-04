@@ -7,7 +7,7 @@ namespace GaudiHTTP.IntegrationTests.Client.H2;
 
 /// <summary>
 /// Repro for the HTTP/2 large-download hang in the 2026-06-19 benchmark run
-/// (KestrelGaudiDownloadBenchmarks [ConcurrencyLevel=1, DownloadBytes=8388608, HttpVersion=2.0] → NA,
+/// (GaudiClientDownloadBenchmarks [ConcurrencyLevel=1, DownloadBytes=8388608, HttpVersion=2.0] → NA,
 /// "System.TimeoutException: The operation has timed out"). A SINGLE 8 MB response over one H2 stream
 /// hung to the 120 s WaitAsync, while 1 MB over H2 — and 8 MB over H1.1 and H3 — all completed.
 /// Suspected receive-path flow-control / WINDOW_UPDATE stall on a single large stream.

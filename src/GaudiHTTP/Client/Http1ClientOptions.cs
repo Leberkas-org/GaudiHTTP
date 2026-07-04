@@ -8,10 +8,26 @@ namespace GaudiHTTP.Client;
 public sealed class Http1ClientOptions
 {
     /// <summary>
-    /// Maximum response body size (in bytes) that is buffered fully in memory.
-    /// Bodies larger than this are exposed as a streaming pipe. Default is 64 KiB.
+    /// Per-protocol override for response body size (in bytes) that is buffered fully in memory.
+    /// Bodies larger than this are exposed as a streaming pipe. When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.MaxBufferedResponseBodySize"/> then
+    /// <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
     /// </summary>
-    public int MaxBufferedResponseBodySize { get; set; } = 64 * 1024;
+    public int? MaxBufferedResponseBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body size (in bytes) that is buffered fully in memory.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiClientOptions.MaxBufferedRequestBodySize"/>
+    /// then <see cref="GaudiClientOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for request body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiClientOptions.RequestBodyChunkSize"/> then
+    /// <see cref="GaudiClientOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? RequestBodyChunkSize { get; set; }
 
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/1.x.
@@ -37,12 +53,14 @@ public sealed class Http1ClientOptions
     /// <summary>
     /// Automatically add a Host header derived from the request URI if none is present.
     /// Default is true, matching standard HTTP/1.1 behavior.
+    /// Applies to HTTP/1.1 only; the legacy HTTP/1.0 encoder does not inject a Host header.
     /// </summary>
     public bool AutoHost { get; set; } = true;
 
     /// <summary>
     /// Automatically add Accept-Encoding: gzip, deflate, br if no Accept-Encoding header is present.
     /// Default is true.
+    /// Applies to HTTP/1.1 only; the legacy HTTP/1.0 encoder does not inject an Accept-Encoding header.
     /// </summary>
     public bool AutoAcceptEncoding { get; set; } = true;
 
@@ -71,5 +89,17 @@ public sealed class Http1ClientOptions
     /// guard against malicious servers.
     /// </summary>
     public int MaxChunkExtensionLength { get; set; } = int.MaxValue;
+
+    /// <summary>
+    /// Maximum length (in bytes) of a chunk-size control line in chunked transfer encoding.
+    /// Guards against oversized chunk headers. Default is 64 KiB.
+    /// </summary>
+    public int MaxChunkedControlLineLength { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum total size (in bytes) of the trailer section in chunked transfer encoding.
+    /// Guards against trailer bombs. Default is 32 KiB.
+    /// </summary>
+    public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;
 }
 

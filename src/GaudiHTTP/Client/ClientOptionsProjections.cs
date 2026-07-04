@@ -14,32 +14,43 @@ internal static class ClientOptionsProjections
 {
     public static Http10ClientDecoderOptions ToHttp10DecoderOptions(this GaudiClientOptions o) => new()
     {
-        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
-        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
         HeaderLineMaxLength = o.Http1.MaxResponseHeaderLineLength,
+        MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
         AllowObsFold = false
     };
 
     public static Http11ClientDecoderOptions ToHttp11DecoderOptions(this GaudiClientOptions o) => new()
     {
-        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
-        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedResponseBodySize
+            ?? o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
         HeaderLineMaxLength = o.Http1.MaxResponseHeaderLineLength,
         MaxChunkExtensionLength = o.Http1.MaxChunkExtensionLength,
+        MaxChunkedControlLineLength = o.Http1.MaxChunkedControlLineLength,
+        MaxChunkedTrailerSize = o.Http1.MaxChunkedTrailerSize,
         AllowObsFold = false
     };
 
     public static Http11ClientEncoderOptions ToHttp11EncoderOptions(this GaudiClientOptions o) => new()
     {
         AutoHost = o.Http1.AutoHost,
-        AutoAcceptEncoding = o.Http1.AutoAcceptEncoding,
-        ChunkSize = o.RequestBodyChunkSize
+        AutoAcceptEncoding = o.Http1.AutoAcceptEncoding
     };
 
     public static Http2ClientDecoderOptions ToHttp2DecoderOptions(this GaudiClientOptions o) => new()
@@ -50,7 +61,9 @@ internal static class ClientOptionsProjections
         MaxStreamWindowSize = o.Http2.MaxStreamWindowSize,
         WindowScaleThresholdMultiplier = o.Http2.WindowScaleThresholdMultiplier,
         EnableAdaptiveWindowScaling = o.Http2.EnableAdaptiveWindowScaling,
-        MaxHeaderSize = 16 * 1024,
+        // Single-field limit (RFC 9113 §10.5.1) tracks the configured header-list budget so that
+        // raising MaxResponseHeaderListSize also allows a correspondingly larger single field.
+        MaxHeaderSize = o.Http2.MaxResponseHeaderListSize,
         MaxHeaderListSize = o.Http2.MaxResponseHeaderListSize
     };
 
@@ -71,4 +84,31 @@ internal static class ClientOptionsProjections
         QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
         QpackBlockedStreams = o.Http3.QpackBlockedStreams
     };
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedRequestBodySize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.MaxBufferedRequestBodySize ?? o.MaxBufferedRequestBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveMaxBufferedResponseBodySize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.MaxBufferedResponseBodySize ?? o.MaxBufferedResponseBodySize ?? o.MaxBufferedBodySize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http1ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http2ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
+
+    internal static int ResolveRequestBodyChunkSize(this GaudiClientOptions o, Http3ClientOptions p)
+        => p.RequestBodyChunkSize ?? o.RequestBodyChunkSize ?? o.BodyChunkSize;
 }

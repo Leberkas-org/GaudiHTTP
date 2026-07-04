@@ -5,6 +5,12 @@ namespace GaudiHTTP.Server;
 /// Controls request line parsing, pipelining, chunked-encoding limits, body read timeouts,
 /// and data-rate enforcement. Nullable properties inherit from <see cref="GaudiServerLimits"/>
 /// when left at <c>null</c>.
+/// <para>
+/// Note: the connection timeouts (<see cref="RequestHeadersTimeout"/>, <see cref="BodyReadTimeout"/>,
+/// <see cref="KeepAliveTimeout"/>, and the server-wide <c>BodyConsumptionTimeout</c>) are enforced for
+/// HTTP/1.1 connections. Legacy HTTP/1.0 is close-per-request and is exempt from these timeouts; the
+/// minimum data-rate limits, body-size limits, and header limits are still enforced for HTTP/1.0.
+/// </para>
 /// </summary>
 public sealed class Http1ServerOptions
 {
@@ -21,10 +27,31 @@ public sealed class Http1ServerOptions
     public int MaxChunkExtensionLength { get; set; } = 4 * 1024;
 
     /// <summary>
-    /// Gets or sets the maximum request body size (in bytes) that is buffered fully in memory.
-    /// Bodies larger than this are exposed as a streaming pipe with back-pressure. Default is 64 KiB.
+    /// Maximum length (in bytes) of a chunk-size control line in chunked transfer encoding.
+    /// Guards against oversized chunk headers. Default is 64 KiB.
     /// </summary>
-    public int MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+    public int MaxChunkedControlLineLength { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum total size (in bytes) of the trailer section in chunked transfer encoding.
+    /// Guards against trailer bombs. Default is 32 KiB.
+    /// </summary>
+    public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;
+
+    /// <summary>
+    /// Per-protocol override for the maximum request body size (in bytes) that is buffered fully
+    /// in memory. Bodies larger than this are exposed as a streaming pipe with back-pressure.
+    /// When <see langword="null"/>, inherits from <see cref="GaudiServerOptions.MaxBufferedRequestBodySize"/>
+    /// then <see cref="GaudiServerOptions.MaxBufferedBodySize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? MaxBufferedRequestBodySize { get; set; }
+
+    /// <summary>
+    /// Per-protocol override for response body chunk size (in bytes). When <see langword="null"/>,
+    /// inherits from <see cref="GaudiServerOptions.ResponseBodyChunkSize"/> then
+    /// <see cref="GaudiServerOptions.BodyChunkSize"/>. Default is <see langword="null"/>.
+    /// </summary>
+    public int? ResponseBodyChunkSize { get; set; }
 
     /// <summary>Gets or sets the timeout for reading the complete request body after headers are received. Default is 30 seconds.</summary>
     public TimeSpan BodyReadTimeout { get; set; } = TimeSpan.FromSeconds(30);

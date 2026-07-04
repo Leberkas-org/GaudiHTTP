@@ -63,7 +63,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         return response;
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_retry_immediately_when_retry_after_is_zero()
     {
@@ -81,7 +81,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_delay_retry_when_retry_after_is_positive()
     {
@@ -103,7 +103,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_pass_final_through_when_retry_timer_is_pending()
     {
@@ -127,7 +127,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         Assert.Same(responseB, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_prioritize_retry_over_new_request()
     {
@@ -175,7 +175,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         Assert.Same(request, retryReq);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_have_independent_retry_budgets()
     {
@@ -208,7 +208,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         Assert.Same(responseB2, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_absorb_request_upstream_failure()
     {
@@ -241,7 +241,7 @@ public sealed class RetryTimerSpec : StreamTestBase
         responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.2")]
     public void RetryTimer_should_absorb_response_upstream_failure()
     {

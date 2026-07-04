@@ -85,6 +85,94 @@ public sealed class Http2StreamLifecycleSpec
         return buffer;
     }
 
+    private static byte[] BuildWindowUpdateFrame(int streamId, int increment)
+    {
+        const int h = 9;
+        var frame = new byte[h + 4];
+        frame[2] = 4;
+        frame[3] = (byte)FrameType.WindowUpdate;
+        frame[5] = (byte)(streamId >> 24);
+        frame[6] = (byte)(streamId >> 16);
+        frame[7] = (byte)(streamId >> 8);
+        frame[8] = (byte)streamId;
+        var inc = increment & 0x7FFFFFFF;
+        frame[9] = (byte)(inc >> 24);
+        frame[10] = (byte)(inc >> 16);
+        frame[11] = (byte)(inc >> 8);
+        frame[12] = (byte)inc;
+        return frame;
+    }
+
+    // Walks the emitted H2 frames and sums DATA payload bytes for one stream, plus whether an
+    // END_STREAM-flagged DATA frame was seen.
+    private static (long DataBytes, bool EndStream) SumData(IEnumerable<object> outbound, int streamId)
+    {
+        long total = 0;
+        var endStream = false;
+        foreach (var td in outbound.OfType<TransportData>())
+        {
+            var span = td.Buffer.Span;
+            var pos = 0;
+            while (pos + 9 <= span.Length)
+            {
+                var len = (span[pos] << 16) | (span[pos + 1] << 8) | span[pos + 2];
+                var type = span[pos + 3];
+                var flags = span[pos + 4];
+                var sid = (span[pos + 5] << 24) | (span[pos + 6] << 16) | (span[pos + 7] << 8) | span[pos + 8];
+                if (type == (byte)FrameType.Data && sid == streamId)
+                {
+                    total += len;
+                    if ((flags & 0x01) != 0)
+                    {
+                        endStream = true;
+                    }
+                }
+
+                pos += 9 + len;
+            }
+        }
+
+        return (total, endStream);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void Buffered_response_exceeding_send_window_holds_slice_and_drains_on_window_update()
+    {
+        var ops = new FakeServerOps();
+        var sm = new Http2ServerSessionManager(new GaudiServerOptions().ToHttp2Options(), ops);
+        sm.PreStart();
+        sm.DecodeClientData(WrapFrame(BuildHeadersFrame(streamId: 1, endStream: true)));
+        ops.Outbound.Clear();
+
+        // Buffered response body larger than the default 65535 send window.
+        const int bodySize = 100_000;
+        var context = CreateResponseContext(streamId: 1);
+        var bodyFeature = (GaudiHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
+        bodyFeature.Writer.GetMemory(bodySize).Span[..bodySize].Fill(0xAB);
+        bodyFeature.Writer.Advance(bodySize);
+        bodyFeature.Writer.Complete(); // completed + not upgraded => buffered (TryGetBufferedBody)
+
+        sm.OnResponse(context);
+
+        // Window-blocked: only the window's worth is emitted, no END_STREAM, stream still open and
+        // holding the unsent slice (no ToArray copy, no pump).
+        var afterResponse = SumData(ops.Outbound, streamId: 1);
+        Assert.True(afterResponse.DataBytes is > 0 and <= 65535,
+            $"expected partial emit within the window, got {afterResponse.DataBytes}");
+        Assert.False(afterResponse.EndStream);
+        Assert.Equal(1, sm.ActiveStreamCount);
+
+        // Replenish connection + stream windows; the held slice drains directly.
+        sm.DecodeClientData(WrapFrame(BuildWindowUpdateFrame(streamId: 0, increment: bodySize)));
+        sm.DecodeClientData(WrapFrame(BuildWindowUpdateFrame(streamId: 1, increment: bodySize)));
+
+        var afterUpdate = SumData(ops.Outbound, streamId: 1);
+        Assert.Equal(bodySize, afterUpdate.DataBytes);
+        Assert.True(afterUpdate.EndStream);
+        Assert.Equal(0, sm.ActiveStreamCount);
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1.2")]
     public void Should_accept_streams_up_to_max_concurrent()

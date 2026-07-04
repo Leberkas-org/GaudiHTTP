@@ -4,7 +4,7 @@ using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2;
 
-internal sealed class FrameDecoder : IDisposable
+internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFrameSize) : IDisposable
 {
     // RFC 9113 §4.1: all frames begin with a fixed 9-octet header.
     private const int FrameHeaderSize = 9;
@@ -44,12 +44,6 @@ internal sealed class FrameDecoder : IDisposable
     // advertise to the peer. Frames larger than this are a FRAME_SIZE_ERROR and are rejected before
     // their payload is buffered, bounding per-connection memory. Defaults to the 24-bit ceiling so a
     // decoder constructed without an explicit limit performs no enforcement beyond the wire maximum.
-    private readonly int _maxFrameSize;
-
-    public FrameDecoder(int maxFrameSize = (int)MaxMaxFrameSize)
-    {
-        _maxFrameSize = maxFrameSize;
-    }
 
     // Owned working buffer. Kept alive between Decode() calls so that returned frame slices
     // remain valid until the next call (Akka back-pressure guarantees frames are consumed first).
@@ -138,10 +132,10 @@ internal sealed class FrameDecoder : IDisposable
 
             // RFC 9113 §4.2: reject oversized frames before buffering their payload, so a peer cannot
             // force us to accumulate an arbitrarily large frame.
-            if (payloadLen > _maxFrameSize)
+            if (payloadLen > maxFrameSize)
             {
                 throw new HttpProtocolException(
-                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {_maxFrameSize}.");
+                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}.");
             }
 
             if (workingLength - offset < FrameHeaderSize + payloadLen)

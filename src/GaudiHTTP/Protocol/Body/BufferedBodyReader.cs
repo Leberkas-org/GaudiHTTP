@@ -1,43 +1,60 @@
 using System.Buffers;
 using GaudiHTTP.Pooling;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
-internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
+internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBufferedBodyReader
 {
-    private IMemoryOwner<byte>? _owner;
+    private PooledArrayMemoryOwner? _owner;
     private int _expected;
     private int _received;
-    private bool _openEnded;
 
     public bool IsBuffered => true;
     public bool IsCompleted { get; private set; }
-    public bool IsOpenEnded => _openEnded;
+    public bool IsOpenEnded { get; private set; }
 
     public void Reset(int contentLength)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(contentLength);
-        _owner?.Dispose();
         _expected = contentLength;
-        _openEnded = false;
+        IsOpenEnded = false;
         _received = 0;
         IsCompleted = contentLength == 0;
-        _owner = contentLength > 0
-            ? CrossThreadBufferPool.Rent(contentLength)
-            : null;
+
+        if (contentLength > 0 && (_owner is null || _owner.Memory.Length < contentLength))
+        {
+            _owner?.Dispose();
+            _owner = PooledArrayMemoryOwner.Create(contentLength);
+        }
     }
 
     public void ResetOpenEnded()
     {
-        _owner?.Dispose();
         _expected = 0;
-        _openEnded = true;
+        IsOpenEnded = true;
         _received = 0;
         IsCompleted = false;
-        _owner = CrossThreadBufferPool.Rent(4 * 1024);
+
+        if (_owner is null || _owner.Memory.Length < 4 * 1024)
+        {
+            _owner?.Dispose();
+            _owner = PooledArrayMemoryOwner.Create(4 * 1024);
+        }
     }
 
-    void IResettable.Reset() => ResetOpenEnded();
+    protected override void OnReset()
+    {
+        _expected = 0;
+        IsOpenEnded = false;
+        _received = 0;
+        IsCompleted = false;
+        if (_owner is not null && _owner.Memory.Length > 1024 * 1024)
+        {
+            _owner.Dispose();
+            _owner = null;
+        }
+    }
 
     public void MarkComplete()
     {
@@ -46,7 +63,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
 
     public int Feed(ReadOnlySpan<byte> data)
     {
-        if (_openEnded)
+        if (IsOpenEnded)
         {
             if (data.IsEmpty)
             {
@@ -78,7 +95,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         }
 
         var newSize = Math.Max(needed, (_owner?.Memory.Length ?? 4 * 1024) * 2);
-        var next = CrossThreadBufferPool.Rent(newSize);
+        var next = PooledArrayMemoryOwner.Create(newSize);
         if (_owner is not null && _received > 0)
         {
             _owner.Memory[.._received].CopyTo(next.Memory);
@@ -91,25 +108,28 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
     public ReadOnlyMemory<byte> GetBody()
         => _owner?.Memory[.._received] ?? ReadOnlyMemory<byte>.Empty;
 
-    public Stream AsStream()
-        => _owner is not null
-            ? new PooledMemoryStream(_owner, _received)
-            : Stream.Null;
+    public Stream AsStream() => AsOwningStream();
 
-    public void Dispose()
+    public Stream AsOwningStream()
     {
-        _owner?.Dispose();
+        if (_owner is null)
+        {
+            return Stream.Null;
+        }
+
+        var stream = new PooledMemoryStream(_owner.Memory[.._received], _owner);
         _owner = null;
+        return stream;
     }
 
-    private sealed class PooledMemoryStream(IMemoryOwner<byte> owner, int length) : Stream
+    private sealed class PooledMemoryStream(ReadOnlyMemory<byte> memory, IMemoryOwner<byte>? ownedOwner) : Stream
     {
         private int _position;
 
         public override bool CanRead => true;
         public override bool CanSeek => true;
         public override bool CanWrite => false;
-        public override long Length => length;
+        public override long Length => memory.Length;
 
         public override long Position
         {
@@ -119,28 +139,28 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            var available = length - _position;
+            var available = memory.Length - _position;
             if (available <= 0)
             {
                 return 0;
             }
 
             var toCopy = Math.Min(count, available);
-            owner.Memory.Span.Slice(_position, toCopy).CopyTo(buffer.AsSpan(offset, toCopy));
+            memory.Span.Slice(_position, toCopy).CopyTo(buffer.AsSpan(offset, toCopy));
             _position += toCopy;
             return toCopy;
         }
 
         public override int Read(Span<byte> buffer)
         {
-            var available = length - _position;
+            var available = memory.Length - _position;
             if (available <= 0)
             {
                 return 0;
             }
 
             var toCopy = Math.Min(buffer.Length, available);
-            owner.Memory.Span.Slice(_position, toCopy).CopyTo(buffer[..toCopy]);
+            memory.Span.Slice(_position, toCopy).CopyTo(buffer[..toCopy]);
             _position += toCopy;
             return toCopy;
         }
@@ -151,7 +171,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
             {
                 SeekOrigin.Begin => (int)offset,
                 SeekOrigin.Current => _position + (int)offset,
-                SeekOrigin.End => length + (int)offset,
+                SeekOrigin.End => memory.Length + (int)offset,
                 _ => _position
             };
             return _position;
@@ -165,7 +185,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         {
             if (disposing)
             {
-                owner.Dispose();
+                ownedOwner?.Dispose();
             }
 
             base.Dispose(disposing);
