@@ -79,17 +79,7 @@ internal sealed class StreamManager(
     {
         if (_streams.TryGetValue(streamId, out var state) && state.HasBodyReader)
         {
-            state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-
-            if (state.TryTakeBufferedBodyReader(out var buffered))
-            {
-                DispatchBufferedResponse(streamId, state, buffered!);
-            }
-            else
-            {
-                state.DetachBodyReader();
-            }
-
+            CompleteStreamOnFin(streamId, state);
             ReturnStreamState(streamId);
             return;
         }
@@ -149,17 +139,7 @@ internal sealed class StreamManager(
         {
             if (state.HasBodyReader)
             {
-                state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-
-                if (state.TryTakeBufferedBodyReader(out var buffered))
-                {
-                    DispatchBufferedResponse(streamId, state, buffered!);
-                }
-                else
-                {
-                    state.DetachBodyReader();
-                }
-
+                CompleteStreamOnFin(streamId, state);
                 handledStreamIds.Add(streamId);
             }
         }
@@ -195,75 +175,38 @@ internal sealed class StreamManager(
     {
         foreach (var (streamId, headers) in resolved)
         {
-            if (_streams.TryGetValue(streamId, out var state))
+            if (!_streams.TryGetValue(streamId, out var state))
             {
-                if (!state.HasResponse)
+                continue;
+            }
+
+            if (!state.HasResponse)
+            {
+                if (!responseDecoder.AssembleHeaders(headers, state)
+                    && responseDecoder.LastInterimResponse is { } interim)
                 {
-                    if (!responseDecoder.AssembleHeaders(headers, state)
-                        && responseDecoder.LastInterimResponse is { } interim)
-                    {
-                        responseDecoder.LastInterimResponse = null;
-                        interim.RequestMessage = _correlationMap.GetValueOrDefault(state.StreamId);
-                        ops.OnResponse(interim);
-                    }
+                    responseDecoder.LastInterimResponse = null;
+                    interim.RequestMessage = _correlationMap.GetValueOrDefault(state.StreamId);
+                    ops.OnResponse(interim);
                 }
+            }
 
-                if (state is { HasResponse: true, HasBodyReader: false })
-                {
-                    var contentLength = state.PeekContentLength();
-                    if (contentLength is > 0 and var n && n <= maxBufferedResponseBodySize)
-                    {
-                        var buffered = ConnectionObjectPool.Instance.Rent(static () => new BufferedBodyReader());
-                        buffered.Reset((int)n);
-                        state.InitBodyReader(buffered, maxResponseBodySize);
-                    }
-                    else
-                    {
-                        var queued = ConnectionObjectPool.Instance.Rent(() => new QueuedBodyReader(capacity: 8));
-                        state.InitBodyReader(queued, maxResponseBodySize);
-                        var response = state.GetResponse();
-                        var stageActor = ops.StageActor;
-                        var capturedId = streamId;
-                        var bodyStream = queued.AsStream(onAbandoned: () =>
-                            stageActor.Tell(new Http3ClientSessionManager.AbandonedResponseBody(capturedId), ActorRefs.NoSender));
-                        response.Content = new StreamContent(bodyStream);
-                        state.ApplyContentHeadersTo(response.Content);
+            if (state is not { HasResponse: true, HasBodyReader: false })
+            {
+                continue;
+            }
 
-                        if (_correlationMap.Remove(streamId, out var request))
-                        {
-                            response.RequestMessage = request;
-                        }
+            InitBodyReaderAndDispatch(streamId, state);
 
-                        var partialContentResult = PartialContentValidator.Validate(response);
-                        if (!partialContentResult.IsValid)
-                        {
-                            Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
-                        }
+            // Replay DATA buffered while the stream was blocked, then honor a FIN that
+            // arrived during the block so the body completes.
+            state.IsHeadersBlocked = false;
+            state.ReplayPendingInboundData();
 
-                        ops.OnResponse(response);
-                    }
-
-                    // Replay DATA buffered while the stream was blocked, then honor a FIN that
-                    // arrived during the block so the body completes.
-                    state.IsHeadersBlocked = false;
-                    state.ReplayPendingInboundData();
-
-                    if (state.PendingEndStream)
-                    {
-                        state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-
-                        if (state.TryTakeBufferedBodyReader(out var pendingBuffered))
-                        {
-                            DispatchBufferedResponse(streamId, state, pendingBuffered!);
-                        }
-                        else
-                        {
-                            state.DetachBodyReader();
-                        }
-
-                        ReturnStreamState(streamId);
-                    }
-                }
+            if (state.PendingEndStream)
+            {
+                CompleteStreamOnFin(streamId, state);
+                ReturnStreamState(streamId);
             }
         }
     }
@@ -407,7 +350,18 @@ internal sealed class StreamManager(
             return;
         }
 
-        var streamId = state.StreamId;
+        InitBodyReaderAndDispatch(state.StreamId, state);
+    }
+
+    /// <summary>
+    /// Initializes the response body reader for a stream whose headers just became available
+    /// (either assembled directly or unblocked by QPACK dynamic-table updates), dispatching the
+    /// response immediately unless the body is small enough to buffer in full — in which case
+    /// <see cref="OnResponse"/> is deferred until the FIN epilogue (see
+    /// <see cref="DispatchBufferedResponse"/>, <see cref="CompleteStreamOnFin"/>).
+    /// </summary>
+    private void InitBodyReaderAndDispatch(long streamId, StreamState state)
+    {
         var contentLength = state.PeekContentLength();
 
         if (contentLength is > 0 and var n && n <= maxBufferedResponseBodySize)
@@ -443,6 +397,27 @@ internal sealed class StreamManager(
         }
 
         ops.OnResponse(response);
+    }
+
+    /// <summary>
+    /// FIN epilogue shared by every path that completes a stream's body: feeds an empty
+    /// end-of-stream chunk, then dispatches the buffered response (if the body was collected in
+    /// full) or detaches the reader for the streaming case. Does not remove the stream state —
+    /// callers that need to pool it call <see cref="ReturnStreamState"/> themselves, since some
+    /// (e.g. <see cref="FlushAllPendingResponses"/>) cannot mutate <c>_streams</c> mid-iteration.
+    /// </summary>
+    private void CompleteStreamOnFin(long streamId, StreamState state)
+    {
+        state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
+
+        if (state.TryTakeBufferedBodyReader(out var buffered))
+        {
+            DispatchBufferedResponse(streamId, state, buffered!);
+        }
+        else
+        {
+            state.DetachBodyReader();
+        }
     }
 
     /// <summary>
@@ -586,7 +561,7 @@ internal sealed class StreamManager(
 
     /// <summary>
     /// Callback invoked when a stream is closed (response emitted).
-    /// The StateMachine uses this to update <see cref="StreamTracker"/> and <see cref="ConnectionState"/>.
+    /// The SessionManager sets and uses this to update <see cref="StreamTracker"/> and <see cref="ConnectionState"/>.
     /// </summary>
     internal Action<long>? OnStreamClosedCallback { get; init; }
 }
