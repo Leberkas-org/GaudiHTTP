@@ -131,6 +131,12 @@ internal sealed class FlowControlledBodyPump(
             return;
         }
 
+        if (slot.ReservedWindow > 0)
+        {
+            flowController.Refund(slot.StreamId, slot.ReservedWindow);
+            slot.ReservedWindow = 0;
+        }
+
         _activeSlots.Remove(streamId);
         target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();

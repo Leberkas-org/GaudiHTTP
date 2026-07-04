@@ -370,6 +370,31 @@ public sealed class FlowControlledBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void FailedRead_should_refund_reserved_window()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var windowBefore = flow.ConnectionSendWindow;
+
+        // Async read path so the reservation is held while the read is in flight.
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockingStream = new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task));
+        scheduler.Register(1, blockingStream, null, CancellationToken.None);
+
+        Assert.Equal(windowBefore - 1 * 1024, flow.ConnectionSendWindow);
+
+        // Read fails while the stream is still active (not orphaned): nothing was
+        // sent, so the full reservation must be refunded.
+        scheduler.HandleReadFailed(1, new IOException("read failed"));
+
+        Assert.Single(target.Failed);
+        Assert.Equal(windowBefore, flow.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
     public void WindowBlocked_should_block_when_available_below_half_chunk()
     {
         var target = new FakeTarget();
