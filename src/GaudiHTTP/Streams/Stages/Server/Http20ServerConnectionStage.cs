@@ -19,7 +19,7 @@ internal sealed class Http20ServerConnectionStage(GaudiServerOptions options, IS
     public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new HttpConnectionServerStageLogic<Http2ServerStateMachine>(this,
+        => new HttpServerConnectionStageLogic<Http2ServerStateMachine>(this,
             ops => new Http2ServerStateMachine(_options, ops),
             services);
 }

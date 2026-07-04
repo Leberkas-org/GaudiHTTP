@@ -16,7 +16,7 @@ internal sealed class Http30ClientConnectionStage(GaudiClientOptions options) : 
     public override ClientConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new HttpConnectionStageLogic<Http3ClientStateMachine>(
+        => new HttpClientConnectionStageLogic<Http3ClientStateMachine>(
             this,
             ops => new Http3ClientStateMachine(options, ops));
 }

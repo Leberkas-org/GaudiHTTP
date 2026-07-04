@@ -21,7 +21,7 @@ internal sealed class ProtocolNegotiatorConnectionStage(
     public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new HttpConnectionServerStageLogic<ProtocolNegotiatingStateMachine>(this,
+        => new HttpServerConnectionStageLogic<ProtocolNegotiatingStateMachine>(this,
             ops => new ProtocolNegotiatingStateMachine(options, ops, allowedProtocols),
             services);
 }
