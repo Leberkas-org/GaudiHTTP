@@ -190,7 +190,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             return;
         }
 
-        TryDecodeEof(bodyComplete);
+        TryCompleteAfterEof(bodyComplete);
         FailOrphanedRequest();
     }
 
@@ -427,11 +427,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             _inFlightRequest = null;
             _decoder.Reset();
         }
-    }
-
-    private void TryDecodeEof(bool bodyComplete)
-    {
-        TryCompleteAfterEof(bodyComplete);
     }
 
     private void FailOrphanedRequest()
