@@ -193,19 +193,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 EmitChunkedTerminator(_activeResponseFeatures);
             }
 
-            _outboundBodyPending = false;
-            _responseRate.Remove(0);
-            if (_activeResponseFeatures is not null)
-            {
-                _ops.OnResponseBodyComplete(_activeResponseFeatures);
-                _activeResponseFeatures = null;
-            }
-
+            var completedFeatures = _activeResponseFeatures;
+            _activeResponseFeatures = null;
             Tracing.For("Protocol").Debug(this, "response body complete");
-            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-            {
-                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-            }
+            CompleteResponse(completedFeatures);
         }
     }
 
@@ -216,13 +207,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
     void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
-        _outboundBodyPending = false;
-        _responseRate.Remove(0);
-        if (_activeResponseFeatures is not null)
-        {
-            _ops.OnResponseBodyComplete(_activeResponseFeatures);
-            _activeResponseFeatures = null;
-        }
+        // Does not route through CompleteResponse: a mid-stream drain failure never sets
+        // ShouldComplete here (no other caller does either on this path), so calling the full
+        // epilogue would newly rearm the keep-alive timer on a connection whose response framing
+        // was left inconsistent. Reset the response bookkeeping only, preserving that behavior.
+        ResetResponseState(_activeResponseFeatures);
+        _activeResponseFeatures = null;
 
         Tracing.For("Protocol").Warning(this, "response body failed: {0}", reason.Message);
     }
@@ -469,12 +459,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             // Headers-only response (1xx/204/304 or HEAD): no body drain will run, so recycle the
             // feature collection now. Safe — the SM keeps no reference to `features` on this path.
-            _ops.OnResponseBodyComplete(features);
-
-            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-            {
-                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-            }
+            CompleteResponse(features);
 
             return;
         }
@@ -506,13 +491,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             if (coalesceBody)
             {
                 // Body bytes were folded into the header buffer above: nothing more to emit.
-                _ops.OnResponseBodyComplete(features);
                 Tracing.For("Protocol").Debug(this,
                     "response body complete (buffered, coalesced, bytes={0})", bufferedBody.Length);
-                if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-                {
-                    _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-                }
+                CompleteResponse(features);
 
                 return;
             }
@@ -537,12 +518,38 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         else
         {
             // No streamed body feature to drain: recycle the feature collection now.
-            _ops.OnResponseBodyComplete(features);
+            CompleteResponse(features);
+        }
+    }
 
-            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-            {
-                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-            }
+    /// <summary>
+    /// Shared tail for every response-completion path that legitimately reaches the end of a
+    /// response (as opposed to <see cref="IBodyDrainTarget.OnDrainFailed"/>, which tears the
+    /// connection down instead): reset per-response bookkeeping, recycle the feature collection,
+    /// and rearm the keep-alive timer if the connection is otherwise idle.
+    /// </summary>
+    private void CompleteResponse(IFeatureCollection? features)
+    {
+        ResetResponseState(features);
+
+        if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+        {
+            _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+        }
+    }
+
+    /// <summary>
+    /// Clears outbound-body-pending state, drops the response rate-monitor entry (a no-op if the
+    /// path never observed it — otherwise an idle keep-alive connection would be flagged as a
+    /// stalled response once the grace period elapses), and recycles the feature collection.
+    /// </summary>
+    private void ResetResponseState(IFeatureCollection? features)
+    {
+        _outboundBodyPending = false;
+        _responseRate.Remove(0);
+        if (features is not null)
+        {
+            _ops.OnResponseBodyComplete(features);
         }
     }
 
@@ -585,16 +592,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             EmitChunkedTerminator(features);
         }
 
-        // The response is fully handed to the transport: drop the rate entry, or the idle
-        // keep-alive connection is flagged as a violation once the grace period elapses.
-        _responseRate.Remove(0);
-        _ops.OnResponseBodyComplete(features);
-
         Tracing.For("Protocol").Debug(this, "response body complete (buffered, bytes={0})", body.Length);
-        if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-        {
-            _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-        }
+        CompleteResponse(features);
     }
 
     private void EmitChunkedTerminator(IFeatureCollection? features)

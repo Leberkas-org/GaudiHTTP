@@ -220,4 +220,44 @@ public sealed class Http11ServerStateMachineTimerSpec
         Assert.Contains(ops.CancelledTimers, t => t == "request-headers");
         Assert.Contains(ops.CancelledTimers, t => t == "keep-alive");
     }
+
+    private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
+        CreateStreamingResponseContext()
+    {
+        var features = new GaudiFeatureCollection();
+        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
+
+        var bodyFeature = new GaudiHttpResponseBodyFeature();
+        var writer = bodyFeature.Writer;
+        var span = writer.GetSpan(16);
+        span[..16].Fill(0xAB);
+        writer.Advance(16);
+        bodyFeature.UpgradeToPipe();
+
+        features.Set<IHttpResponseBodyFeature>(bodyFeature);
+        return (features, bodyFeature);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-9.3")]
+    public void OnDrainFailed_should_not_schedule_keep_alive_timer()
+    {
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
+
+        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+
+        // Writer left incomplete: the pump goes async, so a subsequent read failure hits the
+        // non-orphaned OnDrainFailed path rather than a normal completion.
+        var (context, _) = CreateStreamingResponseContext();
+        sm.OnResponse(context);
+
+        // A mid-stream drain failure must not rearm the keep-alive timer: the connection's
+        // response framing is left inconsistent, so it is torn down rather than kept alive.
+        ((IBodyDrainTarget)sm).OnDrainFailed(0, new IOException("simulated read failure"));
+
+        Assert.DoesNotContain(ops.ScheduleTimerCalls, t => t.Name == "keep-alive");
+    }
 }

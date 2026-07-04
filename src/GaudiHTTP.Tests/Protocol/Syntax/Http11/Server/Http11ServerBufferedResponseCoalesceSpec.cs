@@ -94,4 +94,18 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
 
         Assert.True(ops.Outbound.Count > 1);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Buffered_coalesced_response_rearms_keep_alive_timer()
+    {
+        var ops = new FakeServerOps();
+        var sm = CreateSm(ops);
+        SendRequest(sm);
+
+        // Coalesced completion runs through the CompleteResponse epilogue synchronously —
+        // no pump/body message round-trip is involved on this path.
+        sm.OnResponse(BufferedResponse("xyz"u8.ToArray(), withContentLength: true));
+
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "keep-alive");
+    }
 }
