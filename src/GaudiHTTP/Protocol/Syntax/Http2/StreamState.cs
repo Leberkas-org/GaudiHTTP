@@ -57,8 +57,6 @@ internal sealed class StreamState : Poolable<StreamState>
 
     public bool IsBodyDrainComplete { get; private set; }
 
-    public bool IsBodyReadPending { get; set; }
-
     /// <summary>
     /// Declared Content-Length of the body being fed, when known. When set, an END_STREAM
     /// arriving before (or after) exactly this many bytes faults the body reader instead of
@@ -81,11 +79,6 @@ internal sealed class StreamState : Poolable<StreamState>
     public void InitResponse(HttpResponseMessage response)
     {
         _response = response;
-    }
-
-    public HttpResponseMessage GetOrCreateResponse()
-    {
-        return _response ??= new HttpResponseMessage();
     }
 
     public HttpResponseMessage GetResponse()
@@ -161,11 +154,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
         ExpectedBodyLength = PeekContentLength();
-    }
-
-    public void DetachBodyReader()
-    {
-        _bodyReader = null;
     }
 
     public IBodyReader? TakeBodyReader()
@@ -306,7 +294,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _bufferedRemainder = default;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
-        IsBodyReadPending = false;
         ExpectedBodyLength = null;
         IsRemoteClosed = false;
         // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive

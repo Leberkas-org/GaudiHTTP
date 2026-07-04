@@ -168,8 +168,8 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
             return;
         }
 
-        var state = _streamManager.GetOrCreateStreamState(streamId);
-        state.MarkBodyDrainActive();
+        // Ensure the stream state is registered before the pump starts delivering completions.
+        _streamManager.GetOrCreateStreamState(streamId);
         _drainContentOwners[streamId] = request.Content!;
         _pump ??= new MultiplexedBodyPump(this, _connectionCts,
             _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
@@ -438,11 +438,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     {
         _drainContentOwners.Remove(streamId);
 
-        var state = _streamManager.TryGetStreamState(streamId);
-        if (state is not null)
+        if (_streamManager.TryGetStreamState(streamId) is not null)
         {
             Tracing.For("Protocol").Debug(this, "HTTP/3: request body complete (stream={0})", streamId);
-            state.MarkBodyDrainComplete();
         }
     }
 

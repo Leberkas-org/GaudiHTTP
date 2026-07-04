@@ -18,8 +18,6 @@ namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
 internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
-    private const int MaxStatePoolCapacity = 1000;
-
     private const string DataRateCheck = "data-rate-check";
 
     private readonly IServerStageOperations _ops;
@@ -95,10 +93,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         var rate = options.ToRateMonitor();
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
-
-        var statePoolCapacity = Math.Min(
-            _decoderOptions.MaxConcurrentStreams > 0 ? _decoderOptions.MaxConcurrentStreams : 100,
-            MaxStatePoolCapacity);
     }
 
     public void PreStart()
@@ -233,7 +227,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
 
         var bodyStream = gaudiBody.GetResponseStream();
-        state.MarkBodyDrainActive();
         _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize, OutboundBodyCapacity);
         _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
@@ -721,7 +714,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    private long GetStreamIdFromFeatures(IFeatureCollection features)
+    private static long GetStreamIdFromFeatures(IFeatureCollection features)
     {
         var streamIdFeature = features.Get<IHttpStreamIdFeature>();
         if (streamIdFeature is not null)
@@ -773,7 +766,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
-            streamData.State.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, streamData.State);
             CloseStream(streamId);
         }

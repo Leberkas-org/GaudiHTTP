@@ -363,7 +363,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
 
         var bodyStream = gaudiBody.GetResponseStream();
-        state.MarkBodyDrainActive();
         _pump!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
@@ -976,7 +975,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         // arrives. The slice points into the response feature's WrittenMemory, which stays valid
         // until the stream is closed (after the body fully drains) — see DrainBufferedRemainder.
         state.SetBufferedRemainder(remainder);
-        state.MarkBodyDrainActive();
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
@@ -1008,7 +1006,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         if (!state.HasBufferedRemainder)
         {
-            state.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, state);
             CloseStream(streamId);
         }
@@ -1063,7 +1060,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, state);
         }
 
