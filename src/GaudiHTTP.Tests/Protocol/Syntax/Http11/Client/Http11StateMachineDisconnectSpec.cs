@@ -36,7 +36,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void Http11StateMachine_should_fail_inflight_on_abrupt_disconnect()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 0 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 0 } },
+            ops);
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -68,7 +70,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void Http11StateMachine_should_reconnect_on_disconnect_with_inflight()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } },
+            ops);
 
         sm.OnRequest(MakeRequest());
         ops.Outbound.Clear();
@@ -84,7 +88,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void Http11StateMachine_should_replay_buffered_requests_on_reconnect()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } },
+            ops);
 
         sm.OnRequest(MakeRequest());
         sm.OnRequest(MakeRequest("http://example.com/other"));
@@ -104,7 +110,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void Http11StateMachine_should_fail_buffered_on_max_reconnect_exceeded()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 1 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 1 } },
+            ops);
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -136,7 +144,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void OnUpstreamFinished_should_fail_buffered_queue_when_reconnecting()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } },
+            ops);
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -170,7 +180,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void PendingRequestCount_should_reflect_inflight_queue()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 4 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 4 } },
+            ops);
 
         Assert.Equal(0, sm.PendingRequestCount);
 
@@ -185,7 +197,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void PendingRequestCount_should_reflect_reconnect_buffer()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3, MaxPipelineDepth = 4 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3, MaxPipelineDepth = 4 } },
+            ops);
 
         sm.OnRequest(MakeRequest());
         sm.OnRequest(MakeRequest("http://example.com/b"));
@@ -201,7 +215,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void CanAcceptRequest_should_be_false_when_pipeline_full()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 1 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 1 } },
+            ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -213,7 +229,9 @@ public sealed class Http11StateMachineDisconnectSpec
     public void CanAcceptRequest_should_be_false_when_reconnecting()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } }, ops);
+        var sm = new Http11ClientStateMachine(
+            new GaudiClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } },
+            ops);
 
         sm.OnRequest(MakeRequest());
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
