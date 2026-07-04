@@ -276,7 +276,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         }
     }
 
-
     private void TryPullRequest()
     {
         if (_sm.CanAcceptRequest
