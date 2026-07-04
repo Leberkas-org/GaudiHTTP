@@ -147,9 +147,9 @@ public sealed class Http2ServerBufferedRequestSpec
         sm.DecodeClientData(WrapFrame(BuildDataFrame(1, "short"u8.ToArray(), endStream: true)));
 
         Assert.Empty(ops.Requests);
-        Assert.True(ops.Outbound.Any(o =>
+        Assert.Contains(ops.Outbound, o =>
             o is TransportData { Buffer.Length: >= 9 } td
-            && (FrameType)td.Buffer.FullMemory.Span[3] == FrameType.RstStream));
+            && (FrameType)td.Buffer.FullMemory.Span[3] == FrameType.RstStream);
     }
 
     [Fact(Timeout = 5000)]

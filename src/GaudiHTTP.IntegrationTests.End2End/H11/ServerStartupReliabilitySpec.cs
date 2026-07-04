@@ -47,7 +47,7 @@ public sealed class ServerStartupReliabilitySpec
             app.MapGet("/plaintext", () => Results.Content("Hello, World!", "text/plain"));
 
             Console.Error.WriteLine("[SPEC] Starting server...");
-            await app.StartAsync();
+            await app.StartAsync(TestContext.Current.CancellationToken);
 
             var addresses = app.Services.GetRequiredService<IServer>()
                 .Features.Get<IServerAddressesFeature>()!
@@ -71,14 +71,15 @@ public sealed class ServerStartupReliabilitySpec
             };
 
             using var response = await client.GetAsync(
-                string.Concat("http://127.0.0.1:", h11Port.ToString(), "/plaintext"));
+                string.Concat("http://127.0.0.1:", h11Port.ToString(), "/plaintext"),
+                TestContext.Current.CancellationToken);
 
             Console.Error.WriteLine("[SPEC] Response: {0}", response.StatusCode);
             response.EnsureSuccessStatusCode();
-            var body = await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal("Hello, World!", body);
 
-            await app.StopAsync();
+            await app.StopAsync(TestContext.Current.CancellationToken);
             await app.DisposeAsync();
         }
         finally

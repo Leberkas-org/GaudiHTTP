@@ -106,9 +106,11 @@ public sealed class ServerConnectionActorSpec : TestKit
             7, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(),
             new GaudiServerOptions(), services: null, loggingCategory: category));
 
+#pragma warning disable xUnit1051 // FishForMessage is Akka TestKit API without CancellationToken overload
         var info = probe.FishForMessage<Akka.Event.Info>(
             m => m.Message?.ToString()?.Contains("Connection 7 accepted") == true,
             TimeSpan.FromSeconds(5));
+#pragma warning restore xUnit1051
 
         Assert.StartsWith(category, info.LogSource);
     }
