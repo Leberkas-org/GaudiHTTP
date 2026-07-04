@@ -1,4 +1,3 @@
-using Akka.Actor;
 using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Body;
@@ -48,9 +47,7 @@ internal sealed class MultiplexedBodyPump(
 
         if (slot.IsOrphaned)
         {
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
+            PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
             return;
         }
 
@@ -70,9 +67,7 @@ internal sealed class MultiplexedBodyPump(
 
         if (slot.IsOrphaned)
         {
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
+            PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
             return;
         }
 
@@ -110,9 +105,7 @@ internal sealed class MultiplexedBodyPump(
 
         // Not in flight — clean up immediately (lazy removal from ready queue is not needed
         // since the slot will simply be missing from _activeSlots when dequeued)
-        _activeSlots.Remove(streamId);
-        slot.DisposeResources();
-        slot.Dispose();
+        PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
     }
 
     public void Cleanup()
@@ -154,27 +147,7 @@ internal sealed class MultiplexedBodyPump(
     private void StartRead(PumpSlot<long> slot)
     {
         var token = slot.LinkedCts?.Token ?? connectionCts.Token;
-        slot.BeginRead();
-        var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..chunkSize], token);
-
-        if (vt.IsCompletedSuccessfully)
-        {
-            // Force-async: identical to the PipeTo path below but delivering the already-known
-            // result. The slot stays IsReadInFlight (from BeginRead) and counted in _asyncInFlight
-            // across the mailbox hop so HandleReadComplete's CompleteRead/_asyncInFlight-- balance
-            // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
-            _asyncInFlight++;
-            target.StageActor.Tell(
-                slot.CachedSuccessTransform!(vt.Result),
-                ActorRefs.NoSender);
-            return;
-        }
-
-        _asyncInFlight++;
-        vt.PipeTo(
-            target.StageActor,
-            success: slot.CachedSuccessTransform,
-            failure: slot.CachedFailureTransform);
+        PumpSlotLifecycle.StartRead(slot, chunkSize, token, target.StageActor, ref _asyncInFlight);
     }
 
     private void ProcessReadResult(PumpSlot<long> slot, int bytesRead)

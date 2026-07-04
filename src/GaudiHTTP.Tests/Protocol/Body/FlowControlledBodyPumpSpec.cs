@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Reflection;
 using Akka.Actor;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -389,6 +391,52 @@ public sealed class FlowControlledBodyPumpSpec
 
         Assert.Single(target.Failed);
         Assert.Equal(windowBefore, flow.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cancel_should_dispose_queued_non_inflight_slot_immediately_even_when_window_stays_exhausted()
+    {
+        var target = new FakeTarget();
+        var flow = MakeFlow(connWindow: 65535);
+        // hardCap = 1: only one async read may be in flight at a time.
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 64, hardCap: 1);
+
+        flow.InitStreamSendWindow(1);
+        flow.InitStreamSendWindow(3);
+
+        // Stream 1 occupies the only read slot with a read that never completes.
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockingStream = new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task));
+        scheduler.Register(1, blockingStream, null, CancellationToken.None);
+
+        // Stream 3 has an open window, so it is enqueued — but _asyncInFlight (1) already meets
+        // hardCap (1), so it never starts a read: it sits in the ready queue, not in-flight and
+        // not window-blocked.
+        scheduler.Register(3, MakeBody(100), 100, CancellationToken.None);
+
+        var activeSlots = GetActiveSlots(scheduler);
+        Assert.True(activeSlots.Contains(3));
+
+        // Cancel stream 3 while queued. The connection window never opens again afterward,
+        // simulating a stalled connection — a deferred-dispose discipline would leave the
+        // cancelled slot (and its pooled buffer) alive until Cleanup(); the correct discipline
+        // disposes it immediately, matching MultiplexedBodyPump.
+        scheduler.Cancel(3);
+
+        Assert.False(activeSlots.Contains(3));
+
+        // Opening the window afterward must not resurrect or emit anything for stream 3.
+        flow.OnSendWindowUpdate(0, 65535);
+        scheduler.OnWindowUpdate(0);
+
+        Assert.DoesNotContain(3, target.Completed);
+        Assert.DoesNotContain(target.Emitted, e => e.StreamId == 3);
+    }
+
+    private static IDictionary GetActiveSlots(FlowControlledBodyPump scheduler)
+    {
+        var field = typeof(FlowControlledBodyPump).GetField("_activeSlots", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (IDictionary)field.GetValue(scheduler)!;
     }
 
     [Fact(Timeout = 5000)]
