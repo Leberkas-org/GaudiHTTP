@@ -464,27 +464,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             return;
         }
 
-        if (_decoder.CurrentBodyReader is { IsCompleted: false })
-        {
-            if (_bodyStreaming)
-            {
-                _bodyStreaming = false;
-                _activeStreamingReader = null;
-                if (_bodyReadTimerActive)
-                {
-                    _ops.OnCancelTimer(BodyReadTimer);
-                    _bodyReadTimerActive = false;
-                }
-            }
-
-            _draining = true;
-            Tracing.For("Protocol").Debug(this, "draining unconsumed request body");
-
-            if (_bodyConsumptionTimeout > TimeSpan.Zero)
-            {
-                _ops.OnScheduleTimer(BodyConsumptionTimer, _bodyConsumptionTimeout);
-            }
-        }
+        ScheduleRequestBodyDrainIfUnconsumed();
 
         if (gaudiBody is not null)
         {
@@ -519,6 +499,39 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             // No streamed body feature to drain: recycle the feature collection now.
             CompleteResponse(features);
+        }
+    }
+
+    /// <summary>
+    /// A response is being sent while the previous request's body is still unconsumed by the
+    /// handler. HTTP/1.1 pipelining matches responses to requests by wire position (RFC 9112
+    /// §9.3.2), so the leftover request bytes must be drained off the wire before the next
+    /// request can be parsed — otherwise they would be misread as the start of the next request.
+    /// </summary>
+    private void ScheduleRequestBodyDrainIfUnconsumed()
+    {
+        if (_decoder.CurrentBodyReader is not { IsCompleted: false })
+        {
+            return;
+        }
+
+        if (_bodyStreaming)
+        {
+            _bodyStreaming = false;
+            _activeStreamingReader = null;
+            if (_bodyReadTimerActive)
+            {
+                _ops.OnCancelTimer(BodyReadTimer);
+                _bodyReadTimerActive = false;
+            }
+        }
+
+        _draining = true;
+        Tracing.For("Protocol").Debug(this, "draining unconsumed request body");
+
+        if (_bodyConsumptionTimeout > TimeSpan.Zero)
+        {
+            _ops.OnScheduleTimer(BodyConsumptionTimer, _bodyConsumptionTimeout);
         }
     }
 
