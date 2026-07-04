@@ -314,6 +314,92 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
         TryPushRequest();
     }
 
+    void IServerStageOperations.OnOutbound(ITransportOutbound item)
+    {
+        _outboundQueue.Enqueue(item);
+        TryPushOutbound();
+    }
+
+    void IServerStageOperations.OnScheduleTimer(string name, TimeSpan delay)
+        => ScheduleOnce(name, delay);
+
+    void IServerStageOperations.OnCancelTimer(string name)
+        => CancelTimer(name);
+
+    ILoggingAdapter IServerStageOperations.Log => Log;
+
+    IActorRef IServerStageOperations.StageActor => _stageActor;
+
+    bool IServerStageOperations.HasPendingDemand => _outboundQueue.Count == 0 && IsAvailable(_outNetwork);
+
+    IMaterializer IServerStageOperations.Materializer => Materializer;
+
+    IServiceProvider? IServerStageOperations.Services => _services;
+
+    GaudiHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
+
+    TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
+
+    void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
+    {
+        FeatureCollectionFactory.Return(features);
+    }
+
+    private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;
+
+    private void TryPushRequest()
+    {
+        if (_requestQueue.Count > 0 && IsAvailable(_outRequest) && CanDispatch)
+        {
+            Push(_outRequest, _requestQueue.Dequeue());
+            _handlerInFlight++;
+        }
+    }
+
+    private void TryPushOutbound()
+    {
+        if (_outboundQueue.Count > 0 && IsAvailable(_outNetwork))
+        {
+            PushOutbound();
+        }
+    }
+
+    private void PushOutbound()
+    {
+        Push(_outNetwork, _outboundQueue.Dequeue());
+        _sm.OnOutboundFlushed();
+
+        if (_completeAfterFlush && _outboundQueue.Count == 0)
+        {
+            CompleteStage();
+        }
+    }
+
+    private void CompleteAfterFlushingOutbound()
+    {
+        _completeAfterFlush = true;
+
+        if (_outboundQueue.Count == 0)
+        {
+            CompleteStage();
+            return;
+        }
+
+        // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
+        // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
+        TryPushOutbound();
+    }
+
+    private void TryPullResponse()
+    {
+        if (_sm.CanAcceptResponse
+            && !HasBeenPulled(_inResponse)
+            && !IsClosed(_inResponse))
+        {
+            Pull(_inResponse);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void OnRequestInstrumented(IFeatureCollection features)
     {
@@ -414,92 +500,6 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
         {
             Tracing.StopConnectionActivity(activity, error: null);
             _connectionActivity = null;
-        }
-    }
-
-    void IServerStageOperations.OnOutbound(ITransportOutbound item)
-    {
-        _outboundQueue.Enqueue(item);
-        TryPushOutbound();
-    }
-
-    void IServerStageOperations.OnScheduleTimer(string name, TimeSpan delay)
-        => ScheduleOnce(name, delay);
-
-    void IServerStageOperations.OnCancelTimer(string name)
-        => CancelTimer(name);
-
-    ILoggingAdapter IServerStageOperations.Log => Log;
-
-    IActorRef IServerStageOperations.StageActor => _stageActor;
-
-    bool IServerStageOperations.HasPendingDemand => _outboundQueue.Count == 0 && IsAvailable(_outNetwork);
-
-    IMaterializer IServerStageOperations.Materializer => Materializer;
-
-    IServiceProvider? IServerStageOperations.Services => _services;
-
-    GaudiHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
-
-    TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
-
-    void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
-    {
-        FeatureCollectionFactory.Return(features);
-    }
-
-    private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;
-
-    private void TryPushRequest()
-    {
-        if (_requestQueue.Count > 0 && IsAvailable(_outRequest) && CanDispatch)
-        {
-            Push(_outRequest, _requestQueue.Dequeue());
-            _handlerInFlight++;
-        }
-    }
-
-    private void TryPushOutbound()
-    {
-        if (_outboundQueue.Count > 0 && IsAvailable(_outNetwork))
-        {
-            PushOutbound();
-        }
-    }
-
-    private void PushOutbound()
-    {
-        Push(_outNetwork, _outboundQueue.Dequeue());
-        _sm.OnOutboundFlushed();
-
-        if (_completeAfterFlush && _outboundQueue.Count == 0)
-        {
-            CompleteStage();
-        }
-    }
-
-    private void CompleteAfterFlushingOutbound()
-    {
-        _completeAfterFlush = true;
-
-        if (_outboundQueue.Count == 0)
-        {
-            CompleteStage();
-            return;
-        }
-
-        // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
-        // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
-        TryPushOutbound();
-    }
-
-    private void TryPullResponse()
-    {
-        if (_sm.CanAcceptResponse
-            && !HasBeenPulled(_inResponse)
-            && !IsClosed(_inResponse))
-        {
-            Pull(_inResponse);
         }
     }
 

@@ -12,6 +12,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
     where TSM : IClientStateMachine
 {
     private const string TraceCategory = "Stage";
+    private const string DrainCompleteTimerKey = "drain-complete";
 
     private readonly Inlet<ITransportInbound> _inNetwork;
     private readonly Outlet<HttpResponseMessage> _outResponse;
@@ -285,8 +286,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
             Pull(_inRequest);
         }
     }
-
-    private const string DrainCompleteTimerKey = "drain-complete";
 
     private void TryCompleteAfterAllResponses()
     {
