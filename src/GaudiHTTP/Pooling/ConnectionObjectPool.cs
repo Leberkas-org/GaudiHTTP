@@ -14,26 +14,30 @@ internal sealed class ConnectionObjectPool
 
     public T Rent<T>(Func<T> factory) where T : class, IResetable
     {
-        var obj = GetPool(factory).Get();
+        var holder = GetHolder<T>();
+        holder.Policy.EnsureFactory(factory);
+        var obj = holder.Pool.Get();
         obj.OnRented();
         return obj;
     }
 
+    // Must never require a factory: pooled objects self-return on Dispose, and the first pool
+    // touch for a type may be a Return (an object constructed directly rather than rented).
+    // The factory is latched later by the first Rent.
     public void Return<T>(T obj) where T : class, IResetable
+        => GetHolder<T>().Pool.Return(obj);
+
+    private PoolHolder<T> GetHolder<T>() where T : class, IResetable
+        => (PoolHolder<T>)_pools.GetOrAdd(typeof(T), static _ => new PoolHolder<T>());
+
+    private sealed class PoolHolder<T> where T : class, IResetable
     {
-        // No Rent<T> has created the pool yet (e.g. a directly-constructed instance is disposed).
-        // Treat it like returning to a full pool: reset and discard.
-        if (_pools.TryGetValue(typeof(T), out var pool))
+        public readonly ResettablePoolPolicy<T> Policy = new(null);
+        public readonly ObjectPool<T> Pool;
+
+        public PoolHolder()
         {
-            ((ObjectPool<T>)pool).Return(obj);
-        }
-        else
-        {
-            obj.Reset();
+            Pool = new DefaultObjectPool<T>(Policy, maximumRetained: 256);
         }
     }
-
-    private ObjectPool<T> GetPool<T>(Func<T> factory) where T : class, IResetable
-        => (ObjectPool<T>)_pools.GetOrAdd(typeof(T),
-            _ => new DefaultObjectPool<T>(new ResettablePoolPolicy<T>(factory), maximumRetained: 256));
 }
