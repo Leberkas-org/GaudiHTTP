@@ -50,7 +50,7 @@ public sealed class Http11ClientReceiveBackpressureSpec
     private static (Http11ClientStateMachine Sm, FakeClientOps Ops) NewClientWithStreamingResponse(int chunks)
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, new GaudiClientOptions());
+        var sm = new Http11ClientStateMachine(new GaudiClientOptions(), ops);
         sm.PreStart();
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "http://example.com/download") { Version = new Version(1, 1) });
 

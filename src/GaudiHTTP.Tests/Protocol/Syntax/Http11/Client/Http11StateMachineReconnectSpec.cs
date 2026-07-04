@@ -48,7 +48,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_start_reconnect_on_disconnect_with_inflight_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest("/a"));
         sm.OnRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -65,7 +65,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_set_CanAcceptRequest_false_when_reconnecting()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -78,7 +78,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_replay_buffered_requests_on_connection_restored()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest("/a"));
         sm.OnRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -97,7 +97,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_fail_requests_when_max_reconnect_attempts_exceeded()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig(maxReconnectAttempts: 1));
+        var sm = new Http11ClientStateMachine(MakeConfig(maxReconnectAttempts: 1), ops);
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
 
@@ -116,7 +116,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_emit_new_connect_when_reconnect_attempt_under_limit()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig(maxReconnectAttempts: 3));
+        var sm = new Http11ClientStateMachine(MakeConfig(maxReconnectAttempts: 3), ops);
         sm.OnRequest(MakeRequest());
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));

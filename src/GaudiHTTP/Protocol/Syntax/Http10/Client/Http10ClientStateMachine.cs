@@ -52,7 +52,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public RequestEndpoint Endpoint { get; private set; }
 
-    public Http10ClientStateMachine(IClientStageOperations ops, GaudiClientOptions options)
+    public Http10ClientStateMachine(GaudiClientOptions options, IClientStageOperations ops)
     {
         _ops = ops;
         _options = options;

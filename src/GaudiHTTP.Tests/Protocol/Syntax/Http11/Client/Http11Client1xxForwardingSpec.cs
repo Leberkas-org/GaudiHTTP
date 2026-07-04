@@ -26,7 +26,7 @@ public sealed class Http11Client1xxForwardingSpec
     public void Client_should_forward_100_continue_to_ops()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Post, "http://example.com/upload"));
 
         sm.DecodeServerData(Make("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
@@ -41,7 +41,7 @@ public sealed class Http11Client1xxForwardingSpec
     public void Client_should_forward_103_early_hints_to_ops()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
 
         sm.DecodeServerData(Make(

@@ -55,10 +55,10 @@ public sealed class Http11ClientBodyBackpressureSpec
     private static (Http11ClientStateMachine Sm, FakeClientOps Ops, CountingStream Body) CreatePostedRequest()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, new GaudiClientOptions
+        var sm = new Http11ClientStateMachine(new GaudiClientOptions
         {
             RequestBodyChunkSize = ChunkSize,
-        });
+        }, ops);
         sm.PreStart();
 
         var body = new CountingStream(BodySize);

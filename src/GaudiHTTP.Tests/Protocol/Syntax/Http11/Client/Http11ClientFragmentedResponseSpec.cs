@@ -37,7 +37,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_response_when_header_line_split_across_two_reads()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         const string full = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\nOK";
@@ -55,7 +55,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_response_when_status_line_split_across_two_reads()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         const string full = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
@@ -73,7 +73,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_second_pipelined_response_when_split_after_first()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(ops, MakeConfig());
+        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 

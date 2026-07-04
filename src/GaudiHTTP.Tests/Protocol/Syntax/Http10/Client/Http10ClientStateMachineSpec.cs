@@ -37,7 +37,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_should_set_endpoint_on_first_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         sm.OnRequest(MakeRequest("http://example.com:8080/path"));
 
@@ -51,7 +51,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_should_emit_transport_data()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -63,7 +63,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_should_set_in_flight_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -75,7 +75,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void DecodeServerData_should_decode_complete_response()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
@@ -91,7 +91,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void DecodeServerData_should_set_request_message_on_response()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         var originalRequest = MakeRequest("http://example.com/test");
         sm.OnRequest(originalRequest);
 
@@ -109,7 +109,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void StateMachine_should_handle_full_request_response_cycle()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         var request = MakeRequest("http://example.com/path");
         sm.OnRequest(request);
@@ -132,7 +132,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void CanAcceptRequest_should_return_false_with_in_flight_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         Assert.False(sm.CanAcceptRequest);
@@ -143,7 +143,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void CanAcceptRequest_should_return_true_when_idle()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         Assert.True(sm.CanAcceptRequest);
     }
@@ -153,7 +153,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void Cleanup_should_clear_in_flight_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         sm.Cleanup();
@@ -166,7 +166,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_with_known_cl_body_should_emit_headers_then_stream_body_via_pump()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
@@ -206,7 +206,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         // configured RequestBodyChunkSize. A small configured size must split the body.
         var config = new GaudiClientOptions { RequestBodyChunkSize = 4 };
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, config);
+        var sm = new Http10ClientStateMachine(config, ops);
         sm.PreStart();
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
@@ -233,7 +233,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_with_unknown_cl_body_should_fail_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
         // Use a non-seekable stream wrapper so ContentLength is null — triggers the rejection path.
@@ -282,7 +282,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void OnRequest_with_body_should_block_CanAcceptRequest_until_body_complete()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
@@ -298,7 +298,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void DecodeServerData_should_stream_connection_close_response_immediately()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
@@ -314,7 +314,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public void DecodeServerData_should_allow_new_request_after_connection_close_response()
     {
         var ops = new FakeClientOps();
-        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        var sm = new Http10ClientStateMachine(MakeConfig(), ops);
         sm.OnRequest(MakeRequest());
 
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");

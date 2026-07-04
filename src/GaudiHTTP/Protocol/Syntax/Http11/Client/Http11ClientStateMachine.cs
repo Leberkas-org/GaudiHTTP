@@ -63,8 +63,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     internal RequestEndpoint Endpoint { get; private set; }
 
     public Http11ClientStateMachine(
-        IClientStageOperations ops,
-        GaudiClientOptions options)
+        GaudiClientOptions options,
+        IClientStageOperations ops)
     {
         _ops = ops;
         _options = options;
