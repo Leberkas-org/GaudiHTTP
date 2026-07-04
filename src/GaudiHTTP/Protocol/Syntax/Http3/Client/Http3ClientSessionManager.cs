@@ -28,15 +28,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     private readonly Http3ClientEncoder _requestEncoder;
     private readonly QpackTableSync _tableSync;
 
-    // Connection-level outbound credit for the multiplexed body pump. Each emitted DATA frame
-    // consumes one unit; the transport replenishes one unit per drained outbound item via
-    // OnOutboundFlushed. Caps the in-flight (emitted-but-unflushed) 16 KB frames per connection,
-    // keeping the shared array pool warm instead of exhausting it under concurrent uploads.
-    private const int OutboundBodyCapacity = 16;
-
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private MultiplexedBodyPump? _pump;
+    private readonly Http3OutboundWriter _writer;
 
     private bool _controlPrefaceSent;
     private bool _transportConnected;
@@ -77,6 +71,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         {
             OnStreamClosedCallback = OnStreamClosed
         };
+
+        _writer = new Http3OutboundWriter(
+            this, _connectionCts, _options.ResolveRequestBodyChunkSize(_options.Http3));
     }
 
     private void OnStreamClosed(long streamId)
@@ -171,9 +168,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         // Ensure the stream state is registered before the pump starts delivering completions.
         _streamManager.GetOrCreateStreamState(streamId);
         _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts,
-            _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
-        _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
+        _writer.Register(streamId, bodyStream!, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
@@ -181,11 +176,11 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         switch (msg)
         {
             case BodyReadComplete<long> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _writer.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case BodyReadFailed<long> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _writer.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
             case AbandonedResponseBody abandoned:
@@ -208,28 +203,10 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
         _controlPrefaceSent = true;
 
-        var settings = new Settings();
-        settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
-        settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
-        settings.Set(SettingsIdentifier.MaxFieldSectionSize, _decoderOptions.MaxFieldSectionSize);
-        var settingsFrame = settings.ToFrame();
-
-        var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);
-        var frameSize = settingsFrame.SerializedSize;
-        var totalSize = streamTypeSize + frameSize;
-
-        using var owner = MemoryPool<byte>.Shared.Rent(totalSize);
-        var span = owner.Memory.Span;
-
-        var written = QuicVarInt.Encode((long)StreamType.Control, span);
-        span = span[written..];
-        settingsFrame.WriteTo(ref span);
-
-        var buf = TransportBuffer.Rent(totalSize);
-        owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
-        buf.Length = totalSize;
-
-        return MultiplexedData.Rent(buf, CriticalStreamId.Control);
+        return Http3OutboundWriter.BuildControlPreface(
+            _encoderOptions.QpackMaxTableCapacity,
+            _encoderOptions.QpackBlockedStreams,
+            _decoderOptions.MaxFieldSectionSize);
     }
 
     public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
@@ -288,7 +265,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     public void OnOutboundFlushed()
     {
-        _pump?.OnCapacityAvailable();
+        _writer.OnCapacityAvailable();
     }
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()
@@ -311,7 +288,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         EmitOutbound(new ResetStream(streamId, 0x10C));
         _streamManager.RemoveCorrelation(streamId);
         request.Fail(new OperationCanceledException("Request cancelled by caller."));
-        _pump?.Cancel(streamId);
+        _writer.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
 
         return true;
@@ -328,7 +305,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     public void Cleanup()
     {
-        _pump?.Cleanup();
+        _writer.Cleanup();
         _drainContentOwners.Clear();
 
         _streamManager.Dispose();
@@ -411,22 +388,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
             return;
         }
 
-        var typeVarIntLen = QuicVarInt.EncodedLength((long)FrameType.Data);
-        var payloadVarIntLen = QuicVarInt.EncodedLength(body.Length);
-        var prefixSize = typeVarIntLen + payloadVarIntLen;
-        var totalWireSize = prefixSize + body.Length;
-
-        var buf = TransportBuffer.Rent(totalWireSize);
-        var span = buf.FullMemory.Span;
-
-        QuicVarInt.Encode((long)FrameType.Data, span);
-        span = span[typeVarIntLen..];
-        QuicVarInt.Encode(body.Length, span);
-        span = span[payloadVarIntLen..];
-        body.Span.CopyTo(span);
-
-        buf.Length = totalWireSize;
-        EmitOutbound(MultiplexedData.Rent(buf, streamId));
+        Http3OutboundWriter.EmitDataFrame(EmitOutbound, streamId, body);
 
         if (endStream)
         {
