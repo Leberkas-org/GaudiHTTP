@@ -7,14 +7,14 @@ namespace GaudiHTTP.Streams.Stages.Server;
 
 internal sealed class ServerConnectionShape(
     Inlet<ITransportInbound> inNetwork,
-    Outlet<IFeatureCollection> outResponse,
-    Inlet<IFeatureCollection> inRequest,
+    Outlet<IFeatureCollection> outRequest,
+    Inlet<IFeatureCollection> inResponse,
     Outlet<ITransportOutbound> outNetwork)
     : Shape
 {
     public Inlet<ITransportInbound> InNetwork { get; } = inNetwork;
-    public Outlet<IFeatureCollection> OutRequest { get; } = outResponse;
-    public Inlet<IFeatureCollection> InResponse { get; } = inRequest;
+    public Outlet<IFeatureCollection> OutRequest { get; } = outRequest;
+    public Inlet<IFeatureCollection> InResponse { get; } = inResponse;
     public Outlet<ITransportOutbound> OutNetwork { get; } = outNetwork;
 
     public override ImmutableArray<Inlet> Inlets => [InNetwork, InResponse];
