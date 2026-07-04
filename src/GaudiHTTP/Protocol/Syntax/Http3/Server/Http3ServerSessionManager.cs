@@ -504,33 +504,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 {
                     case HeadersFrame headersFrame:
                         {
-                            if (state.GetRequestFeature() is not null)
-                            {
-                                _requestDecoder.DecodeTrailers(headersFrame, state);
-                                state.FeedBody([], endStream: true);
-                            }
-                            else
-                            {
-                                var requestFeature =
-                                    _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
-                                if (requestFeature is not null)
-                                {
-                                    state.InitRequestFeature(requestFeature);
-                                }
-                                else
-                                {
-                                    if (state.GetRequestFeature() is null)
-                                    {
-                                        // QPACK-blocked: the header block is queued in the table sync
-                                        // awaiting encoder-stream instructions. Mark it so the FIN is
-                                        // deferred and ProcessQpackEncoderStream redrives dispatch.
-                                        state.IsHeadersBlocked = true;
-                                    }
-
-                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
-                                }
-                            }
-
+                            HandleHeadersFrame(state, headersFrame);
                             break;
                         }
 
@@ -552,17 +526,11 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                         }
                 }
             }
-            catch (QpackException ex)
+            catch (Exception ex) when (ex is QpackException or HuffmanException)
             {
+                var kind = ex is QpackException ? "QPACK" : "Huffman";
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 QPACK error on stream {0} - closing connection: {1}", streamId, ex.Message);
-                ShouldComplete = true;
-                return;
-            }
-            catch (HuffmanException ex)
-            {
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 Huffman error on stream {0} - closing connection: {1}", streamId, ex.Message);
+                    "HTTP/3 {0} error on stream {1} - closing connection: {2}", kind, streamId, ex.Message);
                 ShouldComplete = true;
                 return;
             }
@@ -580,6 +548,38 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 (frame as IDisposable)?.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Triages a HEADERS frame on a request stream: trailers if a request feature already
+    /// exists, otherwise a request-headers decode that either dispatches, blocks on QPACK
+    /// (until the encoder stream resolves it), or is still awaiting continuation.
+    /// </summary>
+    private void HandleHeadersFrame(StreamState state, HeadersFrame headersFrame)
+    {
+        if (state.GetRequestFeature() is not null)
+        {
+            _requestDecoder.DecodeTrailers(headersFrame, state);
+            state.FeedBody([], endStream: true);
+            return;
+        }
+
+        var requestFeature = _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
+        if (requestFeature is not null)
+        {
+            state.InitRequestFeature(requestFeature);
+            return;
+        }
+
+        if (state.GetRequestFeature() is null)
+        {
+            // QPACK-blocked: the header block is queued in the table sync
+            // awaiting encoder-stream instructions. Mark it so the FIN is
+            // deferred and ProcessQpackEncoderStream redrives dispatch.
+            state.IsHeadersBlocked = true;
+        }
+
+        _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
     }
 
     private void HandleSettingsFrame(SettingsFrame settings)
