@@ -11,8 +11,6 @@ internal sealed class FlowControlledBodyPump(
     int chunkSize,
     int hardCap)
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
     private readonly Queue<int> _readyQueue = new();
     private readonly Dictionary<int, PumpSlot<int>> _activeSlots = new();
     private readonly HashSet<int> _cancelledStreams = new();
@@ -143,27 +141,6 @@ internal sealed class FlowControlledBodyPump(
         slot.Dispose();
     }
 
-    public void HandleBodyReadContinue(int streamId)
-    {
-        if (!_activeSlots.TryGetValue(streamId, out var slot))
-        {
-            return;
-        }
-
-        slot.ResetSyncReads();
-
-        if (slot.IsOrphaned)
-        {
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
-            return;
-        }
-
-        _readyQueue.Enqueue(streamId);
-        TryScheduleReads();
-    }
-
     public void Cancel(int streamId)
     {
         if (!_activeSlots.TryGetValue(streamId, out var slot))
@@ -250,14 +227,6 @@ internal sealed class FlowControlledBodyPump(
                 continue;
             }
 
-            if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
-            {
-                slot.ResetSyncReads();
-                slot.BeginRead();  // marks as in-flight for yield
-                target.StageActor.Tell(new BodyReadContinue<int>(slot.StreamId), ActorRefs.NoSender);
-                continue;
-            }
-
             slot.EnsureBuffer(chunkSize);
 
             StartRead(slot);
@@ -283,7 +252,6 @@ internal sealed class FlowControlledBodyPump(
             // result. The slot stays IsReadInFlight (from BeginRead) and counted in _asyncInFlight
             // across the mailbox hop so HandleReadComplete's CompleteRead/_asyncInFlight-- balance
             // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
-            slot.ResetSyncReads();
             _asyncInFlight++;
             target.StageActor.Tell(
                 slot.CachedSuccessTransform!(vt.Result),
@@ -291,7 +259,6 @@ internal sealed class FlowControlledBodyPump(
             return;
         }
 
-        slot.ResetSyncReads();
         _asyncInFlight++;
         vt.PipeTo(
             target.StageActor,

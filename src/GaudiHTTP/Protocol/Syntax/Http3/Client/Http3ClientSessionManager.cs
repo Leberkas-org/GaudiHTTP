@@ -180,10 +180,6 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     {
         switch (msg)
         {
-            case BodyReadContinue<long> cont:
-                _pump?.HandleBodyReadContinue(cont.StreamId);
-                break;
-
             case BodyReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;

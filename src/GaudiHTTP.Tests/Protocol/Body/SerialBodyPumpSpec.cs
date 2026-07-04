@@ -60,9 +60,6 @@ public sealed class SerialBodyPumpSpec
                 case BodyReadComplete<int> rc:
                     pump.HandleReadComplete(rc.BytesRead);
                     break;
-                case BodyReadContinue<int>:
-                    pump.HandleBodyReadContinue();
-                    break;
             }
         }
     }
@@ -70,7 +67,7 @@ public sealed class SerialBodyPumpSpec
     /// <summary>
     /// Target that calls OnCapacityAvailable() synchronously after EmitDataFrames,
     /// simulating a consumer that immediately signals capacity after each chunk.
-    /// Uses a direct-dispatch actor ref so pump messages (BodyReadComplete, BodyReadContinue)
+    /// Uses a direct-dispatch actor ref so pump messages (BodyReadComplete)
     /// are processed inline as they arrive — no external drain loop needed.
     /// </summary>
     private sealed class AutoResumeTarget : IBodyDrainTarget
@@ -118,9 +115,6 @@ public sealed class SerialBodyPumpSpec
                 {
                     case BodyReadComplete<int> rc:
                         owner._pump.HandleReadComplete(rc.BytesRead);
-                        break;
-                    case BodyReadContinue<int>:
-                        owner._pump.HandleBodyReadContinue();
                         break;
                 }
             }
@@ -193,9 +187,6 @@ public sealed class SerialBodyPumpSpec
                 case BodyReadComplete<int> rc:
                     pump.HandleReadComplete(rc.BytesRead);
                     break;
-                case BodyReadContinue<int>:
-                    pump.HandleBodyReadContinue();
-                    break;
             }
         }
 
@@ -216,9 +207,6 @@ public sealed class SerialBodyPumpSpec
                 {
                     case BodyReadComplete<int> rc:
                         pump.HandleReadComplete(rc.BytesRead);
-                        break;
-                    case BodyReadContinue<int>:
-                        pump.HandleBodyReadContinue();
                         break;
                 }
             }
@@ -299,11 +287,10 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Sync_reads_should_complete_large_body_with_starvation_guard_via_actor()
+    public void Many_consecutive_sync_reads_should_drain_fully_with_auto_resume()
     {
         var target = new AutoResumeTarget();
-        // Small chunk to trigger many sync reads; starvation guard will fire at 64 consecutive reads.
-        // The AutoResumeTarget processes BodyReadContinue messages inline, so the drain completes fully.
+        // Small chunk so the body needs dozens of consecutive sync reads to drain.
         var pump = MakePump(target, chunkSize: 16, maxCapacity: 2);
         target.SetPump(pump);
         var totalSize = 65 * 16;
@@ -311,7 +298,6 @@ public sealed class SerialBodyPumpSpec
 
         pump.Register(body, contentLength: null, CancellationToken.None);
 
-        // AutoResumeTarget processes BodyReadContinue via DrainMessages() — full body drains.
         var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.Equal(totalSize, emittedBytes);
         Assert.Single(target.Completed);
@@ -349,9 +335,6 @@ public sealed class SerialBodyPumpSpec
             {
                 case BodyReadComplete<int> rc:
                     pump.HandleReadComplete(rc.BytesRead);
-                    break;
-                case BodyReadContinue<int>:
-                    pump.HandleBodyReadContinue();
                     break;
             }
         }

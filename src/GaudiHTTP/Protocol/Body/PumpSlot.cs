@@ -13,7 +13,6 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
     public CancellationToken RequestCt { get; private set; }
     public long? ContentLength { get; set; }
     public int ReservedWindow { get; set; }
-    public int ConsecutiveSyncReads { get; private set; }
     public bool IsReadInFlight { get; private set; }
     public bool IsOrphaned { get; private set; }
 
@@ -48,21 +47,7 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
 
     public void BeginRead() => IsReadInFlight = true;
 
-    public void CompleteRead()
-    {
-        IsReadInFlight = false;
-        ConsecutiveSyncReads = 0;
-    }
-
-    public void IncrementSyncReads() => ConsecutiveSyncReads++;
-
-    public void CompleteSyncRead()
-    {
-        IsReadInFlight = false;
-        ConsecutiveSyncReads++;
-    }
-
-    public void ResetSyncReads() => ConsecutiveSyncReads = 0;
+    public void CompleteRead() => IsReadInFlight = false;
 
     public void MarkOrphaned() => IsOrphaned = true;
 
@@ -83,6 +68,5 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
         ReservedWindow = 0;
         IsReadInFlight = false;
         IsOrphaned = false;
-        ConsecutiveSyncReads = 0;
     }
 }

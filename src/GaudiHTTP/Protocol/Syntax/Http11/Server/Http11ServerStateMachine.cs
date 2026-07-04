@@ -724,10 +724,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             case BodyReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
-
-            case BodyReadContinue<int>:
-                _serialPump?.HandleBodyReadContinue();
-                break;
         }
     }
 

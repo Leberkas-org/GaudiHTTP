@@ -10,14 +10,11 @@ internal sealed class SerialBodyPump(
     int chunkSize,
     int maxCapacity)
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
     private Stream? _activeStream;
     private IMemoryOwner<byte>? _activeOwner;
     private CancellationTokenSource? _linkedCts;
     private bool _isReadInFlight;
     private int _availableCapacity;
-    private int _consecutiveSyncReads;
 
     // Serial stream id is always 0, so the read-completion transforms capture nothing and are
     // shared statically — no per-Register closure allocation.
@@ -31,7 +28,6 @@ internal sealed class SerialBodyPump(
             ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
         _availableCapacity = maxCapacity;
-        _consecutiveSyncReads = 0;
         TryStartRead();
     }
 
@@ -48,25 +44,17 @@ internal sealed class SerialBodyPump(
     public void HandleReadComplete(int bytesRead)
     {
         _isReadInFlight = false;
-        _consecutiveSyncReads = 0;
         ProcessReadResult(bytesRead);
     }
 
     public void HandleReadFailed(Exception reason)
     {
         _isReadInFlight = false;
-        _consecutiveSyncReads = 0;
         _activeOwner?.Dispose();
         _activeOwner = null;
         _activeStream = null;
         target.OnDrainFailed(0, reason);
         CompleteDrain();
-    }
-
-    public void HandleBodyReadContinue()
-    {
-        _isReadInFlight = false;
-        TryStartRead();
     }
 
     public void Cancel()
@@ -99,19 +87,6 @@ internal sealed class SerialBodyPump(
             return;
         }
 
-        // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads
-        // so the actor thread can process other messages between bursts.
-        if (_consecutiveSyncReads >= MaxSyncReadsPerDispatch)
-        {
-            _consecutiveSyncReads = 0;
-            // Use _isReadInFlight as a yield-in-progress marker so that any re-entrant
-            // call from ProcessReadResult cannot start another read while we wait for
-            // HandleBodyReadContinue to resume us.
-            _isReadInFlight = true;
-            target.StageActor.Tell(new BodyReadContinue<int>(0), ActorRefs.NoSender);
-            return;
-        }
-
         _availableCapacity--;
         var token = _linkedCts?.Token ?? connectionCts.Token;
         _isReadInFlight = true;
@@ -124,12 +99,10 @@ internal sealed class SerialBodyPump(
             // processed. Keep _isReadInFlight = true across the mailbox hop (exactly like the
             // PipeTo path below) so an interleaved OnCapacityAvailable -> TryStartRead cannot
             // start the next read before HandleReadComplete hands off the current owner.
-            _consecutiveSyncReads = 0;
             target.StageActor.Tell(CachedSuccess(vt.Result), ActorRefs.NoSender);
             return;
         }
 
-        _consecutiveSyncReads = 0;
         vt.PipeTo(
             target.StageActor,
             success: CachedSuccess,

@@ -212,10 +212,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             case BodyReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
-
-            case BodyReadContinue<int>:
-                _serialPump?.HandleBodyReadContinue();
-                break;
         }
     }
 

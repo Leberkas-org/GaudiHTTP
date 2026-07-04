@@ -391,10 +391,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     {
         switch (msg)
         {
-            case BodyReadContinue<int> dc:
-                _pump?.HandleBodyReadContinue(dc.StreamId);
-                break;
-
             case BodyReadComplete<int> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;

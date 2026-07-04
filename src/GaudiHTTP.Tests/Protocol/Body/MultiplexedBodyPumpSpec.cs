@@ -64,9 +64,6 @@ public sealed class MultiplexedBodyPumpSpec
                 case BodyReadComplete<long> rc:
                     pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
                     break;
-                case BodyReadContinue<long> dc:
-                    pump.HandleBodyReadContinue(dc.StreamId);
-                    break;
             }
         }
     }
@@ -90,9 +87,6 @@ public sealed class MultiplexedBodyPumpSpec
             {
                 case BodyReadComplete<long> rc:
                     pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
-                    break;
-                case BodyReadContinue<long> dc:
-                    pump.HandleBodyReadContinue(dc.StreamId);
                     break;
             }
         }
@@ -199,19 +193,18 @@ public sealed class MultiplexedBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Sync_reads_should_drain_body_larger_than_starvation_threshold()
+    public void Many_consecutive_sync_reads_should_drain_fully()
     {
         var target = new FakeTarget();
-        // Use small chunk so many sync reads happen
+        // Small chunk so the body needs dozens of consecutive sync reads to drain.
         var pump = MakePump(target, chunkSize: 16);
 
         pump.Register(1L, MakeBody(65 * 16), contentLength: null, CancellationToken.None);
-        // Starvation guard fires at 64 consecutive reads and dispatches BodyReadContinue.
-        // DrainToCompletion processes those messages to drive the pump to completion.
         DrainToCompletion(pump, target);
 
         var total = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
-        Assert.True(total > 0, "Expected at least some data emitted before starvation guard fired");
+        Assert.Equal(65 * 16, total);
+        Assert.Single(target.Completed);
     }
 
     [Fact(Timeout = 5000)]

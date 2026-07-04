@@ -89,9 +89,6 @@ public sealed class FlowControlledBodyPumpSpec
                 case BodyReadComplete<int> rc:
                     scheduler.HandleReadComplete(rc.StreamId, rc.BytesRead);
                     break;
-                case BodyReadContinue<int> dc:
-                    scheduler.HandleBodyReadContinue(dc.StreamId);
-                    break;
             }
         }
     }

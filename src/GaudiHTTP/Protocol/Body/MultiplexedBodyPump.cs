@@ -10,8 +10,6 @@ internal sealed class MultiplexedBodyPump(
     int maxCapacity,
     int maxConcurrentReads = 4)
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
     private readonly Queue<long> _readyQueue = new();
     private readonly Dictionary<long, PumpSlot<long>> _activeSlots = new();
 
@@ -94,28 +92,6 @@ internal sealed class MultiplexedBodyPump(
         TryScheduleReads();
     }
 
-    public void HandleBodyReadContinue(long streamId)
-    {
-        if (!_activeSlots.TryGetValue(streamId, out var slot))
-        {
-            return;
-        }
-
-        // Clear counter and in-flight marker set by starvation guard
-        slot.ResetSyncReads();
-
-        if (slot.IsOrphaned)
-        {
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
-            return;
-        }
-
-        _readyQueue.Enqueue(streamId);
-        TryScheduleReads();
-    }
-
     public void Cancel(long streamId)
     {
         if (!_activeSlots.TryGetValue(streamId, out var slot))
@@ -168,19 +144,6 @@ internal sealed class MultiplexedBodyPump(
                 continue;
             }
 
-            // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads so
-            // the actor thread can process other messages between bursts. This yield does not emit
-            // a frame, so it must not consume outbound credit.
-            if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
-            {
-                slot.ResetSyncReads();
-                // Use BeginRead as a yield-in-progress marker so re-entrant calls from
-                // ProcessReadResult cannot start another read while waiting for HandleBodyReadContinue.
-                slot.BeginRead();
-                target.StageActor.Tell(new BodyReadContinue<long>(slot.StreamId), ActorRefs.NoSender);
-                continue;
-            }
-
             _availableCapacity--;
             slot.EnsureBuffer(chunkSize);
 
@@ -200,7 +163,6 @@ internal sealed class MultiplexedBodyPump(
             // result. The slot stays IsReadInFlight (from BeginRead) and counted in _asyncInFlight
             // across the mailbox hop so HandleReadComplete's CompleteRead/_asyncInFlight-- balance
             // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
-            slot.ResetSyncReads();
             _asyncInFlight++;
             target.StageActor.Tell(
                 slot.CachedSuccessTransform!(vt.Result),
@@ -208,7 +170,6 @@ internal sealed class MultiplexedBodyPump(
             return;
         }
 
-        slot.ResetSyncReads();
         _asyncInFlight++;
         vt.PipeTo(
             target.StageActor,
