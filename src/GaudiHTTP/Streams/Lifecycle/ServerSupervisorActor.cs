@@ -19,7 +19,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
     private readonly ILoggingAdapter _log = Context.GetLogger();
     private readonly List<ServerListenerHandle> _handles = [];
     private readonly List<IActorRef> _listenerActors = [];
-    private readonly List<int> _boundPorts = [];
+    private int[] _boundPorts = [];
     private IActorRef _startRequester = ActorRefs.Nobody;
     private int _pendingListenerCount;
     private int _expectedListenerCount;
@@ -76,6 +76,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
         }
 
         Timers.StartSingleTimer(StartupTimerKey, new StartupTimedOut(), msg.Options.StartupTimeout);
+        _boundPorts = new int[msg.Bindings.Count];
 
         for (var i = 0; i < msg.Bindings.Count; i++)
         {
@@ -107,7 +108,11 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             return;
         }
 
-        _boundPorts.Add(msg.BoundPort);
+        var listenerIndex = _listenerActors.IndexOf(Sender);
+        if (listenerIndex >= 0)
+        {
+            _boundPorts[listenerIndex] = msg.BoundPort;
+        }
         _handles.Add(msg.Handle);
         _pendingListenerCount--;
 

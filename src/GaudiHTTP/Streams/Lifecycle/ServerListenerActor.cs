@@ -84,7 +84,7 @@ internal sealed class ServerListenerActor : ReceiveActor
         {
             if (t.IsCompletedSuccessfully)
             {
-                sender.Tell(new ListeningStarted(t.Result, handle));
+                sender.Tell(new ListeningStarted(t.Result, handle), self);
             }
             else
             {
