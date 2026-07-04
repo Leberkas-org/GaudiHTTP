@@ -138,37 +138,79 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
 
-        if (bodyStream is MemoryStream ms && ms.TryGetBuffer(out var segment))
-        {
-            var pos = (int)ms.Position;
-            var available = segment.Count - pos;
-            if (available > 0)
-            {
-                var dataFrame = new DataFrame(segment.AsMemory(pos, available));
-                EmitSerializedFrame(dataFrame, streamId);
-                EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
-                return;
-            }
-        }
-
-        if (contentLength is > 0 and { } knownLength
-            && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
-            && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
+        if (TryEmitMemoryStreamBody(streamId, bodyStream)
+            || TryEmitSerializedBodyDirect(streamId, request.Content!, contentLength)
+            || TryEmitEmptyBody(streamId, contentLength))
         {
             return;
         }
 
-        if (contentLength == 0)
+        RegisterBodyPump(streamId, request.Content!, bodyStream!);
+    }
+
+    /// <summary>
+    /// Fast path for a body already fully buffered in memory: writes it as a single DATA frame
+    /// directly from the underlying array, skipping the pump entirely. Returns false (falling
+    /// through to the next strategy) if the stream isn't a seekable in-memory buffer or has
+    /// nothing left to read at the current position.
+    /// </summary>
+    private bool TryEmitMemoryStreamBody(long streamId, Stream? bodyStream)
+    {
+        if (bodyStream is not MemoryStream ms || !ms.TryGetBuffer(out var segment))
         {
-            // Empty body: emit END_STREAM directly without involving the pump (spec invariant 7).
-            EmitBufferedDataFrames(streamId, default, endStream: true);
-            return;
+            return false;
         }
 
+        var pos = (int)ms.Position;
+        var available = segment.Count - pos;
+        if (available <= 0)
+        {
+            return false;
+        }
+
+        var dataFrame = new DataFrame(segment.AsMemory(pos, available));
+        EmitSerializedFrame(dataFrame, streamId);
+        EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+        return true;
+    }
+
+    /// <summary>
+    /// Synchronously copies a known-length, buffer-size-bounded body into a pooled array and emits
+    /// it as a single DATA frame, avoiding the pump for small bodies whose content doesn't support
+    /// zero-copy access (e.g. non-<see cref="MemoryStream"/> content).
+    /// </summary>
+    private bool TryEmitSerializedBodyDirect(long streamId, HttpContent content, long? contentLength)
+    {
+        return contentLength is > 0 and { } knownLength
+               && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
+               && TrySerializeBodyDirect(content, streamId, (int)knownLength);
+    }
+
+    /// <summary>
+    /// Emits END_STREAM directly for a declared-empty body without involving the pump
+    /// (spec invariant 7).
+    /// </summary>
+    private bool TryEmitEmptyBody(long streamId, long? contentLength)
+    {
+        if (contentLength != 0)
+        {
+            return false;
+        }
+
+        EmitBufferedDataFrames(streamId, default, endStream: true);
+        return true;
+    }
+
+    /// <summary>
+    /// Fallback strategy for a body of unknown or large length: registers it with the shared
+    /// multiplexed body pump for chunked, backpressure-aware draining.
+    /// </summary>
+    private void RegisterBodyPump(long streamId, HttpContent content, Stream bodyStream)
+    {
         // Ensure the stream state is registered before the pump starts delivering completions.
         _streamManager.GetOrCreateStreamState(streamId);
-        _drainContentOwners[streamId] = request.Content!;
-        _writer.Register(streamId, bodyStream!, CancellationToken.None);
+        _drainContentOwners[streamId] = content;
+        _writer.Register(streamId, bodyStream, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
