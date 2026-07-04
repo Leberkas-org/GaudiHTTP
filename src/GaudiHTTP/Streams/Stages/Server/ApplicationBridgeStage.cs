@@ -593,6 +593,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         public override void PostStop()
         {
+            Tracing.For("Handler").Info(this, "bridge PostStop (upstreamFinished={0}, inFlight={1})",
+                _upstreamFinished, _inFlight);
             foreach (var (_, features) in _activeFeatures)
             {
                 if (features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)

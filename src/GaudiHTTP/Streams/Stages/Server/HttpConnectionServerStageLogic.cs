@@ -530,6 +530,9 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     public override void PostStop()
     {
+        Tracing.For(TraceCategory).Info(this, "PostStop (requestQueue={0}, outboundQueue={1})",
+            _requestQueue.Count, _outboundQueue.Count);
+
         if (_metricsEnabled)
         {
             OnConnectionClosed();
