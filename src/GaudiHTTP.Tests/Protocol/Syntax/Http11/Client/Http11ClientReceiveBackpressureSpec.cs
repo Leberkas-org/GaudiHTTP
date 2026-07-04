@@ -9,7 +9,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 /// <summary>
 /// Characterizes the H1.1 client RECEIVE-side back-pressure latch surfaced by the single-connection
 /// download analysis (#4). A STREAMED (chunked) response body fills the <see cref="Protocol.Body.QueuedBodyReader"/>
-/// and latches <c>ShouldPauseNetwork</c>, which gates every socket <c>Pull(_inServer)</c>. The ONLY
+/// and latches <c>ShouldPauseNetwork</c>, which gates every socket <c>Pull(_inNetwork)</c>. The ONLY
 /// path that releases the latch is the application reading the body
 /// (<c>QueuedBodyReader.AdvanceTo → SlotFreed</c>).
 ///
