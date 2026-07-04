@@ -55,6 +55,16 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private const string SoftTimerPrefix = "soft:";
         private const string HardTimerPrefix = "hard:";
 
+        private sealed class RequestSlot
+        {
+            public required IFeatureCollection Features { get; init; }
+            public TContext? AppContext { get; set; }
+            public CancellationTokenSource? Cts { get; set; }
+            public string? SoftTimerKey { get; set; }
+            public string? HardTimerKey { get; set; }
+            public bool InGracePhase { get; set; }
+        }
+
         private readonly ApplicationBridgeStage<TContext> _stage;
         private IActorRef? _stageActor;
         private bool _upstreamFinished;
@@ -62,11 +72,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private int _sequence;
         private bool _downstreamReady;
         private readonly Queue<IFeatureCollection> _pending = new();
-        private readonly Dictionary<int, CancellationTokenSource> _activeTimeouts = [];
-        private readonly Dictionary<int, IFeatureCollection> _activeFeatures = [];
-        private readonly HashSet<int> _gracePhase = [];
-        private readonly Dictionary<int, TContext> _appContexts = [];
-        private readonly Dictionary<int, (string Soft, string Hard)> _timerKeys = [];
+        private readonly Dictionary<int, RequestSlot> _requestSlots = [];
         private readonly bool _metricsEnabled;
         private readonly int _backpressureThreshold;
         private bool _backpressureSignaled;
@@ -89,10 +95,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 {
                     Tracing.For("Handler").Info(this, "bridge upstream finished (protocol completed), inFlight={0}", _inFlight);
                     _upstreamFinished = true;
-                    if (_inFlight == 0)
-                    {
-                        CompleteStage();
-                    }
+                    TryCompleteIfDrained();
                 },
                 onUpstreamFailure: ex =>
                 {
@@ -146,70 +149,43 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private void OnSoftTimeout(int seq)
         {
-            if (!_activeTimeouts.TryGetValue(seq, out var cts))
+            if (!_requestSlots.TryGetValue(seq, out var slot))
             {
                 return;
             }
 
-            cts.Cancel();
-            _gracePhase.Add(seq);
-            if (_timerKeys.TryGetValue(seq, out var keys))
+            slot.Cts?.Cancel();
+            slot.InGracePhase = true;
+            if (slot.HardTimerKey is not null)
             {
-                ScheduleOnce(keys.Hard, _stage._handlerGracePeriod);
+                ScheduleOnce(slot.HardTimerKey, _stage._handlerGracePeriod);
             }
         }
 
         private void OnHardTimeout(int seq)
         {
-            if (!_activeTimeouts.ContainsKey(seq) || !_gracePhase.Contains(seq))
+            if (!_requestSlots.TryGetValue(seq, out var slot) || !slot.InGracePhase)
             {
                 return;
             }
 
-            if (!_activeFeatures.TryGetValue(seq, out var features))
-            {
-                return;
-            }
+            var features = slot.Features;
 
-            CleanupTimeout(seq);
-            _inFlight--;
-            if (_metricsEnabled)
-            {
-                Metrics.HandlerTimeouts().Add(1);
-                Metrics.PipelineInFlight().Add(-1);
-                ResetBackpressure();
-            }
-
-            DisposeAppContext(seq, null);
-
+            // Only emit when the response has not already gone out. A streaming handler whose headers
+            // were emitted (ResponseReady's still-running branch) already pushed these features once;
+            // re-emitting here would deliver the same response twice (double OnResponse / wire
+            // corruption / double in-flight accounting). Completing the body (inside FinishRequest)
+            // ends the stalled stream; the late HandlerFinished is swallowed because the timeout entry
+            // is gone.
             var alreadyStarted = features.Get<IHttpResponseBodyFeature>() is GaudiHttpResponseBodyFeature
             {
                 HasStarted: true
             };
 
-            if (!alreadyStarted)
-            {
-                var responseFeature = features.Get<IHttpResponseFeature>();
-                responseFeature?.StatusCode = 503;
-            }
+            FinishRequest(seq, features, error: null, failStatus: alreadyStarted ? null : 503,
+                emit: !alreadyStarted, timedOut: true);
 
-            CompleteResponseBody(features);
-            FireOnCompleted(features);
-
-            // Only emit when the response has not already gone out. A streaming handler whose headers
-            // were emitted (ResponseReady's still-running branch) already pushed these features once;
-            // re-emitting here would deliver the same response twice (double OnResponse / wire
-            // corruption / double in-flight accounting). Completing the body above ends the stalled
-            // stream; the late HandlerFinished is swallowed because the timeout entry is gone.
-            if (!alreadyStarted)
-            {
-                Emit(features);
-            }
-
-            if (_upstreamFinished && _inFlight == 0)
-            {
-                CompleteStage();
-            }
+            TryCompleteIfDrained();
         }
 
         private void OnPush()
@@ -230,17 +206,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
             catch (Exception)
             {
-                _inFlight--;
-                if (_metricsEnabled)
-                {
-                    Metrics.PipelineInFlight().Add(-1);
-                }
-
-                var responseFeature = features.Get<IHttpResponseFeature>();
-                responseFeature?.StatusCode = 500;
-                CompleteResponseBody(features);
-                FireOnCompleted(features);
-                Emit(features);
+                FinishRequest(seq, features, error: null, failStatus: 500, emit: true,
+                    cleanupSlot: false, resetBackpressure: false);
             }
 
             TryPullNext();
@@ -252,40 +219,26 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             try
             {
                 appContext = _stage._application.CreateContext(ContainerFor(features));
-                _appContexts[seq] = appContext;
             }
             catch (Exception)
             {
-                _inFlight--;
-                var responseFeature = features.Get<IHttpResponseFeature>();
-                responseFeature?.StatusCode = 500;
-                CompleteResponseBody(features);
-                FireOnCompleted(features);
-                Emit(features);
+                FinishRequest(seq, features, error: null, failStatus: 500, emit: true,
+                    cleanupSlot: false, trackMetrics: false);
                 return;
             }
+
+            var slot = new RequestSlot { Features = features, AppContext = appContext };
+            _requestSlots[seq] = slot;
 
             var task = _stage._application.ProcessRequestAsync(appContext);
 
             if (task.IsCompletedSuccessfully)
             {
-                _inFlight--;
-                _stage._application.DisposeContext(appContext, null);
-                _appContexts.Remove(seq);
-                CompleteResponseBody(features);
-                FireOnCompleted(features);
-                Emit(features);
+                FinishRequest(seq, features, error: null, failStatus: null, emit: true, trackMetrics: false);
             }
             else if (task.IsFaulted)
             {
-                _inFlight--;
-                var responseFeature = features.Get<IHttpResponseFeature>();
-                responseFeature?.StatusCode = 500;
-                _stage._application.DisposeContext(appContext, task.Exception);
-                _appContexts.Remove(seq);
-                CompleteResponseBody(features);
-                FireOnCompleted(features);
-                Emit(features);
+                FinishRequest(seq, features, error: task.Exception, failStatus: 500, emit: true, trackMetrics: false);
             }
             else
             {
@@ -303,9 +256,9 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     HardTimerPrefix.AsSpan().CopyTo(span);
                     s.TryFormat(span[HardTimerPrefix.Length..], out _);
                 });
-                _timerKeys[seq] = (softKey, hardKey);
-                _activeTimeouts[seq] = cts;
-                _activeFeatures[seq] = features;
+                slot.Cts = cts;
+                slot.SoftTimerKey = softKey;
+                slot.HardTimerKey = hardKey;
                 ScheduleOnce(softKey, _stage._handlerTimeout);
 
                 var bodyFeature = features.Get<IHttpResponseBodyFeature>() as GaudiHttpResponseBodyFeature;
@@ -331,30 +284,15 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             switch (args.msg)
             {
                 case ResponseReady(var seq, var features, var handlerTask):
-                    if (handlerTask.IsFaulted &&
-                        features.Get<IHttpResponseBodyFeature>() is not GaudiHttpResponseBodyFeature
-                        {
-                            HasStarted: true
-                        })
-                    {
-                        var responseFeature = features.Get<IHttpResponseFeature>();
-                        responseFeature?.StatusCode = 500;
-                    }
-
                     if (handlerTask.IsCompleted)
                     {
-                        CompleteResponseBody(features);
-                        FireOnCompleted(features);
-                        _inFlight--;
-                        if (_metricsEnabled)
+                        var notStarted = features.Get<IHttpResponseBodyFeature>() is not GaudiHttpResponseBodyFeature
                         {
-                            Metrics.PipelineInFlight().Add(-1);
-                            ResetBackpressure();
-                        }
+                            HasStarted: true
+                        };
 
-                        CleanupTimeout(seq);
-                        DisposeAppContext(seq, handlerTask.Exception);
-                        Emit(features);
+                        FinishRequest(seq, features, error: handlerTask.Exception,
+                            failStatus: handlerTask.IsFaulted && notStarted ? 500 : null, emit: true);
                     }
                     else
                     {
@@ -367,97 +305,106 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     break;
 
                 case HandlerFinished(var seq, var finishedFeatures):
-                    if (!_activeTimeouts.ContainsKey(seq))
+                    if (!_requestSlots.ContainsKey(seq))
                     {
                         break;
                     }
 
-                    CompleteResponseBody(finishedFeatures);
-                    FireOnCompleted(finishedFeatures);
-                    _inFlight--;
-                    if (_metricsEnabled)
-                    {
-                        Metrics.PipelineInFlight().Add(-1);
-                        ResetBackpressure();
-                    }
-
-                    CleanupTimeout(seq);
-                    DisposeAppContext(seq, null);
-                    if (_upstreamFinished && _inFlight == 0)
-                    {
-                        CompleteStage();
-                    }
-
+                    FinishRequest(seq, finishedFeatures, error: null, failStatus: null, emit: false);
+                    TryCompleteIfDrained();
                     break;
 
                 case HandlerFaulted(var seq, var faultedFeatures, var error):
-                    if (!_activeTimeouts.ContainsKey(seq))
+                    if (!_requestSlots.ContainsKey(seq))
                     {
                         break;
                     }
 
-                    CompleteResponseBody(faultedFeatures);
-                    FireOnCompleted(faultedFeatures);
-                    _inFlight--;
-                    if (_metricsEnabled)
-                    {
-                        Metrics.PipelineInFlight().Add(-1);
-                        ResetBackpressure();
-                    }
-
-                    CleanupTimeout(seq);
-                    DisposeAppContext(seq, error);
-                    if (_upstreamFinished && _inFlight == 0)
-                    {
-                        CompleteStage();
-                    }
-
+                    FinishRequest(seq, faultedFeatures, error: error, failStatus: null, emit: false);
+                    TryCompleteIfDrained();
                     break;
 
                 case DispatchCompleted(var seq, var features):
-                    if (!_activeTimeouts.ContainsKey(seq))
+                    if (!_requestSlots.ContainsKey(seq))
                     {
                         break;
                     }
 
-                    _inFlight--;
-                    if (_metricsEnabled)
-                    {
-                        Metrics.PipelineInFlight().Add(-1);
-                        ResetBackpressure();
-                    }
-
-                    CleanupTimeout(seq);
-                    DisposeAppContext(seq, null);
-                    CompleteResponseBody(features);
-                    FireOnCompleted(features);
-                    Emit(features);
+                    FinishRequest(seq, features, error: null, failStatus: null, emit: true);
                     break;
 
                 case DispatchFailed(var seq, var features, var error):
-                    if (!_activeTimeouts.ContainsKey(seq))
+                    if (!_requestSlots.ContainsKey(seq))
                     {
                         break;
                     }
 
-                    _inFlight--;
-                    if (_metricsEnabled)
-                    {
-                        Metrics.PipelineInFlight().Add(-1);
-                        ResetBackpressure();
-                    }
-
-                    CleanupTimeout(seq);
-                    DisposeAppContext(seq, error);
-                    var respFeature = features.Get<IHttpResponseFeature>();
-                    respFeature?.StatusCode = 500;
-                    CompleteResponseBody(features);
-                    FireOnCompleted(features);
-                    Emit(features);
+                    FinishRequest(seq, features, error: error, failStatus: 500, emit: true);
                     break;
             }
 
             if (_upstreamFinished && _inFlight == 0 && _pending.Count == 0)
+            {
+                CompleteStage();
+            }
+        }
+
+        // Owns the complete per-request finish sequence: optional fail-status stamping, response-body
+        // completion, OnCompleted firing, in-flight/metrics bookkeeping, request-slot teardown
+        // (timers + CTS + app context disposal), and the optional emit. Every finish path routes
+        // through here so a request's bookkeeping is torn down exactly once, in exactly one place.
+        // The trailing bool knobs preserve pre-existing per-callsite asymmetries (OnPush's dispatch
+        // catch never tracked ResetBackpressure; DispatchAsync's synchronous branches never touched
+        // the in-flight metric at all) rather than silently changing behavior during the merge.
+        private void FinishRequest(
+            int seq,
+            IFeatureCollection features,
+            Exception? error,
+            int? failStatus,
+            bool emit,
+            bool cleanupSlot = true,
+            bool trackMetrics = true,
+            bool resetBackpressure = true,
+            bool timedOut = false)
+        {
+            if (failStatus is int status)
+            {
+                var responseFeature = features.Get<IHttpResponseFeature>();
+                responseFeature?.StatusCode = status;
+            }
+
+            CompleteResponseBody(features);
+            FireOnCompleted(features);
+            _inFlight--;
+            if (trackMetrics && _metricsEnabled)
+            {
+                if (timedOut)
+                {
+                    Metrics.HandlerTimeouts().Add(1);
+                }
+
+                Metrics.PipelineInFlight().Add(-1);
+                if (resetBackpressure)
+                {
+                    ResetBackpressure();
+                }
+            }
+
+            if (cleanupSlot && _requestSlots.Remove(seq, out var slot))
+            {
+                CleanupTimeout(slot);
+                DisposeAppContext(slot, error);
+            }
+
+            if (emit)
+            {
+                Emit(features);
+            }
+        }
+
+        private void TryCompleteIfDrained()
+        {
+            if (_upstreamFinished && _inFlight == 0)
             {
                 CompleteStage();
             }
@@ -485,34 +432,35 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             return container;
         }
 
-        private void DisposeAppContext(int seq, Exception? exception)
+        private void DisposeAppContext(RequestSlot slot, Exception? exception)
         {
-            if (_appContexts.TryGetValue(seq, out var appCtx))
+            if (slot.AppContext is { } appContext)
             {
-                _stage._application.DisposeContext(appCtx, exception);
-                _appContexts.Remove(seq);
+                _stage._application.DisposeContext(appContext, exception);
             }
         }
 
         private void CancelAllInFlight()
         {
-            foreach (var (_, cts) in _activeTimeouts)
+            foreach (var slot in _requestSlots.Values)
             {
-                cts.Cancel();
+                slot.Cts?.Cancel();
             }
         }
 
-        private void CleanupTimeout(int seq)
+        private void CleanupTimeout(RequestSlot slot)
         {
-            if (_timerKeys.Remove(seq, out var timerKeys))
+            if (slot.SoftTimerKey is not null)
             {
-                CancelTimer(timerKeys.Soft);
-                CancelTimer(timerKeys.Hard);
+                CancelTimer(slot.SoftTimerKey);
             }
 
-            _gracePhase.Remove(seq);
-            _activeFeatures.Remove(seq);
-            if (_activeTimeouts.Remove(seq, out var cts) && (!cts.TryReset() || !_ctsPool.TryReturn(cts)))
+            if (slot.HardTimerKey is not null)
+            {
+                CancelTimer(slot.HardTimerKey);
+            }
+
+            if (slot.Cts is { } cts && (!cts.TryReset() || !_ctsPool.TryReturn(cts)))
             {
                 cts.Dispose();
             }
@@ -595,20 +543,26 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         {
             Tracing.For("Handler").Info(this, "bridge PostStop (upstreamFinished={0}, inFlight={1})",
                 _upstreamFinished, _inFlight);
-            foreach (var (_, features) in _activeFeatures)
+
+            foreach (var slot in _requestSlots.Values)
             {
-                if (features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)
+                if (slot.Cts is not null)
                 {
-                    lifetime.Abort();
+                    if (slot.Features.Get<IHttpRequestLifetimeFeature>() is GaudiHttpRequestLifetimeFeature lifetime)
+                    {
+                        lifetime.Abort();
+                    }
+
+                    CompleteResponseBody(slot.Features);
+
+                    slot.Cts.Cancel();
+                    slot.Cts.Dispose();
                 }
 
-                CompleteResponseBody(features);
-            }
-
-            foreach (var (_, cts) in _activeTimeouts)
-            {
-                cts.Cancel();
-                cts.Dispose();
+                if (slot.AppContext is { } appContext)
+                {
+                    _stage._application.DisposeContext(appContext, null);
+                }
             }
 
             while (_ctsPool.TryRent(out var pooledCts))
@@ -616,15 +570,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 pooledCts.Dispose();
             }
 
-            foreach (var (_, appCtx) in _appContexts)
-            {
-                _stage._application.DisposeContext(appCtx, null);
-            }
-
-            _activeFeatures.Clear();
-            _activeTimeouts.Clear();
-            _appContexts.Clear();
-            _timerKeys.Clear();
+            _requestSlots.Clear();
         }
     }
 }
