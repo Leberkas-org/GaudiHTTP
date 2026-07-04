@@ -251,18 +251,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
             else if (_bodyStreaming && _decoder.StreamingReader is not null)
             {
-                var outcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                pos += bodyConsumed;
-                _requestRate.Observe(0, bodyConsumed, Now());
-                EnsureRateTimer();
-
-                if (outcome == DecodeOutcome.Complete)
-                {
-                    _bodyStreaming = false;
-                    _activeStreamingReader = null;
-                    _requestRate.Remove(0);
-                    _decoder.Reset();
-                }
+                ResumeStreamingBody(buffer.Memory, ref pos);
             }
 
             if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && !_bodyStreaming
@@ -303,33 +292,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     ShouldComplete = true;
                 }
 
-                var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
-                var features = FeatureCollectionFactory.Create(hasBody,
-                    out var feature, _ops.ConnectionFeature,
-                    _ops.TlsHandshakeFeature, _maxRequestBodySize);
-                _decoder.PopulateRequestFeature(feature);
-                features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
-                    SendInformational(statusCode, headers)));
-
-                if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
+                if (!ProcessDecodedRequest(outcome))
                 {
-                    ShouldComplete = true;
-                }
-
-                if (_allowH2cUpgrade && TryHandleH2cUpgrade(features))
-                {
-                    _decoder.Reset();
                     break;
-                }
-
-                _pendingResponseCount++;
-                Tracing.For("Protocol").Debug(this, "request dispatched (pending={0})", _pendingResponseCount);
-                _ops.OnRequest(features);
-
-                if (string.Equals(feature.Headers[WellKnownHeaders.Expect], "100-continue",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    SendInformational(100, new HeaderDictionary());
                 }
 
                 if (outcome == DecodeOutcome.HeadersReady)
@@ -344,21 +309,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                             _ops.StageActor.Tell(new BodyResumed(), ActorRefs.NoSender);
                     }
 
-                    if (pos < buffer.Memory.Length)
+                    if (pos < buffer.Memory.Length && ResumeStreamingBody(buffer.Memory, ref pos))
                     {
-                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                        pos += bodyConsumed;
-                        _requestRate.Observe(0, bodyConsumed, Now());
-                        EnsureRateTimer();
-
-                        if (bodyOutcome == DecodeOutcome.Complete)
-                        {
-                            _bodyStreaming = false;
-                            _activeStreamingReader = null;
-                            _requestRate.Remove(0);
-                            _decoder.Reset();
-                            continue;
-                        }
+                        continue;
                     }
 
                     break;
@@ -378,6 +331,75 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             buffer.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Feeds buffered request bytes to the decoder while a request body is being streamed to the
+    /// handler, advancing <paramref name="pos"/> by however much was consumed. Used both by the
+    /// standalone streaming-resume preamble and by the inline body-feed right after headers are
+    /// parsed — both reset the same streaming state once the decoder reports completion.
+    /// </summary>
+    /// <returns><see langword="true"/> if the body finished decoding on this feed.</returns>
+    private bool ResumeStreamingBody(ReadOnlyMemory<byte> buffer, ref int pos)
+    {
+        var outcome = _decoder.Feed(buffer[pos..], out var bodyConsumed);
+        pos += bodyConsumed;
+        _requestRate.Observe(0, bodyConsumed, Now());
+        EnsureRateTimer();
+
+        if (outcome != DecodeOutcome.Complete)
+        {
+            return false;
+        }
+
+        _bodyStreaming = false;
+        _activeStreamingReader = null;
+        _requestRate.Remove(0);
+        _decoder.Reset();
+        return true;
+    }
+
+    /// <summary>
+    /// Dispatches a fully- or headers-decoded request: builds the request feature collection,
+    /// applies the HTTP/1.0 keep-alive rule and the h2c Upgrade handshake, hands the request to
+    /// the bridge, and triggers an Expect: 100-continue informational response if requested.
+    /// </summary>
+    /// <returns>
+    /// <see langword="false"/> if the request instead triggered an h2c protocol switch, signaling
+    /// the caller to stop parsing further requests off this connection.
+    /// </returns>
+    private bool ProcessDecodedRequest(DecodeOutcome outcome)
+    {
+        var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
+        var features = FeatureCollectionFactory.Create(hasBody,
+            out var feature, _ops.ConnectionFeature,
+            _ops.TlsHandshakeFeature, _maxRequestBodySize);
+        _decoder.PopulateRequestFeature(feature);
+        features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
+            SendInformational(statusCode, headers)));
+
+        if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
+        {
+            ShouldComplete = true;
+        }
+
+        if (_allowH2cUpgrade && TryHandleH2cUpgrade(features))
+        {
+            _decoder.Reset();
+            return false;
+        }
+
+        _pendingResponseCount++;
+        Tracing.For("Protocol").Debug(this, "request dispatched (pending={0})", _pendingResponseCount);
+        _ops.OnRequest(features);
+
+        if (string.Equals(feature.Headers[WellKnownHeaders.Expect], "100-continue",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            SendInformational(100, new HeaderDictionary());
+        }
+
+        return true;
     }
 
     private void ReconcileBodyReadTimer()
