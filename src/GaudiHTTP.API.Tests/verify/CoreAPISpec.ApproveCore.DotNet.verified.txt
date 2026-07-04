@@ -39,17 +39,23 @@ namespace GaudiHTTP.Client
     {
         public GaudiClientOptions() { }
         public System.Uri? BaseAddress { get; set; }
+        public int BodyChunkSize { get; set; }
         public System.Security.Cryptography.X509Certificates.X509CertificateCollection? ClientCertificates { get; set; }
         public System.TimeSpan ConnectTimeout { get; set; }
         public System.Net.ICredentials? Credentials { get; set; }
         public bool DangerousAcceptAnyServerCertificate { get; set; }
         public System.Net.ICredentials? DefaultProxyCredentials { get; set; }
+        public System.TimeSpan DefaultRequestTimeout { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback { get; }
         public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
         public GaudiHTTP.Client.Http1ClientOptions Http1 { get; init; }
         public GaudiHTTP.Client.Http2ClientOptions Http2 { get; init; }
         public GaudiHTTP.Client.Http3ClientOptions Http3 { get; init; }
+        public int MaxBufferedBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public uint MaxConcurrentEndpoints { get; set; }
+        public int MaxStreamRetryAttempts { get; set; }
         public long? MaxStreamedResponseBodySize { get; set; }
         public int MinimumSegmentSize { get; set; }
         public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
@@ -57,10 +63,13 @@ namespace GaudiHTTP.Client
         public bool PreAuthenticate { get; set; }
         public System.Net.IWebProxy? Proxy { get; set; }
         public int ReceiveBufferHint { get; set; }
-        public int RequestBodyChunkSize { get; set; }
+        public int? RequestBodyChunkSize { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
         public int? SocketSendBufferSize { get; set; }
+        public double StreamRetryBackoffMultiplier { get; set; }
+        public System.TimeSpan StreamRetryInitialBackoff { get; set; }
+        public System.TimeSpan StreamRetryMaxBackoff { get; set; }
         public bool UseProxy { get; set; }
     }
     public static class GaudiClientServiceCollectionExtensions
@@ -127,14 +136,18 @@ namespace GaudiHTTP.Client
         public Http1ClientOptions() { }
         public bool AutoAcceptEncoding { get; set; }
         public bool AutoHost { get; set; }
-        public int MaxBufferedResponseBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public int MaxChunkExtensionLength { get; set; }
+        public int MaxChunkedControlLineLength { get; set; }
+        public int MaxChunkedTrailerSize { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxPipelineDepth { get; set; }
         public int MaxReconnectAttempts { get; set; }
         public int MaxResponseHeaderCount { get; set; }
         public int MaxResponseHeaderLineLength { get; set; }
         public int MaxResponseHeadersLength { get; set; }
+        public int? RequestBodyChunkSize { get; set; }
     }
     public sealed class Http2ClientOptions
     {
@@ -146,7 +159,8 @@ namespace GaudiHTTP.Client
         public System.TimeSpan KeepAlivePingDelay { get; set; }
         public System.Net.Http.HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; }
         public System.TimeSpan KeepAlivePingTimeout { get; set; }
-        public long MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFrameSize { get; set; }
@@ -154,6 +168,7 @@ namespace GaudiHTTP.Client
         public int MaxReconnectBufferSize { get; set; }
         public int MaxResponseHeaderListSize { get; set; }
         public int MaxStreamWindowSize { get; set; }
+        public int? RequestBodyChunkSize { get; set; }
         public double WindowScaleThresholdMultiplier { get; set; }
     }
     public sealed class Http3ClientOptions
@@ -161,7 +176,8 @@ namespace GaudiHTTP.Client
         public Http3ClientOptions() { }
         public bool EnableAltSvcDiscovery { get; set; }
         public System.TimeSpan IdleTimeout { get; set; }
-        public long MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFieldSectionSize { get; set; }
@@ -169,6 +185,7 @@ namespace GaudiHTTP.Client
         public int MaxReconnectBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
+        public int? RequestBodyChunkSize { get; set; }
     }
     public interface IGaudiHttpClient : System.IDisposable
     {
@@ -396,6 +413,7 @@ namespace GaudiHTTP.Server
         public GaudiServerLimits() { }
         public System.TimeSpan KeepAliveTimeout { get; set; }
         public int MaxConcurrentConnections { get; set; }
+        public int MaxProtocolSniffBytes { get; set; }
         public long MaxRequestBodySize { get; set; }
         public long? MaxRequestBufferSize { get; set; }
         public int MaxRequestHeaderCount { get; set; }
@@ -406,12 +424,14 @@ namespace GaudiHTTP.Server
         public System.TimeSpan MinRequestBodyDataRateGracePeriod { get; set; }
         public double MinResponseDataRate { get; set; }
         public System.TimeSpan MinResponseDataRateGracePeriod { get; set; }
+        public System.TimeSpan RapidResetDetectionWindow { get; set; }
         public System.TimeSpan RequestHeadersTimeout { get; set; }
     }
     public sealed class GaudiServerOptions
     {
         public GaudiServerOptions() { }
         public bool AllowResponseHeaderCompression { get; set; }
+        public int BodyChunkSize { get; set; }
         public System.TimeSpan BodyConsumptionTimeout { get; set; }
         public System.Collections.Generic.IList<GaudiHTTP.Server.ListenerBinding> Endpoints { get; }
         public System.TimeSpan GracefulShutdownTimeout { get; set; }
@@ -421,7 +441,12 @@ namespace GaudiHTTP.Server
         public GaudiHTTP.Server.Http2ServerOptions Http2 { get; }
         public GaudiHTTP.Server.Http3ServerOptions Http3 { get; }
         public GaudiHTTP.Server.GaudiServerLimits Limits { get; }
-        public int ResponseBodyChunkSize { get; set; }
+        public int MaxBufferedBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
+        public int? RequestBodyChunkSize { get; set; }
+        public int? ResponseBodyChunkSize { get; set; }
+        public System.TimeSpan StartupTimeout { get; set; }
         public System.Collections.Generic.IList<string> Urls { get; }
         public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }
         public void Bind(Servus.Akka.Transport.TcpListenerOptions options) { }
@@ -447,8 +472,10 @@ namespace GaudiHTTP.Server
         public Http1ServerOptions() { }
         public System.TimeSpan BodyReadTimeout { get; set; }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
-        public int MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
         public int MaxChunkExtensionLength { get; set; }
+        public int MaxChunkedControlLineLength { get; set; }
+        public int MaxChunkedTrailerSize { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public int MaxPipelinedRequests { get; set; }
         public long? MaxRequestBodySize { get; set; }
@@ -459,6 +486,7 @@ namespace GaudiHTTP.Server
         public double? MinResponseDataRate { get; set; }
         public System.TimeSpan? MinResponseDataRateGracePeriod { get; set; }
         public System.TimeSpan? RequestHeadersTimeout { get; set; }
+        public int? ResponseBodyChunkSize { get; set; }
     }
     public sealed class Http2ServerOptions
     {
@@ -470,6 +498,8 @@ namespace GaudiHTTP.Server
         public System.TimeSpan KeepAlivePingDelay { get; set; }
         public System.TimeSpan KeepAlivePingTimeout { get; set; }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxFrameSize { get; set; }
         public int? MaxHeaderListSize { get; set; }
@@ -480,12 +510,15 @@ namespace GaudiHTTP.Server
         public double? MinResponseDataRate { get; set; }
         public System.TimeSpan? MinResponseDataRateGracePeriod { get; set; }
         public System.TimeSpan? RequestHeadersTimeout { get; set; }
+        public int? ResponseBodyChunkSize { get; set; }
         public double WindowScaleThresholdMultiplier { get; set; }
     }
     public sealed class Http3ServerOptions
     {
         public Http3ServerOptions() { }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
+        public int? MaxBufferedRequestBodySize { get; set; }
+        public int? MaxBufferedResponseBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
@@ -496,6 +529,7 @@ namespace GaudiHTTP.Server
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
         public System.TimeSpan? RequestHeadersTimeout { get; set; }
+        public int? ResponseBodyChunkSize { get; set; }
     }
     [System.Flags]
     public enum HttpProtocols
