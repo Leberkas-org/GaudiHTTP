@@ -135,22 +135,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
-        var endpoint = request.RequestUri is not null
-            ? RequestEndpoint.FromRequest(request)
-            : RequestEndpoint.Default;
-
-        if (Endpoint == default && endpoint != default)
-        {
-            Endpoint = endpoint;
-            var transportOptions = OptionsFactory.Build(Endpoint, _options);
-            _ops.OnOutbound(new ConnectTransport(transportOptions));
-
-            var preface = TryBuildPreface();
-            if (preface is not null)
-            {
-                _ops.OnOutbound(preface);
-            }
-        }
+        EnsureConnected(request);
 
         _correlationMap.TryAdd(streamId, request);
 
@@ -200,6 +185,45 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _streams[streamId] = state;
         }
 
+        SendRequestBody(streamId, state, request);
+    }
+
+    /// <summary>
+    /// Lazily bootstraps the connection to the request's endpoint on the first request that
+    /// carries one: opens the transport and, if the preface hasn't been sent yet, sends it
+    /// immediately after. A no-op once <see cref="Endpoint"/> has already been set for this
+    /// connection.
+    /// </summary>
+    private void EnsureConnected(HttpRequestMessage request)
+    {
+        var endpoint = request.RequestUri is not null
+            ? RequestEndpoint.FromRequest(request)
+            : RequestEndpoint.Default;
+
+        if (Endpoint != default || endpoint == default)
+        {
+            return;
+        }
+
+        Endpoint = endpoint;
+        var transportOptions = OptionsFactory.Build(Endpoint, _options);
+        _ops.OnOutbound(new ConnectTransport(transportOptions));
+
+        var preface = TryBuildPreface();
+        if (preface is not null)
+        {
+            _ops.OnOutbound(preface);
+        }
+    }
+
+    /// <summary>
+    /// Sends the request body via the fastest strategy the content supports, in order: an inline
+    /// slice of an already-materialized MemoryStream buffer, inline synchronous serialization
+    /// into a pooled array, a direct empty-body END_STREAM (no scheduler involved), or - the
+    /// general fallback - registering with the body-drain scheduler for async chunked reads.
+    /// </summary>
+    private void SendRequestBody(int streamId, StreamState state, HttpRequestMessage request)
+    {
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
 
