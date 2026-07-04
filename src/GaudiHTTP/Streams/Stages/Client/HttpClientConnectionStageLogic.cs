@@ -13,9 +13,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
 {
     private const string TraceCategory = "Stage";
 
-    private readonly Inlet<ITransportInbound> _inServer;
+    private readonly Inlet<ITransportInbound> _inNetwork;
     private readonly Outlet<HttpResponseMessage> _outResponse;
-    private readonly Inlet<HttpRequestMessage> _inApp;
+    private readonly Inlet<HttpRequestMessage> _inRequest;
     private readonly Outlet<ITransportOutbound> _outNetwork;
 
     private readonly TSM _sm;
@@ -30,22 +30,22 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         Func<IClientStageOperations, TSM> smFactory) : base(stage.Shape)
     {
         var shape = stage.Shape;
-        _inServer = shape.InNetwork;
+        _inNetwork = shape.InNetwork;
         _outResponse = shape.OutResponse;
-        _inApp = shape.InRequest;
+        _inRequest = shape.InRequest;
         _outNetwork = shape.OutNetwork;
 
         _sm = smFactory(this);
 
-        SetHandler(_inServer, onPush: OnServerPush,
+        SetHandler(_inNetwork, onPush: OnNetworkPush,
             onUpstreamFinish: () =>
             {
-                Tracing.For(TraceCategory).Info(this, "server upstream finished (connection closed)");
+                Tracing.For(TraceCategory).Info(this, "network upstream finished (connection closed)");
                 CloseAllPorts();
             },
             onUpstreamFailure: ex =>
             {
-                Tracing.For(TraceCategory).Warning(this, "server upstream failure: {0}", ex.Message);
+                Tracing.For(TraceCategory).Warning(this, "network upstream failure: {0}", ex.Message);
                 CloseAllPorts();
             });
 
@@ -58,10 +58,10 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
                     return;
                 }
 
-                if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
+                if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
                 {
-                    Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inServer");
-                    Pull(_inServer);
+                    Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inNetwork");
+                    Pull(_inNetwork);
                 }
             },
             onDownstreamFinish: cause =>
@@ -71,9 +71,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
                 CloseAllPorts();
             });
 
-        SetHandler(_inApp, onPush: () =>
+        SetHandler(_inRequest, onPush: () =>
             {
-                var request = Grab(_inApp);
+                var request = Grab(_inRequest);
                 try
                 {
                     _sm.OnRequest(request);
@@ -141,25 +141,25 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         _sm.OnBodyMessage(args.message);
 
         var pauseAfter = _sm.ShouldPauseNetwork;
-        var pulled = HasBeenPulled(_inServer);
-        var closed = IsClosed(_inServer);
+        var pulled = HasBeenPulled(_inNetwork);
+        var closed = IsClosed(_inNetwork);
         Tracing.For(TraceCategory)
             .Debug(this, "after msg: pause={0}, pulled={1}, closed={2}", pauseAfter, pulled, closed);
 
         if (!pauseAfter && !pulled && !closed)
         {
-            Tracing.For(TraceCategory).Debug(this, "re-pull _inServer after body message");
-            Pull(_inServer);
+            Tracing.For(TraceCategory).Debug(this, "re-pull _inNetwork after body message");
+            Pull(_inNetwork);
         }
 
         TryPullRequest();
         TryCompleteAfterAllResponses();
     }
 
-    private void OnServerPush()
+    private void OnNetworkPush()
     {
-        Tracing.For(TraceCategory).Debug(this, "server push");
-        var item = Grab(_inServer);
+        Tracing.For(TraceCategory).Debug(this, "network push");
+        var item = Grab(_inNetwork);
         try
         {
             _sm.DecodeServerData(item);
@@ -174,9 +174,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
             TryPushResponse();
         }
 
-        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
+        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
         {
-            Pull(_inServer);
+            Pull(_inNetwork);
         }
 
         TryPullRequest();
@@ -205,7 +205,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
 
         if (name == DrainCompleteTimerKey)
         {
-            if (IsClosed(_inApp)
+            if (IsClosed(_inRequest)
                 && !_sm.HasInFlightRequests
                 && !_sm.IsReconnecting
                 && _responseQueue.Count == 0
@@ -344,10 +344,10 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
     private void TryPullRequest()
     {
         if (_sm.CanAcceptRequest
-            && !HasBeenPulled(_inApp)
-            && !IsClosed(_inApp))
+            && !HasBeenPulled(_inRequest)
+            && !IsClosed(_inRequest))
         {
-            Pull(_inApp);
+            Pull(_inRequest);
         }
     }
 
@@ -355,7 +355,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
 
     private void TryCompleteAfterAllResponses()
     {
-        if (IsClosed(_inApp)
+        if (IsClosed(_inRequest)
             && !_sm.HasInFlightRequests
             && !_sm.IsReconnecting
             && _responseQueue.Count == 0
@@ -375,9 +375,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
             Complete(_outResponse);
         }
 
-        if (!IsClosed(_inApp))
+        if (!IsClosed(_inRequest))
         {
-            Cancel(_inApp);
+            Cancel(_inRequest);
         }
 
         if (!IsClosed(_outNetwork))
@@ -385,9 +385,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
             Complete(_outNetwork);
         }
 
-        if (!IsClosed(_inServer))
+        if (!IsClosed(_inNetwork))
         {
-            Cancel(_inServer);
+            Cancel(_inNetwork);
         }
     }
 

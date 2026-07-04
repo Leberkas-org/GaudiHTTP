@@ -8,12 +8,12 @@ namespace GaudiHTTP.Streams.Stages.Client;
 
 internal sealed class Http30ClientConnectionStage(GaudiClientOptions options) : GraphStage<ClientConnectionShape>
 {
-    private readonly Inlet<ITransportInbound> _inServer = new("Http30Connection.In.Network");
+    private readonly Inlet<ITransportInbound> _inNetwork = new("Http30Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http30Connection.Out.Response");
-    private readonly Inlet<HttpRequestMessage> _inApp = new("Http30Connection.In.Request");
+    private readonly Inlet<HttpRequestMessage> _inRequest = new("Http30Connection.In.Request");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http30Connection.Out.Network");
 
-    public override ClientConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
+    public override ClientConnectionShape Shape => new(_inNetwork, _outResponse, _inRequest, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpClientConnectionStageLogic<Http3ClientStateMachine>(
