@@ -45,6 +45,24 @@ public sealed class ServerSupervisorActorSpec() : TestKit(CiQuietConfig.Instance
         }
     }
 
+    private sealed class NeverCompletingListenerFactory : IListenerFactory
+    {
+        private readonly int _boundPort;
+
+        public NeverCompletingListenerFactory(int boundPort)
+        {
+            _boundPort = boundPort;
+        }
+
+        public Source<Flow<ITransportOutbound, ITransportInbound, NotUsed>, Task<int>> Bind(ListenerOptions options)
+        {
+            var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            tcs.SetResult(_boundPort);
+            return Source.Maybe<Flow<ITransportOutbound, ITransportInbound, NotUsed>>()
+                .MapMaterializedValue(_ => tcs.Task);
+        }
+    }
+
     private static ServerSupervisorActor.StartServer StartMsg(params ListenerBinding[] bindings)
         => new(PassthroughBridge(), new GaudiServerOptions(), bindings);
 
@@ -81,6 +99,39 @@ public sealed class ServerSupervisorActorSpec() : TestKit(CiQuietConfig.Instance
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(failed.Error);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Sibling_listeners_should_be_stopped_when_one_listener_dies_during_startup()
+    {
+        var supervisor = Sys.ActorOf(Props.Create(() => new ServerSupervisorActor()));
+
+        supervisor.Tell(StartMsg(
+            new ListenerBinding
+            {
+                Factory = new FailingListenerFactory(),
+                Options = new TcpListenerOptions { Host = "localhost", Port = 0 }
+            },
+            new ListenerBinding
+            {
+                Factory = new NeverCompletingListenerFactory(9001),
+                Options = new TcpListenerOptions { Host = "localhost", Port = 0 }
+            }), TestActor);
+
+        ExpectMsg<ServerSupervisorActor.ListenersFailed>(
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        try
+        {
+            var sibling = await Sys.ActorSelection(supervisor.Path / "listener-1")
+                .ResolveOne(TimeSpan.FromSeconds(1));
+            Watch(sibling);
+            ExpectTerminated(sibling, cancellationToken: TestContext.Current.CancellationToken);
+        }
+        catch (ActorNotFoundException)
+        {
+            // Sibling was already stopped before we could resolve it — desired outcome.
+        }
     }
 
     [Fact(Timeout = 5000)]
