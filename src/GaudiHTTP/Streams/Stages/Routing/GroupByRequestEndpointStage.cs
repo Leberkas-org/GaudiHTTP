@@ -273,8 +273,12 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
                 if (_upstreamFinished)
                 {
+                    // TryFinish() unconditionally calls TryCompleteStage() on the path where
+                    // every live slot has drained; its early-return path ("still draining")
+                    // only fires when a live slot still has Pending items, in which case a
+                    // follow-up TryCompleteStage() call would defer for that same reason — so
+                    // no separate call is needed here.
                     TryFinish();
-                    TryCompleteStage();
                 }
                 else if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
                 {
@@ -374,13 +378,9 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             if (_pendingSources.TryDequeue(out var bufferedSource))
             {
                 Push(_stage._out, bufferedSource);
-
-                if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
-                {
-                    Pull(_stage._in);
-                }
             }
-            else if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
+
+            if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
             {
                 Pull(_stage._in);
             }
@@ -552,8 +552,9 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
                 if (_upstreamFinished)
                 {
+                    // See the comment in _onWriteReady: TryFinish() already reaches
+                    // TryCompleteStage() on every path where completion is actually possible.
                     TryFinish();
-                    TryCompleteStage();
                 }
 
                 return;
@@ -599,6 +600,11 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             }
         }
 
+        // DrainPending -> HandleDeadSlot -> TransferPendingItems -> DrainPending forms a mutual
+        // recursion; it is bounded because each cycle either drains items into a live channel
+        // (shrinking Pending) or, on hitting a dead slot, permanently removes that slot from the
+        // group (RemoveSlot) before recursing — so the number of dead-slot hops is capped by the
+        // group's slot count and cannot cycle indefinitely.
         private void DrainPending(RequestEndpoint key, SubflowState state)
         {
             while (state.Pending.Count > 0)

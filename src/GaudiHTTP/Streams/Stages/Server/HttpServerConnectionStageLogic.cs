@@ -87,6 +87,12 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
                     return;
                 }
 
+                // Deliberately not routed through TryPullNetwork(): unlike the other two call
+                // sites, this pull is triggered by handler demand for the *next* request, not by
+                // a signal that just changed ShouldPauseNetwork. Adding that guard here would
+                // change behavior for multiplexed protocols (H2/H3), where ShouldPauseNetwork can
+                // be true for an unrelated stream's body backpressure while this stream's queue is
+                // merely empty — gating on it would also stall new-request intake network-wide.
                 if (!HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
                 {
                     Pull(_inNetwork);
@@ -119,21 +125,16 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
 
                 TryPushOutbound();
 
-                if (_sm.ShouldComplete)
-                {
-                    if (_metricsEnabled)
-                    {
-                        OnResponseInstrumented(response);
-                    }
-
-                    Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
-                    CompleteAfterFlushingOutbound();
-                    return;
-                }
-
                 if (_metricsEnabled)
                 {
                     OnResponseInstrumented(response);
+                }
+
+                if (_sm.ShouldComplete)
+                {
+                    Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
+                    CompleteAfterFlushingOutbound();
+                    return;
                 }
 
                 var bodyFeature = response.Get<IHttpResponseBodyFeature>();
@@ -181,10 +182,7 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
         {
             Tracing.For(TraceCategory).Trace(this, "body resumed");
             _sm.ResumeBody();
-            if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
-            {
-                Pull(_inNetwork);
-            }
+            TryPullNetwork();
 
             return;
         }
@@ -262,10 +260,7 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
             TryPushRequest();
         }
 
-        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
-        {
-            Pull(_inNetwork);
-        }
+        TryPullNetwork();
 
         TryPullResponse();
     }
@@ -398,6 +393,17 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
         {
             Pull(_inResponse);
         }
+    }
+
+    private bool TryPullNetwork()
+    {
+        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+        {
+            Pull(_inNetwork);
+            return true;
+        }
+
+        return false;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

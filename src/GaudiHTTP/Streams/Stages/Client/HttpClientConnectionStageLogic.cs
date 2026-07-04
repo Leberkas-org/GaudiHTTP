@@ -59,10 +59,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
                     return;
                 }
 
-                if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+                if (TryPullNetwork())
                 {
                     Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inNetwork");
-                    Pull(_inNetwork);
                 }
             },
             onDownstreamFinish: cause =>
@@ -147,10 +146,9 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         Tracing.For(TraceCategory)
             .Debug(this, "after msg: pause={0}, pulled={1}, closed={2}", pauseAfter, pulled, closed);
 
-        if (!pauseAfter && !pulled && !closed)
+        if (TryPullNetwork())
         {
             Tracing.For(TraceCategory).Debug(this, "re-pull _inNetwork after body message");
-            Pull(_inNetwork);
         }
 
         TryPullRequest();
@@ -175,10 +173,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
             TryPushResponse();
         }
 
-        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
-        {
-            Pull(_inNetwork);
-        }
+        TryPullNetwork();
 
         TryPullRequest();
         TryCompleteAfterAllResponses();
@@ -206,11 +201,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
 
         if (name == DrainCompleteTimerKey)
         {
-            if (IsClosed(_inRequest)
-                && !_sm.HasInFlightRequests
-                && !_sm.IsReconnecting
-                && _responseQueue.Count == 0
-                && _outboundQueue.Count == 0)
+            if (IsFullyDrained)
             {
                 Tracing.For(TraceCategory).Debug(this, "drain complete — closing stage");
                 CompleteStage();
@@ -286,17 +277,45 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         }
     }
 
+    /// <summary>
+    /// True once every driver of stage completion has quiesced: no more requests can arrive,
+    /// nothing is in flight or reconnecting, and both queues are empty.
+    /// </summary>
+    private bool IsFullyDrained =>
+        IsClosed(_inRequest)
+        && !_sm.HasInFlightRequests
+        && !_sm.IsReconnecting
+        && _responseQueue.Count == 0
+        && _outboundQueue.Count == 0;
+
     private void TryCompleteAfterAllResponses()
     {
-        if (IsClosed(_inRequest)
-            && !_sm.HasInFlightRequests
-            && !_sm.IsReconnecting
-            && _responseQueue.Count == 0
-            && _outboundQueue.Count == 0
-            && !IsTimerActive(DrainCompleteTimerKey))
+        if (IsFullyDrained && !IsTimerActive(DrainCompleteTimerKey))
         {
+            // Do not CompleteStage() synchronously here: pump reads for the last
+            // response's streaming body (FlowControlledBodyPump/MultiplexedBodyPump/
+            // SerialBodyPump) complete off the stage thread and post their result back
+            // via IClientStageOperations.StageActor.Tell(...) (see SerialBodyPump.cs,
+            // PumpSlotLifecycle.StartRead). Such a message can already be in the actor's
+            // mailbox — queued behind the event that made all five conditions true — even
+            // though HasInFlightRequests/queue counts read as fully drained right now. This
+            // settle window gives that in-flight StageActor message a chance to be
+            // processed (re-arming state, e.g. HasInFlightRequests) before we tear the
+            // stage down; hard-completing immediately would deliver that message to a
+            // stopped stage actor and silently drop it.
             ScheduleOnce(DrainCompleteTimerKey, TimeSpan.FromMilliseconds(100));
         }
+    }
+
+    private bool TryPullNetwork()
+    {
+        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+        {
+            Pull(_inNetwork);
+            return true;
+        }
+
+        return false;
     }
 
     private void CloseAllPorts()
