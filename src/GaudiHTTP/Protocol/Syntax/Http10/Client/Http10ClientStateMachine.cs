@@ -23,12 +23,13 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private bool _outboundBodyPending;
     private IStreamingBodyReader? _activeStreamingReader;
     private bool _connectionClosed;
+    private bool _connectionDead;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
 
     internal sealed record StreamingSlotFreed;
 
-    public bool CanAcceptRequest => _inFlightRequest is null && !IsReconnecting && !_outboundBodyPending;
+    public bool CanAcceptRequest => _inFlightRequest is null && !IsReconnecting && !_outboundBodyPending && !_connectionDead;
 
     public bool HasInFlightRequests => _inFlightRequest is not null || _outboundBodyPending;
 
@@ -224,6 +225,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         _outboundBodyPending = false;
         _activeStreamingReader = null;
         _connectionClosed = false;
+        _connectionDead = false;
         _serialPump?.Cleanup();
         _serialPump = null;
         _connectionCts?.Cancel();
@@ -482,6 +484,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
             IsReconnecting = false;
             _reconnectAttempts = 0;
+            _connectionDead = true;
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
 

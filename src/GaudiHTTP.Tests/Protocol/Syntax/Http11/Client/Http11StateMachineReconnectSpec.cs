@@ -107,7 +107,8 @@ public sealed class Http11StateMachineReconnectSpec
         var task = pending.GetValueTask();
         Assert.True(task.IsFaulted);
         Assert.False(sm.IsReconnecting);
-        Assert.True(sm.CanAcceptRequest);
+        Assert.False(sm.CanAcceptRequest);
+        Assert.Contains(ops.Outbound, o => o is DisconnectTransport);
     }
 
     [Fact(Timeout = 5000)]

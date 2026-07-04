@@ -31,6 +31,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private int _heldBufferOffset;
     private TransportBuffer? _partialResponse;
     private bool _draining;
+    private bool _connectionDead;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
 
@@ -38,7 +39,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public bool CanAcceptRequest =>
         _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting && !_outboundBodyPending &&
-        !_connectionCloseReceived && !_draining;
+        !_connectionCloseReceived && !_draining && !_connectionDead;
 
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
@@ -370,6 +371,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         ClearPartial();
         _connectionCloseReceived = false;
         _draining = false;
+        _connectionDead = false;
         _serialPump?.Cleanup();
         _serialPump = null;
         _connectionCts?.Cancel();
@@ -681,6 +683,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
             IsReconnecting = false;
             _reconnectAttempts = 0;
+            _connectionDead = true;
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
 

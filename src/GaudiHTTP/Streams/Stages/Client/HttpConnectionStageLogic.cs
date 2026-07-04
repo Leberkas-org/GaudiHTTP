@@ -111,7 +111,10 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
             onUpstreamFailure: ex =>
             {
                 Tracing.For(TraceCategory).Warning(this, "request upstream failure: {0}", ex.Message);
-                CloseAllPorts();
+                if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
+                {
+                    CloseAllPorts();
+                }
             });
 
         SetHandler(_outNetwork,
