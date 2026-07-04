@@ -13,20 +13,12 @@ namespace GaudiHTTP.Protocol.Syntax.Http10.Server;
 
 internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget
 {
-    private const string DataRateCheck = "data-rate-check";
-
     private readonly IServerStageOperations _ops;
     private readonly Http10ServerDecoder _decoder;
     private readonly Http10ServerEncoder _encoder;
     private readonly long _maxRequestBodySize;
     private readonly int _responseBodyChunkSize;
-    private readonly DataRateMonitor _requestRate;
-    private readonly DataRateMonitor _responseRate;
-    private readonly List<long> _rateViolations = [];
-    private bool _rateTimerActive;
-    private readonly TimeProvider _clock;
-
-    private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
+    private readonly ConnectionRateGuard _rateGuard;
 
     private IFeatureCollection? _deferredFeatures;
     private bool _bodyStreaming;
@@ -51,11 +43,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         ArgumentNullException.ThrowIfNull(options);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _responseBodyChunkSize = options.ResponseBodyChunkSize;
-        _clock = timeProvider ?? TimeProvider.System;
-
-        var rate = options.ToRateMonitor();
-        _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
-        _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
+        _rateGuard = new ConnectionRateGuard(ops, options.ToRateMonitor(), timeProvider);
 
         _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions());
         _encoder = new Http10ServerEncoder(options.ToHttp10EncoderOptions());
@@ -76,8 +64,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (!data.IsEmpty)
         {
-            _responseRate.Observe(0, data.Length, Now());
-            EnsureRateTimer();
+            _rateGuard.ObserveResponse(0, data.Length);
             var item = TransportBuffer.Rent(data.Length);
             data.CopyTo(item.FullMemory);
             item.Length = data.Length;
@@ -94,8 +81,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (bytesWritten > 0)
         {
-            _responseRate.Observe(0, bytesWritten, Now());
-            EnsureRateTimer();
+            _rateGuard.ObserveResponse(0, bytesWritten);
             _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", bytesWritten);
             _serialPump!.OnCapacityAvailable();
@@ -112,7 +98,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (endStream)
         {
-            _responseRate.Remove(0);
+            _rateGuard.RemoveResponse(0);
             if (_deferredFeatures is not null)
             {
                 _ops.OnResponseBodyComplete(_deferredFeatures);
@@ -135,7 +121,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
-        _responseRate.Remove(0);
+        _rateGuard.RemoveResponse(0);
         if (_deferredFeatures is not null)
         {
             _ops.OnResponseBodyComplete(_deferredFeatures);
@@ -167,15 +153,14 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                 var outcome = _decoder.Feed(buffer.Memory[pos..], out _);
                 if (_decoder.LastBodyBytesConsumed > 0)
                 {
-                    _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
-                    EnsureRateTimer();
+                    _rateGuard.ObserveRequest(0, _decoder.LastBodyBytesConsumed);
                 }
 
                 if (outcome == DecodeOutcome.Complete)
                 {
                     _bodyStreaming = false;
                     _activeStreamingReader = null;
-                    _requestRate.Remove(0);
+                    _rateGuard.RemoveRequest(0);
                 }
 
                 return;
@@ -186,8 +171,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
             if (_decoder.LastBodyBytesConsumed > 0)
             {
-                _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveRequest(0, _decoder.LastBodyBytesConsumed);
             }
 
             if (result is DecodeOutcome.Complete or DecodeOutcome.HeadersReady)
@@ -200,7 +184,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
                 if (result != DecodeOutcome.HeadersReady)
                 {
-                    _requestRate.Remove(0);
+                    _rateGuard.RemoveRequest(0);
                 }
 
                 _ops.OnRequest(features);
@@ -221,15 +205,14 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                         var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out _);
                         if (_decoder.LastBodyBytesConsumed > 0)
                         {
-                            _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
-                            EnsureRateTimer();
+                            _rateGuard.ObserveRequest(0, _decoder.LastBodyBytesConsumed);
                         }
 
                         if (bodyOutcome == DecodeOutcome.Complete)
                         {
                             _bodyStreaming = false;
                             _activeStreamingReader = null;
-                            _requestRate.Remove(0);
+                            _rateGuard.RemoveRequest(0);
                         }
                     }
                 }
@@ -293,25 +276,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void OnTimerFired(string name)
     {
-        if (name == DataRateCheck)
+        if (name == ConnectionRateGuard.TimerName)
         {
-            _rateTimerActive = false;
-            _rateViolations.Clear();
-            _requestRate.Check(Now(), _rateViolations);
-            _responseRate.Check(Now(), _rateViolations);
-
-            if (_rateViolations.Count > 0)
+            if (_rateGuard.OnTimerFired((req, resp) =>
+                    Tracing.For("Protocol").Warning(this,
+                        "data rate violation (reqRate={0}, respRate={1})", req, resp)))
             {
-                Tracing.For("Protocol").Warning(this,
-                    "data rate violation (reqRate={0}, respRate={1})",
-                    _requestRate.Count, _responseRate.Count);
                 ShouldComplete = true;
-                return;
-            }
-
-            if (_requestRate.Count > 0 || _responseRate.Count > 0)
-            {
-                EnsureRateTimer();
             }
         }
     }
@@ -379,8 +350,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _connectionCts?.Cancel();
         _connectionCts?.Dispose();
         _connectionCts = null;
-        _ops.OnCancelTimer(DataRateCheck);
-        _rateTimerActive = false;
+        _rateGuard.Cleanup();
     }
 
     private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
@@ -402,16 +372,5 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         }
 
         return null;
-    }
-
-    private void EnsureRateTimer()
-    {
-        if (_rateTimerActive)
-        {
-            return;
-        }
-
-        _rateTimerActive = true;
-        _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
     }
 }

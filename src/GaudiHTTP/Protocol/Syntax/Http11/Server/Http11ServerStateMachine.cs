@@ -22,8 +22,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private const string RequestHeadersTimer = "request-headers";
     private const string BodyConsumptionTimer = "body-consumption";
     private const string BodyReadTimer = "body-read";
-    private const string DataRateCheck = "data-rate-check";
-
     private readonly IServerStageOperations _ops;
     private readonly Http11ServerDecoder _decoder;
     private readonly Http11ServerEncoder _encoder;
@@ -37,13 +35,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private readonly Http2ConnectionOptions _h2UpgradeOptions;
     private readonly bool _allowH2cUpgrade;
 
-    private readonly DataRateMonitor _requestRate;
-    private readonly DataRateMonitor _responseRate;
-    private readonly List<long> _rateViolations = [];
-    private bool _rateTimerActive;
-    private readonly TimeProvider _clock;
-
-    private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
+    private readonly ConnectionRateGuard _rateGuard;
 
     private int _pendingResponseCount;
     private bool _outboundBodyPending;
@@ -80,11 +72,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         _bodyReadTimeout = options.BodyReadTimeout;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
-        _clock = timeProvider ?? TimeProvider.System;
-
-        var rate = options.ToRateMonitor();
-        _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
-        _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
+        _rateGuard = new ConnectionRateGuard(ops, options.ToRateMonitor(), timeProvider);
 
         var decOpts = options.ToHttp11DecoderOptions();
         var encOpts = options.ToHttp11EncoderOptions();
@@ -122,8 +110,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 var buf = TransportBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
                 buf.Length = framedSize;
-                _responseRate.Observe(0, framedSize, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveResponse(0, framedSize);
                 _ops.OnOutbound(TransportData.Rent(buf));
             }
             else
@@ -131,8 +118,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 var buf = TransportBuffer.Rent(data.Length);
                 data.CopyTo(buf.FullMemory);
                 buf.Length = data.Length;
-                _responseRate.Observe(0, data.Length, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveResponse(0, data.Length);
                 _ops.OnOutbound(TransportData.Rent(buf));
             }
 
@@ -157,15 +143,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 var buf = TransportBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
                 buf.Length = framedSize;
-                _responseRate.Observe(0, framedSize, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveResponse(0, framedSize);
                 _ops.OnOutbound(TransportData.Rent(buf));
                 owner.Dispose();
             }
             else
             {
-                _responseRate.Observe(0, bytesWritten, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveResponse(0, bytesWritten);
                 _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
             }
 
@@ -238,14 +222,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             {
                 var drained = drainingDecoder.Drain(span[pos..]);
                 pos += drained;
-                _requestRate.Observe(0, drained, Now());
-                EnsureRateTimer();
+                _rateGuard.ObserveRequest(0, drained);
 
                 if (drainingDecoder.IsComplete)
                 {
                     _draining = false;
                     _ops.OnCancelTimer(BodyConsumptionTimer);
-                    _requestRate.Remove(0);
+                    _rateGuard.RemoveRequest(0);
                     _decoder.Reset();
                 }
             }
@@ -344,8 +327,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         var outcome = _decoder.Feed(buffer[pos..], out var bodyConsumed);
         pos += bodyConsumed;
-        _requestRate.Observe(0, bodyConsumed, Now());
-        EnsureRateTimer();
+        _rateGuard.ObserveRequest(0, bodyConsumed);
 
         if (outcome != DecodeOutcome.Complete)
         {
@@ -354,7 +336,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         _bodyStreaming = false;
         _activeStreamingReader = null;
-        _requestRate.Remove(0);
+        _rateGuard.RemoveRequest(0);
         _decoder.Reset();
         return true;
     }
@@ -581,7 +563,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     private void ResetResponseState(IFeatureCollection? features)
     {
         _outboundBodyPending = false;
-        _responseRate.Remove(0);
+        _rateGuard.RemoveResponse(0);
         if (features is not null)
         {
             _ops.OnResponseBodyComplete(features);
@@ -604,8 +586,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     var buf = TransportBuffer.Rent(framedSize);
                     ChunkedFramingHelper.WriteChunk(chunk.Span, buf.FullMemory.Span);
                     buf.Length = framedSize;
-                    _responseRate.Observe(0, framedSize, Now());
-                    EnsureRateTimer();
+                    _rateGuard.ObserveResponse(0, framedSize);
                     _ops.OnOutbound(TransportData.Rent(buf));
                 }
                 else
@@ -613,8 +594,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     var buf = TransportBuffer.Rent(take);
                     chunk.CopyTo(buf.FullMemory);
                     buf.Length = take;
-                    _responseRate.Observe(0, take, Now());
-                    EnsureRateTimer();
+                    _rateGuard.ObserveResponse(0, take);
                     _ops.OnOutbound(TransportData.Rent(buf));
                 }
 
@@ -724,25 +704,14 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             _bodyReadTimerActive = false;
             ShouldComplete = true;
         }
-        else if (name == DataRateCheck)
+        else if (name == ConnectionRateGuard.TimerName)
         {
-            _rateTimerActive = false;
-            _rateViolations.Clear();
-            _requestRate.Check(Now(), _rateViolations);
-            _responseRate.Check(Now(), _rateViolations);
-
-            if (_rateViolations.Count > 0)
+            if (_rateGuard.OnTimerFired((req, resp) =>
+                    Tracing.For("Protocol").Warning(this,
+                        "data rate violation (reqRate={0}, respRate={1}, paused={2})",
+                        req, resp, ShouldPauseNetwork)))
             {
-                Tracing.For("Protocol").Warning(this,
-                    "data rate violation (reqRate={0}, respRate={1}, paused={2})",
-                    _requestRate.Count, _responseRate.Count, ShouldPauseNetwork);
                 ShouldComplete = true;
-                return;
-            }
-
-            if (_requestRate.Count > 0 || _responseRate.Count > 0)
-            {
-                EnsureRateTimer();
             }
         }
     }
@@ -892,18 +861,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         _ops.OnCancelTimer(KeepAliveTimer);
         _ops.OnCancelTimer(BodyConsumptionTimer);
-        _ops.OnCancelTimer(DataRateCheck);
-        _rateTimerActive = false;
-    }
-
-    private void EnsureRateTimer()
-    {
-        if (_rateTimerActive)
-        {
-            return;
-        }
-
-        _rateTimerActive = true;
-        _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+        _rateGuard.Cleanup();
     }
 }

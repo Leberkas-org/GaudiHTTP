@@ -4,6 +4,7 @@ using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Body;
+using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
@@ -17,8 +18,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private readonly GaudiClientOptions _options;
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
-    private HttpRequestMessage? _reconnectBufferedRequest;
-    private int _reconnectAttempts;
+    private readonly ReconnectPolicy<HttpRequestMessage> _reconnectPolicy;
     private bool _lastRequestWasHead;
     private bool _outboundBodyPending;
     private IStreamingBodyReader? _activeStreamingReader;
@@ -43,7 +43,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             if (IsReconnecting)
             {
-                return _reconnectBufferedRequest is not null ? 1 : 0;
+                return _reconnectPolicy.Buffered is not null ? 1 : 0;
             }
 
             return (_inFlightRequest is not null || _outboundBodyPending) ? 1 : 0;
@@ -56,6 +56,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         _ops = ops;
         _options = options;
+        _reconnectPolicy = new ReconnectPolicy<HttpRequestMessage>(ops, options.Http1.MaxReconnectAttempts);
 
         var decoderOpts = options.ToHttp10DecoderOptions();
 
@@ -178,14 +179,12 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
         if (IsReconnecting)
         {
-            if (_reconnectBufferedRequest is { } buffered)
+            if (_reconnectPolicy.TakeBuffered() is { } buffered)
             {
                 buffered.Fail(new HttpRequestException("HTTP/1.0 transport closed during reconnect."));
-                _reconnectBufferedRequest = null;
             }
 
             IsReconnecting = false;
-            _reconnectAttempts = 0;
             Tracing.For("Protocol").Debug(this, "HTTP/1.0 transport closed during reconnect");
             return;
         }
@@ -369,7 +368,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             return;
         }
 
-        if (HasInFlightRequests && _options.Http1.MaxReconnectAttempts > 0)
+        if (HasInFlightRequests && _reconnectPolicy.CanReconnect)
         {
             Tracing.For("Protocol").Info(this, "HTTP/1.0 closed, {0} pending — reconnecting", PendingRequestCount);
             StartReconnect();
@@ -441,47 +440,36 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartReconnect()
     {
-        _reconnectBufferedRequest = _inFlightRequest;
+        var buffered = _inFlightRequest;
         _inFlightRequest = null;
         IsReconnecting = true;
-        _reconnectAttempts = 1;
-        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        _reconnectPolicy.Start(buffered!, _transportOptions!);
     }
 
     private void OnConnectionRestored()
     {
         IsReconnecting = false;
-        _reconnectAttempts = 0;
         _connectionClosed = false;
         _decoder.Reset();
 
-        if (_reconnectBufferedRequest is { } req)
+        if (_reconnectPolicy.TakeBuffered() is { } req)
         {
-            _reconnectBufferedRequest = null;
             EncodeRequest(req);
         }
     }
 
     private void OnReconnectAttemptFailed()
     {
-        if (_reconnectAttempts >= _options.Http1.MaxReconnectAttempts)
+        var attemptsAtFailure = _reconnectPolicy.Attempts;
+
+        if (_reconnectPolicy.OnAttemptFailed(_transportOptions!, out var buffered))
         {
-            Tracing.For("Protocol").Info(this, "HTTP/1.0 reconnect failed after {0} attempts", _reconnectAttempts);
-            if (_reconnectBufferedRequest is { } buffered)
-            {
-                buffered.Fail(new HttpRequestException("HTTP/1.0 reconnect failed after max attempts."));
-                _reconnectBufferedRequest = null;
-            }
+            Tracing.For("Protocol").Info(this, "HTTP/1.0 reconnect failed after {0} attempts", attemptsAtFailure);
+            buffered?.Fail(new HttpRequestException("HTTP/1.0 reconnect failed after max attempts."));
 
             IsReconnecting = false;
-            _reconnectAttempts = 0;
             _connectionDead = true;
-            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
-            return;
         }
-
-        _reconnectAttempts++;
-        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
     private void CompleteResponse(HttpResponseMessage response)
