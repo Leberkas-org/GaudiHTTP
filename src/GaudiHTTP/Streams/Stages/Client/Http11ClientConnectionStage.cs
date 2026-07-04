@@ -17,7 +17,7 @@ internal sealed class Http11ClientConnectionStage(GaudiClientOptions options) : 
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
     {
-        return new HttpConnectionStageLogic<Http11ClientStateMachine>(
+        return new HttpClientConnectionStageLogic<Http11ClientStateMachine>(
             this, ops => new Http11ClientStateMachine(ops, options));
     }
 }

@@ -163,7 +163,7 @@ services.AddGaudiTracing(myListener, TraceLevel.Debug);
 | Category | Components |
 |----------|-----------|
 | `Protocol` | All state machines (H10/H11/H2/H3, client + server), session managers, body encoders |
-| `Stage` | `HttpConnectionStageLogic` (client), `HttpConnectionServerStageLogic` (server) |
+| `Stage` | `HttpClientConnectionStageLogic` (client), `HttpServerConnectionStageLogic` (server) |
 | `Handler` | `HandlerBidiStage` (client request/response pipeline) |
 | `Request` | `StreamOwner`, `TracingBidiStage` (client request lifecycle) |
 | `Cache` | `CacheBidiStage` |

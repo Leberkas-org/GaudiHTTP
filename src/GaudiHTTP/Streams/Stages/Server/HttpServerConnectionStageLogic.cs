@@ -15,7 +15,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Streams.Stages.Server;
 
-internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic, IServerStageOperations
+internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic, IServerStageOperations
     where TSM : IServerStateMachine
 {
     private const string TraceCategory = "Stage";
@@ -43,7 +43,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private Activity? _connectionActivity;
     private long _connectionTimestamp;
 
-    public HttpConnectionServerStageLogic(
+    public HttpServerConnectionStageLogic(
         GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory,
         IServiceProvider? services = null) : base(stage.Shape)

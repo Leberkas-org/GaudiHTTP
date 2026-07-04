@@ -8,7 +8,7 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Streams.Stages.Client;
 
-internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IClientStageOperations
+internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic, IClientStageOperations
     where TSM : IClientStateMachine
 {
     private const string TraceCategory = "Stage";
@@ -25,7 +25,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
     private IActorRef _stageActor = ActorRefs.Nobody;
     private Action<HttpRequestMessage>? _cancelCallback;
 
-    public HttpConnectionStageLogic(
+    public HttpClientConnectionStageLogic(
         GraphStage<ClientConnectionShape> stage,
         Func<IClientStageOperations, TSM> smFactory) : base(stage.Shape)
     {
