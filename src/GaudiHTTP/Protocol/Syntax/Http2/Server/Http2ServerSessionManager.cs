@@ -943,11 +943,26 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
             _flow.RemoveStreamSendWindow(streamId);
 
-            ReturnBodyReader(state);
-            state.Dispose();
-
-            _streams.Remove(streamId);
+            // Unlike the client, the server never gates release on an outbound drain (HasBodyDrain
+            // is write-only on this side - the response-body pump owns its own completion signal
+            // via IBodyDrainTarget.OnDrainComplete, which itself routes back through CloseStream).
+            // CloseStream is the single terminal event for both directions here, so release is
+            // always unconditional - see StreamState.MayRelease for the client's gated equivalent.
+            ReleaseStream(streamId, state);
         }
+    }
+
+    /// <summary>
+    /// Single teardown point for a stream: removes it from <see cref="_streams"/>, returns its body
+    /// reader, and disposes it back to the pool. Mirrors the client session manager's
+    /// <c>ReleaseStream</c> - kept here as its own method (rather than shared) because the two
+    /// managers have no common base and the body is only three lines.
+    /// </summary>
+    private void ReleaseStream(int streamId, StreamState state)
+    {
+        ReturnBodyReader(state);
+        state.Dispose();
+        _streams.Remove(streamId);
     }
 
     private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body,

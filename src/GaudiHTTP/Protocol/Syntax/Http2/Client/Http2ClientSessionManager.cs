@@ -276,11 +276,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             // All data sent inline - mark complete and release stream state.
             CloseStream(streamId);
 
-            if (state.IsRemoteClosed)
+            // HasBodyDrain is always false here (this branch never activated a drain), so
+            // MayRelease reduces to state.IsRemoteClosed - i.e. release only if the response
+            // already fully arrived (it cannot have, since this all runs synchronously inside
+            // EncodeRequest before any inbound frame is processed; kept as a real gate rather
+            // than an assumption so a future reentrant caller stays correct).
+            if (state.MayRelease)
             {
-                _streams.Remove(streamId);
-                ReturnBodyReader(state);
-                state.Dispose();
+                ReleaseStream(streamId, state);
             }
 
             return;
@@ -555,18 +558,17 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         _drainContentOwners.Remove(streamId);
 
+        var releasable = false;
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.MarkBodyDrainComplete();
+            releasable = state.OnLocalDone();
         }
 
         CloseStream(streamId);
 
-        if (state is { IsRemoteClosed: true })
+        if (releasable)
         {
-            _streams.Remove(streamId);
-            ReturnBodyReader(state);
-            state.Dispose();
+            ReleaseStream(streamId, state!);
         }
     }
 
@@ -703,6 +705,15 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         CloseStream(rst.StreamId);
     }
 
+    // Deliberately asymmetric with the server's CloseStream (which does remove from _streams):
+    // TryCancelStream calls CloseStream but never releases the StreamState itself (no
+    // ReleaseStream call there), relying on it staying in _streams so a later inbound frame for
+    // the same stream (HEADERS still in flight when the caller cancelled, a trailing DATA/RST,
+    // etc.) finds the SAME state object - with its already-accumulated header buffer and body
+    // reader - and drives it through the normal teardown sites instead of silently renting a
+    // fresh, uncorrelated StreamState. Removing here would also make CloseStream's caller in
+    // OnDrainComplete/ProcessDataFrame race the ReleaseStream calls those methods still need to
+    // make explicitly, since CloseStream has no reference to release the body reader itself.
     private void CloseStream(int streamId)
     {
         if (_streams.TryGetValue(streamId, out var state) && state.HasBodyReader)
@@ -719,6 +730,20 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         {
             EmitFrame(new WindowUpdateFrame(windowUpdate.StreamId, windowUpdate.Increment));
         }
+    }
+
+    /// <summary>
+    /// Single teardown point for a fully-closed (RFC 9113 §5.1) stream: removes it from
+    /// <see cref="_streams"/>, returns its body reader, and disposes it back to the pool. Callers
+    /// decide when a stream is releasable (see <see cref="StreamState.MayRelease"/>,
+    /// <see cref="StreamState.OnRemoteDone"/>, <see cref="StreamState.OnLocalDone"/>) - this method
+    /// only performs the mechanical release once that decision has been made.
+    /// </summary>
+    private void ReleaseStream(int streamId, StreamState state)
+    {
+        _streams.Remove(streamId);
+        ReturnBodyReader(state);
+        state.Dispose();
     }
 
     private void HandleHeaders(HeadersFrame frame)
@@ -782,13 +807,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 DispatchBufferedResponse(frame.StreamId, state, buffered);
             }
 
-            state.MarkRemoteClosed();
-
-            if (!state.HasBodyDrain || state.IsBodyDrainComplete)
+            if (state.OnRemoteDone())
             {
-                _streams.Remove(frame.StreamId);
-                ReturnBodyReader(state);
-                state.Dispose();
+                ReleaseStream(frame.StreamId, state);
             }
         }
     }
@@ -841,9 +862,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                     DispatchBufferedResponse(streamId, state, buffered);
                 }
 
-                _streams.Remove(streamId);
-                ReturnBodyReader(state);
-                state.Dispose();
+                // Trailers carry END_STREAM directly (no MarkRemoteClosed/OnRemoteDone call
+                // needed) - reaching here IS the terminal remote-closed event, so release
+                // unconditionally rather than gating on IsLocalSendComplete like the
+                // HandleData/OnDrainComplete sites do (matches original behavior).
+                ReleaseStream(streamId, state);
             }
 
             return;
@@ -870,9 +893,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 if (endStream)
                 {
                     _correlationMap.Remove(streamId);
-                    _streams.Remove(streamId);
-                    ReturnBodyReader(state);
-                    state.Dispose();
+                    // Interim (1xx) response terminating the stream is itself the terminal
+                    // remote-closed event; release unconditionally (matches original behavior).
+                    ReleaseStream(streamId, state);
                 }
 
                 return;
@@ -891,9 +914,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
             _ops.OnResponse(response);
 
-            _streams.Remove(streamId);
-            ReturnBodyReader(state);
-            state.Dispose();
+            // A final response whose own HEADERS carried END_STREAM has no body at all - this IS
+            // the terminal remote-closed event; release unconditionally (matches original
+            // behavior).
+            ReleaseStream(streamId, state);
             return;
         }
 
@@ -978,9 +1002,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         state.AbortBody();
         EmitFrame(new RstStreamFrame(streamId, Http2ErrorCode.NoError));
-        _streams.Remove(streamId);
-        ReturnBodyReader(state);
-        state.Dispose();
+        // Abandonment forces closure regardless of any drain gate - release unconditionally
+        // (matches original behavior).
+        ReleaseStream(streamId, state);
 
         if (!_tracker.OnStreamClosed(streamId))
         {
