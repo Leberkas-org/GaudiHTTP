@@ -24,26 +24,65 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private TransportOptions? _transportOptions;
     private HttpResponseMessage? _pendingBodyResponse;
     private bool _outboundBodyPending;
-    private bool _connectionCloseReceived;
     private bool _isChunked;
     private IStreamingBodyReader? _activeStreamingReader;
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
     private TransportBuffer? _partialResponse;
-    private bool _draining;
-    private bool _connectionDead;
+    private ConnectionState _connectionState;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
 
     internal sealed record StreamingSlotFreed;
 
+    // Connection lifecycle. Replaces four independently-tracked booleans
+    // (IsReconnecting, _connectionCloseReceived, _draining, _connectionDead) with one explicit
+    // state; `Active` is the default (enum default value 0).
+    //
+    // Transition table:
+    //   Active                        -- construction; also OnConnectionRestored() and Cleanup()
+    //                                    return here (Cleanup only if not currently Reconnecting)
+    //   Active -> CloseAfterResponses     CompleteResponse() when the decoder reports
+    //                                     Connection: close. No new requests are accepted; requests
+    //                                     already in flight still drain normally.
+    //   Active | CloseAfterResponses
+    //     -> Reconnecting                 StartReconnect(), from HandleDisconnect() on an
+    //                                     ungraceful disconnect with in-flight requests and
+    //                                     reconnect attempts configured.
+    //   Reconnecting -> Active            OnConnectionRestored() (TransportConnected), or
+    //                                     OnUpstreamFinished() abandoning a reconnect in progress
+    //                                     because the stage itself is shutting down.
+    //   Reconnecting -> Dead              OnReconnectAttemptFailed() once MaxReconnectAttempts is
+    //                                     exhausted.
+    //
+    // Findings from the boolean inventory (Task 9):
+    //   - `_draining` was never assigned `true` anywhere in this class — both of its guarded
+    //     branches (in DecodeResponse and CompleteResponse) were unreachable dead code and are
+    //     dropped here; behavior is unchanged since those branches never executed.
+    //   - CloseAfterResponses and Reconnecting could, in principle, both be "true" under the old
+    //     independent-booleans model (nothing cleared _connectionCloseReceived when StartReconnect
+    //     flipped IsReconnecting). In practice this combination is unreachable: Akka actor thread
+    //     confinement processes TransportConnected (which resets to Active) fully before any
+    //     subsequent TransportData is decoded, so CompleteResponse can never run while
+    //     Reconnecting. Collapsing both bits into one field is therefore safe — CompleteResponse
+    //     only promotes Active -> CloseAfterResponses, never overwriting Reconnecting/Dead.
+    //   - Cleanup() never reset IsReconnecting in the original code (only the other three flags).
+    //     Preserved below by leaving the state untouched when it is already Reconnecting.
+    private enum ConnectionState
+    {
+        Active,
+        CloseAfterResponses,
+        Reconnecting,
+        Dead
+    }
+
     public bool CanAcceptRequest =>
-        _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting && !_outboundBodyPending &&
-        !_connectionCloseReceived && !_draining && !_connectionDead;
+        _inFlightQueue.Count < _effectivePipelineDepth && !_outboundBodyPending &&
+        _connectionState == ConnectionState.Active;
 
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
-    public bool IsReconnecting { get; private set; }
+    public bool IsReconnecting => _connectionState == ConnectionState.Reconnecting;
 
     public bool ShouldPauseNetwork => _heldBuffer is not null || (_activeStreamingReader?.IsFull ?? false);
 
@@ -308,7 +347,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                     new HttpRequestException("HTTP/1.1 transport closed during reconnect."));
             }
 
-            IsReconnecting = false;
+            _connectionState = ConnectionState.Active;
             _reconnectAttempts = 0;
             Tracing.For("Protocol").Debug(this, "HTTP/1.1 transport closed during reconnect");
             return;
@@ -365,9 +404,10 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _heldBuffer = null;
         _heldBufferOffset = 0;
         ClearPartial();
-        _connectionCloseReceived = false;
-        _draining = false;
-        _connectionDead = false;
+        if (_connectionState != ConnectionState.Reconnecting)
+        {
+            _connectionState = ConnectionState.Active;
+        }
         _serialPump?.Cleanup();
         _serialPump = null;
         _connectionCts?.Cancel();
@@ -435,11 +475,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                         if (_inFlightQueue.Count > 0)
                         {
                             _inFlightQueue.Dequeue();
-                        }
-
-                        if (_draining && _inFlightQueue.Count == 0)
-                        {
-                            _draining = false;
                         }
 
                         _decoder.Reset();
@@ -640,16 +675,15 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         _reconnectBufferedQueue = new Queue<HttpRequestMessage>(_inFlightQueue);
         _inFlightQueue.Clear();
-        IsReconnecting = true;
+        _connectionState = ConnectionState.Reconnecting;
         _reconnectAttempts = 1;
         _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
     private void OnConnectionRestored()
     {
-        IsReconnecting = false;
+        _connectionState = ConnectionState.Active;
         _reconnectAttempts = 0;
-        _connectionCloseReceived = false;
         _decoder.Reset();
 
         if (_reconnectBufferedQueue is { Count: > 0 })
@@ -677,9 +711,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                 _reconnectBufferedQueue.Clear();
             }
 
-            IsReconnecting = false;
+            _connectionState = ConnectionState.Dead;
             _reconnectAttempts = 0;
-            _connectionDead = true;
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
@@ -690,20 +723,15 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void CompleteResponse(HttpResponseMessage response)
     {
-        if (_decoder.ConnectionWillClose)
+        if (_decoder.ConnectionWillClose && _connectionState == ConnectionState.Active)
         {
-            _connectionCloseReceived = true;
+            _connectionState = ConnectionState.CloseAfterResponses;
         }
 
         HttpRequestMessage? request = null;
         if (_inFlightQueue.Count > 0)
         {
             request = _inFlightQueue.Dequeue();
-        }
-
-        if (_draining && _inFlightQueue.Count == 0)
-        {
-            _draining = false;
         }
 
         if (request is not null)
