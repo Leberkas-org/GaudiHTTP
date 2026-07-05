@@ -28,6 +28,7 @@ export default defineConfig({
             { text: 'Server', link: '/server/' },
             { text: 'Architecture', link: '/architecture/' },
             { text: 'API', link: '/api/' },
+            { text: 'The Story', link: '/story' },
         ],
 
         sidebar: {
