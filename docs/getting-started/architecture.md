@@ -71,7 +71,7 @@ Each stage does one thing well. Most of the time you don't think about them — 
 - **IGaudiHttpClient** — the public API: `SendAsync()` for single requests, `Requests`/`Responses` channels for high-throughput streaming
 - **GaudiHttpClient** — concrete implementation that wraps the Akka.Streams pipeline
 - **ClientStreamManager** — materialises the full pipeline graph from the configured stages
-- **StreamOwner** — owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure
+- **ClientStreamOwner** — owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure
 
 ### Key Characteristics
 
@@ -95,7 +95,7 @@ When a request arrives at GaudiHTTP Server, it passes through a complementary pi
 ```
 Incoming TCP/QUIC Connection
     ↓
-[Transport] — accepts connection via ListenerActor, spawns ConnectionActor
+[Transport] — accepts connection via ServerListenerActor, spawns ServerConnectionActor
     ↓
 [Protocol Negotiation] — detects HTTP version (ALPN over TLS, or byte-sniffing for plaintext)
     ↓
@@ -114,7 +114,7 @@ Incoming TCP/QUIC Connection
 [Network] — sends over TCP or QUIC
 ```
 
-Each connection is managed by a dedicated `ConnectionActor` spawned by the `ListenerActor` — it materialises an Akka.Streams sub-graph that handles transport bytes through protocol decoding, bridging to ASP.NET Core's request processing, and response serialisation.
+Each connection is managed by a dedicated `ServerConnectionActor` spawned by the `ServerListenerActor` — it materialises an Akka.Streams sub-graph that handles transport bytes through protocol decoding, bridging to ASP.NET Core's request processing, and response serialisation.
 
 ### Server Architecture
 
@@ -126,7 +126,7 @@ GaudiHTTP Server is an ASP.NET Core `IServer` implementation that replaces Kestr
 
 - **GaudiServer** — the `IServer` implementation registered via `builder.Host.UseGaudiHttp()`; ASP.NET Core hosting calls `StartAsync<TContext>()`, which creates the ActorSystem and spawns ServerSupervisorActor
 - **ServerSupervisorActor** — manages all listeners and tracks connection counts
-- **ListenerActor** — binds TCP or QUIC transport, accepts incoming connections, and spawns a `ConnectionActor` per client that materialises the full protocol lifecycle graph
+- **ServerListenerActor** — binds TCP or QUIC transport, accepts incoming connections, and spawns a `ServerConnectionActor` per client that materialises the full protocol lifecycle graph
 
 ### Transport Layer
 

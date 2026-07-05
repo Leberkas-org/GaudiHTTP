@@ -68,7 +68,7 @@ When a request arrives at GaudiHTTP Server, it passes through a complementary pi
 ```
 Incoming TCP/QUIC Connection
     ↓
-[Transport] — accepts connection via ListenerActor
+[Transport] — accepts connection via ServerListenerActor
     ↓
 [Protocol Decoder] — parses HTTP/1.0, 1.1, 2, or 3 bytes
     ↓
@@ -79,7 +79,7 @@ Incoming TCP/QUIC Connection
 [Response] — writes response back through the pipeline
 ```
 
-Each connection is managed by a `ConnectionActor` that materialises an Akka.Streams sub-graph for that connection — from transport bytes through to response serialisation.
+Each connection is managed by a `ServerConnectionActor` that materialises an Akka.Streams sub-graph for that connection — from transport bytes through to response serialisation.
 
 ::: tip Routing and Dispatching
 Routing, parameter binding, and request dispatching are handled by standard ASP.NET Core — middleware, endpoint routing, and model binding. If you need actor-based request handling, the optional [Servus.Akka.AspNetCore](https://github.com/Aaronontheweb/Servus.Akka.AspNetCore) package provides `EntityDispatcher` and `AkkaResults` helpers for integrating Akka actors as endpoints.

@@ -39,10 +39,10 @@ model {
       ClientStreamManager = component 'ClientStreamManager' {
         #client
         technology 'ReceiveActor'
-        description 'Per-client actor: routes consumer registrations and creates the StreamOwner that owns the pipeline'
+        description 'Per-client actor: routes consumer registrations and creates the ClientStreamOwner that owns the pipeline'
       }
 
-      StreamOwner = component 'StreamOwner' {
+      ClientStreamOwner = component 'ClientStreamOwner' {
         #client
         technology 'ReceiveActor'
         description 'Per-client actor: materialises the Akka.Streams pipeline, registers consumers, and monitors and restarts it on failure'
@@ -193,16 +193,16 @@ model {
       ServerSupervisorActor = actor 'ServerSupervisorActor' {
         #server
         technology 'ReceiveActor'
-        description 'Top-level supervisor: spawns one ListenerActor per configured endpoint, tracks connection counts, coordinates graceful shutdown'
+        description 'Top-level supervisor: spawns one ServerListenerActor per configured endpoint, tracks connection counts, coordinates graceful shutdown'
       }
 
-      ListenerActor = actor 'ListenerActor' {
+      ServerListenerActor = actor 'ServerListenerActor' {
         #server
         technology 'ReceiveActor'
-        description 'Per-endpoint listener: binds TCP or QUIC transport via Servus.Akka, accepts incoming connections, spawns a ConnectionActor for each client'
+        description 'Per-endpoint listener: binds TCP or QUIC transport via Servus.Akka, accepts incoming connections, spawns a ServerConnectionActor for each client'
       }
 
-      ConnectionActor = actor 'ConnectionActor' {
+      ServerConnectionActor = actor 'ServerConnectionActor' {
         #server
         technology 'ReceiveActor'
         description 'Per-connection actor: materialises the server-side Akka.Streams graph, selecting the appropriate protocol engine via ProtocolRouter and bridging to ApplicationBridgeStage; middleware and routing are handled by ASP.NET Core'
@@ -342,20 +342,20 @@ model {
   app -> gaudihttp.client.IGaudiHttpClient 'Sends requests, receives responses'
   gaudihttp.client.IGaudiHttpClient -> gaudihttp.client.GaudiHttpClient 'Implemented by'
   gaudihttp.client.GaudiHttpClient -> gaudihttp.client.ClientStreamManager 'Delegates to pipeline'
-  gaudihttp.client.ClientStreamManager -> gaudihttp.client.StreamOwner 'Manages lifecycle'
+  gaudihttp.client.ClientStreamManager -> gaudihttp.client.ClientStreamOwner 'Manages lifecycle'
   gaudihttp.client.IGaudiHttpClient -> gaudihttp.client.GaudiClientOptions 'Reads configuration'
 
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.RequestEnricher 'Enriches requests before the pipeline'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.HandlerBidiStage 'Wraps with handlers'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.TracingBidiStage 'Wraps with tracing'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.RedirectBidiStage 'Wraps with redirects'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.CookieBidiStage 'Wraps with cookies'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.RetryBidiStage 'Wraps with retry'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.CacheBidiStage 'Wraps with caching'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.ContentEncodingBidiStage 'Wraps with compression'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
-  gaudihttp.client.StreamOwner -> gaudihttp.streams.Engine 'Wraps with engine'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.RequestEnricher 'Enriches requests before the pipeline'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.HandlerBidiStage 'Wraps with handlers'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.TracingBidiStage 'Wraps with tracing'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.RedirectBidiStage 'Wraps with redirects'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.CookieBidiStage 'Wraps with cookies'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.RetryBidiStage 'Wraps with retry'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.CacheBidiStage 'Wraps with caching'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.ContentEncodingBidiStage 'Wraps with compression'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
+  gaudihttp.client.ClientStreamOwner -> gaudihttp.streams.Engine 'Wraps with engine'
 
   gaudihttp.streams.Http10ClientEngine -> servus.TcpConnectionStage 'TCP transport'
   gaudihttp.streams.Http11ClientEngine -> servus.TcpConnectionStage 'TCP transport'
@@ -364,16 +364,16 @@ model {
 
   gaudihttp.server.GaudiServer -> gaudihttp.server.ServerSupervisorActor 'Creates on startup'
   gaudihttp.server.GaudiServer -> gaudihttp.server.GaudiServerOptions 'Reads configuration'
-  gaudihttp.server.ServerSupervisorActor -> gaudihttp.server.ListenerActor 'Spawns per endpoint'
-  gaudihttp.server.ListenerActor -> gaudihttp.server.ConnectionActor 'Spawns per client'
+  gaudihttp.server.ServerSupervisorActor -> gaudihttp.server.ServerListenerActor 'Spawns per endpoint'
+  gaudihttp.server.ServerListenerActor -> gaudihttp.server.ServerConnectionActor 'Spawns per client'
 
-  gaudihttp.server.ListenerActor -> servus.TcpListenerFactory 'Binds TCP/TLS'
-  gaudihttp.server.ListenerActor -> servus.QuicListenerFactory 'Binds QUIC'
+  gaudihttp.server.ServerListenerActor -> servus.TcpListenerFactory 'Binds TCP/TLS'
+  gaudihttp.server.ServerListenerActor -> servus.QuicListenerFactory 'Binds QUIC'
   servus.TcpListenerFactory -> network 'Accepts TCP connections'
   servus.QuicListenerFactory -> network 'Accepts QUIC connections'
 
-  gaudihttp.server.ConnectionActor -> gaudihttp.serverStages.NegotiatingServerEngine 'Materialises protocol engine'
-  gaudihttp.server.ConnectionActor -> gaudihttp.serverStages.ApplicationBridgeStage 'Dispatches to IHttpApplication'
+  gaudihttp.server.ServerConnectionActor -> gaudihttp.serverStages.NegotiatingServerEngine 'Materialises protocol engine'
+  gaudihttp.server.ServerConnectionActor -> gaudihttp.serverStages.ApplicationBridgeStage 'Dispatches to IHttpApplication'
 
   gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http10ServerEngine 'HTTP/1.0'
   gaudihttp.serverStages.NegotiatingServerEngine -> gaudihttp.serverStages.Http11ServerEngine 'HTTP/1.1'

@@ -92,7 +92,7 @@ views {
   view serverPipeline of gaudihttp.serverStages {
     title 'Server — Request Pipeline'
     description 'How an incoming HTTP request flows through the server: ALPN negotiation → wire decode → ApplicationBridgeStage → ASP.NET Core'
-    include gaudihttp.server.ConnectionActor
+    include gaudihttp.server.ServerConnectionActor
     include gaudihttp.server.ProtocolRouter
     include gaudihttp.serverStages.NegotiatingServerEngine
     include gaudihttp.serverStages.Http10ServerEngine

@@ -10,7 +10,7 @@ When your ASP.NET Core application starts with GaudiHTTP Server configured, the 
 2. **Materializer**: Creates a Streams materializer for the system
 3. **ApplicationBridgeStage**: Creates the bridge flow that connects protocol engines to `IHttpApplication&lt;TContext&gt;`
 4. **EndpointResolver**: Resolves all configured endpoints into listener bindings
-5. **ServerSupervisorActor**: Spawns the top-level supervisor with one `ListenerActor` per endpoint
+5. **ServerSupervisorActor**: Spawns the top-level supervisor with one `ServerListenerActor` per endpoint
 6. **Coordinated Shutdown**: Hooks into Akka's shutdown lifecycle to ensure graceful termination
 
 ```csharp
@@ -44,12 +44,12 @@ GaudiHTTP Server uses this actor structure:
 ```
 ActorSystem (gaudi-server)
   ├── ServerSupervisorActor
-  │     ├── ListenerActor (endpoint 127.0.0.1:5100)
-  │     │     ├── ConnectionActor (conn-1)
-  │     │     ├── ConnectionActor (conn-2)
+  │     ├── ServerListenerActor (endpoint 127.0.0.1:5100)
+  │     │     ├── ServerConnectionActor (conn-1)
+  │     │     ├── ServerConnectionActor (conn-2)
   │     │     └── ...
-  │     └── ListenerActor (endpoint 127.0.0.1:5101)
-  │           ├── ConnectionActor (conn-1)
+  │     └── ServerListenerActor (endpoint 127.0.0.1:5101)
+  │           ├── ServerConnectionActor (conn-1)
   │           └── ...
 ```
 
@@ -63,18 +63,18 @@ The supervisor watches over the entire server. It:
 
 When shutdown begins, the supervisor tells all listeners to stop accepting new connections, then drains active connections with a timeout.
 
-### ListenerActor
+### ServerListenerActor
 
 Each endpoint has one listener. It:
 - Binds the transport (TCP port or QUIC/UDP port)
-- Spawns a `ConnectionActor` per incoming connection
+- Spawns a `ServerConnectionActor` per incoming connection
 - Enforces `MaxConcurrentConnections` limit (rejects excess connections immediately)
-- Watches each child `ConnectionActor` and tracks the active connection count
+- Watches each child `ServerConnectionActor` and tracks the active connection count
 - On drain: tells all children to drain and waits for the connection count to reach zero
 
-### ConnectionActor
+### ServerConnectionActor
 
-Each accepted connection is managed by a dedicated `ConnectionActor` (child of `ListenerActor`). It:
+Each accepted connection is managed by a dedicated `ServerConnectionActor` (child of `ServerListenerActor`). It:
 - Materializes the complete Akka.Streams graph for that connection:
   - Transport inbound/outbound flow
   - Protocol engine (HTTP/1.0, 1.1, 2, or 3)
@@ -87,16 +87,16 @@ Each accepted connection is managed by a dedicated `ConnectionActor` (child of `
 
 From the moment a client connects until it closes, here's what happens:
 
-1. **Connection arrives**: `ListenerActor` receives an incoming connection from the transport and spawns a `ConnectionActor`
-2. **Pipeline materialized**: The `ConnectionActor` materializes an Akka.Streams graph for the connection:
+1. **Connection arrives**: `ServerListenerActor` receives an incoming connection from the transport and spawns a `ServerConnectionActor`
+2. **Pipeline materialized**: The `ServerConnectionActor` materializes an Akka.Streams graph for the connection:
    - Protocol engine decodes transport bytes into IFeatureCollection
    - ApplicationBridgeStage creates TContext via IHttpApplication.CreateContext()
    - ASP.NET Core middleware pipeline processes the request
    - Response features are encoded back to bytes and sent
 3. **Request loop**: The connection waits for the next request (keep-alive) or closes
 4. **Completion**: When the connection closes (client disconnect, keep-alive timeout, error):
-   - The sub-graph completes and the `ConnectionActor` stops itself
-   - The parent `ListenerActor` decrements the active connection count
+   - The sub-graph completes and the `ServerConnectionActor` stops itself
+   - The parent `ServerListenerActor` decrements the active connection count
 
 ::: tip Keep-Alive Behavior
 HTTP/1.1 connections reuse the same TCP/TLS connection for multiple requests. Each request flows through the pipeline independently, but the connection and its sub-graph stay alive. HTTP/2 and HTTP/3 multiplex streams within one connection, all handled by the same materialized pipeline.
@@ -109,11 +109,11 @@ When your application receives a shutdown signal (SIGTERM, Ctrl+C, or explicit `
 1. **Shutdown signal received**: Your application calls `await app.StopAsync()` or the OS sends SIGTERM
 2. **Coordinated Shutdown phase 1 — BeforeServiceUnbind**:
    - ServerSupervisorActor receives `StopAccepting` message
-   - All ListenerActors stop accepting new connections
+   - All ServerListenerActors stop accepting new connections
    - Already-connected clients can still send requests
 3. **Coordinated Shutdown phase 2 — ServiceUnbind**:
    - ServerSupervisorActor receives `BeginDrain` message
-   - Each `ConnectionActor` receives a `Drain` message and triggers its per-connection kill switch
+   - Each `ServerConnectionActor` receives a `Drain` message and triggers its per-connection kill switch
    - Active connection pipelines are cancelled (sends back `HTTP/1.1 503 Service Unavailable` or RST_STREAM for HTTP/2)
    - In-flight requests are interrupted
 4. **Drain wait**: The application waits for up to `GracefulShutdownTimeout` (default 30 seconds)
@@ -184,6 +184,8 @@ builder.Host.UseGaudiHttp(options =>
 {
     // Max request body size buffered fully in memory (HTTP/1.x)
     // Larger bodies are exposed as a streaming pipe with backpressure
+    // Both are nullable overrides; left at null they inherit the effective
+    // defaults (64 KB / 16 KB) from the global MaxBufferedBodySize / BodyChunkSize
     options.Http1.MaxBufferedRequestBodySize = 64 * 1024;  // 64 KB
     
     // Chunk size when writing response body

@@ -98,9 +98,9 @@ The server pipeline is GaudiHTTP's transport and protocol layer. It hands off re
 ```
 Incoming TCP/QUIC Bytes
     ↓
-[Transport] — accepts connection; ListenerActor spawns a ConnectionActor
+[Transport] — accepts connection; ServerListenerActor spawns a ServerConnectionActor
     ↓
-[ProtocolRouter] — maps transport/Version to the appropriate server engine at bind time
+[ProtocolRouter] — resolves the concrete engine at connection time by protocol negotiation (or by Version, once known)
     ↓
 [Server Protocol Engine] — Http10/11/20/30ServerEngine decodes request, encodes response
     ↓
@@ -113,13 +113,13 @@ ASP.NET Core — middleware, routing, handlers, model binding
 Outgoing TCP/QUIC Bytes
 ```
 
-Each listener spawns a `ConnectionActor` per incoming connection — the actor materializes an Akka Streams graph that routes transport bytes through protocol parsing up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
+Each listener spawns a `ServerConnectionActor` per incoming connection — the actor materializes an Akka Streams graph that routes transport bytes through protocol parsing up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
 
 ### Server Pipeline Stages
 
 | Stage                        | Role                                                                                                                                                                                                                |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ProtocolRouter`             | Static factory that maps a `Version` and transport to the appropriate server engine at bind time; runtime byte-detection (when version is unspecified) is handled by `ProtocolNegotiatingStateMachine` inside the negotiating engine |
+| `ProtocolRouter`             | Static helper that resolves the concrete server engine at connection time: `ResolveEngine` maps a known `Version` directly, and `ResolveNegotiating` returns the negotiating engine, whose `ProtocolNegotiatingStateMachine` performs runtime byte-detection when the version is unspecified |
 | `Http*ServerEngine`          | Protocol-specific state machine: parses request bytes, manages connection/stream-level flow control, encodes response frames                                                                                        |
 | `ApplicationBridgeStage`      | Wraps the parsed protocol request as an `IFeatureCollection` (standard ASP.NET Core `HttpContext`); hands control to standard ASP.NET Core middleware                                                               |
 

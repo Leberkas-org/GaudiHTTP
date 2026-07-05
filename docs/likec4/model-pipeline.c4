@@ -17,7 +17,7 @@
 //   retry      --- retry request    -->  expect100 (re-enters below cookie, above engine)
 //   cache hit  --- cached response  -->  response chain at retry level (bypasses ContentEncoding + engine)
 //
-// SERVER PIPELINE (per connection, inside ConnectionActor):
+// SERVER PIPELINE (per connection, inside ServerConnectionActor):
 //   Network -> ConnectionStage -> ApplicationBridgeStage -> IHttpApplication<TContext> (ASP.NET Core)
 //   Response flows back through the same IFeatureCollection.
 

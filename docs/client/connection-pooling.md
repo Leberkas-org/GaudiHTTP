@@ -8,7 +8,7 @@ Each unique host (scheme + hostname + port + HTTP version) gets its own connecti
 
 ```
 Request → ClientStreamManager (global router)
-              └─ StreamOwner (per-endpoint actor)
+              └─ ClientStreamOwner (per-endpoint actor)
                     ├─ Idle connection available? → Return lease
                     ├─ Below per-host limit?      → Establish new connection
                     └─ At per-host limit?         → Wait for release

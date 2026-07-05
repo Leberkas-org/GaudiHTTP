@@ -320,13 +320,13 @@ The engine reads this descriptor and wires up only the stages you have actually 
 
 ## Server Request Pipeline
 
-On the server side, incoming requests flow through a different pipeline. Each `ConnectionActor` materialises this graph:
+On the server side, incoming requests flow through a different pipeline. Each `ServerConnectionActor` materialises this graph:
 
 <ClientOnly>
   <LikeC4Diagram viewId="serverPipeline" :height="400" />
 </ClientOnly>
 
-Network bytes arrive at the protocol-specific server engine (inside the `ConnectionActor`'s stream graph), are decoded into HTTP requests, wrapped in an `IFeatureCollection` (standard `HttpContext`) by the `ApplicationBridgeStage`, pass through the middleware pipeline, and reach the routing stage which dispatches to the matched handler.
+Network bytes arrive at the protocol-specific server engine (inside the `ServerConnectionActor`'s stream graph), are decoded into HTTP requests, wrapped in an `IFeatureCollection` (standard `HttpContext`) by the `ApplicationBridgeStage`, pass through the middleware pipeline, and reach the routing stage which dispatches to the matched handler.
 
 ## Related Guides
 
