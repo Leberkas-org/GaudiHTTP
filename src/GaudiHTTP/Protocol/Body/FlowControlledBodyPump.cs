@@ -1,4 +1,3 @@
-using Akka.Actor;
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -11,12 +10,10 @@ internal sealed class FlowControlledBodyPump(
     int chunkSize,
     int hardCap)
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
     private readonly Queue<int> _readyQueue = new();
     private readonly Dictionary<int, PumpSlot<int>> _activeSlots = new();
-    private readonly HashSet<int> _cancelledStreams = new();
     private readonly HashSet<int> _windowBlockedStreams = new();
+    private readonly List<int> _stillBlockedScratch = new();
 
     private int _readSlots = 2;
     private int _asyncInFlight;
@@ -50,7 +47,7 @@ internal sealed class FlowControlledBodyPump(
         {
             if (flowController.ConnectionSendWindow >= minRead)
             {
-                var stillBlocked = new List<int>();
+                _stillBlockedScratch.Clear();
                 foreach (var blocked in _windowBlockedStreams)
                 {
                     if (flowController.GetStreamSendWindow(blocked) >= minRead)
@@ -59,12 +56,12 @@ internal sealed class FlowControlledBodyPump(
                     }
                     else
                     {
-                        stillBlocked.Add(blocked);
+                        _stillBlockedScratch.Add(blocked);
                     }
                 }
 
                 _windowBlockedStreams.Clear();
-                foreach (var id in stillBlocked)
+                foreach (var id in _stillBlockedScratch)
                 {
                     _windowBlockedStreams.Add(id);
                 }
@@ -97,9 +94,7 @@ internal sealed class FlowControlledBodyPump(
                 slot.ReservedWindow = 0;
             }
 
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
+            PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
             return;
         }
 
@@ -125,37 +120,20 @@ internal sealed class FlowControlledBodyPump(
                 slot.ReservedWindow = 0;
             }
 
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
+            PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
             return;
+        }
+
+        if (slot.ReservedWindow > 0)
+        {
+            flowController.Refund(slot.StreamId, slot.ReservedWindow);
+            slot.ReservedWindow = 0;
         }
 
         _activeSlots.Remove(streamId);
         target.OnDrainFailed(streamId, reason);
         slot.DisposeResources();
         slot.Dispose();
-    }
-
-    public void HandleBodyReadContinue(int streamId)
-    {
-        if (!_activeSlots.TryGetValue(streamId, out var slot))
-        {
-            return;
-        }
-
-        slot.ResetSyncReads();
-
-        if (slot.IsOrphaned)
-        {
-            slot.DisposeResources();
-            slot.Dispose();
-            _activeSlots.Remove(streamId);
-            return;
-        }
-
-        _readyQueue.Enqueue(streamId);
-        TryScheduleReads();
     }
 
     public void Cancel(int streamId)
@@ -173,15 +151,11 @@ internal sealed class FlowControlledBodyPump(
             return;
         }
 
-        if (_windowBlockedStreams.Remove(streamId))
-        {
-            _activeSlots.Remove(streamId);
-            slot.DisposeResources();
-            slot.Dispose();
-            return;
-        }
-
-        _cancelledStreams.Add(streamId);
+        // Not in flight — clean up immediately, matching MultiplexedBodyPump's discipline (lazy
+        // removal from the ready queue is not needed: the slot will simply be missing from
+        // _activeSlots when dequeued in TryScheduleReads).
+        _windowBlockedStreams.Remove(streamId);
+        PumpSlotLifecycle.ReleaseSlot(_activeSlots, streamId, slot);
     }
 
     public void Cleanup()
@@ -199,7 +173,6 @@ internal sealed class FlowControlledBodyPump(
 
         _activeSlots.Clear();
         _windowBlockedStreams.Clear();
-        _cancelledStreams.Clear();
         _readyQueue.Clear();
     }
 
@@ -216,18 +189,6 @@ internal sealed class FlowControlledBodyPump(
         {
             var streamId = _readyQueue.Dequeue();
 
-            if (_cancelledStreams.Remove(streamId))
-            {
-                if (_activeSlots.TryGetValue(streamId, out var cancelled))
-                {
-                    _activeSlots.Remove(streamId);
-                    cancelled.DisposeResources();
-                    cancelled.Dispose();
-                }
-
-                continue;
-            }
-
             if (!_activeSlots.TryGetValue(streamId, out var slot))
             {
                 continue;
@@ -241,14 +202,6 @@ internal sealed class FlowControlledBodyPump(
             if (available < minReadSize)
             {
                 _windowBlockedStreams.Add(streamId);
-                continue;
-            }
-
-            if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
-            {
-                slot.ResetSyncReads();
-                slot.BeginRead();  // marks as in-flight for yield
-                target.StageActor.Tell(new BodyReadContinue<int>(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
@@ -268,29 +221,7 @@ internal sealed class FlowControlledBodyPump(
         slot.ReservedWindow = readSize;
 
         var token = slot.LinkedCts?.Token ?? connectionCts.Token;
-        slot.BeginRead();
-        var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..readSize], token);
-
-        if (vt.IsCompletedSuccessfully)
-        {
-            // Force-async: identical to the PipeTo path below but delivering the already-known
-            // result. The slot stays IsReadInFlight (from BeginRead) and counted in _asyncInFlight
-            // across the mailbox hop so HandleReadComplete's CompleteRead/_asyncInFlight-- balance
-            // and no re-entrant schedule can touch slot.Buffer before the completion emits it.
-            slot.ResetSyncReads();
-            _asyncInFlight++;
-            target.StageActor.Tell(
-                slot.CachedSuccessTransform!(vt.Result),
-                ActorRefs.NoSender);
-            return;
-        }
-
-        slot.ResetSyncReads();
-        _asyncInFlight++;
-        vt.PipeTo(
-            target.StageActor,
-            success: slot.CachedSuccessTransform,
-            failure: slot.CachedFailureTransform);
+        PumpSlotLifecycle.StartRead(slot, readSize, token, target.StageActor, ref _asyncInFlight);
     }
 
     private void ProcessReadResult(PumpSlot<int> slot, int bytesRead)

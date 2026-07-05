@@ -308,50 +308,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         {
             if (bufferedBody.Length > 0)
             {
-                var window = _flow.GetSendWindow(streamId);
-                if (window >= bufferedBody.Length)
-                {
-                    var bufferedFeatures = state.GetFeatures();
-                    var trailerFeature = bufferedFeatures?.Get<IHttpResponseTrailersFeature>();
-                    var hasTrailers = trailerFeature?.Trailers.Count > 0;
-
-                    if (hasTrailers)
-                    {
-                        if (trailerFeature!.Trailers is GaudiHeaderDictionary gaudiTrailers)
-                        {
-                            gaudiTrailers.SetReadOnly();
-                        }
-
-                        var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
-                        if (trailerFrames.Count > 0)
-                        {
-                            EmitBufferedDataFrames(streamId, bufferedBody, endStream: false);
-                            _flow.OnDataSent(streamId, bufferedBody.Length);
-                            for (var i = 0; i < trailerFrames.Count; i++)
-                            {
-                                EmitFrame(trailerFrames[i]);
-                            }
-                        }
-                        else
-                        {
-                            EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
-                            _flow.OnDataSent(streamId, bufferedBody.Length);
-                        }
-                    }
-                    else
-                    {
-                        EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
-                        _flow.OnDataSent(streamId, bufferedBody.Length);
-                    }
-                    CloseStream(streamId);
-                    return;
-                }
-
-                // Window can't take the whole body: emit what fits now and hold the rest as a slice
-                // (no copy — it points into the still-live response buffer), emitting it directly on
-                // WINDOW_UPDATE. SendBufferedBodyWithFlowControl handles window == 0 too (emits
-                // nothing now, holds the whole body). No ToArray, no MemoryStream, no pump.
-                SendBufferedBodyWithFlowControl(streamId, state, bufferedBody, window);
+                SendBufferedResponseBody(streamId, state, bufferedBody);
             }
             else
             {
@@ -363,7 +320,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
 
         var bodyStream = gaudiBody.GetResponseStream();
-        state.MarkBodyDrainActive();
         _pump!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
@@ -391,10 +347,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     {
         switch (msg)
         {
-            case BodyReadContinue<int> dc:
-                _pump?.HandleBodyReadContinue(dc.StreamId);
-                break;
-
             case BodyReadComplete<int> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
@@ -414,7 +366,14 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
     }
 
-    private void EmitEndOfBody(int streamId, StreamState state)
+    /// <summary>
+    /// Terminates a response body, optionally sending <paramref name="precedingData"/> first (the
+    /// buffered-body path in <see cref="SendBufferedResponseBody"/> routes its already-materialized
+    /// body through here instead of duplicating the trailer-vs-no-trailer framing). With no
+    /// preceding data (the pumped/deferred-body paths), only an END_STREAM-carrying frame is sent -
+    /// an empty DATA frame, or trailers preceded by an empty non-terminal DATA frame.
+    /// </summary>
+    private void EmitEndOfBody(int streamId, StreamState state, ReadOnlyMemory<byte> precedingData = default)
     {
         var features = state.GetFeatures();
         var trailerFeature = features?.Get<IHttpResponseTrailersFeature>();
@@ -430,7 +389,16 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
             if (trailerFrames.Count > 0)
             {
-                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: false));
+                if (precedingData.IsEmpty)
+                {
+                    EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: false));
+                }
+                else
+                {
+                    EmitBufferedDataFrames(streamId, precedingData, endStream: false);
+                    _flow.OnDataSent(streamId, precedingData.Length);
+                }
+
                 for (var i = 0; i < trailerFrames.Count; i++)
                 {
                     EmitFrame(trailerFrames[i]);
@@ -438,13 +406,25 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             }
             else
             {
-                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+                EmitBodyThenEndStream(streamId, precedingData);
             }
         }
         else
         {
-            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            EmitBodyThenEndStream(streamId, precedingData);
         }
+    }
+
+    private void EmitBodyThenEndStream(int streamId, ReadOnlyMemory<byte> data)
+    {
+        if (data.IsEmpty)
+        {
+            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            return;
+        }
+
+        EmitBufferedDataFrames(streamId, data, endStream: true);
+        _flow.OnDataSent(streamId, data.Length);
     }
 
     public void SendKeepAlivePing()
@@ -639,8 +619,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
             if (!data.Data.IsEmpty)
             {
-                _requestRate.Observe(streamId, data.Data.Length, Now());
-                EnsureRateTimer();
+                ObserveRate(_requestRate, streamId, data.Data.Length);
             }
         }
 
@@ -948,11 +927,49 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
             _flow.RemoveStreamSendWindow(streamId);
 
-            ReturnBodyReader(state);
-            state.Dispose();
-
-            _streams.Remove(streamId);
+            // Unlike the client, the server never gates release on an outbound drain (HasBodyDrain
+            // is write-only on this side - the response-body pump owns its own completion signal
+            // via IBodyDrainTarget.OnDrainComplete, which itself routes back through CloseStream).
+            // CloseStream is the single terminal event for both directions here, so release is
+            // always unconditional - see StreamState.MayRelease for the client's gated equivalent.
+            ReleaseStream(streamId, state);
         }
+    }
+
+    /// <summary>
+    /// Single teardown point for a stream: removes it from <see cref="_streams"/>, returns its body
+    /// reader, and disposes it back to the pool. Mirrors the client session manager's
+    /// <c>ReleaseStream</c> - kept here as its own method (rather than shared) because the two
+    /// managers have no common base and the body is only three lines.
+    /// </summary>
+    private void ReleaseStream(int streamId, StreamState state)
+    {
+        ReturnBodyReader(state);
+        state.Dispose();
+        _streams.Remove(streamId);
+    }
+
+    /// <summary>
+    /// Sends a non-empty buffered response body. If the current send window covers the whole
+    /// body, routes it through <see cref="EmitEndOfBody"/> as preceding data (so the trailer-vs-no-
+    /// trailer framing lives in one place, shared with the pumped/deferred body path). Otherwise
+    /// emits what fits now and holds the rest as a flow-controlled remainder.
+    /// </summary>
+    private void SendBufferedResponseBody(int streamId, StreamState state, ReadOnlyMemory<byte> bufferedBody)
+    {
+        var window = _flow.GetSendWindow(streamId);
+        if (window >= bufferedBody.Length)
+        {
+            EmitEndOfBody(streamId, state, bufferedBody);
+            CloseStream(streamId);
+            return;
+        }
+
+        // Window can't take the whole body: emit what fits now and hold the rest as a slice
+        // (no copy — it points into the still-live response buffer), emitting it directly on
+        // WINDOW_UPDATE. SendBufferedBodyWithFlowControl handles window == 0 too (emits
+        // nothing now, holds the whole body). No ToArray, no MemoryStream, no pump.
+        SendBufferedBodyWithFlowControl(streamId, state, bufferedBody, window);
     }
 
     private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body,
@@ -980,7 +997,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         // arrives. The slice points into the response feature's WrittenMemory, which stays valid
         // until the stream is closed (after the body fully drains) — see DrainBufferedRemainder.
         state.SetBufferedRemainder(remainder);
-        state.MarkBodyDrainActive();
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
@@ -1012,7 +1028,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         if (!state.HasBufferedRemainder)
         {
-            state.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, state);
             CloseStream(streamId);
         }
@@ -1067,7 +1082,6 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, state);
         }
 
@@ -1121,8 +1135,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         if (rateActive)
         {
-            _responseRate.Observe(streamId, body.Length, Now());
-            EnsureRateTimer();
+            ObserveRate(_responseRate, streamId, body.Length);
         }
 
         buf.Length = offset;
@@ -1135,12 +1148,11 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         {
             Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
                 d.StreamId, d.Data.Length, d.EndStream);
-        }
 
-        if (frame is DataFrame { Data.Length: > 0 } df)
-        {
-            _responseRate.Observe(df.StreamId, df.Data.Length, Now());
-            EnsureRateTimer();
+            if (d.Data.Length > 0)
+            {
+                ObserveRate(_responseRate, d.StreamId, d.Data.Length);
+            }
         }
 
         var totalSize = frame.SerializedSize;
@@ -1149,6 +1161,17 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         frame.WriteTo(ref span);
         buf.Length = totalSize;
         _ops.OnOutbound(TransportData.Rent(buf));
+    }
+
+    /// <summary>
+    /// Records a data-rate sample and (re)arms the shared check timer if it isn't already running.
+    /// Shared by the request-rate and response-rate observation sites (DATA in, buffered DATA out,
+    /// single-frame DATA out) so the pair never drifts apart.
+    /// </summary>
+    private void ObserveRate(DataRateMonitor monitor, int streamId, int length)
+    {
+        monitor.Observe(streamId, length, Now());
+        EnsureRateTimer();
     }
 
     public void EmitRstStream(int streamId, Http2ErrorCode errorCode)

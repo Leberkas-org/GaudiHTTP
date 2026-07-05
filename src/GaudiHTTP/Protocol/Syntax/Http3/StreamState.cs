@@ -34,12 +34,6 @@ internal sealed class StreamState : Poolable<StreamState>
 
     public bool HasBodyReader => _bodyReader is not null;
 
-    public bool HasBodyDrain { get; private set; }
-
-    public bool IsBodyDrainComplete { get; private set; }
-
-    public bool IsBodyReadPending { get; set; }
-
     /// <summary>
     /// RFC 9204 §2.1.2 — true while inbound HEADERS are QPACK-blocked awaiting dynamic-table
     /// updates. DATA frames received in this window are buffered (not dropped) and replayed
@@ -286,17 +280,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _bodyReader?.Dispose();
     }
 
-    public void MarkBodyDrainActive()
-    {
-        HasBodyDrain = true;
-        IsBodyDrainComplete = false;
-    }
-
-    public void MarkBodyDrainComplete()
-    {
-        IsBodyDrainComplete = true;
-    }
-
     public void SetFeatures(IFeatureCollection features)
     {
         _features = features;
@@ -319,9 +302,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _bodyReader = null;
         _maxBodySize = 0;
         _totalBodyBytes = 0;
-        HasBodyDrain = false;
-        IsBodyDrainComplete = false;
-        IsBodyReadPending = false;
         IsHeadersBlocked = false;
         PendingEndStream = false;
         _pendingInboundData = null;

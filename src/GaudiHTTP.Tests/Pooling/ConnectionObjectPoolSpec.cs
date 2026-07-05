@@ -61,29 +61,29 @@ public sealed class ConnectionObjectPoolSpec
         ctx.Return(b);
     }
 
-    private sealed class NeverRentedCounter : Poolable<NeverRentedCounter>
+    private sealed class ReturnFirstCounter : Poolable<ReturnFirstCounter>
     {
         public int Value;
-        public int ResetCount;
-        protected override void OnReset()
-        {
-            Value = 0;
-            ResetCount++;
-        }
+        protected override void OnReset() => Value = 0;
     }
 
     [Fact(Timeout = 5000)]
-    public void Return_without_prior_rent_resets_and_discards_instead_of_throwing()
+    public void Return_before_any_rent_must_not_throw_and_later_rent_reuses_the_instance()
     {
-        // Directly-constructed poolables (tests injecting fakes, abort paths racing the first
-        // Rent<T> of the process) dispose without a pool existing for their type. That must
-        // behave like returning to a full pool — reset and drop — not throw.
-        var a = new NeverRentedCounter { Value = 42 };
+        // A pooled object constructed directly (new, not rented) disposes itself back into the
+        // pool. That Return may be the very first pool touch for the type — it must not require
+        // a factory registration.
+        var ctx = ConnectionObjectPool.Instance;
+        var a = new ReturnFirstCounter { Value = 5 };
 
         a.Dispose();
 
-        Assert.Equal(1, a.ResetCount);
-        Assert.Equal(0, a.Value);
+        var b = ctx.Rent(static () => new ReturnFirstCounter());
+
+        Assert.Same(a, b);
+        Assert.Equal(0, b.Value);
+
+        ctx.Return(b);
     }
 
     [Fact(Timeout = 5000)]

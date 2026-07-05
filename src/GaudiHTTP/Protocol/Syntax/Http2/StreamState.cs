@@ -57,8 +57,6 @@ internal sealed class StreamState : Poolable<StreamState>
 
     public bool IsBodyDrainComplete { get; private set; }
 
-    public bool IsBodyReadPending { get; set; }
-
     /// <summary>
     /// Declared Content-Length of the body being fed, when known. When set, an END_STREAM
     /// arriving before (or after) exactly this many bytes faults the body reader instead of
@@ -81,11 +79,6 @@ internal sealed class StreamState : Poolable<StreamState>
     public void InitResponse(HttpResponseMessage response)
     {
         _response = response;
-    }
-
-    public HttpResponseMessage GetOrCreateResponse()
-    {
-        return _response ??= new HttpResponseMessage();
     }
 
     public HttpResponseMessage GetResponse()
@@ -161,11 +154,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _maxBodySize = maxBodySize;
         _totalBodyBytes = 0;
         ExpectedBodyLength = PeekContentLength();
-    }
-
-    public void DetachBodyReader()
-    {
-        _bodyReader = null;
     }
 
     public IBodyReader? TakeBodyReader()
@@ -287,6 +275,68 @@ internal sealed class StreamState : Poolable<StreamState>
         IsRemoteClosed = true;
     }
 
+    /// <summary>
+    /// RFC 9113 §5.1 stream states, expressed relative to this endpoint: "local" is the direction
+    /// this endpoint sends on (request body for a client, response body for a server); "remote" is
+    /// the direction the peer sends on. Derived — not independently stored — from the existing
+    /// <see cref="IsRemoteClosed"/> / <see cref="HasBodyDrain"/> / <see cref="IsBodyDrainComplete"/>
+    /// fields so it can never drift from them.
+    /// </summary>
+    public enum StreamLifecycle
+    {
+        Open,
+        HalfClosedLocal,
+        HalfClosedRemote,
+        Closed
+    }
+
+    /// <summary>
+    /// True once this endpoint's own send direction has nothing left in flight: either no drain was
+    /// ever started (a body sent entirely inline, or none at all) or a started drain has completed.
+    /// Note this is true by default (before <see cref="MarkBodyDrainActive"/> is ever called) - a
+    /// brand-new stream is only "not locally done" while an outbound drain is actively pending, so
+    /// <see cref="Lifecycle"/> reports <see cref="StreamLifecycle.HalfClosedLocal"/>, not
+    /// <see cref="StreamLifecycle.Open"/>, until <see cref="MarkBodyDrainActive"/> is called.
+    /// </summary>
+    private bool IsLocalSendComplete => !HasBodyDrain || IsBodyDrainComplete;
+
+    public StreamLifecycle Lifecycle => (IsRemoteClosed, IsLocalSendComplete) switch
+    {
+        (false, false) => StreamLifecycle.Open,
+        (false, true) => StreamLifecycle.HalfClosedLocal,
+        (true, false) => StreamLifecycle.HalfClosedRemote,
+        (true, true) => StreamLifecycle.Closed
+    };
+
+    /// <summary>
+    /// True once both directions have settled (RFC 9113 §5.1 "closed") — the only moment a session
+    /// manager may tear down this <see cref="StreamState"/> (remove from its stream map, return the
+    /// body reader, dispose). Callers that gate release on the drain flags should use this single
+    /// question instead of re-deriving the combination themselves.
+    /// </summary>
+    public bool MayRelease => Lifecycle == StreamLifecycle.Closed;
+
+    /// <summary>
+    /// Records that the peer's direction has finished (RFC 9113 §5.1 END_STREAM received) and
+    /// returns whether the stream is now fully releasable per <see cref="MayRelease"/>.
+    /// </summary>
+    public bool OnRemoteDone()
+    {
+        MarkRemoteClosed();
+        return MayRelease;
+    }
+
+    /// <summary>
+    /// Records that this endpoint's own outbound drain has finished (mirrors
+    /// <see cref="MarkBodyDrainComplete"/>) and returns whether the stream is now fully releasable
+    /// per <see cref="MayRelease"/>.
+    /// </summary>
+    public bool OnLocalDone()
+    {
+        MarkBodyDrainComplete();
+        return MayRelease;
+    }
+
     protected override void OnReset()
     {
         _headerOwner?.Dispose();
@@ -306,7 +356,6 @@ internal sealed class StreamState : Poolable<StreamState>
         _bufferedRemainder = default;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
-        IsBodyReadPending = false;
         ExpectedBodyLength = null;
         IsRemoteClosed = false;
         // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive

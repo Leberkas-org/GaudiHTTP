@@ -134,8 +134,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor, IWithTimers
             Timers.Cancel(StartupTimerKey);
             _log.Error("Listener {0} died during startup", msg.ActorRef.Path.Name);
 
-            foreach (var listener in _listenerActors.Where(x =>
-                         !_listenerActors.Any(actorRef => actorRef.Equals(msg.ActorRef))))
+            foreach (var listener in _listenerActors.Where(x => !x.Equals(msg.ActorRef)))
             {
                 Context.Stop(listener);
             }

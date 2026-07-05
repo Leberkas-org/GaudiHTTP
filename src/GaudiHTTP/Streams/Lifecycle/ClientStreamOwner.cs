@@ -53,7 +53,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
     private Source<HttpResponseMessage, NotUsed>? _responseFanoutSource;
     private Sink<HttpRequestMessage, NotUsed>? _requestIngress;
     private SharedKillSwitch? _killSwitch;
-    private bool _streamRunning;
     // Attached consumers in registration order. A consumer's PartitionHub slot is its 0-based
     // index here; the list compacts on unregister so indices track the hub's live partition set.
     private readonly List<Guid> _attachedConsumers = [];
@@ -208,7 +207,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
 
             _responseFanoutSource = fanoutSource;
 
-            _streamRunning = true;
             Tracing.For("Request").Debug(this, "Pipeline ready");
             _log.Debug("Stream pipeline materialized successfully");
 
@@ -439,7 +437,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
         _responseFanoutSource = null;
         _requestIngress = null;
         _attachedConsumers.Clear();
-        _streamRunning = false;
     }
 
     protected override SupervisorStrategy SupervisorStrategy()
@@ -453,7 +450,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
 
     protected override void PostStop()
     {
-        _log.Debug("PostStop: cleaning up resources (streamRunning: {0})", _streamRunning);
+        _log.Debug("PostStop: cleaning up resources");
         Timers.CancelAll();
         CleanupResources();
         base.PostStop();

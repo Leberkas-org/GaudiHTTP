@@ -1,4 +1,3 @@
-using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -18,8 +17,6 @@ namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
 internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
-    private const int MaxStatePoolCapacity = 1000;
-
     private const string DataRateCheck = "data-rate-check";
 
     private readonly IServerStageOperations _ops;
@@ -36,14 +33,9 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     private readonly int _responseBodyChunkSize;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
-    // Connection-level outbound credit for the multiplexed response-body pump. Each emitted DATA
-    // frame consumes one unit; the transport replenishes one unit per drained outbound item via
-    // OnOutboundFlushed. Bounds in-flight (emitted-but-unflushed) 16 KB frames per connection so
-    // concurrent responses cannot flood the per-stream output pipes and exhaust the shared pool.
-    private const int OutboundBodyCapacity = 16;
 
     private readonly CancellationTokenSource _connectionCts = new();
-    private MultiplexedBodyPump? _pump;
+    private readonly Http3OutboundWriter _writer;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly List<long> _rateViolations = [];
@@ -96,9 +88,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        var statePoolCapacity = Math.Min(
-            _decoderOptions.MaxConcurrentStreams > 0 ? _decoderOptions.MaxConcurrentStreams : 100,
-            MaxStatePoolCapacity);
+        _writer = new Http3OutboundWriter(this, _connectionCts, _responseBodyChunkSize);
     }
 
     public void PreStart()
@@ -233,9 +223,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
 
         var bodyStream = gaudiBody.GetResponseStream();
-        state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize, OutboundBodyCapacity);
-        _pump.Register(streamId, bodyStream, contentLength: null, CancellationToken.None);
+        _writer.Register(streamId, bodyStream, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
 
@@ -262,23 +250,19 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     {
         switch (msg)
         {
-            case BodyReadContinue<long> cont:
-                _pump?.HandleBodyReadContinue(cont.StreamId);
-                break;
-
             case BodyReadComplete<long> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _writer.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case BodyReadFailed<long> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _writer.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
-        _pump?.OnCapacityAvailable();
+        _writer.OnCapacityAvailable();
     }
 
     public void FlushAllPendingRequests()
@@ -292,7 +276,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
     public void Cleanup()
     {
-        _pump?.Cleanup();
+        _writer.Cleanup();
 
         foreach (var (_, (decoder, state)) in _streams)
         {
@@ -515,33 +499,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 {
                     case HeadersFrame headersFrame:
                         {
-                            if (state.GetRequestFeature() is not null)
-                            {
-                                _requestDecoder.DecodeTrailers(headersFrame, state);
-                                state.FeedBody([], endStream: true);
-                            }
-                            else
-                            {
-                                var requestFeature =
-                                    _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
-                                if (requestFeature is not null)
-                                {
-                                    state.InitRequestFeature(requestFeature);
-                                }
-                                else
-                                {
-                                    if (state.GetRequestFeature() is null)
-                                    {
-                                        // QPACK-blocked: the header block is queued in the table sync
-                                        // awaiting encoder-stream instructions. Mark it so the FIN is
-                                        // deferred and ProcessQpackEncoderStream redrives dispatch.
-                                        state.IsHeadersBlocked = true;
-                                    }
-
-                                    _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
-                                }
-                            }
-
+                            HandleHeadersFrame(state, headersFrame);
                             break;
                         }
 
@@ -563,17 +521,11 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                         }
                 }
             }
-            catch (QpackException ex)
+            catch (Exception ex) when (ex is QpackException or HuffmanException)
             {
+                var kind = ex is QpackException ? "QPACK" : "Huffman";
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 QPACK error on stream {0} - closing connection: {1}", streamId, ex.Message);
-                ShouldComplete = true;
-                return;
-            }
-            catch (HuffmanException ex)
-            {
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 Huffman error on stream {0} - closing connection: {1}", streamId, ex.Message);
+                    "HTTP/3 {0} error on stream {1} - closing connection: {2}", kind, streamId, ex.Message);
                 ShouldComplete = true;
                 return;
             }
@@ -591,6 +543,38 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
                 (frame as IDisposable)?.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Triages a HEADERS frame on a request stream: trailers if a request feature already
+    /// exists, otherwise a request-headers decode that either dispatches, blocks on QPACK
+    /// (until the encoder stream resolves it), or is still awaiting continuation.
+    /// </summary>
+    private void HandleHeadersFrame(StreamState state, HeadersFrame headersFrame)
+    {
+        if (state.GetRequestFeature() is not null)
+        {
+            _requestDecoder.DecodeTrailers(headersFrame, state);
+            state.FeedBody([], endStream: true);
+            return;
+        }
+
+        var requestFeature = _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
+        if (requestFeature is not null)
+        {
+            state.InitRequestFeature(requestFeature);
+            return;
+        }
+
+        if (state.GetRequestFeature() is null)
+        {
+            // QPACK-blocked: the header block is queued in the table sync
+            // awaiting encoder-stream instructions. Mark it so the FIN is
+            // deferred and ProcessQpackEncoderStream redrives dispatch.
+            state.IsHeadersBlocked = true;
+        }
+
+        _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, _requestHeadersTimeout);
     }
 
     private void HandleSettingsFrame(SettingsFrame settings)
@@ -725,7 +709,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    private long GetStreamIdFromFeatures(IFeatureCollection features)
+    private static long GetStreamIdFromFeatures(IFeatureCollection features)
     {
         var streamIdFeature = features.Get<IHttpStreamIdFeature>();
         if (streamIdFeature is not null)
@@ -740,7 +724,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
-        _pump?.Cancel(streamId);
+        _writer.Cancel(streamId);
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
@@ -777,7 +761,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
-            streamData.State.MarkBodyDrainComplete();
             EmitEndOfBody(streamId, streamData.State);
             CloseStream(streamId);
         }
@@ -846,29 +829,13 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             return;
         }
 
-        var typeVarIntLen = QuicVarInt.EncodedLength((long)FrameType.Data);
-        var payloadVarIntLen = QuicVarInt.EncodedLength(body.Length);
-        var prefixSize = typeVarIntLen + payloadVarIntLen;
-        var totalWireSize = prefixSize + body.Length;
-
-        var buf = TransportBuffer.Rent(totalWireSize);
-        var span = buf.FullMemory.Span;
-
-        QuicVarInt.Encode((long)FrameType.Data, span);
-        span = span[typeVarIntLen..];
-        QuicVarInt.Encode(body.Length, span);
-        span = span[payloadVarIntLen..];
-        body.Span.CopyTo(span);
-
-        buf.Length = totalWireSize;
+        Http3OutboundWriter.EmitDataFrame(_ops.OnOutbound, streamId, body);
 
         Tracing.For("Protocol").Trace(this, "HTTP/3: DATA out (stream={0}, len={1}, endStream={2})",
             streamId, body.Length, endStream);
 
         _responseRate.Observe(streamId, body.Length, Now());
         EnsureRateTimer();
-
-        _ops.OnOutbound(MultiplexedData.Rent(buf, streamId));
     }
 
     private MultiplexedData BuildControlPreface()
@@ -880,30 +847,12 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         _controlPrefaceSent = true;
 
-        var settings = new Settings();
-        settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
-        settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
         // RFC 9114 §7.2.4.1: advertise the largest header section we will accept so the peer can
         // pre-trim oversized header blocks instead of having them rejected after the fact.
-        settings.Set(SettingsIdentifier.MaxFieldSectionSize, _decoderOptions.MaxFieldSectionSize);
-        var settingsFrame = settings.ToFrame();
-
-        var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);
-        var frameSize = settingsFrame.SerializedSize;
-        var totalSize = streamTypeSize + frameSize;
-
-        using var owner = MemoryPool<byte>.Shared.Rent(totalSize);
-        var span = owner.Memory.Span;
-
-        var written = QuicVarInt.Encode((long)StreamType.Control, span);
-        span = span[written..];
-        settingsFrame.WriteTo(ref span);
-
-        var buf = TransportBuffer.Rent(totalSize);
-        owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
-        buf.Length = totalSize;
-
-        return MultiplexedData.Rent(buf, CriticalStreamId.Control);
+        return Http3OutboundWriter.BuildControlPreface(
+            _encoderOptions.QpackMaxTableCapacity,
+            _encoderOptions.QpackBlockedStreams,
+            _decoderOptions.MaxFieldSectionSize);
     }
 
     private void EnsureRateTimer()

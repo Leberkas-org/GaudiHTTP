@@ -58,43 +58,6 @@ public sealed class Http2StreamStateSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1")]
-    public void GetOrCreateResponse_should_return_existing_response()
-    {
-        var state = new StreamState();
-        var response = new HttpResponseMessage();
-        state.InitResponse(response);
-
-        var retrieved = state.GetOrCreateResponse();
-
-        Assert.Same(response, retrieved);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-5.1")]
-    public void GetOrCreateResponse_should_create_response_if_none_exists()
-    {
-        var state = new StreamState();
-
-        var response = state.GetOrCreateResponse();
-
-        Assert.NotNull(response);
-        Assert.True(state.HasResponse);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-5.1")]
-    public void GetOrCreateResponse_should_return_same_instance_on_multiple_calls()
-    {
-        var state = new StreamState();
-
-        var first = state.GetOrCreateResponse();
-        var second = state.GetOrCreateResponse();
-
-        Assert.Same(first, second);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-5.1")]
     public void AddContentHeader_should_store_header()
     {
         var state = new StreamState();
@@ -309,20 +272,6 @@ public sealed class Http2StreamStateSpec
 
         var span = state.GetHeaderSpan();
         Assert.Equal(3, span.Length);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-5.1")]
-    public void GetOrCreateResponse_should_create_once_and_reuse()
-    {
-        var state = new StreamState();
-
-        var resp1 = state.GetOrCreateResponse();
-        var resp2 = state.GetOrCreateResponse();
-        var resp3 = state.GetOrCreateResponse();
-
-        Assert.Same(resp1, resp2);
-        Assert.Same(resp2, resp3);
     }
 
     [Fact(Timeout = 5000)]

@@ -28,15 +28,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     private readonly Http3ClientEncoder _requestEncoder;
     private readonly QpackTableSync _tableSync;
 
-    // Connection-level outbound credit for the multiplexed body pump. Each emitted DATA frame
-    // consumes one unit; the transport replenishes one unit per drained outbound item via
-    // OnOutboundFlushed. Caps the in-flight (emitted-but-unflushed) 16 KB frames per connection,
-    // keeping the shared array pool warm instead of exhausting it under concurrent uploads.
-    private const int OutboundBodyCapacity = 16;
-
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private MultiplexedBodyPump? _pump;
+    private readonly Http3OutboundWriter _writer;
 
     private bool _controlPrefaceSent;
     private bool _transportConnected;
@@ -77,6 +71,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         {
             OnStreamClosedCallback = OnStreamClosed
         };
+
+        _writer = new Http3OutboundWriter(
+            this, _connectionCts, _options.ResolveRequestBodyChunkSize(_options.Http3));
     }
 
     private void OnStreamClosed(long streamId)
@@ -141,55 +138,91 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
 
-        if (bodyStream is MemoryStream ms && ms.TryGetBuffer(out var segment))
-        {
-            var pos = (int)ms.Position;
-            var available = segment.Count - pos;
-            if (available > 0)
-            {
-                var dataFrame = new DataFrame(segment.AsMemory(pos, available));
-                EmitSerializedFrame(dataFrame, streamId);
-                EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
-                return;
-            }
-        }
-
-        if (contentLength is > 0 and { } knownLength
-            && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
-            && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
+        if (TryEmitMemoryStreamBody(streamId, bodyStream)
+            || TryEmitSerializedBodyDirect(streamId, request.Content!, contentLength)
+            || TryEmitEmptyBody(streamId, contentLength))
         {
             return;
         }
 
-        if (contentLength == 0)
+        RegisterBodyPump(streamId, request.Content!, bodyStream!);
+    }
+
+    /// <summary>
+    /// Fast path for a body already fully buffered in memory: writes it as a single DATA frame
+    /// directly from the underlying array, skipping the pump entirely. Returns false (falling
+    /// through to the next strategy) if the stream isn't a seekable in-memory buffer or has
+    /// nothing left to read at the current position.
+    /// </summary>
+    private bool TryEmitMemoryStreamBody(long streamId, Stream? bodyStream)
+    {
+        if (bodyStream is not MemoryStream ms || !ms.TryGetBuffer(out var segment))
         {
-            // Empty body: emit END_STREAM directly without involving the pump (spec invariant 7).
-            EmitBufferedDataFrames(streamId, default, endStream: true);
-            return;
+            return false;
         }
 
-        var state = _streamManager.GetOrCreateStreamState(streamId);
-        state.MarkBodyDrainActive();
-        _drainContentOwners[streamId] = request.Content!;
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts,
-            _options.ResolveRequestBodyChunkSize(_options.Http3), OutboundBodyCapacity);
-        _pump.Register(streamId, bodyStream!, contentLength: null, CancellationToken.None);
+        var pos = (int)ms.Position;
+        var available = segment.Count - pos;
+        if (available <= 0)
+        {
+            return false;
+        }
+
+        var dataFrame = new DataFrame(segment.AsMemory(pos, available));
+        EmitSerializedFrame(dataFrame, streamId);
+        EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+        return true;
+    }
+
+    /// <summary>
+    /// Synchronously copies a known-length, buffer-size-bounded body into a pooled array and emits
+    /// it as a single DATA frame, avoiding the pump for small bodies whose content doesn't support
+    /// zero-copy access (e.g. non-<see cref="MemoryStream"/> content).
+    /// </summary>
+    private bool TryEmitSerializedBodyDirect(long streamId, HttpContent content, long? contentLength)
+    {
+        return contentLength is > 0 and { } knownLength
+               && knownLength <= _options.ResolveMaxBufferedRequestBodySize(_options.Http3)
+               && TrySerializeBodyDirect(content, streamId, (int)knownLength);
+    }
+
+    /// <summary>
+    /// Emits END_STREAM directly for a declared-empty body without involving the pump
+    /// (spec invariant 7).
+    /// </summary>
+    private bool TryEmitEmptyBody(long streamId, long? contentLength)
+    {
+        if (contentLength != 0)
+        {
+            return false;
+        }
+
+        EmitBufferedDataFrames(streamId, default, endStream: true);
+        return true;
+    }
+
+    /// <summary>
+    /// Fallback strategy for a body of unknown or large length: registers it with the shared
+    /// multiplexed body pump for chunked, backpressure-aware draining.
+    /// </summary>
+    private void RegisterBodyPump(long streamId, HttpContent content, Stream bodyStream)
+    {
+        // Ensure the stream state is registered before the pump starts delivering completions.
+        _streamManager.GetOrCreateStreamState(streamId);
+        _drainContentOwners[streamId] = content;
+        _writer.Register(streamId, bodyStream, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
     {
         switch (msg)
         {
-            case BodyReadContinue<long> cont:
-                _pump?.HandleBodyReadContinue(cont.StreamId);
-                break;
-
             case BodyReadComplete<long> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _writer.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
             case BodyReadFailed<long> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _writer.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
             case AbandonedResponseBody abandoned:
@@ -212,28 +245,10 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
         _controlPrefaceSent = true;
 
-        var settings = new Settings();
-        settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
-        settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
-        settings.Set(SettingsIdentifier.MaxFieldSectionSize, _decoderOptions.MaxFieldSectionSize);
-        var settingsFrame = settings.ToFrame();
-
-        var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);
-        var frameSize = settingsFrame.SerializedSize;
-        var totalSize = streamTypeSize + frameSize;
-
-        using var owner = MemoryPool<byte>.Shared.Rent(totalSize);
-        var span = owner.Memory.Span;
-
-        var written = QuicVarInt.Encode((long)StreamType.Control, span);
-        span = span[written..];
-        settingsFrame.WriteTo(ref span);
-
-        var buf = TransportBuffer.Rent(totalSize);
-        owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
-        buf.Length = totalSize;
-
-        return MultiplexedData.Rent(buf, CriticalStreamId.Control);
+        return Http3OutboundWriter.BuildControlPreface(
+            _encoderOptions.QpackMaxTableCapacity,
+            _encoderOptions.QpackBlockedStreams,
+            _decoderOptions.MaxFieldSectionSize);
     }
 
     public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
@@ -292,7 +307,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     public void OnOutboundFlushed()
     {
-        _pump?.OnCapacityAvailable();
+        _writer.OnCapacityAvailable();
     }
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()
@@ -315,7 +330,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         EmitOutbound(new ResetStream(streamId, 0x10C));
         _streamManager.RemoveCorrelation(streamId);
         request.Fail(new OperationCanceledException("Request cancelled by caller."));
-        _pump?.Cancel(streamId);
+        _writer.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
 
         return true;
@@ -332,7 +347,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     public void Cleanup()
     {
-        _pump?.Cleanup();
+        _writer.Cleanup();
         _drainContentOwners.Clear();
 
         _streamManager.Dispose();
@@ -415,22 +430,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
             return;
         }
 
-        var typeVarIntLen = QuicVarInt.EncodedLength((long)FrameType.Data);
-        var payloadVarIntLen = QuicVarInt.EncodedLength(body.Length);
-        var prefixSize = typeVarIntLen + payloadVarIntLen;
-        var totalWireSize = prefixSize + body.Length;
-
-        var buf = TransportBuffer.Rent(totalWireSize);
-        var span = buf.FullMemory.Span;
-
-        QuicVarInt.Encode((long)FrameType.Data, span);
-        span = span[typeVarIntLen..];
-        QuicVarInt.Encode(body.Length, span);
-        span = span[payloadVarIntLen..];
-        body.Span.CopyTo(span);
-
-        buf.Length = totalWireSize;
-        EmitOutbound(MultiplexedData.Rent(buf, streamId));
+        Http3OutboundWriter.EmitDataFrame(EmitOutbound, streamId, body);
 
         if (endStream)
         {
@@ -442,11 +442,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
     {
         _drainContentOwners.Remove(streamId);
 
-        var state = _streamManager.TryGetStreamState(streamId);
-        if (state is not null)
+        if (_streamManager.TryGetStreamState(streamId) is not null)
         {
             Tracing.For("Protocol").Debug(this, "HTTP/3: request body complete (stream={0})", streamId);
-            state.MarkBodyDrainComplete();
         }
     }
 
