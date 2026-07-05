@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using GaudiHTTP.Client;
+using GaudiHTTP.Tests.Shared;
 using TraceLevel = Servus.Diagnostics.TraceLevel;
 using static Servus.Senf;
 
@@ -33,7 +34,8 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        Assert.Skip("High-concurrency spec causes resource contention with parallel test collections in CI");
+        Assert.SkipWhen(CiQuietConfig.IsCi,
+            "High-concurrency spec causes resource contention with parallel test collections in CI");
 
         // --- Kestrel server (matches benchmark BenchmarkServer config) ---
         var builder = WebApplication.CreateBuilder();
