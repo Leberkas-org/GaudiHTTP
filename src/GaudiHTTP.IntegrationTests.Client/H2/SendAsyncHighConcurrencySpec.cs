@@ -16,7 +16,7 @@ using GaudiHTTP.Tests.Shared;
 using TraceLevel = Servus.Diagnostics.TraceLevel;
 using static Servus.Senf;
 
-namespace GaudiHTTP.IntegrationTests.End2End.H2;
+namespace GaudiHTTP.IntegrationTests.Client.H2;
 
 /// <summary>
 /// Reproduces the benchmark showstopper: SendAsync stalls at 512+ concurrent requests
