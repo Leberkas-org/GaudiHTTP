@@ -7,6 +7,8 @@ namespace GaudiHTTP.Tests.Shared;
 // test actor systems. This config silences that only in CI; local runs keep full logging.
 public static class CiQuietConfig
 {
+    public static bool IsCi => Environment.GetEnvironmentVariable("CI") is not null;
+
     public static readonly Config Instance =
         Environment.GetEnvironmentVariable("CI") is null
             ? Config.Empty

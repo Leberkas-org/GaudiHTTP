@@ -17,14 +17,20 @@ public sealed class ActorSystemFixture : IAsyncLifetime
 
     public ValueTask InitializeAsync()
     {
-        var loggerFactory = LoggerFactory.Create(b =>
+        // Senf tracing at Info floods CI output with per-request lifecycle noise (pipeline
+        // materialization, teardown warnings) that CiQuietConfig cannot reach — it flows through
+        // the console logger, not Akka logging. Skip tracing entirely in CI; full Info locally.
+        if (!CiQuietConfig.IsCi)
         {
-            b.AddConsole();
-            b.SetMinimumLevel(LogLevel.Information);
-        });
+            var loggerFactory = LoggerFactory.Create(b =>
+            {
+                b.AddConsole();
+                b.SetMinimumLevel(LogLevel.Information);
+            });
 
-        var traceListener = new LoggerTraceListener(loggerFactory);
-        Servus.Senf.Tracing.Configure(traceListener, TraceLevel.Info);
+            var traceListener = new LoggerTraceListener(loggerFactory);
+            Servus.Senf.Tracing.Configure(traceListener, TraceLevel.Info);
+        }
 
         var services = new ServiceCollection();
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
