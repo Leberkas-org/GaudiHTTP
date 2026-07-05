@@ -8,7 +8,7 @@ public abstract class StreamTestBase : TestKit
 {
     protected readonly IMaterializer Materializer;
 
-    protected StreamTestBase() : base(ActorSystem.Create("st-" + Guid.NewGuid()))
+    protected StreamTestBase() : base(ActorSystem.Create("st-" + Guid.NewGuid(), CiQuietConfig.Instance))
     {
         Materializer = Sys.Materializer();
     }

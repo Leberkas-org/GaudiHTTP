@@ -48,11 +48,11 @@ public sealed class ClientHelper : IAsyncDisposable
         else
         {
             var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-            var bootstrap = BootstrapSetup.Create();
+            var bootstrap = BootstrapSetup.Create().WithConfig(CiQuietConfig.Instance);
 
             if (loggerFactory is not null)
             {
-                bootstrap = bootstrap.WithConfig(LoggingHocon);
+                bootstrap = bootstrap.WithConfig(CiQuietConfig.Instance.WithFallback(LoggingHocon));
             }
 
             var setup = loggerFactory is not null

@@ -28,7 +28,7 @@ public sealed class ActorSystemFixture : IAsyncLifetime
 
         var services = new ServiceCollection();
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-        var bootstrap = BootstrapSetup.Create().WithConfig(QuietConfig);
+        var bootstrap = BootstrapSetup.Create().WithConfig(CiQuietConfig.Instance.WithFallback(QuietConfig));
 
         var setup = bootstrap.And(diSetup);
         System = ActorSystem.Create($"GaudiHttp-v2-{Guid.NewGuid()}", setup);

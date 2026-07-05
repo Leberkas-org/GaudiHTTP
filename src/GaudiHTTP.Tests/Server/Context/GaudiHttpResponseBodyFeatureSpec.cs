@@ -4,10 +4,11 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
 using GaudiHTTP.Server.Context.Features;
+using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Server.Context;
 
-public sealed class GaudiHttpResponseBodyFeatureSpec : TestKit
+public sealed class GaudiHttpResponseBodyFeatureSpec() : TestKit(CiQuietConfig.Instance)
 {
     [Fact(Timeout = 5000)]
     public async Task Stream_write_should_be_readable_from_GetResponseSource()
