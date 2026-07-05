@@ -50,3 +50,9 @@ public sealed class TimingIntegrationCollection;
 
 [CollectionDefinition("Cancellation")]
 public sealed class CancellationIntegrationCollection;
+
+// Runs exclusively: the spec boots its own in-process Kestrel per test and drives 512
+// concurrent requests. Sharing the process with parallel collections causes sporadic
+// multi-second stalls (random victims on both sides).
+[CollectionDefinition("HighConcurrency", DisableParallelization = true)]
+public sealed class HighConcurrencyCollection;
