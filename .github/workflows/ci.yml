@@ -54,7 +54,10 @@ jobs:
         with:
           global-json-file: ${{ env.GLOBAL_JSON_PATH }}
           cache: true
-          cache-dependency-path: "**/packages.lock.json"
+          cache-dependency-path: |
+            src/Directory.Packages.props
+            src/**/*.csproj
+            lib/**/*.csproj
 
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
