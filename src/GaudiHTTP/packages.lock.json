@@ -4,12 +4,12 @@
     "net10.0": {
       "Akka.Hosting": {
         "type": "Direct",
-        "requested": "[1.5.68, )",
-        "resolved": "1.5.68",
-        "contentHash": "KugrnBKwHVrQWH1ZfsJcAVIv0cs+85rNgs0Dj6/0tXSn4n+FENPhvyqH8V5+AgzJ+TXBNeFXybndLuFxP9X/uA==",
+        "requested": "[1.5.70, )",
+        "resolved": "1.5.70",
+        "contentHash": "/Y+9VV/iVa+q2h5QTK/Dy5Xuv4phfG+9ZVYj28h5ha35ehHL4XyLvfnM1lnCpilqHOemMp0P+u/R6qBQUiPTmw==",
         "dependencies": {
-          "Akka.DependencyInjection": "1.5.68",
-          "Akka.Streams": "1.5.68",
+          "Akka.DependencyInjection": "1.5.70",
+          "Akka.Streams": "1.5.70",
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.0",
           "Microsoft.Extensions.Diagnostics.HealthChecks": "9.0.0",
           "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
@@ -19,11 +19,11 @@
       },
       "Akka.Streams": {
         "type": "Direct",
-        "requested": "[1.5.68, )",
-        "resolved": "1.5.68",
-        "contentHash": "oEjZ68IiDFakfembDptkBdYHS5d8BSwfl4Ab39cd7v9ye1toZhcWaJ+E6TKkF4kY3anYOqvwFTq1HLsik2UWRA==",
+        "requested": "[1.5.70, )",
+        "resolved": "1.5.70",
+        "contentHash": "+upNFoPyej7aiAGIn9SwwCZaAZGHoDYVTRpmvcMhg9cytwSeO6WwTLj7U8gUnLy0pwLKNfVX/ae7ZXNIVlax7Q==",
         "dependencies": {
-          "Akka": "1.5.68",
+          "Akka": "1.5.70",
           "Google.Protobuf": "3.26.1",
           "Reactive.Streams": "1.0.4"
         }
@@ -61,8 +61,8 @@
       },
       "Akka": {
         "type": "Transitive",
-        "resolved": "1.5.68",
-        "contentHash": "N/bBk9MnlIPfhqxPQVggoCdW2n0EUZAbvyxDHOk5zg5acTOffFqTSIpCcfH4e257LlyUPrDuE2EaikbUmG/01w==",
+        "resolved": "1.5.70",
+        "contentHash": "N1SKJtaIy2S0JUUUPIC9h03TQeH5RDOJmbb2Dew4DvsqmI5wHK472ztqFBwzlw/wL2NQ4KHDXAqO7qKNVofPyA==",
         "dependencies": {
           "Akka.Analyzers": "0.3.3",
           "Microsoft.Extensions.ObjectPool": "6.0.36",
@@ -77,10 +77,10 @@
       },
       "Akka.DependencyInjection": {
         "type": "Transitive",
-        "resolved": "1.5.68",
-        "contentHash": "dk1q/8wF0cMdbUegU64DTJK8lW9d+/QWDFZFLDJ82YLb0Ewg8o3gRHWSMAUt+4pFduh62Zuyxhvg5qhOeaOVgA==",
+        "resolved": "1.5.70",
+        "contentHash": "PLJvq4ffbWBHLuyoNBn4k5xG7OO/yKMbrruVjioZg2LaeZhLjsk6J9n4RJKEXJtIOor2ldv8fVsVxoVXcvX0cQ==",
         "dependencies": {
-          "Akka": "1.5.68",
+          "Akka": "1.5.70",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "6.0.0"
         }
       },
@@ -291,15 +291,6 @@
         "contentHash": "IXoJOXIqc39AIe+CIR7koBtRGMiCt/LPM3lI+PELtDIy9XdyeSrwXFdWV9dzJ2Awl0paLWUaknLxFQ5HpHZUog==",
         "dependencies": {
           "System.Drawing.Common": "6.0.0"
-        }
-      },
-      "servus.akka": {
-        "type": "Project",
-        "dependencies": {
-          "Akka.Hosting": "[1.5.68, )",
-          "Akka.Streams": "[1.5.68, )",
-          "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
-          "Servus": "[0.34.0, )"
         }
       },
       "OpenTelemetry": {
