@@ -57,12 +57,17 @@ public sealed class GaudiServerOptions
     GaudiServerLimits Limits { get; }
 
     TimeSpan GracefulShutdownTimeout { get; set; }  // default: 30s
+    TimeSpan StartupTimeout { get; set; }            // default: 25s (max time to wait for all listeners to bind)
     TimeSpan HandlerTimeout { get; set; }            // default: 30s
     TimeSpan HandlerGracePeriod { get; set; }        // default: 5s
 
     TimeSpan BodyConsumptionTimeout { get; set; }    // default: 30s
-    int ResponseBodyChunkSize { get; set; }          // default: 16 * 1024
-    int MaxOutboundCoalesceCount { get; set; }       // default: 32 (frames merged up to factor × 16 KiB per transport write)
+    int MaxBufferedBodySize { get; set; }            // default: 64 * 1024 (global buffering threshold for request/response bodies)
+    int BodyChunkSize { get; set; }                  // default: 16 * 1024 (global chunk size for streaming body reads/writes)
+    int? MaxBufferedRequestBodySize { get; set; }    // default: null (per-direction override of MaxBufferedBodySize for requests)
+    int? MaxBufferedResponseBodySize { get; set; }   // default: null (per-direction override of MaxBufferedBodySize for responses)
+    int? RequestBodyChunkSize { get; set; }          // default: null (per-direction override of BodyChunkSize for request reads)
+    int? ResponseBodyChunkSize { get; set; }         // default: null (per-direction override of BodyChunkSize for response writes)
     bool AllowResponseHeaderCompression { get; set; } // default: true (disable to mitigate CRIME/BREACH-style attacks)
 
     Http1ServerOptions Http1 { get; }
@@ -103,6 +108,8 @@ public sealed class GaudiServerLimits
     long MaxResponseBufferSize { get; set; }                // default: 64 * 1024 (per-stream response write buffer)
     long? MaxRequestBufferSize { get; set; }                // default: 1 MiB (transport input buffer before backpressure; null = unlimited)
     int MaxResetStreamsPerWindow { get; set; }               // default: 200 (HTTP/2 Rapid Reset / CVE-2023-44487 mitigation; 0 = disabled)
+    TimeSpan RapidResetDetectionWindow { get; set; }        // default: 30s (sliding window paired with MaxResetStreamsPerWindow)
+    int MaxProtocolSniffBytes { get; set; }                 // default: 64 * 1024 (cleartext protocol sniffing cap; slow-loris guard)
     TimeSpan KeepAliveTimeout { get; set; }                 // default: 130s
     TimeSpan RequestHeadersTimeout { get; set; }            // default: 30s
     double MinRequestBodyDataRate { get; set; }             // default: 240
@@ -220,7 +227,10 @@ public sealed class Http1ServerOptions
     int MaxRequestTargetLength { get; set; }  // default: 8 * 1024
     int MaxPipelinedRequests { get; set; }    // default: 16
     int MaxChunkExtensionLength { get; set; } // default: 4 * 1024
-    int MaxBufferedRequestBodySize { get; set; } // default: 64 * 1024 (bodies up to this size buffered in memory, larger streamed)
+    int MaxChunkedControlLineLength { get; set; } // default: 64 * 1024 (max bytes for a chunk-size control line)
+    int MaxChunkedTrailerSize { get; set; }   // default: 32 * 1024 (max total bytes of the chunked trailer section)
+    int? MaxBufferedRequestBodySize { get; set; } // default: null (falls back to GaudiServerOptions.MaxBufferedRequestBodySize then MaxBufferedBodySize)
+    int? ResponseBodyChunkSize { get; set; }  // default: null (falls back to GaudiServerOptions.ResponseBodyChunkSize then BodyChunkSize)
     TimeSpan BodyReadTimeout { get; set; }    // default: 30s
     int? MaxHeaderListSize { get; set; }                      // default: null (uses Limits.MaxRequestHeadersTotalSize)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
@@ -252,6 +262,9 @@ public sealed class Http2ServerOptions
     long? MaxResponseBufferSize { get; set; }        // default: null (uses Limits.MaxResponseBufferSize)
     TimeSpan KeepAlivePingDelay { get; set; }        // default: infinite (server-initiated keep-alive PINGs disabled)
     TimeSpan KeepAlivePingTimeout { get; set; }      // default: 20s (max wait for PING ACK before closing)
+    int? MaxBufferedRequestBodySize { get; set; }    // default: null (falls back to GaudiServerOptions.MaxBufferedRequestBodySize then MaxBufferedBodySize)
+    int? MaxBufferedResponseBodySize { get; set; }   // default: null (falls back to GaudiServerOptions.MaxBufferedResponseBodySize then MaxBufferedBodySize)
+    int? ResponseBodyChunkSize { get; set; }         // default: null (falls back to GaudiServerOptions.ResponseBodyChunkSize then BodyChunkSize)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
     TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
     TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)
@@ -274,6 +287,9 @@ public sealed class Http3ServerOptions
     int QpackMaxTableCapacity { get; set; }   // default: 0
     int QpackBlockedStreams { get; set; }     // default: 100
     long? MaxResponseBufferSize { get; set; } // default: null (uses Limits.MaxResponseBufferSize)
+    int? MaxBufferedRequestBodySize { get; set; }    // default: null (falls back to GaudiServerOptions.MaxBufferedRequestBodySize then MaxBufferedBodySize)
+    int? MaxBufferedResponseBodySize { get; set; }   // default: null (falls back to GaudiServerOptions.MaxBufferedResponseBodySize then MaxBufferedBodySize)
+    int? ResponseBodyChunkSize { get; set; }         // default: null (falls back to GaudiServerOptions.ResponseBodyChunkSize then BodyChunkSize)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
     TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
     TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)

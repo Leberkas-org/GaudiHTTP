@@ -16,10 +16,17 @@ builder.Host.UseGaudiHttp(options =>
 | `HandlerTimeout` | `TimeSpan` | 30s | Maximum time for a request handler to complete |
 | `HandlerGracePeriod` | `TimeSpan` | 5s | Extra time after handler timeout before force-closing |
 | `GracefulShutdownTimeout` | `TimeSpan` | 30s | Time to drain connections during shutdown |
+| `StartupTimeout` | `TimeSpan` | 25s | Maximum time to wait for all listeners to bind during server startup |
 | `BodyConsumptionTimeout` | `TimeSpan` | 30s | Time for the app to consume the request body |
-| `ResponseBodyChunkSize` | `int` | 16 * 1024 | Chunk size for response body writes |
-| `MaxOutboundCoalesceCount` | `int` | 32 | Coalesce factor for outbound writes — frames are merged up to factor × 16 KiB per transport write |
+| `MaxBufferedBodySize` | `int` | 64 * 1024 | Global default body size threshold (bytes) for buffering both request and response bodies fully in memory; larger bodies are streamed. Per-direction and per-protocol overrides take precedence |
+| `BodyChunkSize` | `int` | 16 * 1024 | Global default chunk size (bytes) for streaming body reads/writes. Per-direction and per-protocol overrides take precedence |
+| `MaxBufferedRequestBodySize` | `int?` | null | Per-direction override of `MaxBufferedBodySize` for request bodies |
+| `MaxBufferedResponseBodySize` | `int?` | null | Per-direction override of `MaxBufferedBodySize` for response bodies |
+| `RequestBodyChunkSize` | `int?` | null | Per-direction override of `BodyChunkSize` for request body reads |
+| `ResponseBodyChunkSize` | `int?` | null | Per-direction override of `BodyChunkSize` for response body writes |
 | `AllowResponseHeaderCompression` | `bool` | true | Whether response headers may use Huffman compression (HPACK/QPACK); disable to mitigate CRIME/BREACH-style attacks |
+
+Buffering and chunk-size resolution is three-tiered: a per-protocol override (e.g. `Http1.MaxBufferedRequestBodySize`) wins if set, otherwise the per-direction global override (`MaxBufferedRequestBodySize`/`MaxBufferedResponseBodySize`, `RequestBodyChunkSize`/`ResponseBodyChunkSize`) wins if set, otherwise it falls back to the global default (`MaxBufferedBodySize`/`BodyChunkSize`).
 
 ## Connection Limits
 
@@ -34,6 +41,8 @@ Access via `options.Limits`.
 | `MaxRequestHeaderCount` | `int` | 100 | Maximum request headers |
 | `MaxRequestHeadersTotalSize` | `int` | 32 * 1024 | Maximum total header bytes |
 | `MaxResetStreamsPerWindow` | `int` | 200 | Maximum HTTP/2 stream resets tolerated in a sliding window before the connection is closed (Rapid Reset / CVE-2023-44487 mitigation). Set to 0 to disable. |
+| `RapidResetDetectionWindow` | `TimeSpan` | 30s | Sliding window paired with `MaxResetStreamsPerWindow` for Rapid Reset detection |
+| `MaxProtocolSniffBytes` | `int` | 64 * 1024 | Maximum bytes buffered while sniffing the cleartext protocol (HTTP/1.1 vs h2c); guards against slow-loris attacks during protocol detection |
 | `KeepAliveTimeout` | `TimeSpan` | 130s | Idle connection timeout |
 | `RequestHeadersTimeout` | `TimeSpan` | 30s | Time to receive request headers |
 | `MinRequestBodyDataRate` | `double` | 240 | Minimum body bytes/sec (0 = disabled) |
@@ -51,7 +60,10 @@ Access via `options.Http1`.
 | `MaxRequestTargetLength` | `int` | 8192 | Maximum bytes for the request target (URL) |
 | `MaxPipelinedRequests` | `int` | 16 | Maximum queued pipelined requests |
 | `MaxChunkExtensionLength` | `int` | 4096 | Maximum bytes for chunk extensions |
-| `MaxBufferedRequestBodySize` | `int` | 64 * 1024 | Request bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
+| `MaxChunkedControlLineLength` | `int` | 64 * 1024 | Maximum bytes for a chunk-size control line in chunked transfer encoding; guards against oversized chunk headers |
+| `MaxChunkedTrailerSize` | `int` | 32 * 1024 | Maximum total bytes of the trailer section in chunked transfer encoding; guards against trailer bombs |
+| `MaxBufferedRequestBodySize` | `int?` | null | Per-protocol override for the max request body size (bytes) buffered fully in memory; falls back to `GaudiServerOptions.MaxBufferedRequestBodySize` then `MaxBufferedBodySize` |
+| `ResponseBodyChunkSize` | `int?` | null | Per-protocol override for response body chunk size; falls back to `GaudiServerOptions.ResponseBodyChunkSize` then `BodyChunkSize` |
 | `BodyReadTimeout` | `TimeSpan` | 30s | Timeout for reading request body |
 | `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/1.x-specific body size limit |
@@ -78,6 +90,9 @@ Access via `options.Http2`.
 | `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `HeaderTableSize` | `int` | 4 * 1024 | HPACK dynamic table size |
 | `MaxResponseBufferSize` | `long?` | null (uses global) | Response buffering before backpressure (null = uses `Limits.MaxResponseBufferSize`) |
+| `MaxBufferedRequestBodySize` | `int?` | null | Per-protocol override for the max request body size (bytes) buffered fully in memory; falls back to `GaudiServerOptions.MaxBufferedRequestBodySize` then `MaxBufferedBodySize` |
+| `MaxBufferedResponseBodySize` | `int?` | null | Per-protocol override for the max response body size (bytes) buffered fully in memory; falls back to `GaudiServerOptions.MaxBufferedResponseBodySize` then `MaxBufferedBodySize` |
+| `ResponseBodyChunkSize` | `int?` | null | Per-protocol override for response body chunk size; falls back to `GaudiServerOptions.ResponseBodyChunkSize` then `BodyChunkSize` |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/2-specific body size limit |
 | `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
 | `KeepAlivePingDelay` | `TimeSpan` | infinite (disabled) | Idle time after the last received frame before the server sends a keep-alive PING |
@@ -99,6 +114,9 @@ Access via `options.Http3`.
 | `QpackMaxTableCapacity` | `int` | 0 | QPACK dynamic table capacity (0 = static only) |
 | `QpackBlockedStreams` | `int` | 100 | Maximum concurrent QPACK-blocked streams |
 | `MaxResponseBufferSize` | `long?` | null (uses global) | Per-stream response write buffer (null = uses `Limits.MaxResponseBufferSize`) |
+| `MaxBufferedRequestBodySize` | `int?` | null | Per-protocol override for the max request body size (bytes) buffered fully in memory; falls back to `GaudiServerOptions.MaxBufferedRequestBodySize` then `MaxBufferedBodySize` |
+| `MaxBufferedResponseBodySize` | `int?` | null | Per-protocol override for the max response body size (bytes) buffered fully in memory; falls back to `GaudiServerOptions.MaxBufferedResponseBodySize` then `MaxBufferedBodySize` |
+| `ResponseBodyChunkSize` | `int?` | null | Per-protocol override for response body chunk size; falls back to `GaudiServerOptions.ResponseBodyChunkSize` then `BodyChunkSize` |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/3-specific body size limit |
 | `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
 | `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Time to receive request headers |

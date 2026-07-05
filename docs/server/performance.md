@@ -34,7 +34,10 @@ Higher values improve throughput for clients sending many parallel requests. Low
 options.Http1.MaxBufferedRequestBodySize = 128 * 1024;  // 128 KB
 ```
 
-Default is 64 KB. HTTP/1.x request bodies up to this size are buffered fully in memory. Larger bodies are exposed to the application as a streaming pipe with backpressure.
+`Http1.MaxBufferedRequestBodySize` is `int?` and defaults to `null`, in which case it inherits the
+effective default of 64 KB from the global `options.MaxBufferedBodySize`. HTTP/1.x request bodies up
+to this size are buffered fully in memory. Larger bodies are exposed to the application as a
+streaming pipe with backpressure.
 
 - **Increase** for APIs that commonly receive medium-sized payloads (64-256 KB)
 - **Decrease** for memory-constrained environments or very large upload workloads
@@ -45,7 +48,9 @@ Default is 64 KB. HTTP/1.x request bodies up to this size are buffered fully in 
 options.ResponseBodyChunkSize = 32 * 1024;  // 32 KB
 ```
 
-Default is 16 KB. Controls the size of chunks when writing response bodies to the network.
+`ResponseBodyChunkSize` is `int?` and defaults to `null`, in which case it inherits the effective
+default of 16 KB from the global `options.BodyChunkSize`. Controls the size of chunks when writing
+response bodies to the network.
 
 - **Increase** for large response bodies (file downloads, large JSON)
 - **Decrease** for low-latency streaming where you want data sent sooner
