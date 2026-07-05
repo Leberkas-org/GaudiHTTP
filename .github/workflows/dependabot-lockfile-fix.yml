@@ -13,6 +13,10 @@ name: Dependabot Lockfile Fix
 on:
   pull_request_target:
     branches: ["main", "release-next"]
+    paths:
+      - "src/Directory.Packages.props"
+      - "src/**/packages.lock.json"
+      - "src/**/*.csproj"
 
 permissions:
   contents: write
