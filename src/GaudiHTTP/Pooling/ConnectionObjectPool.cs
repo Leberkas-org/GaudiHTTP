@@ -20,12 +20,20 @@ internal sealed class ConnectionObjectPool
     }
 
     public void Return<T>(T obj) where T : class, IResetable
-        => GetPool<T>(null).Return(obj);
+    {
+        // No Rent<T> has created the pool yet (e.g. a directly-constructed instance is disposed).
+        // Treat it like returning to a full pool: reset and discard.
+        if (_pools.TryGetValue(typeof(T), out var pool))
+        {
+            ((ObjectPool<T>)pool).Return(obj);
+        }
+        else
+        {
+            obj.Reset();
+        }
+    }
 
-    private ObjectPool<T> GetPool<T>(Func<T>? factory) where T : class, IResetable
+    private ObjectPool<T> GetPool<T>(Func<T> factory) where T : class, IResetable
         => (ObjectPool<T>)_pools.GetOrAdd(typeof(T),
-            _ => new DefaultObjectPool<T>(
-                new ResettablePoolPolicy<T>(factory ?? throw new InvalidOperationException(
-                    $"No factory registered for pooled type {typeof(T).Name}.")),
-                maximumRetained: 256));
+            _ => new DefaultObjectPool<T>(new ResettablePoolPolicy<T>(factory), maximumRetained: 256));
 }
