@@ -155,11 +155,11 @@ client.DefaultRequestVersion = HttpVersion.Version20;
 client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // graceful fallback
 ```
 
-### Channel Backpressure (WriteAsync Blocks)
+### Requests Pile Up in Memory (Producer Outruns the Wire)
 
-**Symptom:** `Requests.WriteAsync` hangs.
+**Symptom:** Memory grows while writing many requests via the channel API.
 
-**Cause:** The outbound channel is full — the connection cannot send requests as fast as you produce them. This is **correct behaviour** (backpressure).
+**Cause:** The `Requests` channel is unbounded — `WriteAsync` always completes immediately, and backpressure is applied downstream at the per-endpoint dispatch layer, not at the channel. A producer that writes far faster than the connections can send will accumulate queued requests in memory.
 
 **Fixes:**
 
@@ -168,7 +168,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // gracef
    ```csharp
    options.Http1.MaxConnectionsPerServer = 16;
    ```
-3. Ensure consumer task is actively reading responses to unblock the producer
+3. Throttle the producer yourself — e.g. a `SemaphoreSlim` acquired before `WriteAsync` and released as responses are read
 
 ### Stale Cache Responses
 

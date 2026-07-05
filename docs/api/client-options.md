@@ -11,15 +11,26 @@ public sealed class GaudiClientOptions
     public Http2ClientOptions Http2 { get; init; } = new();    // HTTP/2 settings
     public Http3ClientOptions Http3 { get; init; } = new();    // HTTP/3 settings
 
-    // Body buffering (response buffering threshold lives on Http1.MaxBufferedResponseBodySize)
+    // Body buffering (three-tier: global → per-direction → per-protocol; see below)
     public long? MaxStreamedResponseBodySize { get; set; }             // null = unlimited; cap on a streamed response body
-    public int RequestBodyChunkSize { get; set; } = 16 * 1024;         // 16 KB; chunk size when streaming a request body
+    public int MaxBufferedBodySize { get; set; } = 64 * 1024;          // 64 KB; global buffering threshold (request + response)
+    public int BodyChunkSize { get; set; } = 16 * 1024;                // 16 KB; global chunk size for streaming body reads/writes
+    public int? MaxBufferedRequestBodySize { get; set; }               // null = inherit MaxBufferedBodySize
+    public int? MaxBufferedResponseBodySize { get; set; }              // null = inherit MaxBufferedBodySize
+    public int? RequestBodyChunkSize { get; set; }                     // null = inherit BodyChunkSize
 
-    // Connection pool
+    // Timeouts and connection pool
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
+    public TimeSpan DefaultRequestTimeout { get; set; } = TimeSpan.FromSeconds(60);   // per-request timeout, like HttpClient.Timeout
     public TimeSpan PooledConnectionIdleTimeout { get; set; } = TimeSpan.FromSeconds(90);
     public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
     public uint MaxConcurrentEndpoints { get; set; } = 256;
+
+    // Stream materialization retry (transport/TLS failures before a request is in flight)
+    public TimeSpan StreamRetryInitialBackoff { get; set; } = TimeSpan.FromMilliseconds(100);
+    public TimeSpan StreamRetryMaxBackoff { get; set; } = TimeSpan.FromSeconds(30);
+    public double StreamRetryBackoffMultiplier { get; set; } = 2.0;
+    public int MaxStreamRetryAttempts { get; set; } = 10;
 
     // TLS
     public bool DangerousAcceptAnyServerCertificate { get; set; }
@@ -50,9 +61,14 @@ public sealed class GaudiClientOptions
 |----------|---------|-------------|
 | `BaseAddress` | `null` | Base URI for relative requests |
 | `ConnectTimeout` | `15 s` | TCP/QUIC connection timeout |
+| `DefaultRequestTimeout` | `60 s` | Per-request timeout applied by `SendAsync` (equivalent to `HttpClient.Timeout`); `Timeout.InfiniteTimeSpan` disables it |
 | `PooledConnectionIdleTimeout` | `90 s` | How long idle connections are kept in the pool |
 | `PooledConnectionLifetime` | `infinite` | Maximum lifetime of a pooled connection |
 | `MaxConcurrentEndpoints` | `256` | Max concurrently active endpoints |
+| `StreamRetryInitialBackoff` | `100 ms` | First retry delay when pipeline materialization fails (transport error, TLS failure) |
+| `StreamRetryMaxBackoff` | `30 s` | Cap on the exponential retry backoff |
+| `StreamRetryBackoffMultiplier` | `2.0` | Backoff multiplier per attempt |
+| `MaxStreamRetryAttempts` | `10` | Retry attempts before the client reports failure |
 
 Per-version connection limits are configured on the nested options objects:
 
@@ -71,7 +87,9 @@ See [Connection Pooling guide](/client/connection-pooling) for pool lifecycle de
 ```csharp
 public sealed class Http1ClientOptions
 {
-    public int MaxBufferedResponseBodySize { get; set; } = 64 * 1024;   // 64 KB; bodies up to this size are buffered in memory, larger are streamed
+    public int? MaxBufferedResponseBodySize { get; set; }               // null = inherit global buffering threshold (64 KB)
+    public int? MaxBufferedRequestBodySize { get; set; }                // null = inherit global buffering threshold (64 KB)
+    public int? RequestBodyChunkSize { get; set; }                      // null = inherit global chunk size (16 KB)
     public int MaxConnectionsPerServer { get; set; } = 6;
     public int MaxPipelineDepth { get; set; } = 16;
     public int MaxResponseHeadersLength { get; set; } = 64;             // KB
@@ -81,12 +99,16 @@ public sealed class Http1ClientOptions
     public int MaxResponseHeaderCount { get; set; } = 100;              // max number of response header fields
     public int MaxResponseHeaderLineLength { get; set; } = 8 * 1024;   // 8 KB; max length of a single header line
     public int MaxChunkExtensionLength { get; set; } = int.MaxValue;   // max total length of chunk extensions; unbounded by default
+    public int MaxChunkedControlLineLength { get; set; } = 64 * 1024;  // 64 KB; max length of a chunk-size control line
+    public int MaxChunkedTrailerSize { get; set; } = 32 * 1024;        // 32 KB; max total size of the chunked trailer section
 }
 ```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `MaxBufferedResponseBodySize` | `64 * 1024` (64 KB) | Response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
+| `MaxBufferedResponseBodySize` | `null` (inherit) | Per-protocol override for the response buffering threshold; falls back to the global `MaxBufferedResponseBodySize`, then `MaxBufferedBodySize` (64 KB) |
+| `MaxBufferedRequestBodySize` | `null` (inherit) | Per-protocol override for the request buffering threshold; same fallback chain |
+| `RequestBodyChunkSize` | `null` (inherit) | Per-protocol override for the upload chunk size; falls back to the global `RequestBodyChunkSize`, then `BodyChunkSize` (16 KB) |
 | `MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
 | `MaxPipelineDepth` | `16` | Max pipelined requests per connection |
 | `MaxResponseHeadersLength` | `64` (KB) | Max total response header block size |
@@ -96,6 +118,8 @@ public sealed class Http1ClientOptions
 | `MaxResponseHeaderCount` | `100` | Max number of response header fields |
 | `MaxResponseHeaderLineLength` | `8 * 1024` (8 KB) | Max length of a single response header line |
 | `MaxChunkExtensionLength` | `int.MaxValue` | Max total length of chunk extensions; unbounded by default |
+| `MaxChunkedControlLineLength` | `64 * 1024` (64 KB) | Max length of a chunk-size control line in chunked transfer encoding |
+| `MaxChunkedTrailerSize` | `32 * 1024` (32 KB) | Max total size of the trailer section in chunked transfer encoding |
 
 ## HTTP/2 Options
 
@@ -112,8 +136,9 @@ public sealed class Http2ClientOptions
     public int MaxFrameSize { get; set; } = 64 * 1024;                        // 64 KB
     public int HeaderTableSize { get; set; } = 64 * 1024;                     // 64 KB
     public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;           // 64 KB; max total size of response header list
-    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;         // 64 KB; bodies up to this size are serialized inline, larger are streamed
-    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;           // 64 KB; outbound body bytes buffered per stream before the encoder pauses
+    public int? MaxBufferedRequestBodySize { get; set; }                      // null = inherit; bodies up to the threshold are serialized inline, larger are streamed
+    public int? MaxBufferedResponseBodySize { get; set; }                     // null = inherit global buffering threshold
+    public int? RequestBodyChunkSize { get; set; }                            // null = inherit global chunk size
     public int MaxReconnectAttempts { get; set; } = 3;
     public int MaxReconnectBufferSize { get; set; } = 64;                     // max requests buffered during reconnection
     public TimeSpan KeepAlivePingDelay { get; set; } = Timeout.InfiniteTimeSpan;
@@ -134,8 +159,9 @@ public sealed class Http2ClientOptions
 | `MaxFrameSize` | `64 * 1024` (64 KB) | Max frame payload size |
 | `HeaderTableSize` | `64 * 1024` (64 KB) | HPACK dynamic table size |
 | `MaxResponseHeaderListSize` | `64 * 1024` (64 KB) | Max total size of the response header list |
-| `MaxBufferedRequestBodySize` | `64 * 1024` (64 KB) | Request bodies up to this size are serialized inline; larger bodies are streamed in chunks with backpressure |
-| `MaxRequestBodyBufferSize` | `64 * 1024` (64 KB) | Max outbound body bytes buffered per stream before the body encoder pauses |
+| `MaxBufferedRequestBodySize` | `null` (inherit) | Per-protocol override: request bodies up to the effective threshold (64 KB by default) are serialized inline; larger bodies are streamed in chunks with backpressure |
+| `MaxBufferedResponseBodySize` | `null` (inherit) | Per-protocol override for the response buffering threshold |
+| `RequestBodyChunkSize` | `null` (inherit) | Per-protocol override for the upload chunk size (16 KB effective default) |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
 | `MaxReconnectBufferSize` | `64` | Max requests buffered during reconnection |
 | `KeepAlivePingDelay` | `infinite` | Delay before sending keep-alive PING |
@@ -162,8 +188,9 @@ public sealed class Http3ClientOptions
     public int QpackBlockedStreams { get; set; } = 100;
     public int MaxFieldSectionSize { get; set; } = 64 * 1024;    // 64 KB
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;         // 64 KB; bodies up to this size are serialized inline, larger are streamed
-    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;           // 64 KB; outbound body bytes buffered per stream before the encoder pauses
+    public int? MaxBufferedRequestBodySize { get; set; }                      // null = inherit; bodies up to the threshold are serialized inline, larger are streamed
+    public int? MaxBufferedResponseBodySize { get; set; }                     // null = inherit global buffering threshold
+    public int? RequestBodyChunkSize { get; set; }                            // null = inherit global chunk size
     public int MaxReconnectAttempts { get; set; } = 3;
     public bool EnableAltSvcDiscovery { get; set; }
     public int MaxReconnectBufferSize { get; set; } = 64;                     // max frames/requests buffered during reconnection
@@ -180,8 +207,9 @@ public sealed class Http3ClientOptions
 | `IdleTimeout` | `30 s` | QUIC idle timeout |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
 | `EnableAltSvcDiscovery` | `false` | Auto-discover HTTP/3 via Alt-Svc headers |
-| `MaxBufferedRequestBodySize` | `64 * 1024` (64 KB) | Request bodies up to this size are serialized inline; larger bodies are streamed in chunks with backpressure |
-| `MaxRequestBodyBufferSize` | `64 * 1024` (64 KB) | Max outbound body bytes buffered per stream before the body encoder pauses |
+| `MaxBufferedRequestBodySize` | `null` (inherit) | Per-protocol override: request bodies up to the effective threshold (64 KB by default) are serialized inline; larger bodies are streamed in chunks with backpressure |
+| `MaxBufferedResponseBodySize` | `null` (inherit) | Per-protocol override for the response buffering threshold |
+| `RequestBodyChunkSize` | `null` (inherit) | Per-protocol override for the upload chunk size (16 KB effective default) |
 | `MaxReconnectBufferSize` | `64` | Max frames/requests buffered during reconnection |
 
 See [HTTP/3 & QUIC guide](/client/http3) for QUIC-specific settings.
@@ -235,11 +263,19 @@ QUIC cannot traverse an HTTP proxy. When a proxy applies to a request, HTTP/3 re
 
 ## Body Buffering Options
 
+Body buffering is resolved in three tiers — per-protocol override → per-direction global override → global default:
+
 | Property | Default | Description |
 |----------|---------|-------------|
-| `Http1.MaxBufferedResponseBodySize` | `64 * 1024` (64 KB) | HTTP/1.x response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
+| `MaxBufferedBodySize` | `64 * 1024` (64 KB) | Global threshold: bodies (request and response, all protocols) at or below this size are buffered fully in memory; larger bodies are streamed |
+| `BodyChunkSize` | `16 * 1024` (16 KB) | Global chunk size for streaming body reads/writes |
+| `MaxBufferedRequestBodySize` | `null` (inherit) | Per-direction override of `MaxBufferedBodySize` for request bodies |
+| `MaxBufferedResponseBodySize` | `null` (inherit) | Per-direction override of `MaxBufferedBodySize` for response bodies |
+| `RequestBodyChunkSize` | `null` (inherit) | Per-direction override of `BodyChunkSize` for request uploads |
+| `Http1/Http2/Http3.MaxBufferedRequestBodySize` | `null` (inherit) | Per-protocol override, takes precedence over the per-direction and global values |
+| `Http1/Http2/Http3.MaxBufferedResponseBodySize` | `null` (inherit) | Per-protocol override, takes precedence over the per-direction and global values |
+| `Http1/Http2/Http3.RequestBodyChunkSize` | `null` (inherit) | Per-protocol chunk-size override |
 | `MaxStreamedResponseBodySize` | `null` (unlimited) | Cap on a streamed response body; `null` means no limit |
-| `RequestBodyChunkSize` | `16 * 1024` (16 KB) | Chunk size used when streaming a request body |
 
 ::: tip
 For large file downloads or uploads, consume the response as a stream. `MaxStreamedResponseBodySize` defaults to `null` — there is no built-in size cap on streamed responses.

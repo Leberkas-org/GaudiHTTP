@@ -74,9 +74,19 @@ options.BaseAddress = new Uri("https://api.example.com/v2/");
 | Property                      | Type       | Default    | Description                                       |
 | ----------------------------- | ---------- | ---------- | ------------------------------------------------- |
 | `ConnectTimeout`              | `TimeSpan` | `00:00:15` | Timeout for establishing a new TCP connection     |
+| `DefaultRequestTimeout`       | `TimeSpan` | `00:01:00` | Per-request timeout applied by `SendAsync` (equivalent to `HttpClient.Timeout`); `Timeout.InfiniteTimeSpan` disables it |
 | `PooledConnectionIdleTimeout` | `TimeSpan` | `00:01:30` | Time a connection may remain idle before eviction |
 | `PooledConnectionLifetime`    | `TimeSpan` | `infinite` | Maximum lifetime of a pooled connection           |
 | `MaxConcurrentEndpoints`      | `uint`     | `256`      | Maximum concurrently active endpoints             |
+
+When the Akka Streams pipeline fails to materialize (transport error, TLS failure), the client retries with exponential backoff. The ladder is tunable:
+
+| Property                       | Type       | Default    | Description                                  |
+| ------------------------------ | ---------- | ---------- | -------------------------------------------- |
+| `StreamRetryInitialBackoff`    | `TimeSpan` | `100 ms`   | Delay before the first retry                 |
+| `StreamRetryMaxBackoff`        | `TimeSpan` | `00:00:30` | Cap on the exponential backoff               |
+| `StreamRetryBackoffMultiplier` | `double`   | `2.0`      | Delay multiplier per successive attempt      |
+| `MaxStreamRetryAttempts`       | `int`      | `10`       | Attempts before the client reports failure   |
 
 ```csharp
 options.ConnectTimeout = TimeSpan.FromSeconds(5);
@@ -86,11 +96,18 @@ options.PooledConnectionLifetime = TimeSpan.FromMinutes(10);
 
 ### Body Buffering
 
+Body buffering resolves in three tiers: per-protocol override (`Http1/Http2/Http3.*`) → per-direction global override → global default.
+
 | Property                        | Type    | Default             | Description                                                                                                                           |
 | ------------------------------- | ------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http1.MaxBufferedResponseBodySize` | `int` | `64 * 1024` (64 KB) | HTTP/1.x response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
+| `MaxBufferedBodySize`           | `int`   | `64 * 1024` (64 KB) | Global threshold: request and response bodies up to this size are buffered fully in memory; larger bodies are streamed |
+| `BodyChunkSize`                 | `int`   | `16 * 1024` (16 KB) | Global chunk size for streaming body reads/writes |
+| `MaxBufferedRequestBodySize`    | `int?`  | `null` (inherit)    | Per-direction override of `MaxBufferedBodySize` for request bodies |
+| `MaxBufferedResponseBodySize`   | `int?`  | `null` (inherit)    | Per-direction override of `MaxBufferedBodySize` for response bodies |
+| `RequestBodyChunkSize`          | `int?`  | `null` (inherit)    | Per-direction override of `BodyChunkSize` for request uploads |
 | `MaxStreamedResponseBodySize`   | `long?` | `null`              | Cap on a streamed response body; `null` = unlimited                                                                                   |
-| `RequestBodyChunkSize`          | `int`   | `16 * 1024` (16 KB) | Chunk size used when streaming a request body to the server                                                                           |
+
+Each protocol additionally exposes `Http1/Http2/Http3.MaxBufferedRequestBodySize`, `.MaxBufferedResponseBodySize`, and `.RequestBodyChunkSize` (`int?`, default `null`) that take precedence over the global values.
 
 ### HTTP/1.x Options
 
@@ -107,6 +124,8 @@ Per-version connection and protocol settings are configured on nested sub-object
 | `Http1.MaxResponseHeaderCount`        | `int`  | `100`                | Maximum number of response header fields accepted  |
 | `Http1.MaxResponseHeaderLineLength`   | `int`  | `8 * 1024` (8 KB)    | Maximum length of a single response header line    |
 | `Http1.MaxChunkExtensionLength`       | `int`  | `int.MaxValue`       | Maximum length of chunk extension data (unbounded by default) |
+| `Http1.MaxChunkedControlLineLength`   | `int`  | `64 * 1024` (64 KB)  | Maximum length of a chunk-size control line in chunked transfer encoding |
+| `Http1.MaxChunkedTrailerSize`         | `int`  | `32 * 1024` (32 KB)  | Maximum total size of the trailer section in chunked transfer encoding |
 
 ```csharp
 options.Http1.MaxConnectionsPerServer = 12;  // raise for parallel HTTP/1.1
@@ -128,6 +147,7 @@ options.Http1.MaxPipelineDepth = 32;
 | `Http2.HeaderTableSize`                    | `int`                      | `64 * 1024` (64 KiB)           | HPACK dynamic table size                                               |
 | `Http2.MaxResponseHeaderListSize`          | `int`                      | `64 * 1024` (64 KiB)           | Maximum total size of response header fields accepted                  |
 | `Http2.MaxReconnectAttempts`               | `int`                      | `3`                            | Max reconnect attempts on connection drop                              |
+| `Http2.MaxReconnectBufferSize`             | `int`                      | `64`                           | Max requests buffered during reconnection                              |
 | `Http2.KeepAlivePingDelay`                 | `TimeSpan`                 | `infinite`                     | Interval between keep-alive PINGs (`infinite` = disabled)              |
 | `Http2.KeepAlivePingTimeout`               | `TimeSpan`                 | `00:00:20`                     | Time to wait for a PING ACK before closing the connection              |
 | `Http2.KeepAlivePingPolicy`                | `HttpKeepAlivePingPolicy`  | `Always`                       | When to send keep-alive PINGs                                          |

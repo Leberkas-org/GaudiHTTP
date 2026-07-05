@@ -211,8 +211,8 @@ public class BatchProcessor(IGaudiHttpClientFactory factory)
 
 **How they interact:**
 
-- **Channel API:** The producer writes 10,000 requests to `client.Requests` (a bounded channel) as fast as it can, without waiting. The consumer reads from `client.Responses` in parallel. GaudiHTTP ensures requests are sent and responses are processed concurrently.
-- **Backpressure:** If the producer writes faster than the connection can send requests, the channel fills. `WriteAsync()` blocks until there is room, preventing memory exhaustion.
+- **Channel API:** The producer writes 10,000 requests to `client.Requests` (an unbounded channel) as fast as it can, without waiting. The consumer reads from `client.Responses` in parallel. GaudiHTTP ensures requests are sent and responses are processed concurrently.
+- **Backpressure:** `WriteAsync()` never blocks — the `Requests` channel is unbounded. Backpressure is applied downstream at the per-endpoint dispatch layer, where Akka Streams paces how fast requests go onto the wire. If you need to bound producer memory, throttle the producer yourself (e.g. with a `SemaphoreSlim` released as responses arrive).
 - **HTTP/2 multiplexing:** With `MaxConcurrentStreams = 100` and `MaxConnectionsPerServer = 2`, GaudiHTTP reuses 2 TCP connections and multiplexes up to 100 requests at a time over each connection. This is far more efficient than HTTP/1.1's 6 connections × 1 request per connection = 6 concurrent requests.
 - **Retries:** If a GET fails transiently, `.WithRetry()` automatically reattempts up to 3 times without blocking the consumer loop. Retried responses are enqueued like any other, preserving order of completion.
 
