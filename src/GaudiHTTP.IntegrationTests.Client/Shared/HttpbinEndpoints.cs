@@ -118,7 +118,9 @@ internal static class HttpbinEndpoints
         {
             var sanitizedKey = SanitizeCookieToken(kvp.Key);
             var sanitizedValue = SanitizeCookieToken(kvp.Value.ToString());
-            ctx.Response.Cookies.Append(sanitizedKey, sanitizedValue, new CookieOptions { Path = "/", Secure = true, HttpOnly = true, SameSite = SameSiteMode.Lax });
+            // Secure only on TLS: httpbin sets no Secure attribute; an unconditional Secure=true
+            // makes the plaintext H1 variants unpassable (the client refuses Secure cookies over http).
+            ctx.Response.Cookies.Append(sanitizedKey, sanitizedValue, new CookieOptions { Path = "/", Secure = ctx.Request.IsHttps, HttpOnly = true, SameSite = SameSiteMode.Lax });
         }
         ctx.Response.StatusCode = 302;
         ctx.Response.Redirect("/cookies", permanent: false);
