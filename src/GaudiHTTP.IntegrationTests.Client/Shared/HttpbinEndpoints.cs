@@ -476,7 +476,12 @@ internal static class HttpbinEndpoints
             }
             else if (ctx.Connection.LocalIpAddress != null)
             {
-                hostIp = ctx.Connection.LocalIpAddress.ToString();
+                // Loopback → "localhost": matches the TLS cert and avoids emitting an
+                // unbracketed IPv6 authority ("::1:port") now that the backend also
+                // listens on ::1.
+                hostIp = System.Net.IPAddress.IsLoopback(ctx.Connection.LocalIpAddress)
+                    ? "localhost"
+                    : ctx.Connection.LocalIpAddress.ToString();
             }
 
             var port = ctx.Connection.LocalPort;
