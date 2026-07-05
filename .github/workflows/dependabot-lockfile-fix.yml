@@ -1,0 +1,56 @@
+name: Dependabot Lockfile Fix
+
+# Dependabot regenerates packages.lock.json without the lib/servus.akka
+# submodule checked out, which drops the servus.akka project entry and breaks
+# CI's locked-mode restore (NU1004). This workflow re-runs the restore with
+# submodules present and pushes the corrected lock file back to the PR branch.
+#
+# Note: commits pushed with the default GITHUB_TOKEN do not retrigger the
+# "Build & Test" workflow. Configure a DEPENDABOT_LOCKFILE_TOKEN secret (PAT
+# with contents:write) so CI runs on the fixed commit automatically; without
+# it, retrigger CI by closing/reopening the PR.
+
+on:
+  pull_request_target:
+    branches: ["main", "release-next"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependabot-lockfix-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  fix-lockfiles:
+    # pull_request_target runs with a write token, so restrict this strictly
+    # to Dependabot branches from this repository.
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          submodules: true
+          token: ${{ secrets.DEPENDABOT_LOCKFILE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./src/global.json
+
+      - name: Regenerate lock files with submodules present
+        run: dotnet restore ./src/GaudiHTTP.slnx --force-evaluate
+
+      - name: Push corrected lock files
+        run: |
+          if git diff --quiet -- '*packages.lock.json'; then
+            echo "Lock files already consistent - nothing to fix."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add '*packages.lock.json'
+          git commit -m "deps: regenerate packages.lock.json with submodules"
+          git push
