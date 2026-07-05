@@ -523,6 +523,15 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
             Cancel(_inResponse);
         }
 
+        if (_outboundQueue.Count > 0)
+        {
+            // Outbound data is still queued (e.g. response encoded but not yet pushed
+            // because the network outlet had no demand). Drain via the flush path so
+            // the data reaches the transport before the connection closes.
+            CompleteAfterFlushingOutbound();
+            return;
+        }
+
         if (!IsClosed(_outNetwork))
         {
             Complete(_outNetwork);
