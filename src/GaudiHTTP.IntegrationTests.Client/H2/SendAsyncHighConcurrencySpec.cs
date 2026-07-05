@@ -23,6 +23,7 @@ namespace GaudiHTTP.IntegrationTests.Client.H2;
 /// over H2 against Kestrel. Uses graduated concurrency levels with Senf tracing to
 /// pinpoint where the pipeline stalls.
 /// </summary>
+[Collection("HighConcurrency")]
 public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 {
     private WebApplication? _kestrelApp;
