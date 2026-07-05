@@ -14,7 +14,7 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var mode = Environment.GetEnvironmentVariable("GaudiHttp_TEST_BACKEND")?.ToLowerInvariant();
+        var mode = Environment.GetEnvironmentVariable("GAUDIHTTP_TEST_BACKEND")?.ToLowerInvariant();
 
         _backend = mode switch
         {
@@ -42,7 +42,7 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
             if (required)
             {
                 throw new InvalidOperationException(
-                    "GaudiHttp_TEST_BACKEND=docker but Docker is not available.");
+                    "GAUDIHTTP_TEST_BACKEND=docker but Docker is not available.");
             }
 
             return null;
