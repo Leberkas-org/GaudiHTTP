@@ -84,6 +84,7 @@ public sealed class ServerStartupReliabilitySpec
         }
         finally
         {
+            Servus.Senf.Tracing.Disable();
             cert.Dispose();
         }
     }
