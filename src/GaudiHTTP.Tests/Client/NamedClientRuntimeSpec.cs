@@ -1,11 +1,12 @@
 using Akka.TestKit.Xunit;
+using GaudiHTTP.Client;
+using GaudiHTTP.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using GaudiHTTP.Client;
 
 namespace GaudiHTTP.Tests.Client;
 
-public sealed class NamedClientRuntimeSpec : TestKit
+public sealed class NamedClientRuntimeSpec() : TestKit(CiQuietConfig.Instance)
 {
     [Fact(Timeout = 15000)]
     public void CreateClient_same_name_should_reuse_single_named_runtime()

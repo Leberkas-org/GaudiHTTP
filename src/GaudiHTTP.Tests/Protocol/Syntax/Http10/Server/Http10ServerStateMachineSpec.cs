@@ -1,15 +1,15 @@
 using System.Text;
 using Akka.TestKit.Xunit;
-using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
-public sealed class Http10ServerStateMachineSpec : TestKit
+public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Instance)
 {
     private static FakeServerOps MakeOps() => new();
 

@@ -1,14 +1,14 @@
 using System.Net;
 using System.Text;
 using Akka.TestKit.Xunit;
-using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http10.Client;
 using GaudiHTTP.Tests.Shared;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
-public sealed class Http10ClientStateMachineSpec : TestKit
+public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Instance)
 {
     private static GaudiClientOptions MakeConfig() => new();
 

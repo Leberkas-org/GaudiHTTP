@@ -3,6 +3,7 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
+using GaudiHTTP.Tests.Shared;
 using Servus.Akka.Sse;
 
 namespace GaudiHTTP.Tests.Features.Sse;
@@ -11,7 +12,7 @@ public sealed class SseFormatterFlowSpec : TestKit
 {
     private readonly IMaterializer _materializer;
 
-    public SseFormatterFlowSpec() : base(ActorSystem.Create("test"))
+    public SseFormatterFlowSpec() : base(ActorSystem.Create("test", CiQuietConfig.Instance))
     {
         _materializer = Sys.Materializer();
     }

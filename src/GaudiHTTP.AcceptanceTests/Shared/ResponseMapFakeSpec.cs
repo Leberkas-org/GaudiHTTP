@@ -11,7 +11,7 @@ public sealed class ResponseMapFakeSpec : TestKit
 {
     private readonly IMaterializer _materializer;
 
-    public ResponseMapFakeSpec() : base(ActorSystem.Create("responsemap-test-" + Guid.NewGuid()))
+    public ResponseMapFakeSpec() : base(ActorSystem.Create("responsemap-test-" + Guid.NewGuid(), CiQuietConfig.Instance))
     {
         _materializer = Sys.Materializer();
     }

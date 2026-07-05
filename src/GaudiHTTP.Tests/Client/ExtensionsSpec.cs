@@ -4,8 +4,9 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
 using GaudiHTTP.Client;
-using Servus.Akka.Sse;
 using GaudiHTTP.Internal;
+using GaudiHTTP.Tests.Shared;
+using Servus.Akka.Sse;
 
 namespace GaudiHTTP.Tests.Client;
 
@@ -13,7 +14,7 @@ public sealed class ExtensionsSpec : TestKit
 {
     private readonly IMaterializer _materializer;
 
-    public ExtensionsSpec() : base(ActorSystem.Create("test"))
+    public ExtensionsSpec() : base(ActorSystem.Create("test", CiQuietConfig.Instance))
     {
         _materializer = Sys.Materializer();
     }

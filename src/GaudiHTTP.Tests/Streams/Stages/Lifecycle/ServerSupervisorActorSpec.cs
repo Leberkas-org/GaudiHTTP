@@ -3,14 +3,15 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
-using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Server;
 using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Tests.Shared;
+using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class ServerSupervisorActorSpec : TestKit
+public sealed class ServerSupervisorActorSpec() : TestKit(CiQuietConfig.Instance)
 {
     private static IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> PassthroughBridge()
         => Flow.Create<IFeatureCollection>();

@@ -6,7 +6,7 @@ using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
-public sealed class Http10ServerEncoderSpec : TestKit
+public sealed class Http10ServerEncoderSpec() : TestKit(CiQuietConfig.Instance)
 {
     private static Http10ServerEncoderOptions DefaultEncoderOptions() => new()
     {

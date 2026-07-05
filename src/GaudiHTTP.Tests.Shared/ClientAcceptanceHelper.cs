@@ -30,7 +30,7 @@ internal sealed class ClientAcceptanceHelper : IAsyncDisposable
         var services = new ServiceCollection();
 
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-        var bootstrap = BootstrapSetup.Create();
+        var bootstrap = BootstrapSetup.Create().WithConfig(CiQuietConfig.Instance);
         var system = ActorSystem.Create($"acceptance-{Guid.NewGuid()}", bootstrap.And(diSetup));
 
         services.AddSingleton(system);

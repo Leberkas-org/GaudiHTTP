@@ -3,10 +3,11 @@ using Akka.TestKit.Xunit;
 using GaudiHTTP.Client;
 using GaudiHTTP.Streams;
 using GaudiHTTP.Streams.Lifecycle;
+using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class ClientStreamOwnerSpec : TestKit
+public sealed class ClientStreamOwnerSpec() : TestKit(CiQuietConfig.Instance)
 {
     private static GaudiClientOptions DefaultClientOptions() => new()
     {
