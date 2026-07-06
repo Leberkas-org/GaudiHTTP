@@ -106,6 +106,8 @@ internal sealed class StreamManager(
     /// </summary>
     public void FailInflightRequest(long streamId, Exception exception)
     {
+        Tracing.For("Protocol").Info(this, "HTTP/3: failing in-flight request (stream={0}): {1}",
+            streamId, exception.Message);
         if (_streams.TryGetValue(streamId, out var state))
         {
             AbortAndReturnBodyReader(state);
@@ -334,9 +336,12 @@ internal sealed class StreamManager(
         {
             // Mark blocked so DATA frames that arrive before the QPACK encoder instructions
             // resolve this stream are buffered (HandleResponseData) instead of dropped.
+            Tracing.For("Protocol").Debug(this, "HTTP/3: HEADERS QPACK-blocked (stream={0})", state.StreamId);
             state.IsHeadersBlocked = true;
             return;
         }
+
+        Tracing.For("Protocol").Debug(this, "HTTP/3: response HEADERS received (stream={0})", state.StreamId);
 
         if (!responseDecoder.AssembleHeaders(result.Headers!, state))
         {
@@ -408,6 +413,7 @@ internal sealed class StreamManager(
     /// </summary>
     private void CompleteStreamOnFin(long streamId, StreamState state)
     {
+        Tracing.For("Protocol").Debug(this, "HTTP/3: stream FIN — body complete (stream={0})", streamId);
         state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
 
         if (state.TryTakeBufferedBodyReader(out var buffered))
@@ -448,6 +454,9 @@ internal sealed class StreamManager(
 
     private void HandleResponseData(DataFrame frame, StreamState state)
     {
+        Tracing.For("Protocol").Trace(this, "HTTP/3: response DATA (stream={0}, {1} bytes, hasReader={2})",
+            state.StreamId, frame.Data.Length, state.HasBodyReader);
+
         if (!state.HasBodyReader)
         {
             if (state.IsHeadersBlocked)

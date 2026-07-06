@@ -110,6 +110,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         var streamId = _tracker.AllocateStreamId();
         _tracker.OnStreamOpened(streamId);
 
+        Tracing.For("Protocol").Debug(this, "HTTP/3: request dispatched (stream={0}, {1} {2})",
+            streamId, request.Method, request.RequestUri);
+
         EmitOutbound(new OpenStream(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
         _streamManager.Correlate(streamId, request);
