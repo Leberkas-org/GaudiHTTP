@@ -15,6 +15,7 @@ using Microsoft.Extensions.Options;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 using QuicListenerOptionsServus = Servus.Akka.Transport.QuicListenerOptions;
 
 namespace GaudiHTTP.IntegrationTests.End2End.Shared;
@@ -152,6 +153,9 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
     public virtual async ValueTask DisposeAsync()
     {
+        // Dump before teardown so the ring still shows the failed request's frames.
+        await FaultTraceDump.DumpIfTestFailedAsync();
+
         _client?.Dispose();
 
         if (_app is not null)

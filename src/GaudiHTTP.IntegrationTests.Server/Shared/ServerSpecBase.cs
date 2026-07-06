@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.IntegrationTests.Server.Shared;
 
@@ -44,6 +45,9 @@ public abstract class ServerSpecBase : IAsyncLifetime
 
     public virtual async ValueTask DisposeAsync()
     {
+        // Dump before teardown so the ring still shows the failed request's frames.
+        await FaultTraceDump.DumpIfTestFailedAsync();
+
         _client?.Dispose();
         if (_app is not null)
         {
