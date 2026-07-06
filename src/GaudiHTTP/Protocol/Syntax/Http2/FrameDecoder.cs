@@ -134,8 +134,17 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             // force us to accumulate an arbitrarily large frame.
             if (payloadLen > maxFrameSize)
             {
+                // An oversized length from a well-behaved peer is almost always decoder desync or
+                // buffer corruption, not a real frame. Dump the surrounding bytes and parser state:
+                // a shifted-but-valid H2 frame in the context points to a skip/offset bug, foreign
+                // plaintext points to cross-connection pool contamination.
+                var contextStart = Math.Max(0, offset - 16);
+                var contextLength = Math.Min(48, workingLength - contextStart);
+                var context = Convert.ToHexString(working.Span.Slice(contextStart, contextLength));
                 throw new HttpProtocolException(
-                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}.");
+                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}. "
+                    + $"Decoder state: offset={offset}, workingLength={workingLength}, remainderOffset={_remainderOffset}, "
+                    + $"remainderLength={_remainderLength}, bytes[{contextStart}..{contextStart + contextLength}]={context}.");
             }
 
             if (workingLength - offset < FrameHeaderSize + payloadLen)

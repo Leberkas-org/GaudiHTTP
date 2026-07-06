@@ -2,6 +2,7 @@ using System.Net;
 using GaudiHTTP.Client;
 using GaudiHTTP.IntegrationTests.Client.Shared;
 using GaudiHTTP.Tests.Shared;
+using Servus.Diagnostics;
 
 namespace GaudiHTTP.IntegrationTests.Client.H2;
 
@@ -27,9 +28,15 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
     // matching the benchmark's ConcurrencyLevel=1 over the default pool.
     protected override ProtocolVariant? Variant => null;
 
+    // Stall post-mortem: capture per-frame Protocol traces (DATA in/out, WINDOW_UPDATE in/out,
+    // pause/resume) in a ring buffer; DownloadAsync dumps it to a file when the 30 s budget trips.
+    private static readonly RingBufferTraceListener TraceRing =
+        new(capacity: 128 * 1024, category => category is "Protocol" or "Stage" or "Transport");
+
     [Fact(Timeout = 180_000)]
     public async Task LargeDownload_should_complete_8MB_body_over_single_H2_stream()
     {
+        Servus.Senf.Tracing.Configure(TraceRing, TraceLevel.Trace);
         await using var helper = CreateClient(
             new ProtocolVariant(TestHttpVersion.H2, tls: true),
             configureOptions: o => o.Http2.MaxConnectionsPerServer = 1);
@@ -75,9 +82,14 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested && !CancellationToken.IsCancellationRequested)
         {
+            var dumpPath = Path.Combine(Path.GetTempPath(),
+                $"h2-large-download-stall-{DateTime.UtcNow:yyyyMMdd_HHmmss}.trace.log");
+            await File.WriteAllTextAsync(dumpPath, TraceRing.Dump(), CancellationToken.None);
+
             Assert.Fail(
                 $"REPRO: a {size / (1024 * 1024)} MB HTTP/2 download did not complete within 30 s — " +
-                "the receive path stalls on a large single stream (suspected missing/stuck WINDOW_UPDATE).");
+                "the receive path stalls on a large single stream (suspected missing/stuck WINDOW_UPDATE). " +
+                $"Protocol trace ring dumped to: {dumpPath}");
         }
     }
 }
