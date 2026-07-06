@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Servus.Diagnostics;
 
@@ -6,7 +7,10 @@ namespace GaudiHTTP.Diagnostics;
 internal sealed class LoggerTraceListener : IServusTraceListener
 {
     private readonly ILoggerFactory _loggerFactory;
-    private readonly Dictionary<string, ILogger> _loggers = new(StringComparer.OrdinalIgnoreCase);
+    // Trace events arrive from every dispatcher/IO thread concurrently; a plain Dictionary here
+    // corrupts under parallel writes (observed as InvalidOperationException storms inside
+    // IsEnabled that crash-looped actor creation under full-suite load).
+    private readonly ConcurrentDictionary<string, ILogger> _loggers = new(StringComparer.OrdinalIgnoreCase);
 
     public LoggerTraceListener(ILoggerFactory loggerFactory)
     {
@@ -36,13 +40,8 @@ internal sealed class LoggerTraceListener : IServusTraceListener
 
     private ILogger GetOrCreateLogger(string category)
     {
-        if (!_loggers.TryGetValue(category, out var logger))
-        {
-            logger = _loggerFactory.CreateLogger(string.Concat("GaudiHTTP.Trace.", category));
-            _loggers[category] = logger;
-        }
-
-        return logger;
+        return _loggers.GetOrAdd(category, static (cat, factory) =>
+            factory.CreateLogger(string.Concat("GaudiHTTP.Trace.", cat)), _loggerFactory);
     }
 
     private static LogLevel MapLevel(TraceLevel level)
