@@ -1,7 +1,7 @@
 using System.Text;
 using Servus.Diagnostics;
 
-namespace GaudiHTTP.IntegrationTests.Client.Shared;
+namespace GaudiHTTP.Tests.Shared;
 
 /// <summary>
 /// Lock-free ring buffer over Senf trace events for post-mortem stall diagnosis: cheap enough to

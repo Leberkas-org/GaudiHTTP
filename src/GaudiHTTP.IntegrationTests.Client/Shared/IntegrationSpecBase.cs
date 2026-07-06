@@ -40,6 +40,10 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
+        // Dump before tearing down the client so the ring still shows the stalled request's frames
+        // rather than teardown noise.
+        await FaultTraceDump.DumpIfTestFailedAsync();
+
         if (_helper is not null)
         {
             await _helper.DisposeAsync();
