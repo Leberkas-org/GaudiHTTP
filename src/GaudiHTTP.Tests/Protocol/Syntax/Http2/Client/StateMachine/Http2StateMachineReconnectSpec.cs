@@ -4,6 +4,7 @@ using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
+using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
@@ -221,5 +222,93 @@ public sealed class Http2StateMachineReconnectSpec
         Assert.Equal(1, sm.ReconnectBufferCount); // only stream 3 buffered for replay
         Assert.Contains(ops.Outbound, o => o is ConnectTransport);
         Assert.True(postLowPending.GetValueTask().IsFaulted); // stream 1 dropped (may have been processed)
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.1")]
+    public void Reconnect_should_discard_partial_frame_buffered_from_previous_connection()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        sm.PreStart();
+        sm.OnRequest(MakeGet("/a"));
+
+        // Deliver only a partial DATA frame: header declares 100 payload bytes, 10 arrive. The
+        // decoder buffers this as a remainder awaiting the missing 90 bytes.
+        var partial = new byte[9 + 10];
+        partial[2] = 100;          // 24-bit length = 100
+        partial[3] = 0x00;         // type = DATA
+        partial[8] = 1;            // stream id = 1
+        var partialBuf = TransportBuffer.Rent(partial.Length);
+        partial.CopyTo(partialBuf.FullMemory.Span);
+        partialBuf.Length = partial.Length;
+        sm.DecodeServerData(TransportData.Rent(partialBuf));
+
+        // Connection drops and is restored: the stale remainder MUST be discarded — the new
+        // connection's bytes are not a continuation of the old connection's partial frame.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        ops.Outbound.Clear();
+
+        // A complete PING on the fresh connection must decode cleanly and be acked. Without the
+        // decoder reset its 17 wire bytes are swallowed as payload of the stale partial DATA frame
+        // (permanent desync) and no ack is ever emitted.
+        var ping = new PingFrame(new byte[8], isAck: false);
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(ping)));
+
+        var ack = DecodeOutboundFrames(ops).OfType<PingFrame>().SingleOrDefault(p => p.IsAck);
+        Assert.NotNull(ack);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4.1")]
+    public async Task Connection_loss_should_fault_streaming_response_body_instead_of_truncating()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        sm.PreStart();
+        sm.OnRequest(MakeGet("/big"));
+
+        // Streaming response (no Content-Length → QueuedBodyReader) with the body still in flight.
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(MakeResponseHeaders(1))));
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(new DataFrame(1, new byte[10], endStream: false))));
+
+        var response = Assert.Single(ops.Responses);
+        var body = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+        var chunk = new byte[64];
+        Assert.Equal(10, await body.ReadAsync(chunk, TestContext.Current.CancellationToken));
+
+        // Connection lost mid-body: the handed-out stream must FAULT promptly. Completing it as a
+        // short success would silently truncate the body; leaving it pending wedges the consumer.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            while (await body.ReadAsync(chunk, TestContext.Current.CancellationToken) > 0)
+            {
+            }
+        });
+    }
+
+    private static HeadersFrame MakeResponseHeaders(int streamId)
+    {
+        var encoder = new HpackEncoder(useHuffman: false);
+        var hpack = encoder.Encode([(":status", "200")]);
+        return new HeadersFrame(streamId, hpack, endStream: false, endHeaders: true);
+    }
+
+    private static IReadOnlyList<Http2Frame> DecodeOutboundFrames(FakeClientOps ops)
+    {
+        var decoder = new FrameDecoder();
+        var result = new List<Http2Frame>();
+        foreach (var item in ops.Outbound)
+        {
+            if (item is TransportData { Buffer: var buffer })
+            {
+                result.AddRange(decoder.Decode(buffer));
+            }
+        }
+
+        return result;
     }
 }

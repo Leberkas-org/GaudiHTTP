@@ -254,9 +254,17 @@ internal sealed class StreamState : Poolable<StreamState>
         if (_bodyReader is IStreamingBodyReader streaming)
         {
             streaming.Fault(new OperationCanceledException());
+            // Do NOT Dispose (= pool-return) a streaming reader: the application still holds the
+            // stream wrapping it, and ResettablePoolPolicy runs OnReset at RETURN time — erasing
+            // the fault and queued chunks before an idle consumer observes them (its next read
+            // would then hang forever instead of failing). Dropping the reference matches the
+            // normal END_STREAM path, which also detaches without pooling; GC reclaims it.
+            _bodyReader = null;
+            return;
         }
 
         _bodyReader?.Dispose();
+        _bodyReader = null;
     }
 
     public void MarkBodyDrainActive()
