@@ -165,7 +165,14 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         }
         catch (Exception ex)
         {
-            Tracing.For(TraceCategory).Warning(this, "DecodeServerData threw: {0}", ex.Message);
+            // An exception escaping DecodeServerData (protocol errors are handled inside it) leaves
+            // the decoder mid-buffer and desynchronized: continuing would misparse every subsequent
+            // byte and wedge in-flight response bodies forever (observed as the 8 MB H2 download
+            // stall when a poisoned pool buffer threw ObjectDisposedException here). Fail the stage
+            // so in-flight requests and handed-out body streams fault instead of hanging.
+            Tracing.For(TraceCategory).Error(this, "DecodeServerData threw — failing connection: {0}", ex);
+            FailStage(ex);
+            return;
         }
 
         if (_responseQueue.Count > 0)

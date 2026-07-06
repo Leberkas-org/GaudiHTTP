@@ -491,6 +491,12 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         foreach (var (_, state) in _streams)
         {
+            // Fault (not just dispose) streaming body readers: a response body already handed to
+            // the application must surface the connection loss as an error. Disposing alone
+            // completes a pending read with isCompleted=true (QueuedBodyReader.OnReset), silently
+            // truncating the body mid-transfer. AbortBody is idempotent with the Dispose below
+            // (Poolable guards double-return).
+            state.AbortBody();
             ReturnBodyReader(state);
             state.Dispose();
         }
@@ -505,6 +511,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _flow.Reset(_decoderOptions.InitialConnectionWindowSize, _decoderOptions.InitialStreamWindowSize);
         _requestEncoder.ResetHpack();
         _responseDecoder.ResetHpack();
+        // A partial frame buffered from the old connection must not prefix the new connection's
+        // bytes — the decoder would misparse the fresh preface/SETTINGS as the old frame's payload
+        // and desynchronize permanently (RFC 9113 §4.1 framing is stateful per connection).
+        _frameDecoder.Reset();
         _prefaceSent = false;
         GoAwayWasGraceful = false;
     }
@@ -611,6 +621,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         {
             Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
                 d.StreamId, d.Data.Length, d.EndStream);
+        }
+        else if (frame is WindowUpdateFrame w)
+        {
+            Tracing.For("Protocol").Trace(this, "HTTP/2: WINDOW_UPDATE out (stream={0}, inc={1}, connRecvWindow={2})",
+                w.StreamId, w.Increment, _flow.RecvConnectionWindow);
         }
 
         var buf = TransportBuffer.Rent(frame.SerializedSize);
@@ -1045,6 +1060,8 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     private void HandleWindowUpdate(WindowUpdateFrame frame)
     {
+        Tracing.For("Protocol").Trace(this, "HTTP/2: WINDOW_UPDATE in (stream={0}, inc={1})",
+            frame.StreamId, frame.Increment);
         _flow.OnSendWindowUpdate(frame.StreamId, frame.Increment);
         _pump?.OnWindowUpdate(frame.StreamId);
     }

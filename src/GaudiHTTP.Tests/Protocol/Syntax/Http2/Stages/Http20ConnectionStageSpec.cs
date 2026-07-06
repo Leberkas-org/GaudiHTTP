@@ -307,4 +307,51 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         // Stage should complete
         responseSub.ExpectComplete(TestContext.Current.CancellationToken);
     }
+
+    [Fact(Timeout = 10_000)]
+    [Trait("RFC", "RFC9113-4.1")]
+    public async Task Http20ConnectionStage_should_fail_when_decode_throws_unexpectedly()
+    {
+        var stage = new Http20ClientConnectionStage(new GaudiClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
+
+        var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
+        var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
+        var networkSub = this.CreateManualSubscriberProbe<ITransportOutbound>();
+        var responseSub = this.CreateManualSubscriberProbe<HttpResponseMessage>();
+
+        RunnableGraph.FromGraph(GraphDsl.Create(b =>
+        {
+            var s = b.Add(stage);
+            var app = b.Add(Source.FromPublisher(appProbe));
+            var server = b.Add(Source.FromPublisher(serverProbe));
+            var netSink = b.Add(Sink.FromSubscriber(networkSub));
+            var resSink = b.Add(Sink.FromSubscriber(responseSub));
+
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
+            b.From(s.OutNetwork).To(netSink);
+            b.From(s.OutResponse).To(resSink);
+
+            return ClosedShape.Instance;
+        })).Run(Materializer);
+
+        var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+
+        netSubscription.Request(10);
+        resSubscription.Request(10);
+
+        // A poisoned inbound buffer — disposed while still carrying a non-zero Length, the
+        // observable shape of cross-connection pool corruption — makes DecodeServerData throw
+        // outside the protocol-error path. The stage must FAIL the connection: swallowing the
+        // exception leaves the FrameDecoder mid-buffer and desynchronized, wedging every
+        // subsequent frame and in-flight response body (repro: LargeDownloadRegressionSpec).
+        var poisoned = MakeResponseBuffer("xxxxxxxxxx");
+        poisoned.Dispose();
+        serverSubscription.SendNext(TransportData.Rent(poisoned));
+
+        responseSub.ExpectError(TestContext.Current.CancellationToken);
+    }
 }
