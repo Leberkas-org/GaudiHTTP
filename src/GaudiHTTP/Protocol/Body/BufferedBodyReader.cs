@@ -124,6 +124,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
 
     private sealed class PooledMemoryStream(ReadOnlyMemory<byte> memory, IMemoryOwner<byte>? ownedOwner) : Stream
     {
+        private IMemoryOwner<byte>? _ownedOwner = ownedOwner;
         private int _position;
 
         public override bool CanRead => true;
@@ -185,7 +186,13 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
         {
             if (disposing)
             {
-                ownedOwner?.Dispose();
+                // Streams MUST tolerate multiple Dispose calls (Close + DisposeAsync + a wrapping
+                // decompressor that owns its source all dispose the same instance). The owner's
+                // wrapper is pool-recycled on its first Dispose, so a second Dispose through a
+                // retained reference would dispose the wrapper's NEW renter's array — the exact
+                // shared-pool poisoning behind the sporadic H2 receive-path corruption. Interlocked:
+                // the decompressor's dispose (thread pool) can race the consumer's dispose.
+                Interlocked.Exchange(ref _ownedOwner, null)?.Dispose();
             }
 
             base.Dispose(disposing);

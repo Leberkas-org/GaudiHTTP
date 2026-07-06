@@ -44,8 +44,12 @@ internal static class ContentEncoding
     }
 
 
+    // leaveOpen: the caller owns the source stream (DecompressingContent disposes it via `using`,
+    // which also covers the case where codec construction throws). An owning codec stream would
+    // dispose the source a second time — for pooled body streams that second dispose used to reach
+    // a recycled owner wrapper and return another connection's array to the shared transport pool.
     internal static Stream CreateDecompressor(Stream source, string encoding)
-        => CreateCodecStream(source, encoding, CompressionMode.Decompress);
+        => CreateCodecStream(source, encoding, CompressionMode.Decompress, leaveOpen: true);
 
     internal static Stream CreateCompressor(Stream source, string encoding)
         => CreateCodecStream(source, encoding, CompressionMode.Compress, true);
