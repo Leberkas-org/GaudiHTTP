@@ -1,5 +1,6 @@
 using GaudiHTTP.Pooling;
 using GaudiHTTP.Protocol.Body;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Body;
 
@@ -85,4 +86,26 @@ public sealed class BufferedBodyReaderSpec
         Assert.Equal("hello"u8.ToArray(), buffer[..5]);
     }
 
+    [Fact(Timeout = 5000)]
+    public void AsOwningStream_double_dispose_should_not_dispose_a_rerented_wrapper()
+    {
+        using var reader = RentReader();
+        reader.Reset(4);
+        reader.Feed("data"u8);
+        var stream = reader.AsOwningStream();
+
+        // First dispose returns the array and recycles the owner WRAPPER into its object pool.
+        stream.Dispose();
+
+        // The recycled wrapper is the next instance handed out (LIFO fast slot). A non-idempotent
+        // stream Dispose then reaches the RE-RENTED wrapper and disposes the new renter's array
+        // underneath it — the shared-pool poisoning observed as sporadic cross-connection H2
+        // receive corruption. Streams are contractually multi-Dispose (Close + DisposeAsync + an
+        // owning decompressor all dispose the same instance), so the second Dispose must no-op.
+        var next = PooledArrayMemoryOwner.Create(4);
+        stream.Dispose();
+
+        _ = next.Memory;
+        next.Dispose();
+    }
 }

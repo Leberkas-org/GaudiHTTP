@@ -69,6 +69,55 @@ public sealed class DecompressingContentSpec
     }
 
     [Fact(Timeout = 5000)]
+    public async Task SerializeToStreamAsync_should_dispose_source_stream_exactly_once()
+    {
+        // Ownership of the source stream lies with DecompressingContent's `using` alone. If the
+        // decompressor ALSO owns it (leaveOpen: false), the source is disposed twice — for pooled
+        // body streams the second dispose reached a recycled owner wrapper and returned another
+        // connection's array to the shared transport pool (cross-connection corruption).
+        var compressed = GzipCompress("hello"u8.ToArray());
+        var counting = new CountingDisposeStream(compressed);
+        using var content = new DecompressingContent(new RawStreamContent(counting), "gzip");
+
+        using var ms = new MemoryStream();
+        await content.CopyToAsync(ms, TestContext.Current.CancellationToken);
+
+        Assert.Equal("hello"u8.ToArray(), ms.ToArray());
+        Assert.Equal(1, counting.DisposeCount);
+    }
+
+    private sealed class CountingDisposeStream(byte[] data) : MemoryStream(data)
+    {
+        public int DisposeCount { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                DisposeCount++;
+            }
+
+            base.Dispose(disposing);
+        }
+    }
+
+    // Returns the stream itself from ReadAsStreamAsync — StreamContent would wrap it in a
+    // read-only stream whose idempotent Dispose masks the double-dispose under test.
+    private sealed class RawStreamContent(Stream stream) : HttpContent
+    {
+        protected override Task<Stream> CreateContentReadStreamAsync() => Task.FromResult(stream);
+
+        protected override Task SerializeToStreamAsync(Stream target, System.Net.TransportContext? context)
+            => stream.CopyToAsync(target);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task SerializeToStreamAsync_without_cancellation_token_should_work()
     {
         var original = "test data"u8.ToArray();
