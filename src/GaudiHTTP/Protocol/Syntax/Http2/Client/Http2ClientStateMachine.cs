@@ -82,7 +82,10 @@ internal sealed class Http2ClientStateMachine(
             // RFC 9113 §5.4.1: a connection-fatal protocol error leaves the decoder desynchronized.
             // Drop the connection instead of swallowing and continuing; the resulting TransportDisconnected
             // routes through OnConnectionLost, which replays idempotent in-flight requests and fails the rest.
-            Tracing.For("Protocol").Info(this,
+            // Warning, not Info: a connection-fatal decode failure is healed by the reconnect below,
+            // but it must stay visible in bridged logs — it is the only stdout trace of a receive-path
+            // desync once fail-fast + replay make the affected tests pass again.
+            Tracing.For("Protocol").Warning(this,
                 "HTTP/2: connection protocol error - disconnecting: {0}", ex.Message);
             ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;

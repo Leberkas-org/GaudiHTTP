@@ -290,6 +290,48 @@ public sealed class Http2StateMachineReconnectSpec
         });
     }
 
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4.1")]
+    public void Protocol_error_disconnect_then_reconnect_should_replay_idempotent_inflight_requests()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        sm.PreStart();
+        var (req, pending) = MakeTrackedGet("/a");
+        sm.OnRequest(req);
+        ops.Outbound.Clear();
+
+        // Corrupt frame header: 24-bit length 0xFFFFFF far exceeds the advertised
+        // SETTINGS_MAX_FRAME_SIZE → HttpProtocolException inside DecodeServerData → the SM must
+        // emit DisconnectTransport instead of throwing (RFC 9113 §5.4.1 connection error).
+        var garbage = new byte[9];
+        garbage[0] = 0xFF;
+        garbage[1] = 0xFF;
+        garbage[2] = 0xFF;
+        var garbageBuf = TransportBuffer.Rent(garbage.Length);
+        garbage.CopyTo(garbageBuf.FullMemory.Span);
+        garbageBuf.Length = garbage.Length;
+        sm.DecodeServerData(TransportData.Rent(garbageBuf));
+
+        Assert.Contains(ops.Outbound, o => o is DisconnectTransport);
+
+        // The transport answers every DisconnectTransport with a TransportDisconnected echo
+        // (TcpConnectionStateMachine contract) — that echo is what starts the reconnect.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        Assert.True(sm.IsReconnecting);
+        Assert.Contains(ops.Outbound, o => o is ConnectTransport);
+        ops.Outbound.Clear();
+
+        // New lease acquired → TransportConnected → the buffered idempotent GET is replayed.
+        // The first outbound item is the re-sent connection preface (magic bytes, not frames),
+        // so only the last TransportData — the replayed request — is frame-decoded.
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        Assert.False(sm.IsReconnecting);
+        var replayed = ops.Outbound.OfType<TransportData>().Last();
+        Assert.Contains(new FrameDecoder().Decode(replayed.Buffer), f => f is HeadersFrame);
+        Assert.False(pending.GetValueTask().IsFaulted);
+    }
+
     private static HeadersFrame MakeResponseHeaders(int streamId)
     {
         var encoder = new HpackEncoder(useHuffman: false);
