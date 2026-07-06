@@ -30,6 +30,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
     private IGaudiHttpClient? _client;
     private Microsoft.Extensions.DependencyInjection.ServiceProvider? _clientProvider;
     private string _baseUri = string.Empty;
+    private IDisposable? _traceScope;
 
     private CancellationToken CT => TestContext.Current.CancellationToken;
 
@@ -78,7 +79,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         _baseUri = $"http://127.0.0.1:{port}";
 
         // --- GaudiHTTP client (matches benchmark ClientHelper config) ---
-        ConfigureTracing();
+        _traceScope = ConfigureTracing();
 
         var services = new ServiceCollection();
 
@@ -139,7 +140,9 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
             await _clientProvider.DisposeAsync();
         }
 
-        Tracing.Disable();
+        // Remove only our own listener — Tracing.Disable() would kill tracing for every other
+        // collection still running in this process.
+        _traceScope?.Dispose();
     }
 
     /// <summary>
@@ -735,7 +738,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         public int Failed;
     }
 
-    private static void ConfigureTracing()
+    private static IDisposable ConfigureTracing()
     {
         ThreadPool.GetMinThreads(out var w, out var io);
         ThreadPool.SetMinThreads(Math.Max(w, 1024), Math.Max(io, 1024));
@@ -746,7 +749,11 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
             b.SetMinimumLevel(LogLevel.Debug);
         });
 
-        Tracing.Configure(
+        // Additive registration: Tracing.Configure would REPLACE the logger bridge installed by
+        // ActorSystemFixture for the other collections in this process. Configure(Root) is
+        // idempotent (same singleton), so this works whether or not a fixture ran first.
+        Tracing.Configure(TestTracing.Root, TraceLevel.Trace);
+        return TestTracing.Root.Add(
             new Diagnostics.LoggerTraceListener(loggerFactory),
             TraceLevel.Warning);
     }

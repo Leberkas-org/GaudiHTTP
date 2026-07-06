@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Servus.Akka.Transport;
 using Servus.Diagnostics;
 using GaudiHTTP.Server;
+using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.IntegrationTests.End2End.H11;
 
@@ -19,7 +20,10 @@ public sealed class ServerStartupReliabilitySpec
     public async Task Server_with_three_listeners_should_respond_to_first_h11_request()
     {
         ThreadPool.SetMinThreads(1024, 1024);
-        Servus.Senf.Tracing.Configure(new StderrTraceListener(), TraceLevel.Debug);
+        // Additive registration via the shared composite root — a direct Tracing.Configure would
+        // replace any listener another spec in this process installed (and vice versa).
+        Servus.Senf.Tracing.Configure(TestTracing.Root, TraceLevel.Trace);
+        using var traceScope = TestTracing.Root.Add(new StderrTraceListener(), TraceLevel.Debug);
 
         var cert = GenerateSelfSignedCert();
         try
