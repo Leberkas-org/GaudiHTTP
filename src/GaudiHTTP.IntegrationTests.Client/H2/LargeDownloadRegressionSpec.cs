@@ -11,7 +11,9 @@ namespace GaudiHTTP.IntegrationTests.Client.H2;
 /// (GaudiClientDownloadBenchmarks [ConcurrencyLevel=1, DownloadBytes=8388608, HttpVersion=2.0] → NA,
 /// "System.TimeoutException: The operation has timed out"). A SINGLE 8 MB response over one H2 stream
 /// hung to the 120 s WaitAsync, while 1 MB over H2 — and 8 MB over H1.1 and H3 — all completed.
-/// Suspected receive-path flow-control / WINDOW_UPDATE stall on a single large stream.
+/// Root cause (2026-07): shared-pool buffer corruption — a double dispose returned another owner's
+/// array to the process-wide pool, desyncing the H2 frame decoder mid-download. Flow control /
+/// WINDOW_UPDATE was ruled out.
 ///
 /// 1 MB is included first as a sanity check (it completes in the benchmark); the 8 MB download is the
 /// configuration that hung.
@@ -36,7 +38,9 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
     [Fact(Timeout = 180_000)]
     public async Task LargeDownload_should_complete_8MB_body_over_single_H2_stream()
     {
-        Servus.Senf.Tracing.Configure(TraceRing, TraceLevel.Trace);
+        // Additive registration: Tracing.Configure would REPLACE the logger bridge installed by
+        // ActorSystemFixture and swallow every other test's warnings while this spec runs.
+        using var traceScope = TestTracing.Root.Add(TraceRing);
         await using var helper = CreateClient(
             new ProtocolVariant(TestHttpVersion.H2, tls: true),
             configureOptions: o => o.Http2.MaxConnectionsPerServer = 1);
@@ -87,8 +91,9 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
             await File.WriteAllTextAsync(dumpPath, TraceRing.Dump(), CancellationToken.None);
 
             Assert.Fail(
-                $"REPRO: a {size / (1024 * 1024)} MB HTTP/2 download did not complete within 30 s — " +
-                "the receive path stalls on a large single stream (suspected missing/stuck WINDOW_UPDATE). " +
+                $"REPRO: a {size / (1024 * 1024)} MB HTTP/2 download did not complete within 30 s. " +
+                "Historically caused by shared-pool buffer corruption desyncing the frame decoder " +
+                "(flow control / WINDOW_UPDATE was ruled out) — analyze the dump, don't guess. " +
                 $"Protocol trace ring dumped to: {dumpPath}");
         }
         catch (Exception ex) when (ex is not Xunit.Sdk.SkipException)

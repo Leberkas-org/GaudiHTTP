@@ -12,24 +12,36 @@ namespace GaudiHTTP.Tests.Shared;
 public sealed class ActorSystemFixture : IAsyncLifetime
 {
     private static readonly Config QuietConfig = ConfigurationFactory.ParseString("akka.loglevel = WARNING");
+    private static readonly object BridgeLock = new();
+    private static bool _bridgeInstalled;
 
     public ActorSystem System { get; private set; } = null!;
 
     public ValueTask InitializeAsync()
     {
-        // Senf tracing at Info floods CI output with per-request lifecycle noise (pipeline
-        // materialization, teardown warnings) that CiQuietConfig cannot reach — it flows through
-        // the console logger, not Akka logging. Skip tracing entirely in CI; full Info locally.
+        // The composite root is always installed (at Trace, so additively registered diagnostic
+        // sinks can capture per-packet detail); with no children it rejects every event, so CI
+        // stays quiet. The console bridge floods CI output with per-request lifecycle noise
+        // (pipeline materialization, teardown warnings) that CiQuietConfig cannot reach — it flows
+        // through the console logger, not Akka logging — so it is only added locally, and only
+        // once per process (the fixture initializes once per collection).
+        Servus.Senf.Tracing.Configure(TestTracing.Root, TraceLevel.Trace);
         if (!CiQuietConfig.IsCi)
         {
-            var loggerFactory = LoggerFactory.Create(b =>
+            lock (BridgeLock)
             {
-                b.AddConsole();
-                b.SetMinimumLevel(LogLevel.Information);
-            });
+                if (!_bridgeInstalled)
+                {
+                    var loggerFactory = LoggerFactory.Create(b =>
+                    {
+                        b.AddConsole();
+                        b.SetMinimumLevel(LogLevel.Information);
+                    });
 
-            var traceListener = new LoggerTraceListener(loggerFactory);
-            Servus.Senf.Tracing.Configure(traceListener, TraceLevel.Info);
+                    TestTracing.Root.Add(new LoggerTraceListener(loggerFactory), TraceLevel.Info);
+                    _bridgeInstalled = true;
+                }
+            }
         }
 
         var services = new ServiceCollection();
@@ -45,6 +57,8 @@ public sealed class ActorSystemFixture : IAsyncLifetime
     {
         await System.Terminate().WaitAsync(TimeSpan.FromSeconds(30));
         await System.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(30));
-        Servus.Senf.Tracing.Disable();
+        // Deliberately no Tracing.Disable() here: fixtures are per-collection and collections run
+        // in parallel, so the first collection to finish would silently kill tracing for the rest.
+        // All fixtures share the same composite root; the process end tears it down.
     }
 }
