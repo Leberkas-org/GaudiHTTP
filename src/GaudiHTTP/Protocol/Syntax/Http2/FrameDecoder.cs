@@ -114,12 +114,25 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
                 _workingBuffer = combined;
             }
         }
-        else
+        else if (buffer.Offset == 0)
         {
             // Common fast path: no buffered remainder — take ownership directly (zero copy).
             _workingBuffer?.Dispose();
             _workingBuffer = buffer;
             workingLength = buffer.Length;
+        }
+        else
+        {
+            // Offset-wrapped buffer (data does not start at FullMemory[0]): adopting it directly
+            // would make the parse below read the headroom bytes before the payload — stale pool
+            // content that shows up as garbage frame headers. Copy into an owned buffer instead;
+            // receive-path buffers are never offset-wrapped today, so this path is cold.
+            workingLength = buffer.Length;
+            _workingBuffer?.Dispose();
+            _workingBuffer = TransportBuffer.Rent(workingLength);
+            buffer.Memory.Span.CopyTo(_workingBuffer.FullMemory.Span);
+            _workingBuffer.Length = workingLength;
+            buffer.Dispose();
         }
 
         var offset = startOffset;

@@ -1,9 +1,30 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
 public sealed class Http2FrameDecoderBoundarySpec
 {
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.1")]
+    public void Http2FrameDecoder_should_decode_offset_wrapped_buffer_without_reading_headroom()
+    {
+        // An offset-wrapped TransportBuffer exposes its data via Memory (offset-aware) while
+        // FullMemory still starts at the headroom. A decoder that adopts the buffer and parses
+        // FullMemory from index 0 reads the headroom garbage as a frame header.
+        var ping = new PingFrame(new byte[8], isAck: false).Serialize();
+        const int headroom = 16;
+        var owner = PooledArrayMemoryOwner.Create(headroom + ping.Length);
+        owner.Memory.Span[..headroom].Fill(0xFF);
+        ping.CopyTo(owner.Memory.Span[headroom..]);
+        var buffer = TransportBuffer.Wrap(owner, headroom, ping.Length);
+
+        var frames = new FrameDecoder().Decode(buffer);
+
+        Assert.Single(frames);
+        Assert.IsType<PingFrame>(frames[0]);
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-4.1")]
     public void Http2FrameDecoder_should_return_empty_when_zero_bytes_provided()
