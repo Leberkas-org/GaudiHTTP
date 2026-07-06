@@ -91,5 +91,18 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
                 "the receive path stalls on a large single stream (suspected missing/stuck WINDOW_UPDATE). " +
                 $"Protocol trace ring dumped to: {dumpPath}");
         }
+        catch (Exception ex) when (ex is not Xunit.Sdk.SkipException)
+        {
+            // Receive-path failures now fail fast (the body reader faults on connection loss instead
+            // of stalling to the 30 s budget above), so the post-mortem ring must also be dumped for
+            // this path — otherwise the fast failure hides exactly the frame trace the stall dump
+            // was added to capture. The original exception propagates unchanged.
+            var dumpPath = Path.Combine(Path.GetTempPath(),
+                $"h2-large-download-fault-{DateTime.UtcNow:yyyyMMdd_HHmmss}.trace.log");
+            await File.WriteAllTextAsync(dumpPath, TraceRing.Dump(), CancellationToken.None);
+            await Console.Error.WriteLineAsync(
+                $"[LargeDownloadRegressionSpec] {ex.GetType().Name}: {ex.Message} — protocol trace ring dumped to: {dumpPath}");
+            throw;
+        }
     }
 }

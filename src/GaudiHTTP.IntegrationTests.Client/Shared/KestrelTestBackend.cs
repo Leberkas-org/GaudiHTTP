@@ -28,40 +28,57 @@ internal sealed class KestrelTestBackend : ITestBackend
         var cert = LoadCertificate();
         var quicSupported = QuicListener.IsSupported;
 
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.ClearProviders();
-
-        // Listen on BOTH loopback families for each port: TLS clients resolve "localhost",
-        // try ::1 first, and Windows silently drops SYNs to non-listening ::1 ports (~2s
-        // penalty per connect, >12s under load) instead of refusing them. IPv4-only
-        // listeners therefore cause sporadic test timeouts. Ports are pre-allocated
-        // because Kestrel cannot share a dynamic port across two Listen calls.
-        var httpPort = ReserveLoopbackPort();
-        var httpsPort = ReserveLoopbackPort();
-
-        builder.WebHost.ConfigureKestrel(kestrel =>
+        // The reserve→listen gap is a race, and lingering TIME_WAIT pairs from a previous
+        // test-host process can still fail Kestrel's explicit bind: retry with FRESH ports
+        // instead of failing the whole suite (an AddressInUse here wipes out every test).
+        for (var attempt = 0; ; attempt++)
         {
-            foreach (var address in new[] { IPAddress.Loopback, IPAddress.IPv6Loopback })
+            // Listen on BOTH loopback families for each port: TLS clients resolve "localhost",
+            // try ::1 first, and Windows silently drops SYNs to non-listening ::1 ports (~2s
+            // penalty per connect, >12s under load) instead of refusing them. IPv4-only
+            // listeners therefore cause sporadic test timeouts. Ports are pre-allocated
+            // because Kestrel cannot share a dynamic port across two Listen calls.
+            var httpPort = ReserveLoopbackPort();
+            var httpsPort = ReserveLoopbackPort();
+
+            var builder = WebApplication.CreateBuilder();
+            builder.Logging.ClearProviders();
+
+            builder.WebHost.ConfigureKestrel(kestrel =>
             {
-                kestrel.Listen(address, httpPort, listenOptions =>
+                foreach (var address in new[] { IPAddress.Loopback, IPAddress.IPv6Loopback })
                 {
-                    listenOptions.Protocols = HttpProtocols.Http1;
-                });
+                    kestrel.Listen(address, httpPort, listenOptions =>
+                    {
+                        listenOptions.Protocols = HttpProtocols.Http1;
+                    });
 
-                kestrel.Listen(address, httpsPort, listenOptions =>
-                {
-                    listenOptions.Protocols = quicSupported
-                        ? HttpProtocols.Http1AndHttp2AndHttp3
-                        : HttpProtocols.Http1AndHttp2;
-                    listenOptions.UseHttps(cert);
-                });
+                    kestrel.Listen(address, httpsPort, listenOptions =>
+                    {
+                        listenOptions.Protocols = quicSupported
+                            ? HttpProtocols.Http1AndHttp2AndHttp3
+                            : HttpProtocols.Http1AndHttp2;
+                        listenOptions.UseHttps(cert);
+                    });
+                }
+            });
+
+            var app = builder.Build();
+            HttpbinEndpoints.Map(app);
+
+            try
+            {
+                await app.StartAsync();
+                _app = app;
+                break;
             }
-        });
-
-        _app = builder.Build();
-        HttpbinEndpoints.Map(_app);
-
-        await _app.StartAsync();
+            catch (IOException ex) when (attempt < 4)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"[KestrelTestBackend] bind failed on ports {httpPort}/{httpsPort} (attempt {attempt + 1}): {ex.Message} — retrying with fresh ports");
+                await app.DisposeAsync();
+            }
+        }
 
         ResolvePortsFromServer(_app);
 
@@ -90,24 +107,27 @@ internal sealed class KestrelTestBackend : ITestBackend
 
     private static int ReserveLoopbackPort()
     {
-        // Bind port 0 on both families to find a port free on ::1 AND 127.0.0.1,
-        // then release it for Kestrel. The gap between release and Kestrel's bind
-        // is a benign race for a test fixture.
-        for (var attempt = 0; attempt < 10; attempt++)
+        // Do NOT bind port 0 to pick a port: Windows' ephemeral allocator hands back the most
+        // recently FREED port, so consecutive test-host runs converge on the same port whose
+        // TIME_WAIT connection pairs from the previous run then fail Kestrel's explicit bind
+        // for minutes (observed as full-suite AddressInUse wipeouts). Pick a random port below
+        // the dynamic client range (49152+) instead, so client-connection churn never collides,
+        // and verify it explicitly binds on BOTH loopback families — the same bind Kestrel does.
+        for (var attempt = 0; attempt < 50; attempt++)
         {
-            using var probe = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            probe.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-            var port = ((IPEndPoint)probe.LocalEndPoint!).Port;
+            var port = Random.Shared.Next(20000, 45000);
 
             try
             {
+                using var probe = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                probe.Bind(new IPEndPoint(IPAddress.Loopback, port));
                 using var probe6 = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
                 probe6.Bind(new IPEndPoint(IPAddress.IPv6Loopback, port));
                 return port;
             }
             catch (SocketException)
             {
-                // port taken on ::1 — try another
+                // port taken (or excluded range) on either family — try another
             }
         }
 
