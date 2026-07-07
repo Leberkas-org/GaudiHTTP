@@ -46,7 +46,7 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
         }
 
         var bytes = Encoding.ASCII.GetBytes(sb.ToString());
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return TransportData.Rent(buffer);

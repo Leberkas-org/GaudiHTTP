@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -59,7 +60,7 @@ public sealed class Http2ServerTimerErrorSpec
 
     private static TransportData WrapAsTransportData(byte[] frameData)
     {
-        var buffer = TransportBuffer.Rent(frameData.Length);
+        var buffer = WireBuffer.Rent(frameData.Length);
         frameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frameData.Length;
         return TransportData.Rent(buffer);

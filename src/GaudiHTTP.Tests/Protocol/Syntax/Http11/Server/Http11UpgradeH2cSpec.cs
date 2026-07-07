@@ -51,7 +51,7 @@ public sealed class Http11UpgradeH2CSpec
     private static TransportData MakeData(string raw)
     {
         var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return TransportData.Rent(buffer);

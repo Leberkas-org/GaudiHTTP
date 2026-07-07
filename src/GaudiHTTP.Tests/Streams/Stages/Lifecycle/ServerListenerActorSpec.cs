@@ -85,7 +85,7 @@ public sealed class ServerListenerActorSpec() : TestKit(CiQuietConfig.Instance)
                 Flow.Create<IFeatureCollection>()
                     .Select(_ =>
                     {
-                        var buffer = TransportBuffer.Rent(1);
+                        var buffer = WireBuffer.Rent(1);
                         buffer.Dispose();
                         return TransportData.Rent(buffer) as ITransportOutbound;
                     }));

@@ -48,7 +48,6 @@ internal static class OptionsFactory
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
                 ReceiveBufferHint = clientOptions.ReceiveBufferHint,
-                MinimumSegmentSize = clientOptions.MinimumSegmentSize,
                 IdleTimeout = clientOptions.Http3.IdleTimeout,
                 MaxConnectionsPerHost = clientOptions.Http3.MaxConnectionsPerServer,
                 MaxBidirectionalStreams = clientOptions.Http3.MaxConcurrentStreams,
@@ -77,7 +76,6 @@ internal static class OptionsFactory
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
                 ReceiveBufferHint = clientOptions.ReceiveBufferHint,
-                MinimumSegmentSize = clientOptions.MinimumSegmentSize,
                 UseProxy = clientOptions.UseProxy,
                 Proxy = clientOptions.Proxy,
                 DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
@@ -94,7 +92,6 @@ internal static class OptionsFactory
             SocketSendBufferSize = clientOptions.SocketSendBufferSize,
             SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
             ReceiveBufferHint = clientOptions.ReceiveBufferHint,
-            MinimumSegmentSize = clientOptions.MinimumSegmentSize,
             UseProxy = clientOptions.UseProxy,
             Proxy = clientOptions.Proxy,
             DefaultProxyCredentials = clientOptions.DefaultProxyCredentials

@@ -352,7 +352,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    private void ProcessQpackEncoderStream(TransportBuffer buffer)
+    private void ProcessQpackEncoderStream(WireBuffer buffer)
     {
         using var input = buffer;
 
@@ -380,7 +380,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         FlushInsertCountIncrement();
     }
 
-    private void ProcessQpackDecoderStream(TransportBuffer buffer)
+    private void ProcessQpackDecoderStream(WireBuffer buffer)
     {
         using var input = buffer;
 
@@ -436,7 +436,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
     private void FlushInsertCountIncrement()
     {
-        var buf = TransportBuffer.Rent(1 + 8);
+        var buf = WireBuffer.Rent(1 + 8);
         var dest = buf.FullMemory.Span;
         var offset = 0;
 
@@ -461,7 +461,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         _ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.QpackDecoder));
     }
 
-    private void ProcessFrameData(TransportBuffer buffer, long streamId)
+    private void ProcessFrameData(WireBuffer buffer, long streamId)
     {
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
@@ -805,7 +805,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
             _ => 0
         };
 
-        var buf = TransportBuffer.Rent(serialized);
+        var buf = WireBuffer.Rent(serialized);
         var span = buf.FullMemory.Span;
 
         switch (frame)

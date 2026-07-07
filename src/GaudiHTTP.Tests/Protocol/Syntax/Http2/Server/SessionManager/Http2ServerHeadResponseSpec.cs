@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -50,7 +51,7 @@ public sealed class Http2ServerHeadResponseSpec
 
     private static void Feed(Http2ServerStateMachine sm, byte[] data)
     {
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(TransportData.Rent(buffer));

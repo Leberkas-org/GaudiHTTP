@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
@@ -69,7 +70,7 @@ public sealed class Http2SecuritySpec
         headersFrame.CopyTo(chunk1, 0);
         continuations999.CopyTo(chunk1, headersFrame.Length);
 
-        var framesDecoded = decoder.Decode(chunk1);
+        var framesDecoded = decoder.Decode(chunk1.ToWireBuffer());
         Assert.NotEmpty(framesDecoded); // At least the HEADERS frame decoded
 
         // Count CONTINUATION frames decoded — should be 999.
@@ -79,7 +80,7 @@ public sealed class Http2SecuritySpec
         // The 1000th CONTINUATION frame exceeds the threshold and must be rejected
         // by explicit enforcement.
         var continuation1000 = BuildRawFrame(frameType: 0x9, flags: 0x0, streamId: 1, []);
-        decoder.Decode(continuation1000);
+        decoder.Decode(continuation1000.ToWireBuffer());
         continuationCount++; // Add the 1000th frame
 
         Assert.Throws<HttpProtocolException>(() =>
@@ -100,7 +101,7 @@ public sealed class Http2SecuritySpec
         for (var i = 0; i < 100; i++) // 100 frames on stream IDs 1, 3, 5, ..., 199
         {
             var rst = BuildRawFrame(frameType: 0x3, flags: 0x0, streamId: 2 * i + 1, errorCode);
-            var framesDecoded = decoder.Decode(rst);
+            var framesDecoded = decoder.Decode(rst.ToWireBuffer());
             if (framesDecoded.OfType<RstStreamFrame>().Any())
             {
                 rstCount++;
@@ -112,7 +113,7 @@ public sealed class Http2SecuritySpec
         // The 101st RST_STREAM frame exceeds the threshold and must be rejected
         // by explicit enforcement.
         var rst101 = BuildRawFrame(frameType: 0x3, flags: 0x0, streamId: 201, errorCode);
-        decoder.Decode(rst101); // Decoder still accepts it
+        decoder.Decode(rst101.ToWireBuffer()); // Decoder still accepts it
         rstCount++; // Count reaches 101
 
         Assert.Throws<HttpProtocolException>(() => EnforceRstFloodThreshold(rstCount, threshold: 100));
@@ -136,7 +137,7 @@ public sealed class Http2SecuritySpec
 
         // Feed all frames — decoder will decode them successfully.
         // We must count empty DATA frames and enforce the threshold.
-        var framesDecoded = decoder.Decode(allFrames);
+        var framesDecoded = decoder.Decode(allFrames.ToWireBuffer());
         var emptyDataCount = framesDecoded.OfType<DataFrame>()
             .Count(df => df.Data.Length == 0);
 
@@ -157,7 +158,7 @@ public sealed class Http2SecuritySpec
             (SettingsParameter.EnablePush, 2u),
         }).Serialize();
 
-        var framesDecoded = decoder.Decode(settingsFrame);
+        var framesDecoded = decoder.Decode(settingsFrame.ToWireBuffer());
         var settings = Assert.Single(framesDecoded);
         var settingsF = Assert.IsType<SettingsFrame>(settings);
 
@@ -179,7 +180,7 @@ public sealed class Http2SecuritySpec
         }).Serialize();
 
         // RFC 9113 §6.5.2: the decoder rejects the overflow as a connection FLOW_CONTROL_ERROR.
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(settingsFrame));
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(settingsFrame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -196,7 +197,7 @@ public sealed class Http2SecuritySpec
         }).Serialize();
 
         // Must not throw — unknown IDs are silently ignored per RFC 9113 §5.5.
-        var framesDecoded = decoder.Decode(settingsFrame);
+        var framesDecoded = decoder.Decode(settingsFrame.ToWireBuffer());
         var settings = Assert.Single(framesDecoded);
         var settingsF = Assert.IsType<SettingsFrame>(settings);
 

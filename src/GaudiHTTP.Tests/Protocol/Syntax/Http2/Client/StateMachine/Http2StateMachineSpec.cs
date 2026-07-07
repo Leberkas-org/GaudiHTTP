@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
@@ -54,19 +55,19 @@ public sealed class Http2StateMachineSpec
     private static DataFrame MakeData(int streamId, byte[] data, bool endStream = true)
         => new(streamId, data, endStream);
 
-    private static TransportBuffer SerializeFrame(Http2Frame frame)
+    private static WireBuffer SerializeFrame(Http2Frame frame)
     {
-        var buffer = TransportBuffer.Rent(frame.SerializedSize);
+        var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;
         return buffer;
     }
 
-    private static TransportBuffer SerializeFrames(params Http2Frame[] frames)
+    private static WireBuffer SerializeFrames(params Http2Frame[] frames)
     {
         var totalSize = frames.Sum(f => f.SerializedSize);
-        var buffer = TransportBuffer.Rent(totalSize);
+        var buffer = WireBuffer.Rent(totalSize);
         var span = buffer.FullMemory.Span;
         var offset = 0;
         foreach (var frame in frames)

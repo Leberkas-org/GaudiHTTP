@@ -26,9 +26,9 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private bool _outboundBodyPending;
     private bool _isChunked;
     private IStreamingBodyReader? _activeStreamingReader;
-    private TransportBuffer? _heldBuffer;
+    private WireBuffer? _heldBuffer;
     private int _heldBufferOffset;
-    private TransportBuffer? _partialResponse;
+    private WireBuffer? _partialResponse;
     private ConnectionState _connectionState;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
@@ -136,14 +136,14 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
-                var buf = TransportBuffer.Rent(framedSize);
+                var buf = WireBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
                 buf.Length = framedSize;
                 _ops.OnOutbound(TransportData.Rent(buf));
             }
             else
             {
-                var buf = TransportBuffer.Rent(data.Length);
+                var buf = WireBuffer.Rent(data.Length);
                 data.CopyTo(buf.FullMemory);
                 buf.Length = data.Length;
                 _ops.OnOutbound(TransportData.Rent(buf));
@@ -154,7 +154,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             if (_isChunked)
             {
-                var buf = TransportBuffer.Rent(5);
+                var buf = WireBuffer.Rent(5);
                 ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
                 buf.Length = 5;
                 _ops.OnOutbound(TransportData.Rent(buf));
@@ -176,7 +176,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
-                var buf = TransportBuffer.Rent(framedSize);
+                var buf = WireBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
                 buf.Length = framedSize;
                 _ops.OnOutbound(TransportData.Rent(buf));
@@ -184,7 +184,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             }
             else
             {
-                _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+                _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             }
         }
         else
@@ -196,7 +196,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             if (_isChunked)
             {
-                var buf = TransportBuffer.Rent(5);
+                var buf = WireBuffer.Rent(5);
                 ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
                 buf.Length = 5;
                 _ops.OnOutbound(TransportData.Rent(buf));
@@ -240,7 +240,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             _ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
-        TransportBuffer? item = null;
+        WireBuffer? item = null;
         try
         {
             // Build the request headers once and rent a buffer sized to exactly the request line +
@@ -248,7 +248,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             // this buffer — this avoids both the throwaway header build HttpMessageSize.Estimate did
             // purely for sizing and the body-sized over-rent it added on top.
             var headerSize = _encoder.Prepare(request, out var bodyStream, out var bodyContentLength);
-            item = TransportBuffer.Rent(headerSize);
+            item = WireBuffer.Rent(headerSize);
 
             item.Length = _encoder.WriteTo(item.FullMemory.Span, request);
             _ops.OnOutbound(TransportData.Rent(item));
@@ -416,7 +416,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _decoder.Reset();
     }
 
-    private void DecodeResponse(TransportBuffer buffer, int startOffset = 0)
+    private void DecodeResponse(WireBuffer buffer, int startOffset = 0)
     {
         var memory = buffer.Memory;
         var offset = startOffset;
@@ -525,12 +525,12 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     // Merges the retained partial prefix with the next inbound buffer into a single contiguous
     // buffer, disposing both inputs. The caller takes ownership of (and disposes) the result.
-    private TransportBuffer CombineWithPartial(TransportBuffer incoming)
+    private WireBuffer CombineWithPartial(WireBuffer incoming)
     {
         var partial = _partialResponse!;
         _partialResponse = null;
 
-        var combined = TransportBuffer.Rent(partial.Length + incoming.Length);
+        var combined = WireBuffer.Rent(partial.Length + incoming.Length);
         partial.Span.CopyTo(combined.FullMemory.Span);
         incoming.Span.CopyTo(combined.FullMemory.Span[partial.Length..]);
         combined.Length = partial.Length + incoming.Length;
@@ -544,7 +544,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     // (about-to-be-disposed) inbound buffer. Bounded by the decoder's max header size.
     private void RetainPartial(ReadOnlySpan<byte> remainder)
     {
-        var buf = TransportBuffer.Rent(remainder.Length);
+        var buf = WireBuffer.Rent(remainder.Length);
         remainder.CopyTo(buf.FullMemory.Span);
         buf.Length = remainder.Length;
         _partialResponse = buf;

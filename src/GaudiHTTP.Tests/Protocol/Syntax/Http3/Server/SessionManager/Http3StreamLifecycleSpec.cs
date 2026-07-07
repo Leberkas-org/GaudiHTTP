@@ -71,7 +71,7 @@ public sealed class Http3StreamLifecycleSpec
         var data = BuildRequest(method, path);
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
@@ -210,7 +210,7 @@ public sealed class Http3StreamLifecycleSpec
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
 
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

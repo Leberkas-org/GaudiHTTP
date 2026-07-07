@@ -20,10 +20,10 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         };
     }
 
-    private static TransportBuffer MakeResponseBuffer(string raw)
+    private static WireBuffer MakeResponseBuffer(string raw)
     {
         var bytes = SysEncoding.ASCII.GetBytes(raw);
-        var buf = TransportBuffer.Rent(bytes.Length);
+        var buf = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buf.FullMemory.Span);
         buf.Length = bytes.Length;
         return buf;
@@ -169,12 +169,12 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // Send two requests (pipelined)
         appSubscription.SendNext(MakeRequest("/first"));
-        // ConnectTransport + TransportBuffer for first request
+        // ConnectTransport + WireBuffer for first request
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         appSubscription.SendNext(MakeRequest("/second"));
-        // TransportBuffer for second request (endpoint already known)
+        // WireBuffer for second request (endpoint already known)
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send first response
@@ -232,8 +232,8 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(MakeRequest("/req2"));
         appSubscription.SendNext(MakeRequest("/req3"));
 
-        // Consume all 4 items: ConnectTransport + TransportBuffer for req1,
-        // TransportBuffer for req2 and req3
+        // Consume all 4 items: ConnectTransport + WireBuffer for req1,
+        // WireBuffer for req2 and req3
         for (var i = 0; i < 4; i++)
         {
             await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -300,7 +300,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // Send first request
         appSubscription.SendNext(MakeRequest("/req1"));
 
-        // Consume ConnectTransport + TransportBuffer
+        // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
@@ -316,7 +316,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // Send a second request to verify it's still accepted
         appSubscription.SendNext(MakeRequest("/req2"));
 
-        // Consume TransportBuffer for req2
+        // Consume WireBuffer for req2
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send response for req2
@@ -365,7 +365,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         appSubscription.SendNext(MakeRequest());
 
-        // ConnectTransport + TransportBuffer
+        // ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
@@ -413,7 +413,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         appSubscription.SendNext(MakeRequest("/upload"));
 
-        // Consume ConnectTransport + TransportBuffer
+        // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
@@ -468,7 +468,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         appSubscription.SendNext(MakeRequest("/close"));
 
-        // Consume ConnectTransport + TransportBuffer
+        // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 

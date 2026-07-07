@@ -8,6 +8,6 @@ public static class ModuleInit
     [ModuleInitializer]
     public static void Init()
     {
-        TransportBuffer.ConfigurePoolSize(0);
+        WireBuffer.ConfigureWrapperPool(0);
     }
 }

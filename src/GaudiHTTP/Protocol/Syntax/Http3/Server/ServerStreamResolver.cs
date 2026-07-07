@@ -2,7 +2,7 @@ using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3.Server;
 
-internal readonly record struct ResolvedStream(long LogicalStreamId, TransportBuffer? Buffer);
+internal readonly record struct ResolvedStream(long LogicalStreamId, WireBuffer? Buffer);
 
 internal delegate void PushStreamDetected(long quicStreamId, ReadOnlySpan<byte> remaining);
 
@@ -24,7 +24,7 @@ internal sealed class ServerStreamResolver
         _pendingStreamType.Add(quicStreamId);
     }
 
-    public ResolvedStream Resolve(long quicStreamId, TransportBuffer buffer)
+    public ResolvedStream Resolve(long quicStreamId, WireBuffer buffer)
     {
         if (_pendingStreamType.Remove(quicStreamId))
         {
@@ -46,7 +46,7 @@ internal sealed class ServerStreamResolver
         _assignedCriticalStreams.Clear();
     }
 
-    private ResolvedStream ResolveStreamType(long quicStreamId, TransportBuffer buffer)
+    private ResolvedStream ResolveStreamType(long quicStreamId, WireBuffer buffer)
     {
         var span = buffer.Span;
         if (!QuicVarInt.TryDecode(span, out var rawType, out var typeBytes))
@@ -89,7 +89,7 @@ internal sealed class ServerStreamResolver
             return new ResolvedStream(logicalId, null);
         }
 
-        var trimmed = TransportBuffer.Rent(remaining);
+        var trimmed = WireBuffer.Rent(remaining);
         span[typeBytes..].CopyTo(trimmed.FullMemory.Span);
         trimmed.Length = remaining;
         buffer.Dispose();

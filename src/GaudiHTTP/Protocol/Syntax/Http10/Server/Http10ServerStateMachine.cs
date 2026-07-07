@@ -65,7 +65,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         if (!data.IsEmpty)
         {
             _rateGuard.ObserveResponse(0, data.Length);
-            var item = TransportBuffer.Rent(data.Length);
+            var item = WireBuffer.Rent(data.Length);
             data.CopyTo(item.FullMemory);
             item.Length = data.Length;
             _ops.OnOutbound(TransportData.Rent(item));
@@ -82,7 +82,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         if (bytesWritten > 0)
         {
             _rateGuard.ObserveResponse(0, bytesWritten);
-            _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", bytesWritten);
             _serialPump!.OnCapacityAvailable();
         }
@@ -308,11 +308,11 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             return;
         }
 
-        TransportBuffer? item = null;
+        WireBuffer? item = null;
         try
         {
             var bufferSize = 8 * 1024 + body.Length;
-            item = TransportBuffer.Rent(bufferSize);
+            item = WireBuffer.Rent(bufferSize);
             var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body,
                 suppressContentLength);
             item.Length = written;

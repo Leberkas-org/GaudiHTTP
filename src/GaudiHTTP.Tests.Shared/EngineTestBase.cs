@@ -12,6 +12,16 @@ namespace GaudiHTTP.Tests.Shared;
 
 public abstract class EngineTestBase : StreamTestBase
 {
+    // WireBuffer.Rent has no implicit byte[] conversion (the deleted TransportBuffer did); test
+    // helpers below deal exclusively in byte[] scripted responses, so wrap explicitly at each site.
+    internal static WireBuffer ToWireBuffer(byte[] data)
+    {
+        var buffer = WireBuffer.Rent(data.Length);
+        data.CopyTo(buffer.FullMemory.Span);
+        buffer.Length = data.Length;
+        return buffer;
+    }
+
     internal static TestConnectionStage CreateFakeConnection(Func<byte[]> responseFactory)
     {
         var stage = new TestConnectionStageBuilder()
@@ -19,7 +29,7 @@ public abstract class EngineTestBase : StreamTestBase
             .Build();
 
         stage.PushResponse(outbound => outbound is TransportData
-            ? TransportData.Rent(responseFactory())
+            ? TransportData.Rent(ToWireBuffer(responseFactory()))
             : null);
 
         return stage;
@@ -44,7 +54,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(TransportData.Rent(response));
+                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
             })
             .Build();
         return stage;
@@ -83,7 +93,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(TransportData.Rent(response));
+                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
             })
             .Build();
         return stage;
@@ -127,7 +137,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(TransportData.Rent(response));
+                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
                 ctx.Push(new TransportDisconnected(DisconnectReason.Graceful));
             })
             .Build();
@@ -143,7 +153,7 @@ public abstract class EngineTestBase : StreamTestBase
             .OnOutbound<ConnectTransport>((_, ctx) =>
             {
                 tunnelEstablished = true;
-                ctx.Push(TransportData.Rent(connectEstablishedBytes));
+                ctx.Push(TransportData.Rent(ToWireBuffer(connectEstablishedBytes)));
             })
             .OnOutbound<TransportData>((data, ctx) =>
             {
@@ -160,7 +170,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(TransportData.Rent(response));
+                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
             })
             .Build();
         return stage;
@@ -192,7 +202,7 @@ public abstract class EngineTestBase : StreamTestBase
         {
             if (frameIndex < serverFrames.Length)
             {
-                ctx.Push(TransportData.Rent(serverFrames[frameIndex++]));
+                ctx.Push(TransportData.Rent(ToWireBuffer(serverFrames[frameIndex++])));
             }
         }
     }
@@ -209,11 +219,11 @@ public abstract class EngineTestBase : StreamTestBase
                     if (i == 0)
                     {
                         ctx.Push(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
-                        ctx.Push(MultiplexedData.Rent(buf, 3));
+                        ctx.Push(MultiplexedData.Rent(ToWireBuffer(buf), 3));
                     }
                     else
                     {
-                        ctx.Push(MultiplexedData.Rent(buf, 0));
+                        ctx.Push(MultiplexedData.Rent(ToWireBuffer(buf), 0));
                     }
                 }
 
@@ -298,7 +308,7 @@ public abstract class EngineTestBase : StreamTestBase
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().Decode(outboundBytes.ToArray())
+            ? new FrameDecoder().Decode(ToWireBuffer(outboundBytes.ToArray()))
             : [];
 
         return (response, frames);
@@ -326,7 +336,7 @@ public abstract class EngineTestBase : StreamTestBase
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().Decode(outboundBytes.ToArray())
+            ? new FrameDecoder().Decode(ToWireBuffer(outboundBytes.ToArray()))
             : [];
 
         return (results.ToList(), frames);

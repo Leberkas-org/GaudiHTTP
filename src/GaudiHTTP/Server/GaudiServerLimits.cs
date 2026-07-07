@@ -22,7 +22,12 @@ public sealed class GaudiServerLimits
     /// <see cref="TransportBufferOptions.OutputPauseThreshold"/> takes precedence. Default is 64 KiB.
     /// </summary>
     public long MaxResponseBufferSize { get; set; } = 64 * 1024;
-    /// <summary>Gets or sets the maximum size of the transport input buffer in bytes before back-pressure is applied. Default is 1 MiB. Set to <c>null</c> for unlimited.</summary>
+    /// <summary>
+    /// No longer has any effect. The transport input buffer is now governed by servus.akka's
+    /// unified rent-and-receive watermark backpressure and is not independently configurable
+    /// via a server-wide request buffer cap.
+    /// </summary>
+    [Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and-receive transport and is no longer independently configurable.")]
     public long? MaxRequestBufferSize { get; set; } = 1024 * 1024;
 
     /// <summary>

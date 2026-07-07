@@ -1,5 +1,6 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -16,7 +17,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00,
             0x00, 0x00, 0x00, 0x01
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -31,7 +32,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x01,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -49,7 +50,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
         frame[7] = 0;
         frame[8] = 1;
 
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -57,7 +58,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
     public void Http2FrameDecoder_should_accept_when_window_update_on_stream_0()
     {
         var frame = new WindowUpdateFrame(0, 1024).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.NotEmpty(frames);
         Assert.IsType<WindowUpdateFrame>(frames[0]);
     }
@@ -67,7 +68,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
     public void Http2FrameDecoder_should_accept_when_window_update_on_non_zero_stream()
     {
         var frame = new WindowUpdateFrame(3, 4096).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.NotEmpty(frames);
         Assert.IsType<WindowUpdateFrame>(frames[0]);
     }
@@ -84,7 +85,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -99,7 +100,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x01, 0x00, 0x00, 0x10, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -114,7 +115,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -129,7 +130,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -144,7 +145,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x01
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -159,7 +160,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x01,
             0x00, 0x00, 0x01
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -174,7 +175,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x01,
             0x00, 0x00, 0x00, 0x00, 0x00
         };
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -189,7 +190,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x03, 0x00, 0x00, 0x00, 0x64
         };
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.NotEmpty(frames);
         Assert.IsType<SettingsFrame>(frames[0]);
     }
@@ -206,7 +207,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x00, 0x00, 0x00, 0x00,
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
         };
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.NotEmpty(frames);
         Assert.IsType<PingFrame>(frames[0]);
     }
@@ -218,7 +219,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
         var debugData = "shutdown"u8.ToArray();
         var frame = new GoAwayFrame(5, Http2ErrorCode.NoError, debugData).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.NotEmpty(frames);
         var goAwayFrame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(5, goAwayFrame.LastStreamId);
@@ -238,7 +239,7 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
             0x88
         };
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame));
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -255,6 +256,6 @@ public sealed class Http2FrameDecoderStreamConstraintSpec
         pingFrame.CopyTo(combined, headersFrame.Length);
 
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(combined));
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(combined.ToWireBuffer()));
     }
 }

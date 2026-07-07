@@ -1,5 +1,6 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -33,7 +34,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(bytes);
+        var frames = decoder.Decode(bytes.ToWireBuffer());
 
         Assert.Single(frames);
         var hf = Assert.IsType<HeadersFrame>(frames[0]);
@@ -48,7 +49,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var bytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: true, endHeaders: false).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(bytes);
+        var frames = decoder.Decode(bytes.ToWireBuffer());
 
         Assert.Single(frames);
         var hf = Assert.IsType<HeadersFrame>(frames[0]);
@@ -66,7 +67,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(Concat(headersBytes, contBytes));
+        var frames = decoder.Decode(Concat(headersBytes, contBytes).ToWireBuffer());
 
         Assert.Equal(2, frames.Count);
         var cf = Assert.IsType<ContinuationFrame>(frames[1]);
@@ -82,7 +83,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var contBytes = new ContinuationFrame(1, block.AsMemory()[1..], endHeaders: false).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(Concat(headersBytes, contBytes));
+        var frames = decoder.Decode(Concat(headersBytes, contBytes).ToWireBuffer());
 
         Assert.Equal(2, frames.Count);
         var cf = Assert.IsType<ContinuationFrame>(frames[1]);
@@ -97,7 +98,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(bytes);
+        var frames = decoder.Decode(bytes.ToWireBuffer());
 
         var hf = Assert.IsType<HeadersFrame>(frames[0]);
         var fragment = hf.HeaderBlockFragment;
@@ -122,7 +123,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var contBytes = new ContinuationFrame(1, part2.AsMemory(), endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var decoded = decoder.Decode(Concat(headersBytes, contBytes));
+        var decoded = decoder.Decode(Concat(headersBytes, contBytes).ToWireBuffer());
 
         Assert.Equal(2, decoded.Count);
         var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
@@ -145,7 +146,7 @@ public sealed class Http2DecoderStreamValidationSpec
         var contBytes = new ContinuationFrame(1, block.AsMemory()[half..], endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var decoded = decoder.Decode(Concat(headersBytes, contBytes));
+        var decoded = decoder.Decode(Concat(headersBytes, contBytes).ToWireBuffer());
 
         Assert.Equal(2, decoded.Count);
         var hf = Assert.IsType<HeadersFrame>(decoded[0]);
@@ -176,7 +177,7 @@ public sealed class Http2DecoderStreamValidationSpec
         // Serialize â†’ decode frame bytes â†’ decode HPACK.
         var bytes = headersFrame.Serialize();
         var decoder = new FrameDecoder();
-        var decoded = decoder.Decode(bytes);
+        var decoded = decoder.Decode(bytes.ToWireBuffer());
 
         Assert.Single(decoded);
         var hf = Assert.IsType<HeadersFrame>(decoded[0]);

@@ -108,7 +108,7 @@ public sealed class Http3ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "https", "example.com");
         var headersFrameData = BuildHeadersFrameData(headerBlock);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -158,13 +158,13 @@ public sealed class Http3ServerStateMachineSpec
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
         // Send HEADERS frame
-        var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
+        var headerBuffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         // Send DATA frame
-        var dataBuffer = TransportBuffer.Rent(dataFrameData.Length);
+        var dataBuffer = WireBuffer.Rent(dataFrameData.Length);
         dataFrameData.CopyTo(dataBuffer.FullMemory.Span);
         dataBuffer.Length = dataFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(dataBuffer, streamId));
@@ -209,7 +209,7 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
-        var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
+        var headerBuffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
@@ -257,7 +257,7 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
-        var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
+        var headerBuffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
@@ -300,7 +300,7 @@ public sealed class Http3ServerStateMachineSpec
 
         // Open stream 1 and send request
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(stream1), StreamDirection.Bidirectional));
-        var buf1 = TransportBuffer.Rent(headersData1.Length);
+        var buf1 = WireBuffer.Rent(headersData1.Length);
         headersData1.CopyTo(buf1.FullMemory.Span);
         buf1.Length = headersData1.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buf1, stream1));
@@ -308,7 +308,7 @@ public sealed class Http3ServerStateMachineSpec
 
         // Open stream 2 and send request
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(stream2), StreamDirection.Bidirectional));
-        var buf2 = TransportBuffer.Rent(headersData2.Length);
+        var buf2 = WireBuffer.Rent(headersData2.Length);
         headersData2.CopyTo(buf2.FullMemory.Span);
         buf2.Length = headersData2.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buf2, stream2));
@@ -353,7 +353,7 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
@@ -382,7 +382,7 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

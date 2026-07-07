@@ -74,7 +74,7 @@ internal sealed class QpackStreamManager(
             totalLength = instructions.Length;
         }
 
-        var buf = TransportBuffer.Rent(totalLength);
+        var buf = WireBuffer.Rent(totalLength);
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
 
@@ -85,7 +85,7 @@ internal sealed class QpackStreamManager(
     {
         var sectionAck = responseDecoder.DecoderInstructions;
 
-        var buf = TransportBuffer.Rent(1 + sectionAck.Length + 16);
+        var buf = WireBuffer.Rent(1 + sectionAck.Length + 16);
         var dest = buf.FullMemory.Span;
         var offset = 0;
 

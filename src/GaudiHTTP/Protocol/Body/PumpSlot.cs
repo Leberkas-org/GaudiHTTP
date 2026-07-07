@@ -42,7 +42,17 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
 
     public void EnsureBuffer(int chunkSize)
     {
-        Buffer ??= PooledArrayMemoryOwner.Create(Math.Max(chunkSize, 256));
+        if (Buffer is not null)
+        {
+            return;
+        }
+
+        // WireBuffer.Rent leaves Length unset (0); callers (FlowControlledBodyPump/MultiplexedBodyPump/
+        // PumpSlotLifecycle) slice Buffer.Memory[..chunkSize], so Length must span the full rented
+        // capacity, matching the deleted PooledArrayMemoryOwner's semantics.
+        var buffer = WireBuffer.Rent(Math.Max(chunkSize, 256));
+        buffer.Length = buffer.Capacity;
+        Buffer = buffer;
     }
 
     public void BeginRead() => IsReadInFlight = true;

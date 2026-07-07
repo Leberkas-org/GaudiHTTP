@@ -95,7 +95,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_decode_correctly_when_max_concurrent_streams_is_1()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(1));
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(1).ToWireBuffer());
 
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
         var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
@@ -107,7 +107,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_decode_correctly_when_max_concurrent_streams_is_0()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(0));
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(0).ToWireBuffer());
 
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
         var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
@@ -119,7 +119,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_decode_correctly_when_max_concurrent_streams_is_100()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(100));
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(100).ToWireBuffer());
 
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
         var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
@@ -131,7 +131,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_recognize_as_ack_when_settings_ack_received()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(SettingsFrame.SettingsAck());
+        var frames = decoder.Decode(SettingsFrame.SettingsAck().ToWireBuffer());
 
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
         Assert.True(frame.IsAck);
@@ -142,7 +142,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_open_stream_when_headers_received_without_end_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false).ToWireBuffer());
 
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.False(frame.EndStream);
@@ -158,7 +158,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
     public void Http2FrameDecoder_should_close_stream_immediately_when_headers_received_with_end_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true));
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true).ToWireBuffer());
 
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.True(frame.EndStream);
@@ -179,12 +179,12 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
         var closedStreams = new HashSet<int>();
 
         // HEADERS without END_STREAM opens stream 1
-        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false).ToWireBuffer());
         TrackStreamState(headersFrames[0], openStreams, closedStreams);
         Assert.Single(openStreams);
 
         // DATA with END_STREAM closes stream 1
-        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true).ToWireBuffer());
         TrackStreamState(dataFrames[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
         Assert.Single(closedStreams);
@@ -203,7 +203,7 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
             MakeResponseHeadersBytes(streamId: 3, endStream: false),
             MakeResponseHeadersBytes(streamId: 5, endStream: false));
 
-        var frames = decoder.Decode(bytes);
+        var frames = decoder.Decode(bytes.ToWireBuffer());
         foreach (var frame in frames)
         {
             TrackStreamState(frame, openStreams, closedStreams);
@@ -224,12 +224,12 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
         var closedStreams = new HashSet<int>();
 
         // Open stream 1
-        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false).ToWireBuffer());
         TrackStreamState(headersFrames[0], openStreams, closedStreams);
         Assert.Single(openStreams);
 
         // RST_STREAM on stream 1
-        var rstFrames = decoder.Decode(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize());
+        var rstFrames = decoder.Decode(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize().ToWireBuffer());
         TrackStreamState(rstFrames[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
         Assert.Single(closedStreams);
@@ -287,12 +287,12 @@ public sealed class Http2SettingsMaxConcurrentApiSpec
         const int maxConcurrent = 1;
 
         // Open stream 1
-        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false).ToWireBuffer());
         TrackStreamState(headersFrames[0], openStreams, closedStreams);
         Assert.Single(openStreams);
 
         // Close stream 1 via END_STREAM
-        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true).ToWireBuffer());
         TrackStreamState(dataFrames[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
 

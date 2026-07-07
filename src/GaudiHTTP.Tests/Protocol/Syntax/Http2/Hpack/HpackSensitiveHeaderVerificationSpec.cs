@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using System.Text;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;

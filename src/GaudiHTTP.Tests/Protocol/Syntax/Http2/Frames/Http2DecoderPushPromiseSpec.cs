@@ -1,5 +1,6 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -13,7 +14,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/style.css")]);
 
         var frame = new PushPromiseFrame(1, 2, headerBlock).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -27,7 +28,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/asset.js")]);
 
         var frame = new PushPromiseFrame(1, 4, headerBlock).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         var ppFrame = Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -39,7 +40,7 @@ public sealed class Http2DecoderPushPromiseSpec
     public void Http2FrameDecoder_should_accept_push_promise_with_empty_header_block()
     {
         var frame = new PushPromiseFrame(1, 2, ReadOnlyMemory<byte>.Empty).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -53,7 +54,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/resource")]);
 
         var frame = new PushPromiseFrame(3, 4, headerBlock).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         var ppFrame = Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -68,7 +69,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/large.css")]);
 
         var frame = new PushPromiseFrame(1, int.MaxValue - 1, headerBlock).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         var ppFrame = Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -89,7 +90,7 @@ public sealed class Http2DecoderPushPromiseSpec
         ]);
 
         var frame = new PushPromiseFrame(1, 2, headerBlock).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -103,7 +104,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/resource")]);
 
         var frame = new PushPromiseFrame(1, 2, headerBlock, endHeaders: true).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         var ppFrame = Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -118,7 +119,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/resource")]);
 
         var frame = new PushPromiseFrame(1, 2, headerBlock, endHeaders: false).Serialize();
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         Assert.NotEmpty(frames);
         var ppFrame = Assert.IsType<PushPromiseFrame>(frames[0]);
@@ -149,7 +150,7 @@ public sealed class Http2DecoderPushPromiseSpec
         raw[12] = 2; // promised stream = 2
         headerBlock.CopyTo(raw.AsSpan(13));
 
-        var frames = new FrameDecoder().Decode(raw);
+        var frames = new FrameDecoder().Decode(raw.ToWireBuffer());
         Assert.NotEmpty(frames);
         var pp = Assert.IsType<PushPromiseFrame>(frames[0]);
         Assert.Equal(0, pp.StreamId);
@@ -163,7 +164,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/resource")]);
         var frame = new PushPromiseFrame(1, 2, headerBlock).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         var pp = Assert.IsType<PushPromiseFrame>(frames[0]);
         Assert.Equal(2, pp.PromisedStreamId);
@@ -178,11 +179,11 @@ public sealed class Http2DecoderPushPromiseSpec
         var decoder = new FrameDecoder();
 
         var block1 = hpack.Encode([(":path", "/a")]);
-        var frames1 = decoder.Decode(new PushPromiseFrame(1, 2, block1).Serialize());
+        var frames1 = decoder.Decode(new PushPromiseFrame(1, 2, block1).Serialize().ToWireBuffer());
         var pp1 = Assert.IsType<PushPromiseFrame>(frames1[0]);
 
         var block2 = hpack.Encode([(":path", "/b")]);
-        var frames2 = decoder.Decode(new PushPromiseFrame(1, 4, block2).Serialize());
+        var frames2 = decoder.Decode(new PushPromiseFrame(1, 4, block2).Serialize().ToWireBuffer());
         var pp2 = Assert.IsType<PushPromiseFrame>(frames2[0]);
 
         Assert.True(pp2.PromisedStreamId > pp1.PromisedStreamId);
@@ -196,7 +197,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/max")]);
         var frame = new PushPromiseFrame(1, 0x7FFFFFFE, headerBlock).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         var pp = Assert.IsType<PushPromiseFrame>(frames[0]);
         Assert.Equal(0x7FFFFFFE, pp.PromisedStreamId);
@@ -210,7 +211,7 @@ public sealed class Http2DecoderPushPromiseSpec
         var headerBlock = hpack.Encode([(":path", "/partial")]);
         var frame = new PushPromiseFrame(1, 2, headerBlock, endHeaders: false).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame);
+        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
 
         var pp = Assert.IsType<PushPromiseFrame>(frames[0]);
         Assert.False(pp.EndHeaders);

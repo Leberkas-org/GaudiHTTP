@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -47,7 +48,7 @@ public sealed class Http2DataFrameFlowControlLengthSpec
         const int padding = 100;
         var bytes = BuildPaddedDataFrame(1, data, padding);
 
-        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes)));
+        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes.ToWireBuffer())));
 
         Assert.Equal(data.Length, frame.Data.Length);
         Assert.Equal(1 + data.Length + padding, frame.FlowControlledLength);
@@ -60,7 +61,7 @@ public sealed class Http2DataFrameFlowControlLengthSpec
         var data = new byte[] { 1, 2, 3 };
         var bytes = BuildPaddedDataFrame(1, data, paddingLength: 0);
 
-        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes)));
+        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes.ToWireBuffer())));
 
         Assert.Equal(3, frame.Data.Length);
         Assert.Equal(4, frame.FlowControlledLength); // 1 Pad Length octet + 3 data
@@ -73,7 +74,7 @@ public sealed class Http2DataFrameFlowControlLengthSpec
         var data = new byte[] { 9, 8, 7, 6, 5 };
         var bytes = BuildUnpaddedDataFrame(1, data);
 
-        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes)));
+        var frame = Assert.IsType<DataFrame>(Assert.Single(new FrameDecoder().Decode(bytes.ToWireBuffer())));
 
         Assert.Equal(5, frame.Data.Length);
         Assert.Equal(5, frame.FlowControlledLength);

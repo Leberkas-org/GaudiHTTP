@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -106,7 +107,7 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
     {
         var headerBlock = EncodeHeaders("POST", "/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: false, endHeaders: true);
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
         sm.DecodeClientData(TransportData.Rent(buffer));
@@ -123,7 +124,7 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
             var isLast = remaining == 0;
             var payload = new byte[chunk];
             var frame = BuildDataFrame(streamId, payload, endStream && isLast);
-            var buffer = TransportBuffer.Rent(frame.Length);
+            var buffer = WireBuffer.Rent(frame.Length);
             frame.CopyTo(buffer.FullMemory.Span);
             buffer.Length = frame.Length;
             sm.DecodeClientData(TransportData.Rent(buffer));

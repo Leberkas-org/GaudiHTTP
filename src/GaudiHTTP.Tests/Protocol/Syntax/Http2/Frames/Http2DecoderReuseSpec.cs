@@ -18,7 +18,7 @@ public sealed class Http2DecoderReuseSpec
             new PingFrame(new byte[8], isAck: false).Serialize(),
             new WindowUpdateFrame(1, 65535).Serialize());
 
-        var frames = new FrameDecoder().Decode(bytes);
+        var frames = new FrameDecoder().Decode(bytes.ToWireBuffer());
 
         Assert.Equal(2, frames.Count);
         Assert.IsType<PingFrame>(frames[0]);
@@ -31,7 +31,7 @@ public sealed class Http2DecoderReuseSpec
     public void Decode_should_return_an_empty_list_for_an_incomplete_frame()
     {
         // Fewer than the 9-octet frame header: no complete frame is produced.
-        var frames = new FrameDecoder().Decode(new byte[] { 0, 0, 5 });
+        var frames = new FrameDecoder().Decode(new byte[] { 0, 0, 5 }.ToWireBuffer());
 
         Assert.Empty(frames);
     }
@@ -42,11 +42,11 @@ public sealed class Http2DecoderReuseSpec
     {
         var decoder = new FrameDecoder();
 
-        var first = decoder.Decode(new PingFrame(new byte[8], isAck: false).Serialize());
+        var first = decoder.Decode(new PingFrame(new byte[8], isAck: false).Serialize().ToWireBuffer());
         Assert.Single(first);
 
         // An empty feed with no buffered remainder must not surface the previous call's frames.
-        var second = decoder.Decode(Array.Empty<byte>());
+        var second = decoder.Decode(Array.Empty<byte>().ToWireBuffer());
         Assert.Empty(second);
     }
 
@@ -56,8 +56,8 @@ public sealed class Http2DecoderReuseSpec
     {
         var decoder = new FrameDecoder();
 
-        var first = decoder.Decode(new PingFrame(new byte[8], isAck: false).Serialize());
-        var second = decoder.Decode(new PingFrame(new byte[8], isAck: true).Serialize());
+        var first = decoder.Decode(new PingFrame(new byte[8], isAck: false).Serialize().ToWireBuffer());
+        var second = decoder.Decode(new PingFrame(new byte[8], isAck: true).Serialize().ToWireBuffer());
 
         // No fresh collection is allocated per call — the reused list is returned directly.
         Assert.Same(first, second);

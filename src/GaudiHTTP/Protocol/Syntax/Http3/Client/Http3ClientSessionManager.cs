@@ -254,7 +254,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
             _decoderOptions.MaxFieldSectionSize);
     }
 
-    public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
+    public IReadOnlyList<Http3Frame> DecodeServerData(WireBuffer buffer, long streamId)
     {
         return _streamManager.DecodeServerData(buffer, streamId);
     }
@@ -478,7 +478,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
             totalSize += frames[i].SerializedSize;
         }
 
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         var offset = 0;
 
@@ -495,7 +495,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId)
     {
-        var buf = TransportBuffer.Rent(frame.SerializedSize);
+        var buf = WireBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;

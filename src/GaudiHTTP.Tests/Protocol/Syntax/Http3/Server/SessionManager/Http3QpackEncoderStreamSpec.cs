@@ -43,7 +43,7 @@ public sealed class Http3QpackEncoderStreamSpec
 
     private static void Feed(Http3ServerSessionManager sm, ReadOnlyMemory<byte> bytes, long streamId)
     {
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.Span.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

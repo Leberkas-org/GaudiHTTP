@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using System.Buffers.Binary;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -56,9 +57,9 @@ public sealed class Http2HalfClosedRemoteSpec
         return frame;
     }
 
-    private static TransportBuffer WrapFrame(byte[] frame)
+    private static WireBuffer WrapFrame(byte[] frame)
     {
-        var buffer = TransportBuffer.Rent(frame.Length);
+        var buffer = WireBuffer.Rent(frame.Length);
         frame.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frame.Length;
         return buffer;

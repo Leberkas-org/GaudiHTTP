@@ -57,7 +57,7 @@ internal sealed class Http3OutboundWriter
         span = span[written..];
         settingsFrame.WriteTo(ref span);
 
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
 
@@ -81,7 +81,7 @@ internal sealed class Http3OutboundWriter
         var prefixSize = typeVarIntLen + payloadVarIntLen;
         var totalWireSize = prefixSize + body.Length;
 
-        var buf = TransportBuffer.Rent(totalWireSize);
+        var buf = WireBuffer.Rent(totalWireSize);
         var span = buf.FullMemory.Span;
 
         QuicVarInt.Encode((long)FrameType.Data, span);

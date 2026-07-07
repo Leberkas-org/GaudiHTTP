@@ -63,7 +63,7 @@ public sealed class Http3DataRateViolationSpec
 
     private static void Send(Http3ServerSessionManager sm, long streamId, byte[] bytes)
     {
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

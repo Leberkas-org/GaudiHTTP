@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -137,7 +138,7 @@ public sealed class Http2ServerTimeoutSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -172,7 +173,7 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -223,7 +224,7 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -259,7 +260,7 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -269,7 +270,7 @@ public sealed class Http2ServerTimeoutSpec
 
         // Send CONTINUATION with EndHeaders
         var continuationData = BuildContinuationFrame(streamId: 1, headerBlock[partSize..], endHeaders: true);
-        buffer = TransportBuffer.Rent(continuationData.Length);
+        buffer = WireBuffer.Rent(continuationData.Length);
         continuationData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = continuationData.Length;
 
@@ -315,7 +316,7 @@ public sealed class Http2ServerTimeoutSpec
         var headerBlock = EncodeHeaders("POST", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -327,7 +328,7 @@ public sealed class Http2ServerTimeoutSpec
         var data = new byte[100];
         var dataFrameData = BuildDataFrame(streamId: 1, data, endStream: false);
 
-        buffer = TransportBuffer.Rent(dataFrameData.Length);
+        buffer = WireBuffer.Rent(dataFrameData.Length);
         dataFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = dataFrameData.Length;
 

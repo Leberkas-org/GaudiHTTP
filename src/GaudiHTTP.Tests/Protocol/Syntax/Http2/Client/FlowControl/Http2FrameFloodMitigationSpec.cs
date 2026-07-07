@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
 
@@ -78,7 +79,7 @@ public sealed class Http2FrameFloodMitigationSpec
         // Decode 100 SETTINGS frames — all should succeed
         for (var i = 0; i < 100; i++)
         {
-            var frames = decoder.Decode(settingsBytes);
+            var frames = decoder.Decode(settingsBytes.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is SettingsFrame { IsAck: false })
@@ -91,7 +92,7 @@ public sealed class Http2FrameFloodMitigationSpec
         }
 
         // Decode the 101st
-        var framesAgain = decoder.Decode(settingsBytes);
+        var framesAgain = decoder.Decode(settingsBytes.ToWireBuffer());
         foreach (var frame in framesAgain)
         {
             if (frame is SettingsFrame { IsAck: false })
@@ -113,7 +114,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         for (var i = 0; i < 100; i++)
         {
-            var frames = decoder.Decode(settingsBytes);
+            var frames = decoder.Decode(settingsBytes.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is SettingsFrame { IsAck: false })
@@ -138,7 +139,7 @@ public sealed class Http2FrameFloodMitigationSpec
         // 200 ACK SETTINGS frames — none should count toward the non-ACK limit
         for (var i = 0; i < 200; i++)
         {
-            var frames = decoder.Decode(settingsAck);
+            var frames = decoder.Decode(settingsAck.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is SettingsFrame { IsAck: false })
@@ -164,7 +165,7 @@ public sealed class Http2FrameFloodMitigationSpec
         for (var i = 0; i < 100; i++)
         {
             var rst = BuildRawFrame(0x3, 0x0, 2 * i + 1, errorCode);
-            var frames = decoder.Decode(rst);
+            var frames = decoder.Decode(rst.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is RstStreamFrame)
@@ -178,7 +179,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         // Decode the 101st
         var rst101 = BuildRawFrame(0x3, 0x0, 201, errorCode);
-        var framesAgain = decoder.Decode(rst101);
+        var framesAgain = decoder.Decode(rst101.ToWireBuffer());
         foreach (var frame in framesAgain)
         {
             if (frame is RstStreamFrame)
@@ -201,7 +202,7 @@ public sealed class Http2FrameFloodMitigationSpec
         for (var i = 0; i < 100; i++)
         {
             var rst = BuildRawFrame(0x3, 0x0, 2 * i + 1, errorCode);
-            var frames = decoder.Decode(rst);
+            var frames = decoder.Decode(rst.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is RstStreamFrame)
@@ -226,7 +227,7 @@ public sealed class Http2FrameFloodMitigationSpec
         for (var i = 0; i < 100; i++)
         {
             var rst = BuildRawFrame(0x3, 0x0, 2 * i + 1, errorCode);
-            var frames = decoder.Decode(rst);
+            var frames = decoder.Decode(rst.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is RstStreamFrame)
@@ -256,7 +257,7 @@ public sealed class Http2FrameFloodMitigationSpec
             continuationNoEnd.CopyTo(chunk, headersFrame.Length + i * continuationNoEnd.Length);
         }
 
-        var frames = decoder.Decode(chunk);
+        var frames = decoder.Decode(chunk.ToWireBuffer());
         var continuationCount = 0;
         foreach (var frame in frames)
         {
@@ -271,7 +272,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         // Now add the 1000th
         var continuation1000 = BuildRawFrame(0x9, 0x0, 1, []);
-        var frames1000 = decoder.Decode(continuation1000);
+        var frames1000 = decoder.Decode(continuation1000.ToWireBuffer());
         foreach (var frame in frames1000)
         {
             if (frame is ContinuationFrame)
@@ -298,7 +299,7 @@ public sealed class Http2FrameFloodMitigationSpec
             continuationNoEnd.CopyTo(chunk, headersFrame.Length + i * continuationNoEnd.Length);
         }
 
-        var frames = decoder.Decode(chunk);
+        var frames = decoder.Decode(chunk.ToWireBuffer());
         var continuationCount = 0;
         foreach (var frame in frames)
         {
@@ -323,7 +324,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         for (var i = 0; i < 1000; i++)
         {
-            var frames = decoder.Decode(pingFrame);
+            var frames = decoder.Decode(pingFrame.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is PingFrame { IsAck: false })
@@ -335,7 +336,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         EnforcePingFloodThreshold(pingCount); // must not throw
 
-        var frames1001 = decoder.Decode(pingFrame);
+        var frames1001 = decoder.Decode(pingFrame.ToWireBuffer());
         foreach (var frame in frames1001)
         {
             if (frame is PingFrame { IsAck: false })
@@ -358,7 +359,7 @@ public sealed class Http2FrameFloodMitigationSpec
 
         for (var i = 0; i < 1000; i++)
         {
-            var frames = decoder.Decode(pingFrame);
+            var frames = decoder.Decode(pingFrame.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is PingFrame { IsAck: false })
@@ -384,7 +385,7 @@ public sealed class Http2FrameFloodMitigationSpec
         // 2000 PING ACK frames — none count toward non-ACK limit
         for (var i = 0; i < 2000; i++)
         {
-            var frames = decoder.Decode(pingAckFrame);
+            var frames = decoder.Decode(pingAckFrame.ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is PingFrame { IsAck: false })

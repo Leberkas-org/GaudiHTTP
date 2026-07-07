@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -24,9 +25,9 @@ public sealed class Http2GoAwayComplianceSpec
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
-    private static TransportBuffer SerializeFrame(Http2Frame frame)
+    private static WireBuffer SerializeFrame(Http2Frame frame)
     {
-        var buffer = TransportBuffer.Rent(frame.SerializedSize);
+        var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;

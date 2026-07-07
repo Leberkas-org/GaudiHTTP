@@ -202,10 +202,10 @@ public sealed class Http11ServerPipeliningLimitSpec
         Assert.True(sm.ShouldComplete);
     }
 
-    private static TransportBuffer MakeBuffer(string raw)
+    private static WireBuffer MakeBuffer(string raw)
     {
         var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return buffer;

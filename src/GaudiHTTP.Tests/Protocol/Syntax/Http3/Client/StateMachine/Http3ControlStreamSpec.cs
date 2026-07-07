@@ -19,9 +19,9 @@ public sealed class Http3ControlStreamSpec
     private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
         => new(new GaudiClientOptions(), ops ?? _clientOps);
 
-    private static TransportBuffer SerializeFrame(Http3Frame frame)
+    private static WireBuffer SerializeFrame(Http3Frame frame)
     {
-        var buffer = TransportBuffer.Rent(frame.SerializedSize);
+        var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;

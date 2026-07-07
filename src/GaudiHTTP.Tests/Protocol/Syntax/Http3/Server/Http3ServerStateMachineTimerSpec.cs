@@ -28,7 +28,7 @@ public sealed class Http3ServerStateMachineTimerSpec
         frame.WriteTo(ref span);
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
-        var buffer = TransportBuffer.Rent(buf.Length);
+        var buffer = WireBuffer.Rent(buf.Length);
         buf.CopyTo(buffer.FullMemory.Span);
         buffer.Length = buf.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
@@ -170,7 +170,7 @@ public sealed class Http3ServerStateMachineTimerSpec
 
         // Open stream and send HEADERS but NOT StreamReadCompleted
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
-        var buffer = TransportBuffer.Rent(buf.Length);
+        var buffer = WireBuffer.Rent(buf.Length);
         buf.CopyTo(buffer.FullMemory.Span);
         buffer.Length = buf.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

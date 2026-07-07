@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -13,7 +14,7 @@ internal static class Http2ConnectionTestHelper
             totalSize += f.SerializedSize;
         }
 
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         foreach (var f in frames)
         {

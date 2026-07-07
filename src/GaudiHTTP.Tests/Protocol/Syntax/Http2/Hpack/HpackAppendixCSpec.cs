@@ -1,4 +1,5 @@
-using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+﻿using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Hpack;
 

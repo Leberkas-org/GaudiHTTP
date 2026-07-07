@@ -18,10 +18,10 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
             Version = new Version(1, 0)
         };
 
-    private static TransportBuffer MakeResponseBuffer(string raw)
+    private static WireBuffer MakeResponseBuffer(string raw)
     {
         var bytes = Encoding.ASCII.GetBytes(raw);
-        var buf = TransportBuffer.Rent(bytes.Length);
+        var buf = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buf.FullMemory.Span);
         buf.Length = bytes.Length;
         return buf;

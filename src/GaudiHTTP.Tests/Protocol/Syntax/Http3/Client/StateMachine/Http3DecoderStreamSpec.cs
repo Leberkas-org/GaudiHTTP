@@ -96,7 +96,7 @@ public sealed class Http3DecoderStreamSpec
 
         // Feed QPACK encoder stream data (stream ID -3) to trigger state updates
         var encoderUpdate = "?#B"u8.ToArray(); // Example encoder instruction
-        var buf = TransportBuffer.Rent(encoderUpdate.Length);
+        var buf = WireBuffer.Rent(encoderUpdate.Length);
         encoderUpdate.CopyTo(buf.FullMemory.Span);
         buf.Length = encoderUpdate.Length;
 

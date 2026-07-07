@@ -59,7 +59,7 @@ public sealed class Http3ServerTrailerSpec
         var data = BuildRequest("GET", "/");
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

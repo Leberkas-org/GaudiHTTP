@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
 using System.Text;
 using Akka.Streams;
@@ -19,10 +20,10 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         };
     }
 
-    private static TransportBuffer MakeResponseBuffer(string raw)
+    private static WireBuffer MakeResponseBuffer(string raw)
     {
         var bytes = Encoding.ASCII.GetBytes(raw);
-        var buf = TransportBuffer.Rent(bytes.Length);
+        var buf = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buf.FullMemory.Span);
         buf.Length = bytes.Length;
         return buf;
@@ -343,13 +344,14 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // A poisoned inbound buffer — disposed while still carrying a non-zero Length, the
-        // observable shape of cross-connection pool corruption — makes DecodeServerData throw
-        // outside the protocol-error path. The stage must FAIL the connection: swallowing the
-        // exception leaves the FrameDecoder mid-buffer and desynchronized, wedging every
-        // subsequent frame and in-flight response body (repro: LargeDownloadRegressionSpec).
-        var poisoned = MakeResponseBuffer("xxxxxxxxxx");
-        poisoned.Dispose();
+        // A poisoned inbound buffer — Length claiming more data than the backing array holds,
+        // the observable shape of cross-connection pool corruption — makes DecodeServerData throw
+        // outside the protocol-error path. (The pre-WireBuffer construction was dispose-with-
+        // non-zero-Length; WireBuffer.Dispose zeroes Length, so the lie must live in Wrap now.)
+        // The stage must FAIL the connection: swallowing the exception leaves the FrameDecoder
+        // mid-buffer and desynchronized, wedging every subsequent frame and in-flight response
+        // body (repro: LargeDownloadRegressionSpec).
+        var poisoned = WireBuffer.Wrap(new byte[4], 0, 100);
         serverSubscription.SendNext(TransportData.Rent(poisoned));
 
         responseSub.ExpectError(TestContext.Current.CancellationToken);
