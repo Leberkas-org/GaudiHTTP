@@ -25,26 +25,20 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
 
     private static IFeatureCollection BufferedResponse(byte[] body, bool withContentLength)
     {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = "GET" });
-
-        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
+        var features = ServerTestContext.CreateResponse();
         if (withContentLength)
         {
-            responseFeature.Headers["Content-Length"] = new StringValues(body.Length.ToString());
+            features.Get<IHttpResponseFeature>()!.Headers["Content-Length"] = new StringValues(body.Length.ToString());
         }
-
-        features.Set<IHttpResponseFeature>(responseFeature);
 
         // A fully-buffered, completed response body (the dominant Plaintext/Json case): written to
         // the buffer writer and completed without ever upgrading to a pipe, so TryGetBufferedBody
         // hands the bytes back synchronously.
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
+        var bodyFeature = (GaudiHttpResponseBodyFeature)features.Get<IHttpResponseBodyFeature>()!;
         var span = bodyFeature.Writer.GetSpan(body.Length);
         body.CopyTo(span);
         bodyFeature.Writer.Advance(body.Length);
         bodyFeature.Complete();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
 
         return features;
     }

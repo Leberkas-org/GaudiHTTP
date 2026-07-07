@@ -32,19 +32,13 @@ public sealed class Http11ServerHeadResponseSpec
 
     private static IFeatureCollection BuildResponse(string method, string body)
     {
-        var fc = new GaudiFeatureCollection();
-        fc.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = method });
+        var fc = ServerTestContext.CreateResponse();
+        fc.Get<IHttpRequestFeature>()!.Method = method;
 
-        var responseFeature = new GaudiHttpResponseFeature
-        {
-            StatusCode = 200,
-            Headers =
-            {
-                ["Content-Length"] = body.Length.ToString()
-            }
-        };
+        var responseFeature = (GaudiHttpResponseFeature)fc.Get<IHttpResponseFeature>()!;
+        responseFeature.Headers["Content-Length"] = body.Length.ToString();
 
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
+        var bodyFeature = (GaudiHttpResponseBodyFeature)fc.Get<IHttpResponseBodyFeature>()!;
         bodyFeature.SetResponseFeature(responseFeature);
         var bytes = Encoding.ASCII.GetBytes(body);
         var mem = bodyFeature.Writer.GetMemory(bytes.Length);
@@ -52,8 +46,6 @@ public sealed class Http11ServerHeadResponseSpec
         bodyFeature.Writer.Advance(bytes.Length);
         bodyFeature.Writer.Complete();
 
-        fc.Set<IHttpResponseFeature>(responseFeature);
-        fc.Set<IHttpResponseBodyFeature>(bodyFeature);
         return fc;
     }
 

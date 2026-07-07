@@ -13,20 +13,9 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
 {
     private static FakeServerOps MakeOps() => new();
 
-    private static IFeatureCollection CreateResponseContext()
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
     private static async Task<IFeatureCollection> CreateResponseContextWithBody(string body)
     {
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         var bodyFeature = context.Get<IHttpResponseBodyFeature>()!;
         var bytes = Encoding.ASCII.GetBytes(body);
         await bodyFeature.Writer.WriteAsync(bytes);
@@ -82,7 +71,7 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         sm.OnResponse(context);
 

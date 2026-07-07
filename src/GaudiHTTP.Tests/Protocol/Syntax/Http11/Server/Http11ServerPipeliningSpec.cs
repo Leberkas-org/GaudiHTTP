@@ -3,24 +3,12 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
-using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerPipeliningSpec
 {
-    private static IFeatureCollection CreateResponseContext()
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.4")]
     public void ServerStateMachine_should_decode_two_pipelined_requests_from_single_buffer()
@@ -64,10 +52,10 @@ public sealed class Http11ServerPipeliningSpec
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
-        var context1 = CreateResponseContext();
+        var context1 = ServerTestContext.CreateResponse();
         sm.OnResponse(context1);
 
-        var context2 = CreateResponseContext();
+        var context2 = ServerTestContext.CreateResponse();
         sm.OnResponse(context2);
 
         Assert.Equal(2, ops.Outbound.Count);
@@ -80,7 +68,7 @@ public sealed class Http11ServerPipeliningSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         Assert.Throws<InvalidOperationException>(() => sm.OnResponse(context));
     }

@@ -22,11 +22,8 @@ public sealed class Http11ServerBodyPumpStallSpec
     private static (IFeatureCollection Features, GaudiHttpResponseBodyFeature BodyFeature)
         CreateStreamingResponseContext(int bodySize)
     {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
+        var features = ServerTestContext.CreateResponse();
+        var bodyFeature = (GaudiHttpResponseBodyFeature)features.Get<IHttpResponseBodyFeature>()!;
         var writer = bodyFeature.Writer;
         var remaining = bodySize;
         while (remaining > 0)
@@ -40,7 +37,6 @@ public sealed class Http11ServerBodyPumpStallSpec
 
         bodyFeature.UpgradeToPipe();
 
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return (features, bodyFeature);
     }
 

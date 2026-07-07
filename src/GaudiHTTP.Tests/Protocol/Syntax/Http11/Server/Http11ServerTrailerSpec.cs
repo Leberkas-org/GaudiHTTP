@@ -27,21 +27,16 @@ public sealed class Http11ServerTrailerSpec
         byte[] body,
         GaudiHttpResponseTrailersFeature trailerFeature)
     {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = "GET" });
-
-        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
         // No Content-Length → state machine will use chunked transfer encoding
-        features.Set<IHttpResponseFeature>(responseFeature);
+        var features = ServerTestContext.CreateResponse();
         features.Set<IHttpResponseTrailersFeature>(trailerFeature);
 
         // Fully buffered, completed response body (no Content-Length → EmitBufferedBody path with chunked)
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
+        var bodyFeature = (GaudiHttpResponseBodyFeature)features.Get<IHttpResponseBodyFeature>()!;
         var span = bodyFeature.Writer.GetSpan(body.Length);
         body.CopyTo(span);
         bodyFeature.Writer.Advance(body.Length);
         bodyFeature.Complete();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
 
         return features;
     }
