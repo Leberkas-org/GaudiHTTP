@@ -1,8 +1,5 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Streams;
 using Akka.Streams.Dsl;
-using Akka.TestKit.Xunit;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Tests.Shared;
@@ -10,15 +7,8 @@ using Servus.Akka.Sse;
 
 namespace GaudiHTTP.Tests.Client;
 
-public sealed class ExtensionsSpec : TestKit
+public sealed class ExtensionsSpec : StreamTestBase
 {
-    private readonly IMaterializer _materializer;
-
-    public ExtensionsSpec() : base(ActorSystem.Create("test", CiQuietConfig.Instance))
-    {
-        _materializer = Sys.Materializer();
-    }
-
     [Fact(Timeout = 5000)]
     public void GetResponseAsync_should_attach_pending_request_to_options()
     {
@@ -75,7 +65,7 @@ public sealed class ExtensionsSpec : TestKit
 
         // Parse the SSE stream
         var result = await response.AsEventStream()
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Equal(2, result.Count);
         Assert.Equal("hello", result[0].Data);
@@ -92,7 +82,7 @@ public sealed class ExtensionsSpec : TestKit
         };
 
         var result = await response.AsEventStream()
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("payload", result[0].Data);

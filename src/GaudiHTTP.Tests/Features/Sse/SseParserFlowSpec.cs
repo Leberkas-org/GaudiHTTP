@@ -1,22 +1,12 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Streams;
 using Akka.Streams.Dsl;
-using Akka.TestKit.Xunit;
 using GaudiHTTP.Tests.Shared;
 using Servus.Akka.Sse;
 
 namespace GaudiHTTP.Tests.Features.Sse;
 
-public sealed class SseParserFlowSpec : TestKit
+public sealed class SseParserFlowSpec : StreamTestBase
 {
-    private readonly IMaterializer _materializer;
-
-    public SseParserFlowSpec() : base(ActorSystem.Create("test", CiQuietConfig.Instance))
-    {
-        _materializer = Sys.Materializer();
-    }
-
     private Source<ReadOnlyMemory<byte>, Akka.NotUsed> SseBytes(string raw)
     {
         return Source.Single((ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes(raw));
@@ -27,7 +17,7 @@ public sealed class SseParserFlowSpec : TestKit
     {
         var result = await SseBytes("data: hello\n\n")
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -42,7 +32,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "event: update\ndata: payload\nid: 42\nretry: 3000\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("payload", result[0].Data);
@@ -57,7 +47,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "data: line1\ndata: line2\ndata: line3\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("line1\nline2\nline3", result[0].Data);
@@ -69,7 +59,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = ": this is a comment\ndata: visible\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("visible", result[0].Data);
@@ -81,7 +71,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "data: first\n\ndata: second\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Equal(2, result.Count);
         Assert.Equal("first", result[0].Data);
@@ -94,7 +84,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "data: hello\r\n\r\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -108,7 +98,7 @@ public sealed class SseParserFlowSpec : TestKit
                 (ReadOnlyMemory<byte>)"lo\n\n"u8.ToArray()
             ])
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -123,7 +113,7 @@ public sealed class SseParserFlowSpec : TestKit
 
         var result = await Source.Single((ReadOnlyMemory<byte>)combined)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -134,7 +124,7 @@ public sealed class SseParserFlowSpec : TestKit
     {
         var result = await SseBytes("data: final")
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("final", result[0].Data);
@@ -146,7 +136,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "event: ping\n\ndata: real\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("real", result[0].Data);
@@ -158,7 +148,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "data\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("", result[0].Data);
@@ -169,7 +159,7 @@ public sealed class SseParserFlowSpec : TestKit
     {
         var result = await SseBytes("data: hello\n\n")
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Equal("message", result[0].EventType);
     }
@@ -179,7 +169,7 @@ public sealed class SseParserFlowSpec : TestKit
     {
         var result = await SseBytes("data: hello\r\r")
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -191,7 +181,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "id: bad\0id\ndata: hello\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Null(result[0].Id);
@@ -203,7 +193,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "retry: abc\ndata: hello\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Null(result[0].Retry);
@@ -215,7 +205,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "foo: bar\ndata: hello\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
@@ -227,7 +217,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "data: a\ndata: b\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Single(result);
         Assert.Equal("a\nb", result[0].Data);
@@ -239,7 +229,7 @@ public sealed class SseParserFlowSpec : TestKit
         var raw = "event: ping\ndata: {\"id\":0,\"timestamp\":1234}\n\nevent: ping\ndata: {\"id\":1,\"timestamp\":5678}\n\n";
         var result = await SseBytes(raw)
             .Via(SseParserFlow.Instance)
-            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+            .RunWith(Sink.Seq<ServerSentEvent>(), Materializer);
 
         Assert.Equal(2, result.Count);
         Assert.Equal("ping", result[0].EventType);
