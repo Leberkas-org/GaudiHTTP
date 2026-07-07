@@ -1,12 +1,12 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using System.Net;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
@@ -19,14 +19,6 @@ public sealed class Http2StateMachineReconnectSpec
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;
         return buffer;
-    }
-
-    private static GaudiClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null)
-    {
-        var options = new GaudiClientOptions();
-        if (maxConcurrentStreams.HasValue) options.Http2.MaxConcurrentStreams = maxConcurrentStreams.Value;
-        if (maxReconnect.HasValue) options.Http2.MaxReconnectAttempts = maxReconnect.Value;
-        return options;
     }
 
     private static HttpRequestMessage MakeGet(string path = "/") =>
@@ -65,7 +57,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_start_reconnect_on_disconnect_with_inflight()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
         sm.OnRequest(MakeGet("/b"));
@@ -83,7 +75,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_not_replay_non_idempotent_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a")); // stream 1
         sm.OnRequest(MakePost("/b")); // stream 3
@@ -103,7 +95,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_replay_requests_on_connection_restored()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
         ops.Outbound.Clear();
@@ -122,7 +114,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_set_CanAcceptRequest_false_when_reconnecting()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
@@ -136,7 +128,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_fail_when_max_reconnect_exceeded()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(maxReconnect: 1), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(http2MaxReconnectAttempts: 1), ops);
         sm.PreStart();
         var (req, pending) = MakeTrackedGet();
         sm.OnRequest(req);
@@ -153,7 +145,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void DecodeServerData_should_emit_new_connect_when_reconnect_under_limit()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(maxReconnect: 3), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(http2MaxReconnectAttempts: 3), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
@@ -176,7 +168,7 @@ public sealed class Http2StateMachineReconnectSpec
         // LastStreamId covers all in-flight streams must NOT trigger a reconnect, and must NOT drop
         // the in-flight non-idempotent POST — the server has committed to finish it.
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));               // stream 1
         var (post, postPending) = MakeTrackedPost("/b"); // stream 3
@@ -203,7 +195,7 @@ public sealed class Http2StateMachineReconnectSpec
         // connection do we reconnect, classifying against the remembered LastStreamId so the
         // > LastStreamId POST is replayed while a <= LastStreamId POST that never completed is not.
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         var (postLow, postLowPending) = MakeTrackedPost("/a"); // stream 1 (<= LastStreamId)
         sm.OnRequest(postLow);
@@ -230,7 +222,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void Reconnect_should_discard_partial_frame_buffered_from_previous_connection()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
 
@@ -266,7 +258,7 @@ public sealed class Http2StateMachineReconnectSpec
     public async Task Connection_loss_should_fault_streaming_response_body_instead_of_truncating()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/big"));
 
@@ -296,7 +288,7 @@ public sealed class Http2StateMachineReconnectSpec
     public void Protocol_error_disconnect_then_reconnect_should_replay_idempotent_inflight_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         var (req, pending) = MakeTrackedGet("/a");
         sm.OnRequest(req);
