@@ -1,5 +1,4 @@
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -10,8 +9,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
 public sealed class ResponseRetentionSpec
 {
-    private static GaudiClientOptions MakeConfig() => new();
-
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
@@ -27,7 +24,7 @@ public sealed class ResponseRetentionSpec
     public void StateMachine_should_retain_response_when_rst_stream_no_error_follows_headers()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
 
         // Send a request

@@ -1,23 +1,15 @@
 using System.Text;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
+using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11StateMachineSpec
 {
-    private static GaudiClientOptions MakeConfig(int maxPipelineDepth = 8)
-        => new()
-        {
-            Http1 = new Http1ClientOptions
-            {
-                MaxPipelineDepth = maxPipelineDepth
-            }
-        };
-
     private static HttpRequestMessage MakeRequest(string path = "/", string? method = null, HttpContent? content = null)
     {
         var httpMethod = method switch
@@ -79,7 +71,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_enqueue_request_and_emit_stream_acquire()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -91,7 +83,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_emit_network_buffer_with_encoded_data()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -106,7 +98,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_set_endpoint_on_first_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnRequest(MakeRequest());
 
@@ -118,7 +110,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_respect_max_pipeline_depth()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(maxPipelineDepth: 2), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 2), ops);
 
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -131,7 +123,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_handle_post_request_with_content()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var content = new StringContent("test body", Encoding.UTF8);
 
         sm.OnRequest(MakeRequest("/", "POST", content));
@@ -149,7 +141,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_emit_multiple_requests_in_pipeline()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -169,7 +161,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_handle_request_without_content()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnRequest(MakeRequest("/", "GET"));
 
@@ -184,7 +176,7 @@ public sealed class Http11StateMachineSpec
     public void OnRequest_should_respect_max_buffer_size()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var content = new StringContent("test", Encoding.UTF8);
 
         sm.OnRequest(MakeRequest("/", "POST", content));
@@ -200,7 +192,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_decode_single_response()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
@@ -215,7 +207,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_emit_connection_reuse_item()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
@@ -227,7 +219,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_decode_multiple_pipelined_responses()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
@@ -246,7 +238,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_push_streaming_response_immediately_for_close_delimited()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
@@ -261,7 +253,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_push_response_before_body_complete_for_streaming()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
@@ -275,7 +267,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_handle_connection_close_header()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
@@ -291,7 +283,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_handle_graceful_disconnect()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeServerData(TransportData.Rent(buffer));
@@ -306,7 +298,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_clear_effective_pipeline_depth_when_connection_close_with_multiple_inflight()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
@@ -322,7 +314,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_preserve_request_reference()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var req = MakeRequest();
         sm.OnRequest(req);
 
@@ -337,7 +329,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_complete_close_delimited_response_on_graceful_disconnect()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
@@ -356,7 +348,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_push_response_immediately_for_streaming_then_handle_abrupt_close()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
 
@@ -373,7 +365,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_decode_eof_response_on_graceful_disconnect()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
@@ -389,7 +381,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_stay_alive_after_abrupt_close_when_no_pending()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var (request, _) = MakeTrackedRequest();
         sm.OnRequest(request);
 
@@ -406,7 +398,7 @@ public sealed class Http11StateMachineSpec
     public void DecodeServerData_should_push_response_immediately_then_handle_abrupt_close_with_body()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
@@ -422,7 +414,7 @@ public sealed class Http11StateMachineSpec
     public void OnUpstreamFinished_should_complete_when_no_inflight_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         sm.OnUpstreamFinished();
 
@@ -434,7 +426,7 @@ public sealed class Http11StateMachineSpec
     public void OnUpstreamFinished_should_fail_orphaned_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         var (request1, pending1) = MakeTrackedRequest("/1");
         var (request2, pending2) = MakeTrackedRequest("/2");
         sm.OnRequest(request1);
@@ -454,7 +446,7 @@ public sealed class Http11StateMachineSpec
     public void CanAcceptRequest_should_be_true_initially()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         Assert.True(sm.CanAcceptRequest);
     }
@@ -464,7 +456,7 @@ public sealed class Http11StateMachineSpec
     public void CanAcceptRequest_should_be_false_when_queue_full()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(maxPipelineDepth: 2), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 2), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
@@ -476,7 +468,7 @@ public sealed class Http11StateMachineSpec
     public void HasInFlightRequests_should_reflect_queue_count()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         Assert.False(sm.HasInFlightRequests);
         sm.OnRequest(MakeRequest());
@@ -488,7 +480,7 @@ public sealed class Http11StateMachineSpec
     public void Endpoint_should_be_initialized_on_first_request()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         Assert.Equal(default, sm.Endpoint);
         sm.OnRequest(MakeRequest());
@@ -500,7 +492,7 @@ public sealed class Http11StateMachineSpec
     public void PendingRequestCount_should_reflect_queue_count()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
@@ -512,7 +504,7 @@ public sealed class Http11StateMachineSpec
     public void IsReconnecting_should_be_false_initially()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
 
         Assert.False(sm.IsReconnecting);
     }
@@ -522,7 +514,7 @@ public sealed class Http11StateMachineSpec
     public void Cleanup_should_clear_inflight_queue()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
@@ -536,7 +528,7 @@ public sealed class Http11StateMachineSpec
     public void Cleanup_should_dispose_body_owners()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
@@ -554,7 +546,7 @@ public sealed class Http11StateMachineSpec
     public void Pipeline_should_correlate_responses_to_requests_in_order()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
@@ -576,7 +568,7 @@ public sealed class Http11StateMachineSpec
     public void CloseDelimited_should_work_with_initial_body_bytes()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\nstart");
@@ -595,7 +587,7 @@ public sealed class Http11StateMachineSpec
     public void NoBodyResponseTypes_should_not_be_close_delimited()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 204 No Content\r\n\r\n");
@@ -610,7 +602,7 @@ public sealed class Http11StateMachineSpec
     public void Not_Modified_should_not_be_close_delimited()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 304 Not Modified\r\n\r\n");
@@ -625,7 +617,7 @@ public sealed class Http11StateMachineSpec
     public void TransferEncoding_chunked_should_not_be_close_delimited()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
@@ -640,7 +632,7 @@ public sealed class Http11StateMachineSpec
     public void Multiple_requests_with_connection_close_should_disable_pipeline()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));

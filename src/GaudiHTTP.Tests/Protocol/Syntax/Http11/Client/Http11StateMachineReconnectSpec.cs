@@ -1,9 +1,9 @@
 using System.Net;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
@@ -28,16 +28,6 @@ public sealed class Http11StateMachineReconnectSpec
         return (request, pending);
     }
 
-    private static GaudiClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
-        new()
-        {
-            Http1 = new Http1ClientOptions
-            {
-                MaxPipelineDepth = maxPipelineDepth,
-                MaxReconnectAttempts = maxReconnectAttempts
-            }
-        };
-
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 80),
@@ -48,7 +38,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_start_reconnect_on_disconnect_with_inflight_requests()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3), ops);
         sm.OnRequest(MakeRequest("/a"));
         sm.OnRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -65,7 +55,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_set_CanAcceptRequest_false_when_reconnecting()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3), ops);
         sm.OnRequest(MakeRequest());
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -78,7 +68,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_replay_buffered_requests_on_connection_restored()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3), ops);
         sm.OnRequest(MakeRequest("/a"));
         sm.OnRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -97,7 +87,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_fail_requests_when_max_reconnect_attempts_exceeded()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(maxReconnectAttempts: 1), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 1), ops);
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
 
@@ -116,7 +106,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void DecodeServerData_should_emit_new_connect_when_reconnect_attempt_under_limit()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(maxReconnectAttempts: 3), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3), ops);
         sm.OnRequest(MakeRequest());
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));

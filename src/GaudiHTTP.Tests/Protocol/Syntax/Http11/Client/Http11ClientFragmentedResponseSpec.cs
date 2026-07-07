@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
@@ -17,9 +17,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 /// </summary>
 public sealed class Http11ClientFragmentedResponseSpec
 {
-    private static GaudiClientOptions MakeConfig()
-        => new() { Http1 = new Http1ClientOptions { MaxPipelineDepth = 256 } };
-
     private static HttpRequestMessage MakeRequest(string path = "/")
         => new(HttpMethod.Get, $"http://example.com{path}") { Version = new Version(1, 1) };
 
@@ -37,7 +34,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_response_when_header_line_split_across_two_reads()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 256), ops);
         sm.OnRequest(MakeRequest());
 
         const string full = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\nOK";
@@ -55,7 +52,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_response_when_status_line_split_across_two_reads()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 256), ops);
         sm.OnRequest(MakeRequest());
 
         const string full = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
@@ -73,7 +70,7 @@ public sealed class Http11ClientFragmentedResponseSpec
     public void DecodeServerData_should_decode_second_pipelined_response_when_split_after_first()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 256), ops);
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 

@@ -1,27 +1,15 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2GoAwayComplianceSpec
 {
-    private static GaudiClientOptions MakeConfig(int maxConcurrentStreams = 100)
-    {
-        var options = new GaudiClientOptions
-        {
-            Http2 =
-            {
-                MaxConcurrentStreams = maxConcurrentStreams
-            }
-        };
-        return options;
-    }
-
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
@@ -39,7 +27,7 @@ public sealed class Http2GoAwayComplianceSpec
     public void StateMachine_should_not_accept_requests_when_goaway_received()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(maxConcurrentStreams: 100), ops);
         sm.PreStart();
 
         var goaway = new GoAwayFrame(5, Http2ErrorCode.NoError);

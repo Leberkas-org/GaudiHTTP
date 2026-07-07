@@ -1,17 +1,14 @@
 using System.Net;
 using System.Text;
 using Servus.Akka.Transport;
-using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11Client1xxForwardingSpec
 {
-    private static GaudiClientOptions MakeConfig()
-        => new() { Http1 = new Http1ClientOptions { MaxPipelineDepth = 1 } };
-
     private static TransportData Make(string raw)
     {
         var data = Encoding.ASCII.GetBytes(raw);
@@ -26,7 +23,7 @@ public sealed class Http11Client1xxForwardingSpec
     public void Client_should_forward_100_continue_to_ops()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 1), ops);
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Post, "http://example.com/upload"));
 
         sm.DecodeServerData(Make("HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
@@ -41,7 +38,7 @@ public sealed class Http11Client1xxForwardingSpec
     public void Client_should_forward_103_early_hints_to_ops()
     {
         var ops = new FakeClientOps();
-        var sm = new Http11ClientStateMachine(MakeConfig(), ops);
+        var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 1), ops);
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
 
         sm.DecodeServerData(Make(
