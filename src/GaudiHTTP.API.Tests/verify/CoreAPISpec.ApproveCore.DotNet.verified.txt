@@ -57,9 +57,6 @@ namespace GaudiHTTP.Client
         public uint MaxConcurrentEndpoints { get; set; }
         public int MaxStreamRetryAttempts { get; set; }
         public long? MaxStreamedResponseBodySize { get; set; }
-        [System.Obsolete("No longer has any effect. Buffer segment sizing is internal to WireBuffer\'s share" +
-            "d pool and is no longer independently configurable.")]
-        public int MinimumSegmentSize { get; set; }
         public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
         public System.TimeSpan PooledConnectionLifetime { get; set; }
         public bool PreAuthenticate { get; set; }
@@ -417,9 +414,6 @@ namespace GaudiHTTP.Server
         public int MaxConcurrentConnections { get; set; }
         public int MaxProtocolSniffBytes { get; set; }
         public long MaxRequestBodySize { get; set; }
-        [System.Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and" +
-            "-receive transport and is no longer independently configurable.")]
-        public long? MaxRequestBufferSize { get; set; }
         public int MaxRequestHeaderCount { get; set; }
         public int MaxRequestHeadersTotalSize { get; set; }
         public int MaxResetStreamsPerWindow { get; set; }
@@ -559,15 +553,6 @@ namespace GaudiHTTP.Server
     public sealed class TransportBufferOptions
     {
         public TransportBufferOptions() { }
-        [System.Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and" +
-            "-receive transport and is no longer independently configurable.")]
-        public long? InputPauseThreshold { get; set; }
-        [System.Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and" +
-            "-receive transport and is no longer independently configurable.")]
-        public long? InputResumeThreshold { get; set; }
-        [System.Obsolete("No longer has any effect. Buffer segment sizing is internal to WireBuffer\'s share" +
-            "d pool and is no longer independently configurable.")]
-        public int? MinimumSegmentSize { get; set; }
         public long? OutputPauseThreshold { get; set; }
         public long? OutputResumeThreshold { get; set; }
         public int? ReceiveBufferHint { get; set; }
