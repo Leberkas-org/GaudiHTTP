@@ -6,6 +6,7 @@ using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
@@ -18,28 +19,8 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 /// </summary>
 public sealed class Http3QpackEncoderStreamSpec
 {
-    private static Http3ConnectionOptions QpackEnabledOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 4 * 1024,
-        QpackBlockedStreams = 10,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
+    private static Http3ConnectionOptions QpackEnabledOptions() =>
+        ServerOptionDefaults.Http3() with { QpackMaxTableCapacity = 4 * 1024, QpackBlockedStreams = 10 };
 
     private static void Feed(Http3ServerSessionManager sm, ReadOnlyMemory<byte> bytes, long streamId)
     {

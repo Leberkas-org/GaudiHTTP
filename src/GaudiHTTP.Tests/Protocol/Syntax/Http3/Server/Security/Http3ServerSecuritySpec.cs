@@ -1,3 +1,4 @@
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -7,14 +8,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.Security;
 
 public sealed class Http3ServerSecuritySpec
 {
-    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     private readonly QpackTableSync _encoderSync = new(0, 0, 0, 0);
     private readonly QpackTableSync _decoderSync = new(0, 0, 0, 0);
 
@@ -41,7 +34,7 @@ public sealed class Http3ServerSecuritySpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void Field_section_exceeding_max_size_should_be_rejected()
     {
-        var decoder = new Http3ServerDecoder(_decoderSync, DefaultDecoderOptions() with { MaxFieldSectionSize = 128 });
+        var decoder = new Http3ServerDecoder(_decoderSync, DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = 128 });
 
         var headers = new List<(string Name, string Value)>
         {
@@ -64,7 +57,7 @@ public sealed class Http3ServerSecuritySpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void Many_small_headers_exceeding_total_field_section_size_should_be_rejected()
     {
-        var decoder = new Http3ServerDecoder(_decoderSync, DefaultDecoderOptions() with { MaxFieldSectionSize = 256 });
+        var decoder = new Http3ServerDecoder(_decoderSync, DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = 256 });
 
         var headers = new List<(string Name, string Value)>
         {
@@ -91,7 +84,7 @@ public sealed class Http3ServerSecuritySpec
     [Trait("RFC", "RFC9114-4.2")]
     public void Uppercase_header_name_should_be_rejected()
     {
-        var decoder = new Http3ServerDecoder(_decoderSync, DefaultDecoderOptions());
+        var decoder = new Http3ServerDecoder(_decoderSync, DecoderEncoderDefaults.Http3Decoder());
 
         var headers = new List<(string Name, string Value)>
         {
@@ -114,7 +107,7 @@ public sealed class Http3ServerSecuritySpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Header_value_with_null_byte_should_be_rejected()
     {
-        var decoder = new Http3ServerDecoder(_decoderSync, DefaultDecoderOptions());
+        var decoder = new Http3ServerDecoder(_decoderSync, DecoderEncoderDefaults.Http3Decoder());
 
         var headers = new List<(string Name, string Value)>
         {

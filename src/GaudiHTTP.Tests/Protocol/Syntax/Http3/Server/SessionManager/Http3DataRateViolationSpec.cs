@@ -5,29 +5,12 @@ using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3DataRateViolationSpec
 {
-    private static byte[] BuildRequest(string method, string path)
-    {
-        var tableSync = new QpackTableSync(0, 0, 0, 0);
-        var headers = new List<(string, string)>
-        {
-            (":method", method),
-            (":path", path),
-            (":scheme", "https"),
-            (":authority", "localhost"),
-        };
-        var headerBlock = tableSync.Encoder.Encode(headers);
-        var frame = new HeadersFrame(headerBlock);
-        var buf = new byte[frame.SerializedSize];
-        var span = buf.AsSpan();
-        frame.WriteTo(ref span);
-        return buf;
-    }
-
     private static byte[] BuildDataFrameBytes(int size)
     {
         using var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(size);
@@ -38,28 +21,8 @@ public sealed class Http3DataRateViolationSpec
         return buf;
     }
 
-    private static Http3ConnectionOptions OptionsWithRequestRate(double minRate, TimeSpan grace) => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: minRate,
-            MinRequestBodyDataRateGracePeriod: grace,
-            MinResponseDataRate: 0,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
+    private static Http3ConnectionOptions OptionsWithRequestRate(double minRate, TimeSpan grace) =>
+        ServerOptionDefaults.Http3() with { Limits = ServerOptionDefaults.Limits() with { MinRequestBodyDataRate = minRate, MinRequestBodyDataRateGracePeriod = grace, MinResponseDataRate = 0 } };
 
     private static void Send(Http3ServerSessionManager sm, long streamId, byte[] bytes)
     {
@@ -80,7 +43,7 @@ public sealed class Http3DataRateViolationSpec
         const long streamId = 4;
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
-        Send(sm, streamId, BuildRequest("POST", "/upload"));
+        Send(sm, streamId, ServerOptionDefaults.BuildHttp3Request("POST", "/upload"));
         // A tiny DATA frame arrives, then the upload stalls (no StreamReadCompleted).
         Send(sm, streamId, BuildDataFrameBytes(5));
 

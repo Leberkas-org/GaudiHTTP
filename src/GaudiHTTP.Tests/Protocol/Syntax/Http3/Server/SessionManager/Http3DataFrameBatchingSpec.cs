@@ -4,33 +4,12 @@ using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3DataFrameBatchingSpec
 {
-    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
 
     private static List<Http3Frame> DecodeDataFrames(FakeServerOps ops, long streamId)
     {
@@ -53,7 +32,7 @@ public sealed class Http3DataFrameBatchingSpec
     public void EmitDataFrames_should_emit_single_MultiplexedData_buffer_per_chunk()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
         var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 4;
@@ -75,7 +54,7 @@ public sealed class Http3DataFrameBatchingSpec
     public void EmitDataFrames_should_produce_valid_H3_DATA_frame_wire_format()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
         var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 8;
@@ -97,7 +76,7 @@ public sealed class Http3DataFrameBatchingSpec
     public void EmitDataFrames_should_preserve_all_bytes_for_large_chunk()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
         var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 12;
@@ -119,7 +98,7 @@ public sealed class Http3DataFrameBatchingSpec
     public void EmitDataFrames_with_empty_data_should_emit_nothing()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
         var target = (IMultiplexedBodyDrainTarget)sm;
 
         const long streamId = 16;

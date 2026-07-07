@@ -1,3 +1,4 @@
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -7,14 +8,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerMaxFieldSectionSizeSpec
 {
-    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
@@ -42,7 +35,7 @@ public sealed class Http3ServerMaxFieldSectionSizeSpec
     public void DecodeHeaders_with_limit_should_reject_headers_exceeding_max_field_section_size()
     {
         var maxFieldSectionSize = 256;
-        var decoderOptions = DefaultDecoderOptions() with { MaxFieldSectionSize = maxFieldSectionSize };
+        var decoderOptions = DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = maxFieldSectionSize };
         var decoder = new Http3ServerDecoder(_decoderTableSync, decoderOptions);
 
         var headers = new List<(string Name, string Value)>
@@ -68,7 +61,7 @@ public sealed class Http3ServerMaxFieldSectionSizeSpec
     public void DecodeHeaders_with_limit_should_accept_headers_under_max_field_section_size()
     {
         var maxFieldSectionSize = 512;
-        var decoderOptions = DefaultDecoderOptions() with { MaxFieldSectionSize = maxFieldSectionSize };
+        var decoderOptions = DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = maxFieldSectionSize };
         var decoder = new Http3ServerDecoder(_decoderTableSync, decoderOptions);
 
         var headers = new List<(string Name, string Value)>
@@ -93,7 +86,7 @@ public sealed class Http3ServerMaxFieldSectionSizeSpec
     public void DecodeHeaders_many_small_headers_exceeding_max_field_section_size_should_be_rejected()
     {
         var maxFieldSectionSize = 320;
-        var decoderOptions = DefaultDecoderOptions() with { MaxFieldSectionSize = maxFieldSectionSize };
+        var decoderOptions = DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = maxFieldSectionSize };
         var decoder = new Http3ServerDecoder(_decoderTableSync, decoderOptions);
 
         var headers = new List<(string Name, string Value)>
@@ -121,7 +114,7 @@ public sealed class Http3ServerMaxFieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void DecodeHeaders_default_options_should_allow_normal_requests()
     {
-        var decoder = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions());
+        var decoder = new Http3ServerDecoder(_decoderTableSync, DecoderEncoderDefaults.Http3Decoder());
 
         var headers = new List<(string Name, string Value)>
         {

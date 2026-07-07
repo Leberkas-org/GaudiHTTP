@@ -12,15 +12,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
 public sealed class Http2ServerResponseBufferSpec
 {
-    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
-    {
-        MaxFrameSize = 16 * 1024,
-        HeaderTableSize = 4096,
-        WriteDateHeader = false,
-        MaxHeaderBytes = 32 * 1024,
-        UseHuffman = true
-    };
-
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
     {
@@ -208,7 +199,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_EncodeHeaders_with_body_flag_should_not_set_endstream()
     {
-        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
+        var encoder = new Http2ServerEncoder(DecoderEncoderDefaults.Http2Encoder());
 
         var ctx = ServerTestContext.CreateResponse();
 
@@ -223,7 +214,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_EncodeHeaders_without_body_flag_should_set_endstream()
     {
-        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
+        var encoder = new Http2ServerEncoder(DecoderEncoderDefaults.Http2Encoder());
 
         var ctx = ServerTestContext.CreateResponse(204);
 
@@ -261,7 +252,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_ApplyClientSettings_should_update_max_frame_size()
     {
-        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
+        var encoder = new Http2ServerEncoder(DecoderEncoderDefaults.Http2Encoder());
         var initialMaxFrameSize = encoder.MaxFrameSize;
 
         encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 32768u)]);
@@ -274,7 +265,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_ApplyClientSettings_should_ignore_initial_window_size()
     {
-        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
+        var encoder = new Http2ServerEncoder(DecoderEncoderDefaults.Http2Encoder());
 
         // This should not throw and should be ignored by encoder
         encoder.ApplyClientSettings([(SettingsParameter.InitialWindowSize, 32768u)]);

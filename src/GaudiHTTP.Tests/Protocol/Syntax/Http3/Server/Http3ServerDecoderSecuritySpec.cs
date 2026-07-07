@@ -1,3 +1,4 @@
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -7,21 +8,13 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerDecoderSecuritySpec
 {
-    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly Http3ServerDecoder _decoder;
 
     public Http3ServerDecoderSecuritySpec()
     {
-        _decoder = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions());
+        _decoder = new Http3ServerDecoder(_decoderTableSync, DecoderEncoderDefaults.Http3Decoder());
     }
 
     private HeadersFrame EncodeAndSync(List<(string Name, string Value)> headers)
@@ -275,7 +268,7 @@ public sealed class Http3ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void DecodeHeaders_should_reject_field_section_exceeding_max_size()
     {
-        var decoderWithLimit = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions() with { MaxFieldSectionSize = 128 });
+        var decoderWithLimit = new Http3ServerDecoder(_decoderTableSync, DecoderEncoderDefaults.Http3Decoder() with { MaxFieldSectionSize = 128 });
 
         var headers = new List<(string Name, string Value)>
         {

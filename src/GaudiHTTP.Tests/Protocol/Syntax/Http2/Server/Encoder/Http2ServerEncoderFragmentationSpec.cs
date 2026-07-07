@@ -10,16 +10,7 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
 public sealed class Http2ServerEncoderFragmentationSpec
 {
-    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
-    {
-        MaxFrameSize = 16 * 1024,
-        HeaderTableSize = 4096,
-        WriteDateHeader = false,
-        MaxHeaderBytes = 32 * 1024,
-        UseHuffman = true
-    };
-
-    private readonly Http2ServerEncoder _encoder = new(DefaultEncoderOptions());
+    private readonly Http2ServerEncoder _encoder = new(DecoderEncoderDefaults.Http2Encoder());
     private readonly HpackDecoder _decoder = new();
 
     [Fact(Timeout = 5000)]
