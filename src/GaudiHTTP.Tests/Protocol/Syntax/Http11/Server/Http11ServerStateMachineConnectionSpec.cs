@@ -3,34 +3,14 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
-using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerStateMachineConnectionSpec
 {
-    private static IFeatureCollection CreateResponseContext()
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.6")]
     public void ShouldComplete_should_be_true_when_connection_close_on_request()
@@ -39,7 +19,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
@@ -55,7 +35,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
@@ -71,12 +51,12 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
         Assert.True(sm.ShouldComplete);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         sm.OnResponse(context);
 
@@ -93,7 +73,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string invalidRequest = "INVALID REQUEST DATA\r\n\r\n";
-        var buffer = MakeBuffer(invalidRequest);
+        var buffer = invalidRequest.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
@@ -108,12 +88,12 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
         Assert.True(sm.CanAcceptResponse);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         sm.OnResponse(context);
 
@@ -136,11 +116,11 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         sm.OnResponse(context);
         var headerCount = ops.Outbound.Count;
@@ -163,11 +143,11 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
 
         sm.DecodeClientData(TransportData.Rent(buffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Call Cleanup twice
@@ -185,7 +165,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
 
         var ex = Assert.Throws<InvalidOperationException>(() => sm.OnResponse(context));
         Assert.Contains("no requests are pending", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -199,10 +179,10 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(buffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         context.Get<IHttpResponseFeature>()?.StatusCode = 200;
         context.Get<IHttpResponseFeature>()?.Headers["Content-Type"] = "text/event-stream";
 
@@ -224,10 +204,10 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = MakeBuffer(requestData);
+        var buffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(buffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         context.Get<IHttpResponseFeature>()?.StatusCode = 200;
         context.Get<IHttpResponseFeature>()?.Headers["Content-Length"] = "5";
 

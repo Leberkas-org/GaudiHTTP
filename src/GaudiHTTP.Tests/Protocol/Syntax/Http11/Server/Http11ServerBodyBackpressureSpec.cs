@@ -1,11 +1,9 @@
-using System.Text;
-using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
-using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -16,25 +14,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 /// </summary>
 public sealed class Http11ServerBodyBackpressureSpec
 {
-    private static IFeatureCollection CreateResponseContext()
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
     {
         return new Http11ServerStateMachine(
@@ -46,7 +25,7 @@ public sealed class Http11ServerBodyBackpressureSpec
     private static void SendRequest(Http11ServerStateMachine sm)
     {
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
     }
 
     [Fact(Timeout = 5000)]
@@ -56,7 +35,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
         var headerCount = ops.Outbound.Count;
 
@@ -78,7 +57,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Body is pending after OnResponse
@@ -99,7 +78,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 10));
@@ -117,7 +96,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var sm = CreateSm(ops);
         SendRequest(sm);
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));

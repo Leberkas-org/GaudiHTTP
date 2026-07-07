@@ -15,19 +15,14 @@ public sealed class Http10ServerStateMachineErrorSpec() : TestKit(CiQuietConfig.
 {
     private static FakeServerOps MakeOps() => new();
 
-    private static GaudiFeatureCollection CreateResponseContext(long contentLength = 0)
+    private static IFeatureCollection CreateResponseContext(long contentLength = 0)
     {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        var responseFeature = new GaudiHttpResponseFeature { StatusCode = 200 };
+        var features = ServerTestContext.CreateResponse();
         if (contentLength > 0)
         {
-            responseFeature.Headers["Content-Length"] = contentLength.ToString();
+            features.Get<IHttpResponseFeature>()!.Headers["Content-Length"] = contentLength.ToString();
         }
 
-        features.Set<IHttpResponseFeature>(responseFeature);
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
     }
 

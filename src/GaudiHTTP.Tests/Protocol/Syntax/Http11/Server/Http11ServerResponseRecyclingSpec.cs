@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
-using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
@@ -31,10 +30,8 @@ public sealed class Http11ServerResponseRecyclingSpec
 
     private static IFeatureCollection ResponseFeatures(int statusCode, string requestMethod = "GET")
     {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature { Method = requestMethod });
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = statusCode });
-        features.Set<IHttpResponseBodyFeature>(new GaudiHttpResponseBodyFeature());
+        var features = ServerTestContext.CreateResponse(statusCode);
+        features.Get<IHttpRequestFeature>()!.Method = requestMethod;
         return features;
     }
 

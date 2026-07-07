@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
@@ -7,31 +6,12 @@ using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11DataRateSpec
 {
-    private static GaudiFeatureCollection CreateResponseContext()
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
     private static Http1ConnectionOptions CreateOptionsWithResponseRate(double minRate, TimeSpan grace)
     {
         var defaultOptions = new GaudiServerOptions().ToHttp1Options();
@@ -65,7 +45,7 @@ public sealed class Http11DataRateSpec
         // Chunked request body forces streaming (small Content-Length bodies are buffered, not observed).
         // One small chunk arrives, then the upload stalls without the terminating chunk.
         var headersAndPartialChunk = "POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nAAAAA\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(headersAndPartialChunk)));
+        sm.DecodeClientData(TransportData.Rent(headersAndPartialChunk.ToWireBuffer()));
 
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
@@ -85,10 +65,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(defaultOptions, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
@@ -107,10 +87,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Send large response body quickly (exceeds minimum rate)
@@ -129,10 +109,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
@@ -150,10 +130,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 10));
@@ -171,10 +151,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 1));
@@ -198,9 +178,9 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Stream several response chunks; each one observes bytes in the rate monitor.
@@ -232,11 +212,11 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
 
         // Buffered response body: written into the feature before OnResponse, emitted
         // synchronously via EmitBufferedBody (the standard path for normal responses).
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         var bodyFeature = (GaudiHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
         var span = bodyFeature.Writer.GetSpan(64);
         span[..64].Fill(0x41);
@@ -264,10 +244,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Feed tiny amount of response body (will be observed at time=0)
@@ -295,10 +275,10 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
+        var headerBuffer = requestData.ToWireBuffer();
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
         // Feed tiny amount at time=0
