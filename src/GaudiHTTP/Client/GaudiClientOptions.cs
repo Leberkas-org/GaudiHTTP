@@ -191,13 +191,6 @@ public sealed class GaudiClientOptions
     public int ReceiveBufferHint { get; set; } = 64 * 1024;
 
     /// <summary>
-    /// No longer has any effect. Buffer segment sizing is now internal to servus.akka's
-    /// <c>WireBuffer</c> shared pool and is not independently configurable.
-    /// </summary>
-    [Obsolete("No longer has any effect. Buffer segment sizing is internal to WireBuffer's shared pool and is no longer independently configurable.")]
-    public int MinimumSegmentSize { get; set; } = 16 * 1024;
-
-    /// <summary>
     /// Whether to route requests through a proxy.
     /// When <see langword="true"/> and <see cref="Proxy"/> is set, requests are
     /// tunnelled through the configured proxy. Default is <see langword="true"/>.

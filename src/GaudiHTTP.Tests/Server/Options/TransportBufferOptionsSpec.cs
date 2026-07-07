@@ -24,7 +24,6 @@ public sealed class TransportBufferOptionsSpec
 
         Assert.Equal(128 * 1024, tcp.OutputPauseThreshold);
         Assert.Equal(32 * 1024, tcp.OutputResumeThreshold);
-        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]
@@ -36,12 +35,7 @@ public sealed class TransportBufferOptionsSpec
         {
             listen.Protocols = HttpProtocols.Http3;
             listen.UseHttps(cert);
-            listen.Transport = new TransportBufferOptions
-            {
-#pragma warning disable CS0618 // Type or member is obsolete
-                InputPauseThreshold = 256 * 1024
-#pragma warning restore CS0618 // Type or member is obsolete
-            };
+            listen.Transport = new TransportBufferOptions();
         });
 
         var binding = Assert.Single(new EndpointResolver().Resolve(options));
@@ -49,7 +43,6 @@ public sealed class TransportBufferOptionsSpec
 
         Assert.Equal(64 * 1024, quic.OutputPauseThreshold);
         Assert.Equal(32 * 1024, quic.OutputResumeThreshold);
-        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]
@@ -63,7 +56,6 @@ public sealed class TransportBufferOptionsSpec
 
         Assert.Equal(64 * 1024, tcp.OutputPauseThreshold);
         Assert.Equal(32 * 1024, tcp.OutputResumeThreshold);
-        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]

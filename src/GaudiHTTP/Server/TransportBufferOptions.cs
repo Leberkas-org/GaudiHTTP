@@ -9,20 +9,6 @@ namespace GaudiHTTP.Server;
 public sealed class TransportBufferOptions
 {
     /// <summary>
-    /// No longer has any effect. Inbound backpressure is now watermark-based inside
-    /// servus.akka's unified rent-and-receive transport (<c>WireBuffer</c> + channel outbound);
-    /// there is no separate inbound pipe pause/resume threshold to configure.
-    /// </summary>
-    [Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and-receive transport and is no longer independently configurable.")]
-    public long? InputPauseThreshold { get; set; }
-
-    /// <summary>
-    /// No longer has any effect. See <see cref="InputPauseThreshold"/>.
-    /// </summary>
-    [Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and-receive transport and is no longer independently configurable.")]
-    public long? InputResumeThreshold { get; set; }
-
-    /// <summary>
     /// The number of bytes buffered on the outbound (write) pipe before the writer
     /// pauses and signals backpressure to the HTTP pipeline.
     /// <c>null</c> uses the transport default of 64 KiB.
@@ -35,13 +21,6 @@ public sealed class TransportBufferOptions
     /// <c>null</c> uses the transport default of 32 KiB.
     /// </summary>
     public long? OutputResumeThreshold { get; set; }
-
-    /// <summary>
-    /// No longer has any effect. Buffer segment sizing is now internal to <c>WireBuffer</c>'s
-    /// shared pool in servus.akka and is not independently configurable per listener.
-    /// </summary>
-    [Obsolete("No longer has any effect. Buffer segment sizing is internal to WireBuffer's shared pool and is no longer independently configurable.")]
-    public int? MinimumSegmentSize { get; set; }
 
     /// <summary>
     /// Size hint passed to the receive path. Controls the minimum buffer segment actually
