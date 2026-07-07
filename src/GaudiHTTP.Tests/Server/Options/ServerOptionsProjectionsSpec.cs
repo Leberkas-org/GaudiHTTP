@@ -129,14 +129,6 @@ public sealed class ServerOptionsProjectionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void MaxRequestBufferSize_default_should_be_1_MiB()
-    {
-        var o = new GaudiServerOptions();
-
-        Assert.Equal(1024 * 1024, o.Limits.MaxRequestBufferSize);
-    }
-
-    [Fact(Timeout = 5000)]
     public void AllowResponseHeaderCompression_default_should_be_true()
     {
         var o = new GaudiServerOptions();

@@ -23,14 +23,6 @@ public sealed class GaudiServerLimits
     /// </summary>
     public long MaxResponseBufferSize { get; set; } = 64 * 1024;
     /// <summary>
-    /// No longer has any effect. The transport input buffer is now governed by servus.akka's
-    /// unified rent-and-receive watermark backpressure and is not independently configurable
-    /// via a server-wide request buffer cap.
-    /// </summary>
-    [Obsolete("No longer has any effect. Inbound backpressure is watermark-based in the rent-and-receive transport and is no longer independently configurable.")]
-    public long? MaxRequestBufferSize { get; set; } = 1024 * 1024;
-
-    /// <summary>
     /// HTTP/2 Rapid Reset (CVE-2023-44487) mitigation: the maximum number of client-initiated stream
     /// resets tolerated within a sliding window before the connection is closed with
     /// GOAWAY(ENHANCE_YOUR_CALM). Aligned with Kestrel's default. Set to 0 to disable the mitigation.
