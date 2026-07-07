@@ -5,25 +5,12 @@ using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
 using GaudiHTTP.Server;
-using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 
 public sealed class Http2ServerTimerErrorSpec
 {
-    private static IFeatureCollection CreateResponseContext(long streamId = 999)
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
     private static byte[] BuildHeadersFrame(int streamId, bool endStream = true)
     {
         var encoder = new HpackEncoder(useHuffman: false);
@@ -192,7 +179,7 @@ public sealed class Http2ServerTimerErrorSpec
         sm.PreStart();
 
         // Should not throw when responding on unknown stream
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateStreamResponse(999);
         sm.OnResponse(context);
 
         Assert.True(true);

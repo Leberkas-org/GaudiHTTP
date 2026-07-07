@@ -31,7 +31,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_200_OK_returns_single_HEADERS_frame()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
 
         var frame = _encoder.EncodeHeaders(ctx);
 
@@ -49,7 +49,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_200_with_body_returns_HEADERS_frame_only()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write("test response body"u8.ToArray());
 
         var frame = _encoder.EncodeHeaders(ctx);
@@ -68,7 +68,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_status_is_first_header()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 201);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 201);
         ctx.Get<IHttpResponseFeature>()?.Headers["custom-header"] = "value";
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write("test"u8.ToArray());
 
@@ -92,7 +92,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_forbidden_headers_are_filtered()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["connection"] = "close";
         ctx.Get<IHttpResponseFeature>()?.Headers["transfer-encoding"] = "chunked";
         ctx.Get<IHttpResponseFeature>()?.Headers["custom-allowed"] = "yes";
@@ -118,7 +118,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_header_names_are_lowercase()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["X-Custom-Header"] = "value";
         ctx.Get<IHttpResponseFeature>()?.Headers["Server"] = "TestServer";
 
@@ -144,7 +144,7 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_content_headers_are_included()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["content-type"] = "application/json";
         ctx.Get<IHttpResponseFeature>()?.Headers["content-length"] = "4";
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write("data"u8.ToArray());
@@ -172,7 +172,7 @@ public sealed class ServerResponseEncoderSpec
         var largeData = new byte[32 * 1024]; // Larger than max frame size (16384)
         Array.Fill(largeData, (byte)'x');
 
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write(largeData);
 
         var frame = _encoder.EncodeHeaders(ctx);

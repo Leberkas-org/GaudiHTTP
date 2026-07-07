@@ -31,7 +31,7 @@ public sealed class Http3ServerEncoderHardeningSpec
     [Trait("RFC", "RFC9114-4.3.2")]
     public void EncodeHeaders_status_should_be_first()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 201);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 201);
         ctx.Get<IHttpResponseFeature>()?.Headers["x-test"] = "value";
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write("test"u8.ToArray());
 
@@ -48,7 +48,7 @@ public sealed class Http3ServerEncoderHardeningSpec
     [Trait("RFC", "RFC9114-4.2")]
     public void EncodeHeaders_should_filter_forbidden_headers()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["connection"] = "close";
         ctx.Get<IHttpResponseFeature>()?.Headers["transfer-encoding"] = "chunked";
         ctx.Get<IHttpResponseFeature>()?.Headers["x-allowed"] = "yes";
@@ -66,7 +66,7 @@ public sealed class Http3ServerEncoderHardeningSpec
     [Trait("RFC", "RFC9114-4.2")]
     public void EncodeHeaders_should_lowercase_header_names()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["X-Custom-Header"] = "test-value";
         ctx.Get<IHttpResponseFeature>()?.Headers["Server"] = "TestServer";
 
@@ -84,7 +84,7 @@ public sealed class Http3ServerEncoderHardeningSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_should_include_content_headers()
     {
-        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx.Get<IHttpResponseFeature>()?.Headers["content-type"] = "application/json";
         ctx.Get<IHttpResponseFeature>()?.Headers["content-length"] = "4";
         ctx.Get<IHttpResponseBodyFeature>()?.Writer.Write("data"u8.ToArray());
@@ -101,10 +101,10 @@ public sealed class Http3ServerEncoderHardeningSpec
     [Trait("RFC", "RFC9114-4.3")]
     public void EncodeHeaders_multiple_responses_should_not_cross_contaminate()
     {
-        var ctx1 = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        var ctx1 = ServerTestContext.CreateStreamResponse(streamId: 1, statusCode: 200);
         ctx1.Get<IHttpResponseFeature>()?.Headers["x-first"] = "first-value";
 
-        var ctx2 = ServerTestContext.CreateH3Response(streamId: 3, statusCode: 200);
+        var ctx2 = ServerTestContext.CreateStreamResponse(streamId: 3, statusCode: 200);
         ctx2.Get<IHttpResponseFeature>()?.Headers["x-second"] = "second-value";
 
         // Encode response1 with its own encoder/decoder pair
