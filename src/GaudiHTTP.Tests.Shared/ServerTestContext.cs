@@ -16,7 +16,7 @@ internal static class ServerTestContext
         return features;
     }
 
-    internal static IFeatureCollection CreateH3Response(long streamId, int statusCode = 200)
+    internal static IFeatureCollection CreateStreamResponse(long streamId, int statusCode = 200)
     {
         var features = CreateResponse(statusCode);
         features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
