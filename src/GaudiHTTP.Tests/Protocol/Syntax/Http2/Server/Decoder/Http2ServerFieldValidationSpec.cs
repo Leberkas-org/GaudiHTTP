@@ -8,17 +8,8 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder;
 
 public sealed class Http2ServerFieldValidationSpec
 {
-    private static Http2ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        HeaderTableSize = 16 * 1024,
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     private readonly HpackEncoder _encoder = new(useHuffman: false);
-    private readonly Http2ServerDecoder _decoder = new(DefaultDecoderOptions());
+    private readonly Http2ServerDecoder _decoder = new(DecoderEncoderDefaults.Http2Decoder());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.2")]

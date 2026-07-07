@@ -1,3 +1,4 @@
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Options;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
@@ -7,21 +8,13 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class ServerRequestDecoderSpec
 {
-    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly Http3ServerDecoder _decoder;
 
     public ServerRequestDecoderSpec()
     {
-        _decoder = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions());
+        _decoder = new Http3ServerDecoder(_decoderTableSync, DecoderEncoderDefaults.Http3Decoder());
     }
 
     [Fact(Timeout = 5000)]

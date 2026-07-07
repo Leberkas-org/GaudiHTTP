@@ -1,74 +1,20 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using GaudiHTTP.Protocol.Syntax.Http3;
-using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3StreamLifecycleSpec
 {
-    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
-
-    private static IFeatureCollection CreateResponseContext(long streamId = 999)
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        return features;
-    }
-
-
-    private static byte[] BuildRequest(string method, string path)
-    {
-        var tableSync = new QpackTableSync(0, 0, 0, 0);
-        var headers = new List<(string, string)>
-        {
-            (":method", method),
-            (":path", path),
-            (":scheme", "https"),
-            (":authority", "localhost"),
-        };
-        var headerBlock = tableSync.Encoder.Encode(headers);
-        var frame = new HeadersFrame(headerBlock);
-        var buf = new byte[frame.SerializedSize];
-        var span = buf.AsSpan();
-        frame.WriteTo(ref span);
-        return buf;
-    }
 
     private static void SendRequest(Http3ServerSessionManager sm, long streamId, string method = "GET",
         string path = "/")
     {
-        var data = BuildRequest(method, path);
+        var data = ServerOptionDefaults.BuildHttp3Request(method, path);
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
         var buffer = WireBuffer.Rent(data.Length);
@@ -80,7 +26,7 @@ public sealed class Http3StreamLifecycleSpec
 
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
-        return new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        return new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
     }
 
     [Fact(Timeout = 5000)]
@@ -149,7 +95,7 @@ public sealed class Http3StreamLifecycleSpec
         var sm = CreateSM(ops);
 
         // Should not throw when responding on unknown stream
-        var context = CreateResponseContext();
+        var context = ServerTestContext.CreateStreamResponse(999);
         sm.OnResponse(context);
 
         // No requests should be emitted (stream 999 never existed)
@@ -205,7 +151,7 @@ public sealed class Http3StreamLifecycleSpec
         var sm = CreateSM(ops);
 
         const long streamId = 16;
-        var data = BuildRequest("GET", "/");
+        var data = ServerOptionDefaults.BuildHttp3Request("GET", "/");
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));

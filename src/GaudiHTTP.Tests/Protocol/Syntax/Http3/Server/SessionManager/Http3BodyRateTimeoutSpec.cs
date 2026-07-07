@@ -1,34 +1,17 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http3;
-using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3BodyRateTimeoutSpec
 {
 
-    private static byte[] BuildRequest(string method, string path)
-    {
-        var tableSync = new QpackTableSync(0, 0, 0, 0);
-        var headers = new List<(string, string)>
-        {
-            (":method", method),
-            (":path", path),
-            (":scheme", "https"),
-            (":authority", "localhost"),
-        };
-        var headerBlock = tableSync.Encoder.Encode(headers);
-        var frame = new HeadersFrame(headerBlock);
-        var buf = new byte[frame.SerializedSize];
-        var span = buf.AsSpan();
-        frame.WriteTo(ref span);
-        return buf;
-    }
 
     private static byte[] BuildDataFrameBytes(int size)
     {
@@ -40,32 +23,9 @@ public sealed class Http3BodyRateTimeoutSpec
         return buf;
     }
 
-    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
-
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
-        return new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        return new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
     }
 
     [Fact(Timeout = 5000)]
@@ -78,7 +38,7 @@ public sealed class Http3BodyRateTimeoutSpec
         const long streamId = 4;
 
         // Build HEADERS
-        var headerBytes = BuildRequest("POST", "/upload");
+        var headerBytes = ServerOptionDefaults.BuildHttp3Request("POST", "/upload");
 
         // Open stream
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
@@ -118,7 +78,7 @@ public sealed class Http3BodyRateTimeoutSpec
         const long streamId = 8;
 
         // Build HEADERS
-        var headerBytes = BuildRequest("GET", "/");
+        var headerBytes = ServerOptionDefaults.BuildHttp3Request("GET", "/");
 
         // Open stream
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),
@@ -154,7 +114,7 @@ public sealed class Http3BodyRateTimeoutSpec
         const long streamId = 12;
 
         // Build HEADERS
-        var headerBytes = BuildRequest("GET", "/");
+        var headerBytes = ServerOptionDefaults.BuildHttp3Request("GET", "/");
 
         // Open stream
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId),

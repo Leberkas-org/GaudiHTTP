@@ -5,6 +5,7 @@ using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
@@ -19,29 +20,6 @@ public sealed class Http3DataFrameBufferReleaseSpec
     private const int ChunkSize = 16 * 1024;
     private const int ChunksPerRequest = 32;
     private const int BodySize = ChunkSize * ChunksPerRequest;
-
-    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
 
     private static byte[] BuildRequestHeaders()
     {
@@ -121,7 +99,7 @@ public sealed class Http3DataFrameBufferReleaseSpec
     public async Task Upload_body_should_round_trip_intact()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
 
         var headerBytes = BuildRequestHeaders();
         var chunk = new byte[ChunkSize];
@@ -143,7 +121,7 @@ public sealed class Http3DataFrameBufferReleaseSpec
     public async Task Repeated_uploads_should_not_allocate_proportional_to_body_size()
     {
         var ops = new FakeServerOps();
-        var sm = new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        var sm = new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
 
         var headerBytes = BuildRequestHeaders();
         var chunk = new byte[ChunkSize];

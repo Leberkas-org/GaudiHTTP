@@ -26,22 +26,13 @@ public sealed class Http2ServerSecuritySpec
 {
     private readonly HpackEncoder _encoder = new(useHuffman: false);
 
-    private static Http2ServerDecoderOptions DefaultDecoderOptions() => new()
-    {
-        HeaderTableSize = 16 * 1024,
-        MaxConcurrentStreams = 100,
-        MaxFieldSectionSize = 64 * 1024,
-        MaxHeaderBytes = 32 * 1024,
-        MaxHeaderCount = 100,
-    };
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-10.5.1")]
     public void Hpack_bomb_should_be_rejected_by_header_size_limit()
     {
         // Test: single header with size exceeding maxHeaderSize (256 bytes)
         const int maxHeaderSize = 256;
-        var decoder = new Http2ServerDecoder(DefaultDecoderOptions() with { MaxHeaderBytes = maxHeaderSize });
+        var decoder = new Http2ServerDecoder(DecoderEncoderDefaults.Http2Decoder() with { MaxHeaderBytes = maxHeaderSize });
 
         // Create a header with a 300-byte value to exceed the limit
         var largeValue = new string('x', 300);
@@ -71,7 +62,7 @@ public sealed class Http2ServerSecuritySpec
     {
         // Test: many small headers that individually pass but collectively exceed maxTotalHeaderSize (256 bytes)
         const int maxTotalHeaderSize = 256;
-        var decoder = new Http2ServerDecoder(DefaultDecoderOptions() with { MaxFieldSectionSize = maxTotalHeaderSize });
+        var decoder = new Http2ServerDecoder(DecoderEncoderDefaults.Http2Decoder() with { MaxFieldSectionSize = maxTotalHeaderSize });
 
         var headers = new List<HpackHeader>
         {
@@ -110,7 +101,7 @@ public sealed class Http2ServerSecuritySpec
     public void Uppercase_header_name_should_be_rejected()
     {
         // Test: header name with uppercase character (RFC 9113 §8.2.1 requires lowercase)
-        var decoder = new Http2ServerDecoder(DefaultDecoderOptions());
+        var decoder = new Http2ServerDecoder(DecoderEncoderDefaults.Http2Decoder());
 
         var headers = new List<HpackHeader>
         {
@@ -137,7 +128,7 @@ public sealed class Http2ServerSecuritySpec
     public void Header_value_with_null_byte_should_be_rejected()
     {
         // Test: header value containing NUL byte (0x00) — forbidden per RFC 9113 §10.3
-        var decoder = new Http2ServerDecoder(DefaultDecoderOptions());
+        var decoder = new Http2ServerDecoder(DecoderEncoderDefaults.Http2Decoder());
 
         var headers = new List<HpackHeader>
         {

@@ -3,37 +3,15 @@ using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3CriticalStreamsSpec
 {
-    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
-    {
-        Limits = new ResolvedServerLimits(
-            MaxRequestBodySize: 30 * 1024 * 1024,
-            KeepAliveTimeout: TimeSpan.FromSeconds(130),
-            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
-            MinRequestBodyDataRate: 240,
-            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MinResponseDataRate: 240,
-            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5),
-            MaxResetStreamsPerWindow: 200,
-            RapidResetDetectionWindow: TimeSpan.FromSeconds(30)),
-        MaxConcurrentStreams = 100,
-        MaxHeaderListSize = 32 * 1024,
-        MaxHeaderCount = 100,
-        QpackMaxTableCapacity = 0,
-        QpackBlockedStreams = 0,
-        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
-        UseHuffman = true,
-        MaxBufferedBodySize = 64 * 1024,
-        ResponseBodyChunkSize = 16 * 1024,
-    };
-
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
-        return new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
+        return new Http3ServerSessionManager(ServerOptionDefaults.Http3(), ops);
     }
 
     [Fact(Timeout = 5000)]
