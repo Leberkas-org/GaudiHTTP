@@ -23,10 +23,8 @@ public sealed class TransportBufferOptionsSpec
         var tcp = Assert.IsType<TcpListenerOptions>(binding.Options);
 
         Assert.Equal(128 * 1024, tcp.OutputPauseThreshold);
-        Assert.Equal(1024 * 1024, tcp.InputPauseThreshold);
-        Assert.Equal(512 * 1024, tcp.InputResumeThreshold);
         Assert.Equal(32 * 1024, tcp.OutputResumeThreshold);
-        Assert.Equal(16 * 1024, tcp.MinimumSegmentSize);
+        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]
@@ -40,18 +38,18 @@ public sealed class TransportBufferOptionsSpec
             listen.UseHttps(cert);
             listen.Transport = new TransportBufferOptions
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 InputPauseThreshold = 256 * 1024
+#pragma warning restore CS0618 // Type or member is obsolete
             };
         });
 
         var binding = Assert.Single(new EndpointResolver().Resolve(options));
         var quic = Assert.IsType<QuicListenerOptions>(binding.Options);
 
-        Assert.Equal(256 * 1024, quic.InputPauseThreshold);
-        Assert.Equal(32 * 1024, quic.InputResumeThreshold);
         Assert.Equal(64 * 1024, quic.OutputPauseThreshold);
         Assert.Equal(32 * 1024, quic.OutputResumeThreshold);
-        Assert.Equal(4 * 1024, quic.MinimumSegmentSize);
+        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]
@@ -63,26 +61,9 @@ public sealed class TransportBufferOptionsSpec
         var binding = Assert.Single(new EndpointResolver().Resolve(options));
         var tcp = Assert.IsType<TcpListenerOptions>(binding.Options);
 
-        Assert.Equal(1024 * 1024, tcp.InputPauseThreshold);
-        Assert.Equal(512 * 1024, tcp.InputResumeThreshold);
         Assert.Equal(64 * 1024, tcp.OutputPauseThreshold);
         Assert.Equal(32 * 1024, tcp.OutputResumeThreshold);
-        Assert.Equal(16 * 1024, tcp.MinimumSegmentSize);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Resolved_input_resume_above_pause_should_throw()
-    {
-        var options = new GaudiServerOptions();
-        options.Listen(IPAddress.Loopback, 5003, listen =>
-        {
-            listen.Transport = new TransportBufferOptions
-            {
-                InputResumeThreshold = 2 * 1024 * 1024
-            };
-        });
-
-        Assert.Throws<InvalidOperationException>(() => new EndpointResolver().Resolve(options));
+        // InputPauseThreshold, InputResumeThreshold, MinimumSegmentSize removed from listener options
     }
 
     [Fact(Timeout = 5000)]

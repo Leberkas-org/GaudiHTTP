@@ -24,20 +24,20 @@ public sealed class Http3ResponseFrameBufferReleaseSpec
     private Http3ClientStateMachine CreateMachine()
         => new(new GaudiClientOptions(), _clientOps);
 
-    private TransportBuffer BuildHeadersBuffer()
+    private WireBuffer BuildHeadersBuffer()
     {
         var headersFrame = new HeadersFrame(_tableSync.Encoder.Encode([(":status", "200")]));
-        var buf = TransportBuffer.Rent(headersFrame.SerializedSize);
+        var buf = WireBuffer.Rent(headersFrame.SerializedSize);
         var span = buf.FullMemory.Span;
         headersFrame.WriteTo(ref span);
         buf.Length = headersFrame.SerializedSize;
         return buf;
     }
 
-    private static TransportBuffer BuildDataBuffer(ReadOnlyMemory<byte> chunk)
+    private static WireBuffer BuildDataBuffer(ReadOnlyMemory<byte> chunk)
     {
         var dataFrame = new DataFrame(chunk);
-        var buf = TransportBuffer.Rent(dataFrame.SerializedSize);
+        var buf = WireBuffer.Rent(dataFrame.SerializedSize);
         var span = buf.FullMemory.Span;
         dataFrame.WriteTo(ref span);
         buf.Length = dataFrame.SerializedSize;

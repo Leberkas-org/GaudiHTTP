@@ -30,7 +30,7 @@ public sealed class ConnectTunnelSpec
     {
         var decoder = new FrameDecoder();
         var frames = decoder.Decode(
-            new RstStreamFrame(1, Http2ErrorCode.ConnectError).Serialize());
+            new RstStreamFrame(1, Http2ErrorCode.ConnectError).Serialize().ToWireBuffer());
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.ConnectError, rst.ErrorCode);
@@ -42,7 +42,7 @@ public sealed class ConnectTunnelSpec
     {
         var decoder = new FrameDecoder();
         var frames = decoder.Decode(
-            new DataFrame(1, "tunnel data"u8.ToArray(), endStream: false).Serialize());
+            new DataFrame(1, "tunnel data"u8.ToArray(), endStream: false).Serialize().ToWireBuffer());
 
         var data = Assert.IsType<DataFrame>(frames[0]);
         Assert.Equal(1, data.StreamId);

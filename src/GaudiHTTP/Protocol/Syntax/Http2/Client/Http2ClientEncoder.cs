@@ -23,7 +23,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
 
     // Per-encoder scratch buffer for HPACK encoding. Grown on demand (grow-and-replace).
     // Actor-thread-confined: no synchronization needed. The caller (Http2ClientSessionManager)
-    // copies all frame data into a TransportBuffer before the next Encode() call, so this
+    // copies all frame data into a WireBuffer before the next Encode() call, so this
     // buffer is only needed for the duration of a single Encode() invocation.
     private byte[] _hpackScratch = new byte[4 * 1024];
 

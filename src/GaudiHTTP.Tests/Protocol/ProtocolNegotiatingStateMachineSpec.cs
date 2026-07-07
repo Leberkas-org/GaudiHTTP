@@ -3,6 +3,7 @@ using System.Net.Security;
 using System.Security.Authentication;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using static Servus.Akka.Transport.WireBuffer;
 using GaudiHTTP.Protocol;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -29,7 +30,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
 
     private static TransportData MakeData(byte[] data)
     {
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return TransportData.Rent(buffer);

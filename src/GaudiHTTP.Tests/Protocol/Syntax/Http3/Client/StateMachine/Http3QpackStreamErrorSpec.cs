@@ -18,9 +18,9 @@ public sealed class Http3QpackStreamErrorSpec
         return sm;
     }
 
-    private static TransportBuffer Wrap(byte[] bytes)
+    private static WireBuffer Wrap(byte[] bytes)
     {
-        var buf = TransportBuffer.Rent(bytes.Length);
+        var buf = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buf.FullMemory.Span);
         buf.Length = bytes.Length;
         return buf;

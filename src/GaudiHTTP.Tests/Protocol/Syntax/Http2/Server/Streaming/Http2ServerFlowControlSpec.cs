@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using System.Buffers.Binary;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
@@ -134,7 +135,7 @@ public sealed class Http2ServerFlowControlSpec
         var headerBlock = EncodeHeaders("POST", "/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -152,7 +153,7 @@ public sealed class Http2ServerFlowControlSpec
         var dataPayload1 = new byte[1000];
         var dataFrameData1 = BuildDataFrame(streamId: 1, dataPayload1, endStream: false);
 
-        var dataBuf1 = TransportBuffer.Rent(dataFrameData1.Length);
+        var dataBuf1 = WireBuffer.Rent(dataFrameData1.Length);
         dataFrameData1.CopyTo(dataBuf1.FullMemory.Span);
         dataBuf1.Length = dataFrameData1.Length;
 
@@ -183,7 +184,7 @@ public sealed class Http2ServerFlowControlSpec
 
         var dataFrameData2 = BuildDataFrame(streamId: 1, dataPayload2, endStream: false);
 
-        var dataBuf2 = TransportBuffer.Rent(dataFrameData2.Length);
+        var dataBuf2 = WireBuffer.Rent(dataFrameData2.Length);
         dataFrameData2.CopyTo(dataBuf2.FullMemory.Span);
         dataBuf2.Length = dataFrameData2.Length;
 
@@ -246,7 +247,7 @@ public sealed class Http2ServerFlowControlSpec
         // Send WINDOW_UPDATE on stream 0 (connection-level)
         var windowUpdateData = BuildWindowUpdateFrame(streamId: 0, increment: 16384);
 
-        var buffer = TransportBuffer.Rent(windowUpdateData.Length);
+        var buffer = WireBuffer.Rent(windowUpdateData.Length);
         windowUpdateData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = windowUpdateData.Length;
 
@@ -292,7 +293,7 @@ public sealed class Http2ServerFlowControlSpec
         var headerBlock = EncodeHeaders("POST", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -305,7 +306,7 @@ public sealed class Http2ServerFlowControlSpec
         // Send first DATA frame (5000 bytes)
         var data1 = new byte[5000];
         var frame1Data = BuildDataFrame(streamId: 1, data1, endStream: false);
-        var buf1 = TransportBuffer.Rent(frame1Data.Length);
+        var buf1 = WireBuffer.Rent(frame1Data.Length);
         frame1Data.CopyTo(buf1.FullMemory.Span);
         buf1.Length = frame1Data.Length;
         sm.DecodeClientData(TransportData.Rent(buf1));
@@ -317,7 +318,7 @@ public sealed class Http2ServerFlowControlSpec
         // Send second DATA frame (6000 bytes) - accumulates deferred stream WU
         var data2 = new byte[6000];
         var frame2Data = BuildDataFrame(streamId: 1, data2, endStream: false);
-        var buf2 = TransportBuffer.Rent(frame2Data.Length);
+        var buf2 = WireBuffer.Rent(frame2Data.Length);
         frame2Data.CopyTo(buf2.FullMemory.Span);
         buf2.Length = frame2Data.Length;
         sm.DecodeClientData(TransportData.Rent(buf2));

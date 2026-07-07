@@ -22,10 +22,10 @@ public sealed class Http11StateMachineDisconnectSpec
         return (request, pending);
     }
 
-    private static TransportBuffer CreateResponseBuffer(string responseText)
+    private static WireBuffer CreateResponseBuffer(string responseText)
     {
         var bytes = System.Text.Encoding.ASCII.GetBytes(responseText);
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return buffer;

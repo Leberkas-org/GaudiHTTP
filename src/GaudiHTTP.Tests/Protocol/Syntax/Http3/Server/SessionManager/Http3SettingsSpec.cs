@@ -19,7 +19,7 @@ public sealed class Http3SettingsSpec
 
     private static MultiplexedData WrapAsControlStream(byte[] data)
     {
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return MultiplexedData.Rent(buffer, CriticalStreamId.ControlId);

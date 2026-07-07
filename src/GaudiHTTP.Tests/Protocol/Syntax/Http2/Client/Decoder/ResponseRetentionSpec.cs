@@ -4,6 +4,7 @@ using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
@@ -35,7 +36,7 @@ public sealed class ResponseRetentionSpec
         // Simulate server sending response headers without END_STREAM, then RST_STREAM with NO_ERROR
         // The response should be retained and emitted to the caller
         var headersFrame = MakeResponseHeaders(1, endStream: false);
-        var buffer = TransportBuffer.Rent(headersFrame.SerializedSize);
+        var buffer = WireBuffer.Rent(headersFrame.SerializedSize);
         var span = buffer.FullMemory.Span;
         headersFrame.WriteTo(ref span);
         buffer.Length = headersFrame.SerializedSize;
@@ -47,7 +48,7 @@ public sealed class ResponseRetentionSpec
 
         // Now send RST_STREAM with NO_ERROR
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.NoError);
-        var rstBuffer = TransportBuffer.Rent(rstFrame.SerializedSize);
+        var rstBuffer = WireBuffer.Rent(rstFrame.SerializedSize);
         var rstSpan = rstBuffer.FullMemory.Span;
         rstFrame.WriteTo(ref rstSpan);
         rstBuffer.Length = rstFrame.SerializedSize;
@@ -64,7 +65,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.RefusedStream);
-        var frames = decoder.Decode(rstFrame.Serialize());
+        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.RefusedStream, rst.ErrorCode);
@@ -76,7 +77,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.NoError);
-        var frames = decoder.Decode(rstFrame.Serialize());
+        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.NoError, rst.ErrorCode);
@@ -88,7 +89,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(42, Http2ErrorCode.Cancel);
-        var frames = decoder.Decode(rstFrame.Serialize());
+        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(42, rst.StreamId);

@@ -69,7 +69,7 @@ public sealed class Http3HeadersTimerLeakSpec
             StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
 
-        var buffer = TransportBuffer.Rent(headersBytes.Length);
+        var buffer = WireBuffer.Rent(headersBytes.Length);
         headersBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
@@ -167,7 +167,7 @@ public sealed class Http3HeadersTimerLeakSpec
             StreamTarget.FromId(streamId),
             StreamDirection.Bidirectional));
 
-        var buffer = TransportBuffer.Rent(headersBytes.Length);
+        var buffer = WireBuffer.Rent(headersBytes.Length);
         headersBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

@@ -48,7 +48,7 @@ public sealed class Http3ConnectionErrorTeardownSpec
         frame.WriteTo(ref span);
 
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
-        var transport = TransportBuffer.Rent(buf.Length);
+        var transport = WireBuffer.Rent(buf.Length);
         buf.CopyTo(transport.FullMemory.Span);
         transport.Length = buf.Length;
         sm.DecodeClientData(MultiplexedData.Rent(transport, streamId));

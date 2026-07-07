@@ -85,7 +85,7 @@ public sealed class Http3BodyRateTimeoutSpec
             StreamDirection.Bidirectional));
 
         // Send HEADERS (no StreamReadCompleted yet)
-        var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
+        var headerBuffer = WireBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
@@ -98,7 +98,7 @@ public sealed class Http3BodyRateTimeoutSpec
 
         // Build and send DATA frame
         var dataBytes = BuildDataFrameBytes(100);
-        var dataBuffer = TransportBuffer.Rent(dataBytes.Length);
+        var dataBuffer = WireBuffer.Rent(dataBytes.Length);
         dataBytes.CopyTo(dataBuffer.FullMemory.Span);
         dataBuffer.Length = dataBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(dataBuffer, streamId));
@@ -125,7 +125,7 @@ public sealed class Http3BodyRateTimeoutSpec
             StreamDirection.Bidirectional));
 
         // Send HEADERS
-        var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
+        var headerBuffer = WireBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
@@ -161,7 +161,7 @@ public sealed class Http3BodyRateTimeoutSpec
             StreamDirection.Bidirectional));
 
         // Send HEADERS
-        var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
+        var headerBuffer = WireBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));

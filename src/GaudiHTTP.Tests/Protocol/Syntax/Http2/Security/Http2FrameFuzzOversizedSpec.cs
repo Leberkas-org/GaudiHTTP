@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
@@ -12,7 +13,7 @@ public sealed class Http2FrameFuzzOversizedSpec
     {
         try
         {
-            decoder.Decode(data);
+            decoder.Decode(data.ToWireBuffer());
         }
         catch (HttpProtocolException)
         {
@@ -138,7 +139,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
                 try
                 {
-                    decoder.Decode(frame);
+                    decoder.Decode(frame.ToWireBuffer());
                 }
                 catch (HttpProtocolException)
                 {
@@ -155,7 +156,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
             decoder.Reset();
             var probe = BuildRawFrame(0x04, 0x01, 0, []);
-            var probeFrames = decoder.Decode(probe);
+            var probeFrames = decoder.Decode(probe.ToWireBuffer());
             Assert.Single(probeFrames);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;
@@ -195,7 +196,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
             var frame = BuildSettingsFrame(parameters);
 
-            var frames = decoder.Decode(frame);
+            var frames = decoder.Decode(frame.ToWireBuffer());
             Assert.Single(frames);
             Assert.IsType<SettingsFrame>(frames[0]);
 
@@ -230,7 +231,7 @@ public sealed class Http2FrameFuzzOversizedSpec
             var streamId = rng.Next(0, 100);
             var frame = BuildWindowUpdateFrame(streamId, 0);
 
-            var ex = Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame));
+            var ex = Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame.ToWireBuffer()));
             Assert.Contains("0", ex.Message);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;

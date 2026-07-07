@@ -107,7 +107,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
-                var buf = TransportBuffer.Rent(framedSize);
+                var buf = WireBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
                 buf.Length = framedSize;
                 _rateGuard.ObserveResponse(0, framedSize);
@@ -115,7 +115,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
             else
             {
-                var buf = TransportBuffer.Rent(data.Length);
+                var buf = WireBuffer.Rent(data.Length);
                 data.CopyTo(buf.FullMemory);
                 buf.Length = data.Length;
                 _rateGuard.ObserveResponse(0, data.Length);
@@ -140,7 +140,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
-                var buf = TransportBuffer.Rent(framedSize);
+                var buf = WireBuffer.Rent(framedSize);
                 ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
                 buf.Length = framedSize;
                 _rateGuard.ObserveResponse(0, framedSize);
@@ -150,7 +150,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             else
             {
                 _rateGuard.ObserveResponse(0, bytesWritten);
-                _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+                _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             }
 
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesWritten);
@@ -432,7 +432,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         // Resolve a fully-buffered response body once (the dominant Content-Length case). A non-
         // chunked buffered body is coalesced into the SAME buffer as the status line + headers,
-        // emitting one outbound item instead of two: it removes a TransportBuffer/TransportData
+        // emitting one outbound item instead of two: it removes a WireBuffer/TransportData
         // rent, a GraphInterpreter push, and (transport permitting) a socket write per response.
         // The body is already materialized and copied synchronously on the existing path too, so
         // buffer ownership is unchanged. Streamed bodies report false here; chunked bodies keep the
@@ -445,7 +445,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         var coalesceBody = hasBufferedBody && !isChunked;
 
         var estimatedSize = headerScan.EstimatedSize;
-        var responseBuffer = TransportBuffer.Rent(
+        var responseBuffer = WireBuffer.Rent(
             coalesceBody ? estimatedSize + bufferedBody.Length : estimatedSize);
         var span = responseBuffer.FullMemory.Span;
         var written = _encoder.Encode(span, features, isChunked, connectionClose: ShouldComplete);
@@ -583,7 +583,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 if (isChunked)
                 {
                     var framedSize = ChunkedFramingHelper.GetFramedSize(take);
-                    var buf = TransportBuffer.Rent(framedSize);
+                    var buf = WireBuffer.Rent(framedSize);
                     ChunkedFramingHelper.WriteChunk(chunk.Span, buf.FullMemory.Span);
                     buf.Length = framedSize;
                     _rateGuard.ObserveResponse(0, framedSize);
@@ -591,7 +591,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 }
                 else
                 {
-                    var buf = TransportBuffer.Rent(take);
+                    var buf = WireBuffer.Rent(take);
                     chunk.CopyTo(buf.FullMemory);
                     buf.Length = take;
                     _rateGuard.ObserveResponse(0, take);
@@ -622,7 +622,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
 
             var trailerSize = ChunkedFramingHelper.GetTrailerSectionSize(trailers);
-            var buf = TransportBuffer.Rent(3 + trailerSize);
+            var buf = WireBuffer.Rent(3 + trailerSize);
             var span = buf.FullMemory.Span;
             var written = ChunkedFramingHelper.WriteLastChunk(span);
             written += ChunkedFramingHelper.WriteTrailerSection(span[written..], trailers);
@@ -633,7 +633,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
         else
         {
-            var buf = TransportBuffer.Rent(5);
+            var buf = WireBuffer.Rent(5);
             ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
             buf.Length = 5;
             _ops.OnOutbound(TransportData.Rent(buf));
@@ -652,7 +652,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
         }
 
-        var buffer = TransportBuffer.Rent(estimatedSize);
+        var buffer = WireBuffer.Rent(estimatedSize);
         var writer = SpanWriter.Create(buffer.FullMemory.Span);
         StatusLineWriter.Write(ref writer, HttpVersion.Version11, statusCode);
 
@@ -827,7 +827,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
 
         var responseBytes = "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"u8;
-        var responseBuffer = TransportBuffer.Rent(responseBytes.Length);
+        var responseBuffer = WireBuffer.Rent(responseBytes.Length);
         responseBytes.CopyTo(responseBuffer.FullMemory.Span);
         responseBuffer.Length = responseBytes.Length;
         _ops.OnOutbound(TransportData.Rent(responseBuffer));

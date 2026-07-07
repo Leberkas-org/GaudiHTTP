@@ -17,7 +17,7 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     private static void SendRequest(Http11ServerStateMachine sm)
     {
         var data = Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(TransportData.Rent(buffer));

@@ -79,7 +79,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         if (!data.IsEmpty)
         {
-            var item = TransportBuffer.Rent(data.Length);
+            var item = WireBuffer.Rent(data.Length);
             data.CopyTo(item.FullMemory);
             item.Length = data.Length;
             _ops.OnOutbound(TransportData.Rent(item));
@@ -100,7 +100,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         if (bytesWritten > 0)
         {
-            _ops.OnOutbound(TransportData.Rent(TransportBuffer.Wrap(owner, bytesWritten)));
+            _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", bytesWritten);
             _serialPump!.OnCapacityAvailable();
         }
@@ -248,14 +248,14 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             _ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
-        TransportBuffer? item = null;
+        WireBuffer? item = null;
         try
         {
             // Capture Content-Length BEFORE Encode(), because ReadAsStream() internally
             // buffers the content and may cause ContentLength to become non-null afterwards.
             var knownCl = request.Content?.Headers.ContentLength;
             var contentLength = Convert.ToInt32(knownCl ?? 0);
-            item = TransportBuffer.Rent(HttpMessageSize.Estimate(request, contentLength));
+            item = WireBuffer.Rent(HttpMessageSize.Estimate(request, contentLength));
             var span = item.FullMemory.Span;
 
             var written = _encoder.Encode(span, request, out var bodyStream);
@@ -307,7 +307,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
-    private void DecodeResponse(TransportBuffer buffer)
+    private void DecodeResponse(WireBuffer buffer)
     {
         try
         {

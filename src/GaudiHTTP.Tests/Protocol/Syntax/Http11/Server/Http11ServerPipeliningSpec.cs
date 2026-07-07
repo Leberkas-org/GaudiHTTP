@@ -114,10 +114,10 @@ public sealed class Http11ServerPipeliningSpec
         Assert.Equal("/page3", ops.Requests[2].Get<IHttpRequestFeature>()?.Path);
     }
 
-    private static TransportBuffer MakeBuffer(string raw)
+    private static WireBuffer MakeBuffer(string raw)
     {
         var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return buffer;

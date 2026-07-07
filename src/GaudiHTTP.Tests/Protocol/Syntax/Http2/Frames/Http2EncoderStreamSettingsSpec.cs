@@ -1,4 +1,5 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -12,7 +13,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -24,7 +25,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -36,7 +37,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -48,7 +49,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -60,7 +61,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -72,7 +73,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -90,7 +91,7 @@ public sealed class Http2EncoderStreamSettingsSpec
         var frame = settings.Serialize();
 
         Assert.NotEmpty(frame);
-        var decoded = new FrameDecoder().Decode(frame);
+        var decoded = new FrameDecoder().Decode(frame.ToWireBuffer());
         Assert.IsType<SettingsFrame>(decoded[0]);
     }
 
@@ -112,7 +113,7 @@ public sealed class Http2EncoderStreamSettingsSpec
     {
         var frameBytes = SettingsFrame.SettingsAck();
 
-        var decoded = new FrameDecoder().Decode(frameBytes);
+        var decoded = new FrameDecoder().Decode(frameBytes.ToWireBuffer());
         var settingsFrame = Assert.IsType<SettingsFrame>(decoded[0]);
         Assert.True(settingsFrame.IsAck);
     }

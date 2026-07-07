@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using System.Net;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -11,9 +12,9 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineReconnectSpec
 {
-    private static TransportBuffer SerializeFrame(Http2Frame frame)
+    private static WireBuffer SerializeFrame(Http2Frame frame)
     {
-        var buffer = TransportBuffer.Rent(frame.SerializedSize);
+        var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;
@@ -239,7 +240,7 @@ public sealed class Http2StateMachineReconnectSpec
         partial[2] = 100;          // 24-bit length = 100
         partial[3] = 0x00;         // type = DATA
         partial[8] = 1;            // stream id = 1
-        var partialBuf = TransportBuffer.Rent(partial.Length);
+        var partialBuf = WireBuffer.Rent(partial.Length);
         partial.CopyTo(partialBuf.FullMemory.Span);
         partialBuf.Length = partial.Length;
         sm.DecodeServerData(TransportData.Rent(partialBuf));
@@ -308,7 +309,7 @@ public sealed class Http2StateMachineReconnectSpec
         garbage[0] = 0xFF;
         garbage[1] = 0xFF;
         garbage[2] = 0xFF;
-        var garbageBuf = TransportBuffer.Rent(garbage.Length);
+        var garbageBuf = WireBuffer.Rent(garbage.Length);
         garbage.CopyTo(garbageBuf.FullMemory.Span);
         garbageBuf.Length = garbage.Length;
         sm.DecodeServerData(TransportData.Rent(garbageBuf));

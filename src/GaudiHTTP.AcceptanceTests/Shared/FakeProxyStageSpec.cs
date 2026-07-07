@@ -27,7 +27,7 @@ public sealed class FakeProxyStageSpec : EngineTestBase
         var items = new ITransportOutbound[]
         {
             MakeConnectTransport(),
-            TransportData.Rent(requestBytes)
+            TransportData.Rent(ToWireBuffer(requestBytes))
         };
 
         var results = new List<ITransportInbound>();
@@ -69,7 +69,7 @@ public sealed class FakeProxyStageSpec : EngineTestBase
         var items = new ITransportOutbound[]
         {
             MakeConnectTransport(),
-            TransportData.Rent(requestBytes)
+            TransportData.Rent(ToWireBuffer(requestBytes))
         };
 
         var results = new List<ITransportInbound>();
@@ -121,8 +121,8 @@ public sealed class FakeProxyStageSpec : EngineTestBase
         var items = new ITransportOutbound[]
         {
             MakeConnectTransport(),
-            TransportData.Rent(firstRequest),
-            TransportData.Rent(secondRequest)
+            TransportData.Rent(ToWireBuffer(firstRequest)),
+            TransportData.Rent(ToWireBuffer(secondRequest))
         };
 
         var results = new List<ITransportInbound>();

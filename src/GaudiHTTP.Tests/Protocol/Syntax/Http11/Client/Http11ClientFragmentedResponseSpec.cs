@@ -23,10 +23,10 @@ public sealed class Http11ClientFragmentedResponseSpec
     private static HttpRequestMessage MakeRequest(string path = "/")
         => new(HttpMethod.Get, $"http://example.com{path}") { Version = new Version(1, 1) };
 
-    private static TransportBuffer Buf(string s)
+    private static WireBuffer Buf(string s)
     {
         var bytes = Encoding.ASCII.GetBytes(s);
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return buffer;

@@ -32,13 +32,13 @@ internal sealed class StreamManager(
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
 
     /// <summary>
-    /// Decodes a TransportBuffer into HTTP/3 frames using a per-stream decoder.
+    /// Decodes a WireBuffer into HTTP/3 frames using a per-stream decoder.
     /// Each QUIC stream has independent framing, so decoders must not share
     /// partial-frame remainder state across streams.
     /// Decoded frames may slice <paramref name="buffer"/> (zero-copy) — the caller owns
     /// the buffer and must dispose it only after all returned frames have been handled.
     /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
+    public IReadOnlyList<Http3Frame> DecodeServerData(WireBuffer buffer, long streamId)
     {
         if (!_streamDecoders.TryGetValue(streamId, out var decoder))
         {

@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -126,7 +127,7 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -161,7 +162,7 @@ public sealed class Http2ServerStateMachineSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -182,7 +183,7 @@ public sealed class Http2ServerStateMachineSpec
         ops.Outbound.Clear();
 
         var pingFrameData = BuildPingFrame(isAck: false);
-        var buffer = TransportBuffer.Rent(pingFrameData.Length);
+        var buffer = WireBuffer.Rent(pingFrameData.Length);
         pingFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = pingFrameData.Length;
 
@@ -211,7 +212,7 @@ public sealed class Http2ServerStateMachineSpec
         ops.Outbound.Clear();
 
         var settingsFrameData = BuildSettingsFrame(isAck: false);
-        var buffer = TransportBuffer.Rent(settingsFrameData.Length);
+        var buffer = WireBuffer.Rent(settingsFrameData.Length);
         settingsFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = settingsFrameData.Length;
 
@@ -240,7 +241,7 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -274,7 +275,7 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 

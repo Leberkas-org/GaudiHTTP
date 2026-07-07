@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -80,7 +81,7 @@ public sealed class Http2ServerStreamCorrelationSpec
         var headerBlock1 = EncodeHeaders("GET", "/path1", "example.com");
         var headersFrameData1 = BuildHeadersFrame(streamId: 1, headerBlock1, endStream: true, endHeaders: true);
 
-        var buffer1 = TransportBuffer.Rent(headersFrameData1.Length);
+        var buffer1 = WireBuffer.Rent(headersFrameData1.Length);
         headersFrameData1.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = headersFrameData1.Length;
 
@@ -90,7 +91,7 @@ public sealed class Http2ServerStreamCorrelationSpec
         var headerBlock3 = EncodeHeaders("GET", "/path3", "example.com");
         var headersFrameData3 = BuildHeadersFrame(streamId: 3, headerBlock3, endStream: true, endHeaders: true);
 
-        var buffer3 = TransportBuffer.Rent(headersFrameData3.Length);
+        var buffer3 = WireBuffer.Rent(headersFrameData3.Length);
         headersFrameData3.CopyTo(buffer3.FullMemory.Span);
         buffer3.Length = headersFrameData3.Length;
 
@@ -184,7 +185,7 @@ public sealed class Http2ServerStreamCorrelationSpec
             var headerBlock = EncodeHeaders("GET", $"/path{streamId}", "example.com");
             var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: true, endHeaders: true);
 
-            var buffer = TransportBuffer.Rent(headersFrameData.Length);
+            var buffer = WireBuffer.Rent(headersFrameData.Length);
             headersFrameData.CopyTo(buffer.FullMemory.Span);
             buffer.Length = headersFrameData.Length;
 
@@ -261,17 +262,17 @@ public sealed class Http2ServerStreamCorrelationSpec
         var headersData2 = BuildHeadersFrame(3, headerBlock2, endStream: true, endHeaders: true);
         var headersData3 = BuildHeadersFrame(5, headerBlock3, endStream: true, endHeaders: true);
 
-        var buf1 = TransportBuffer.Rent(headersData1.Length);
+        var buf1 = WireBuffer.Rent(headersData1.Length);
         headersData1.CopyTo(buf1.FullMemory.Span);
         buf1.Length = headersData1.Length;
         sm.DecodeClientData(TransportData.Rent(buf1));
 
-        var buf2 = TransportBuffer.Rent(headersData2.Length);
+        var buf2 = WireBuffer.Rent(headersData2.Length);
         headersData2.CopyTo(buf2.FullMemory.Span);
         buf2.Length = headersData2.Length;
         sm.DecodeClientData(TransportData.Rent(buf2));
 
-        var buf3 = TransportBuffer.Rent(headersData3.Length);
+        var buf3 = WireBuffer.Rent(headersData3.Length);
         headersData3.CopyTo(buf3.FullMemory.Span);
         buf3.Length = headersData3.Length;
         sm.DecodeClientData(TransportData.Rent(buf3));

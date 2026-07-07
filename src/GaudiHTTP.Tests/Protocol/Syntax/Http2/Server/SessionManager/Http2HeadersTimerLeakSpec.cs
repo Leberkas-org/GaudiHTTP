@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -63,9 +64,9 @@ public sealed class Http2HeadersTimerLeakSpec
         return frame;
     }
 
-    private static TransportBuffer WrapFrame(byte[] frame)
+    private static WireBuffer WrapFrame(byte[] frame)
     {
-        var buffer = TransportBuffer.Rent(frame.Length);
+        var buffer = WireBuffer.Rent(frame.Length);
         frame.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frame.Length;
         return buffer;

@@ -15,11 +15,11 @@ public sealed class Http3DuplicateStreamSpec
         return new Http3ClientStateMachine(new GaudiClientOptions(), _clientOps);
     }
 
-    private static TransportBuffer BuildStreamTypeBuffer(StreamType type, byte[]? trailingData = null)
+    private static WireBuffer BuildStreamTypeBuffer(StreamType type, byte[]? trailingData = null)
     {
         var typeBytes = QuicVarInt.EncodedLength((long)type);
         var totalSize = typeBytes + (trailingData?.Length ?? 0);
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         var written = QuicVarInt.Encode((long)type, span);
         trailingData?.CopyTo(span[written..]);

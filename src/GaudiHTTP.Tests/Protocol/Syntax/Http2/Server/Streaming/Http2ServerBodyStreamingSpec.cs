@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -93,7 +94,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var headerBlock = EncodeHeaders("POST", "/api/data", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -112,7 +113,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var bodyData = "Hello, Server!"u8.ToArray();
         var dataFrameData = BuildDataFrame(streamId: 1, bodyData, endStream: true);
 
-        var buffer2 = TransportBuffer.Rent(dataFrameData.Length);
+        var buffer2 = WireBuffer.Rent(dataFrameData.Length);
         dataFrameData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrameData.Length;
 
@@ -136,7 +137,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var headerBlock = EncodeHeaders("GET", "/api/status", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -173,7 +174,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var headerBlock = EncodeHeaders("POST", "/api/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -188,7 +189,7 @@ public sealed class Http2ServerBodyStreamingSpec
         Array.Fill(largeData, (byte)'X');
         var dataFrameData = BuildDataFrame(streamId: 1, largeData, endStream: false);
 
-        var buffer2 = TransportBuffer.Rent(dataFrameData.Length);
+        var buffer2 = WireBuffer.Rent(dataFrameData.Length);
         dataFrameData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrameData.Length;
 
@@ -220,7 +221,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var headerBlock = EncodeHeaders("POST", "/api/stream", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -235,7 +236,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var data1 = "First "u8.ToArray();
         var dataFrame1 = BuildDataFrame(streamId: 1, data1, endStream: false);
 
-        var buffer1 = TransportBuffer.Rent(dataFrame1.Length);
+        var buffer1 = WireBuffer.Rent(dataFrame1.Length);
         dataFrame1.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = dataFrame1.Length;
 
@@ -250,7 +251,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var data2 = "Second"u8.ToArray();
         var dataFrame2 = BuildDataFrame(streamId: 1, data2, endStream: true);
 
-        var buffer2 = TransportBuffer.Rent(dataFrame2.Length);
+        var buffer2 = WireBuffer.Rent(dataFrame2.Length);
         dataFrame2.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrame2.Length;
 
@@ -273,7 +274,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var headerBlock = EncodeHeaders("POST", "/api/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        var buffer = WireBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
@@ -288,7 +289,7 @@ public sealed class Http2ServerBodyStreamingSpec
         var partialData = "partial"u8.ToArray();
         var dataFrame = BuildDataFrame(streamId: 1, partialData, endStream: false);
 
-        var buffer1 = TransportBuffer.Rent(dataFrame.Length);
+        var buffer1 = WireBuffer.Rent(dataFrame.Length);
         dataFrame.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = dataFrame.Length;
 
@@ -316,7 +317,7 @@ public sealed class Http2ServerBodyStreamingSpec
         rstData[11] = 0;
         rstData[12] = 8;
 
-        var buffer2 = TransportBuffer.Rent(rstData.Length);
+        var buffer2 = WireBuffer.Rent(rstData.Length);
         rstData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = rstData.Length;
 

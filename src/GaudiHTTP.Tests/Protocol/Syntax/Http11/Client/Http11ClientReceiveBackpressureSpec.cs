@@ -28,7 +28,7 @@ public sealed class Http11ClientReceiveBackpressureSpec
     private static TransportData Inbound(string ascii)
     {
         var bytes = Encoding.ASCII.GetBytes(ascii);
-        var buf = TransportBuffer.Rent(bytes.Length);
+        var buf = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buf.FullMemory.Span);
         buf.Length = bytes.Length;
         return TransportData.Rent(buf);

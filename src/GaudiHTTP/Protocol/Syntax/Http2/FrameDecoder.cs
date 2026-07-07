@@ -47,7 +47,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
 
     // Owned working buffer. Kept alive between Decode() calls so that returned frame slices
     // remain valid until the next call (Akka back-pressure guarantees frames are consumed first).
-    private TransportBuffer? _workingBuffer;
+    private WireBuffer? _workingBuffer;
 
     // Slice within _workingBuffer that was not yet consumed as a complete frame.
     private int _remainderOffset;
@@ -71,7 +71,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
     /// synchronously within the same actor message under Akka back-pressure; a caller that needs to
     /// hold a result across calls must snapshot it (e.g. ToArray()).
     /// </summary>
-    public IReadOnlyList<Http2Frame> Decode(TransportBuffer buffer)
+    public IReadOnlyList<Http2Frame> Decode(WireBuffer buffer)
     {
         // Cleared first so the early-return (nothing-new) path cannot surface a prior call's frames.
         _frames.Clear();
@@ -93,9 +93,11 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             if (_workingBuffer!.Capacity >= appendOffset + buffer.Length)
             {
                 // Append new data directly after remainder — no rent, single copy.
+                // Capture the incoming length BEFORE Dispose: WireBuffer.Dispose resets Length to 0.
+                var incomingLength = buffer.Length;
                 buffer.Memory.Span.CopyTo(_workingBuffer.FullMemory.Span[appendOffset..]);
                 buffer.Dispose();
-                workingLength = appendOffset + buffer.Length;
+                workingLength = appendOffset + incomingLength;
                 _workingBuffer.Length = workingLength;
                 startOffset = _remainderOffset;
             }
@@ -103,7 +105,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             {
                 // Buffer too small: rent a new combined buffer.
                 workingLength = _remainderLength + buffer.Length;
-                var combined = TransportBuffer.Rent(workingLength);
+                var combined = WireBuffer.Rent(workingLength);
                 _workingBuffer.FullMemory.Span.Slice(_remainderOffset, _remainderLength)
                     .CopyTo(combined.FullMemory.Span);
                 buffer.Memory.Span
@@ -129,7 +131,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             // receive-path buffers are never offset-wrapped today, so this path is cold.
             workingLength = buffer.Length;
             _workingBuffer?.Dispose();
-            _workingBuffer = TransportBuffer.Rent(workingLength);
+            _workingBuffer = WireBuffer.Rent(workingLength);
             buffer.Memory.Span.CopyTo(_workingBuffer.FullMemory.Span);
             _workingBuffer.Length = workingLength;
             buffer.Dispose();

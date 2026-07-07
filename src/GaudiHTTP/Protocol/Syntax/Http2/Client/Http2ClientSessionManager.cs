@@ -109,7 +109,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _encoderOptions.HeaderTableSize,
             _encoderOptions.MaxFrameSize,
             _decoderOptions.MaxHeaderListSize);
-        var prefaceBuf = TransportBuffer.Rent(prefaceLength);
+        var prefaceBuf = WireBuffer.Rent(prefaceLength);
         prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
         prefaceOwner.Dispose();
         prefaceBuf.Length = prefaceLength;
@@ -164,7 +164,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             totalSize += frames[i].SerializedSize;
         }
 
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         for (var i = 0; i < frames.Count; i++)
         {
@@ -339,14 +339,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         EmitBodyDirect(streamId, state, new Memory<byte>(bodyArray, 0, bodyLength));
 
-        // The array may be returned now: EmitBodyDirect copies all data into TransportBuffers
+        // The array may be returned now: EmitBodyDirect copies all data into WireBuffers
         // (via EmitFrame → DataFrame.WriteTo) or into a MemoryPool-owned copy for the
         // window-exhausted path before returning, so bodyArray is no longer referenced.
         pool.Return(bodyArray);
         return true;
     }
 
-    public IReadOnlyList<Http2Frame> DecodeFrames(TransportBuffer buffer)
+    public IReadOnlyList<Http2Frame> DecodeFrames(WireBuffer buffer)
     {
         // Decode returns the decoder's reused frame list; the only caller
         // (Http2ClientStateMachine.OnInbound) iterates it synchronously within the same actor
@@ -547,7 +547,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 return;
             }
 
-            var emptyBuf = TransportBuffer.Rent(headerSize);
+            var emptyBuf = WireBuffer.Rent(headerSize);
             DataFrame.WriteHeaderInPlace(emptyBuf.FullMemory.Span, 0, streamId, 0, endStream: true);
             emptyBuf.Length = headerSize;
             Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
@@ -556,13 +556,13 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
-        // Batch the whole body into ONE TransportBuffer with in-place frame headers (mirrors the
-        // server's EmitBufferedDataFrames). The per-frame path used to rent a TransportBuffer and
+        // Batch the whole body into ONE WireBuffer with in-place frame headers (mirrors the
+        // server's EmitBufferedDataFrames). The per-frame path used to rent a WireBuffer and
         // hand out a separate outbound item per DATA frame, churning the pool on large uploads.
         var frameCount = (data.Length + maxFrame - 1) / maxFrame;
         var totalWireSize = data.Length + frameCount * headerSize;
 
-        var buf = TransportBuffer.Rent(totalWireSize);
+        var buf = WireBuffer.Rent(totalWireSize);
         var dest = buf.FullMemory.Span;
         var offset = 0;
         var remaining = data;
@@ -628,7 +628,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 w.StreamId, w.Increment, _flow.RecvConnectionWindow);
         }
 
-        var buf = TransportBuffer.Rent(frame.SerializedSize);
+        var buf = WireBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;

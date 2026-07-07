@@ -24,7 +24,7 @@ public sealed class Http3StreamRoutingSpec
         return new HeadersFrame(_tableSync.Encoder.Encode(headers));
     }
 
-    private TransportBuffer BuildResponseBuffer(byte fillByte, int bodySize)
+    private WireBuffer BuildResponseBuffer(byte fillByte, int bodySize)
     {
         var headersFrame = EncodeHeaders((":status", "200"));
         var body = new byte[bodySize];
@@ -32,7 +32,7 @@ public sealed class Http3StreamRoutingSpec
         var dataFrame = new DataFrame(body);
 
         var totalSize = headersFrame.SerializedSize + dataFrame.SerializedSize;
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         headersFrame.WriteTo(ref span);
         dataFrame.WriteTo(ref span);
@@ -40,13 +40,13 @@ public sealed class Http3StreamRoutingSpec
         return buf;
     }
 
-    private static TransportBuffer BuildDataBuffer(byte fillByte, int bodySize)
+    private static WireBuffer BuildDataBuffer(byte fillByte, int bodySize)
     {
         var body = new byte[bodySize];
         Array.Fill(body, fillByte);
         var dataFrame = new DataFrame(body);
 
-        var buf = TransportBuffer.Rent(dataFrame.SerializedSize);
+        var buf = WireBuffer.Rent(dataFrame.SerializedSize);
         var span = buf.FullMemory.Span;
         dataFrame.WriteTo(ref span);
         buf.Length = dataFrame.SerializedSize;
@@ -136,15 +136,15 @@ public sealed class Http3StreamRoutingSpec
         var part2Size = bytes.Length / 3;
         var part3Size = bytes.Length - part1Size - part2Size;
 
-        var part1 = TransportBuffer.Rent(part1Size);
+        var part1 = WireBuffer.Rent(part1Size);
         bytes.Span.Slice(0, part1Size).CopyTo(part1.FullMemory.Span);
         part1.Length = part1Size;
 
-        var part2 = TransportBuffer.Rent(part2Size);
+        var part2 = WireBuffer.Rent(part2Size);
         bytes.Span.Slice(part1Size, part2Size).CopyTo(part2.FullMemory.Span);
         part2.Length = part2Size;
 
-        var part3 = TransportBuffer.Rent(part3Size);
+        var part3 = WireBuffer.Rent(part3Size);
         bytes.Span.Slice(part1Size + part2Size, part3Size).CopyTo(part3.FullMemory.Span);
         part3.Length = part3Size;
 
@@ -176,7 +176,7 @@ public sealed class Http3StreamRoutingSpec
 
         // Feed SETTINGS on control stream
         var settings = new SettingsFrame([(SettingsIdentifier.MaxFieldSectionSize, 8192)]);
-        var settingsBuf = TransportBuffer.Rent(settings.SerializedSize);
+        var settingsBuf = WireBuffer.Rent(settings.SerializedSize);
         var settingsSpan = settingsBuf.FullMemory.Span;
         settings.WriteTo(ref settingsSpan);
         settingsBuf.Length = settings.SerializedSize;

@@ -65,10 +65,10 @@ public sealed class Http11StateMachineSpec
         return (req, pending);
     }
 
-    private static TransportBuffer CreateResponseBuffer(string response)
+    private static WireBuffer CreateResponseBuffer(string response)
     {
         var bytes = Encoding.ASCII.GetBytes(response);
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return buffer;

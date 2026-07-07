@@ -23,10 +23,10 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         return request;
     }
 
-    private static TransportBuffer CreateResponseBuffer(string responseText)
+    private static WireBuffer CreateResponseBuffer(string responseText)
     {
         var bytes = Encoding.ASCII.GetBytes(responseText);
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return buffer;

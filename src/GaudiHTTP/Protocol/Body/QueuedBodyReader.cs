@@ -15,7 +15,7 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
     private readonly object _sync = new();
 
     // Body buffers are rented on the connection-stage thread and returned on the application thread.
-    // PooledArrayMemoryOwner.SharedPool uses global, locked per-bucket stacks (no core affinity), so
+    // WireBuffer.SharedPool uses global, locked per-bucket stacks (no core affinity), so
     // the rent/return survives that hop where the per-core ArrayPool<byte>.Shared would miss and force
     // a fresh allocation (measured ~2x on H1.1, ~12x on H2 at CL=32). Rented as raw byte[] — not an
     // IMemoryOwner — because this is a per-chunk path and a wrapper per chunk would re-add allocation.
@@ -36,7 +36,7 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
 
     public QueuedBodyReader(int capacity, ArrayPool<byte>? pool = null)
     {
-        _pool = pool ?? PooledArrayMemoryOwner.SharedPool;
+        _pool = pool ?? WireBuffer.SharedPool;
         _backpressureThreshold = capacity;
         _initialSlotCount = capacity * 2;
         _slots = new OwnedChunk[_initialSlotCount];

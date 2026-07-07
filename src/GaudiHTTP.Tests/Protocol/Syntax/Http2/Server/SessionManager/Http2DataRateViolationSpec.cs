@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -62,9 +63,9 @@ public sealed class Http2DataRateViolationSpec
         return frame;
     }
 
-    private static TransportBuffer WrapFrame(byte[] frame)
+    private static WireBuffer WrapFrame(byte[] frame)
     {
-        var buffer = TransportBuffer.Rent(frame.Length);
+        var buffer = WireBuffer.Rent(frame.Length);
         frame.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frame.Length;
         return buffer;

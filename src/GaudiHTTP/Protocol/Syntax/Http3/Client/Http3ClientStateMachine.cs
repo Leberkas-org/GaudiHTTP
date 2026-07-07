@@ -211,7 +211,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         var goAway = CheckIdleTimeout();
         if (goAway is not null)
         {
-            var buf = TransportBuffer.Rent(goAway.SerializedSize);
+            var buf = WireBuffer.Rent(goAway.SerializedSize);
             var span = buf.FullMemory.Span;
             goAway.WriteTo(ref span);
             buf.Length = goAway.SerializedSize;
@@ -404,7 +404,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     private PushPromiseFrame? HandlePushPromise(PushPromiseFrame pushPromise)
     {
         var cancelFrame = new CancelPushFrame(pushPromise.PushId);
-        var buf = TransportBuffer.Rent(cancelFrame.SerializedSize);
+        var buf = WireBuffer.Rent(cancelFrame.SerializedSize);
         var span = buf.FullMemory.Span;
         cancelFrame.WriteTo(ref span);
         buf.Length = cancelFrame.SerializedSize;
@@ -425,7 +425,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         if (pushId >= 0)
         {
             var cancel = new CancelPushFrame(pushId);
-            var buf = TransportBuffer.Rent(cancel.SerializedSize);
+            var buf = WireBuffer.Rent(cancel.SerializedSize);
             var span = buf.FullMemory.Span;
             cancel.WriteTo(ref span);
             buf.Length = cancel.SerializedSize;
@@ -508,7 +508,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         }
     }
 
-    private void ProcessFrameData(TransportBuffer buffer, long streamId)
+    private void ProcessFrameData(WireBuffer buffer, long streamId)
     {
         // Decoded frames may slice the input buffer (zero-copy), so it must stay alive
         // until the frame loop below has handled (and copied) everything.

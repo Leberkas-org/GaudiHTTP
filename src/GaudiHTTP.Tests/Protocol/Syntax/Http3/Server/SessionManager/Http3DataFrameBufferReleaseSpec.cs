@@ -72,7 +72,7 @@ public sealed class Http3DataFrameBufferReleaseSpec
 
     private static void Feed(Http3ServerSessionManager sm, byte[] wireBytes, long streamId)
     {
-        var buffer = TransportBuffer.Rent(wireBytes.Length);
+        var buffer = WireBuffer.Rent(wireBytes.Length);
         wireBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = wireBytes.Length;
         sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));

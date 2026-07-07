@@ -24,7 +24,7 @@ public sealed class Http11ServerHeadResponseSpec
     private static TransportData Make(string raw)
     {
         var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         return TransportData.Rent(buffer);

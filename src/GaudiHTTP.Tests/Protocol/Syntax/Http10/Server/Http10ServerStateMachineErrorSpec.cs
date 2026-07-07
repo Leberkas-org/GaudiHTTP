@@ -31,10 +31,10 @@ public sealed class Http10ServerStateMachineErrorSpec() : TestKit(CiQuietConfig.
         return features;
     }
 
-    private static TransportBuffer CreateRequestBuffer(string requestText)
+    private static WireBuffer CreateRequestBuffer(string requestText)
     {
         var bytes = Encoding.ASCII.GetBytes(requestText);
-        var buffer = TransportBuffer.Rent(bytes.Length);
+        var buffer = WireBuffer.Rent(bytes.Length);
         bytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
         return buffer;

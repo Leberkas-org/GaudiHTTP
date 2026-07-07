@@ -137,7 +137,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     /// </summary>
     public bool ShouldComplete { get; internal set; }
 
-    public void DecodeClientData(TransportBuffer buffer)
+    public void DecodeClientData(WireBuffer buffer)
     {
         try
         {
@@ -190,7 +190,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private static ReadOnlySpan<byte> ConnectionPrefaceMagic => "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
 
-    private void SkipConnectionPreface(TransportBuffer buffer)
+    private void SkipConnectionPreface(WireBuffer buffer)
     {
         _prefaceConsumed = true;
 
@@ -1006,7 +1006,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     // Emits as much of a stream's held buffered remainder as the current send window allows, then
     // advances the slice cursor. When the slice is exhausted, terminates the body and closes the
     // stream — mirroring IBodyDrainTarget.OnDrainComplete (the path buffered bodies used to take
-    // via the pump). EmitBufferedDataFrames copies the slice into an owned TransportBuffer, so the
+    // via the pump). EmitBufferedDataFrames copies the slice into an owned WireBuffer, so the
     // unsent remainder is the only thing referencing the response buffer between WINDOW_UPDATEs.
     private void DrainBufferedRemainder(int streamId)
     {
@@ -1102,7 +1102,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         var frameCount = (body.Length + maxFrame - 1) / maxFrame;
         var totalWireSize = body.Length + frameCount * headerSize;
 
-        var buf = TransportBuffer.Rent(totalWireSize);
+        var buf = WireBuffer.Rent(totalWireSize);
         var dest = buf.FullMemory.Span;
         var offset = 0;
         var remaining = body;
@@ -1156,7 +1156,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
 
         var totalSize = frame.SerializedSize;
-        var buf = TransportBuffer.Rent(totalSize);
+        var buf = WireBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = totalSize;

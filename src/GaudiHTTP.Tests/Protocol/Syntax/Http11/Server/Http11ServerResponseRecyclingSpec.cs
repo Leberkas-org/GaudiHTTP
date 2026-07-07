@@ -23,7 +23,7 @@ public sealed class Http11ServerResponseRecyclingSpec
     {
         var raw = $"{method} / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = TransportBuffer.Rent(data.Length);
+        var buffer = WireBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
         sm.DecodeClientData(TransportData.Rent(buffer));

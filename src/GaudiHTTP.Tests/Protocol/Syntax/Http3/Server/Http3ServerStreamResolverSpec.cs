@@ -181,12 +181,12 @@ public sealed class Http3ServerStreamResolverSpec
         Assert.Equal(0L, result.LogicalStreamId);
     }
 
-    private static TransportBuffer BuildStreamTypeBuffer(StreamType streamType, byte[]? extraData = null)
+    private static WireBuffer BuildStreamTypeBuffer(StreamType streamType, byte[]? extraData = null)
     {
         var typeBytes = new byte[8];
         var typeLen = QuicVarInt.Encode((long)streamType, typeBytes);
         var totalSize = typeLen + (extraData?.Length ?? 0);
-        var buffer = TransportBuffer.Rent(totalSize);
+        var buffer = WireBuffer.Rent(totalSize);
         typeBytes.AsSpan(0, typeLen).CopyTo(buffer.FullMemory.Span);
         extraData?.CopyTo(buffer.FullMemory.Span[typeLen..]);
 

@@ -83,7 +83,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
     public void DecodeServerData_should_accept_multiplexed_data()
     {
         var sm = CreateMachine();
-        var buffer = TransportBuffer.Rent(10);
+        var buffer = WireBuffer.Rent(10);
         buffer.FullMemory.Span[..1].Clear();
         buffer.Length = 1;
         var data = MultiplexedData.Rent(buffer, 0);

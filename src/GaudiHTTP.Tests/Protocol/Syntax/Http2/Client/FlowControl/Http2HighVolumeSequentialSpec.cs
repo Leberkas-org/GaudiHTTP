@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
 
@@ -47,7 +48,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 1000; i++)
         {
             var streamId = 2 * i + 1; // odd IDs: 1, 3, 5, ..., 1999
-            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true));
+            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true).ToWireBuffer());
 
             foreach (var frame in frames)
             {
@@ -77,7 +78,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 1000; i++)
         {
             var streamId = 2 * i + 1;
-            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true));
+            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true).ToWireBuffer());
             decodedFrameCount += frames.Count;
         }
 
@@ -91,7 +92,7 @@ public sealed class Http2HighVolumeSequentialSpec
         var decoder = new FrameDecoder();
         // MAX_CONCURRENT_STREAMS = SettingsParameter id 3
         var settingsBytes = BuildSettingsFrame(false, (3, 500));
-        var frames = decoder.Decode(settingsBytes);
+        var frames = decoder.Decode(settingsBytes.ToWireBuffer());
 
         var settingsFrame = frames.OfType<SettingsFrame>().First();
         Assert.NotNull(settingsFrame);
@@ -110,7 +111,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 100; i++)
         {
             var streamId = 2 * i + 1;
-            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: false));
+            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: false).ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is HeadersFrame)
@@ -126,7 +127,7 @@ public sealed class Http2HighVolumeSequentialSpec
         var oneByte = new byte[] { 0x42 };
         foreach (var streamId in openStreams.ToList())
         {
-            var frames = decoder.Decode(BuildDataFrame(streamId, oneByte, endStream: true));
+            var frames = decoder.Decode(BuildDataFrame(streamId, oneByte, endStream: true).ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is DataFrame { EndStream: true } df)
@@ -151,7 +152,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 10001; i++)
         {
             var streamId = 2 * i + 1; // 1, 3, ..., 20001
-            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true));
+            var frames = decoder.Decode(BuildHeadersFrame(streamId, endStream: true).ToWireBuffer());
             foreach (var frame in frames)
             {
                 if (frame is HeadersFrame { EndStream: true } hf)

@@ -102,7 +102,7 @@ public sealed class BufferedBodyReaderSpec
         // underneath it — the shared-pool poisoning observed as sporadic cross-connection H2
         // receive corruption. Streams are contractually multi-Dispose (Close + DisposeAsync + an
         // owning decompressor all dispose the same instance), so the second Dispose must no-op.
-        var next = PooledArrayMemoryOwner.Create(4);
+        var next = WireBuffer.Rent(4);
         stream.Dispose();
 
         _ = next.Memory;

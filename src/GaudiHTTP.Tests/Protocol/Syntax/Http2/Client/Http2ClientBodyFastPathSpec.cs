@@ -1,3 +1,4 @@
+﻿using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -61,7 +62,7 @@ public sealed class Http2ClientBodyFastPathSpec
                 // Use a fresh decoder per buffer: the H2 preface magic ("PRI *...") would
                 // otherwise leave bytes as remainder and corrupt the next frame parse.
                 // Copy frame data before the decoder is disposed (its working buffer is
-                // the same TransportBuffer, disposed with the decoder).
+                // the same WireBuffer, disposed with the decoder).
                 var decoder = new FrameDecoder();
                 var decoded = decoder.Decode(buf);
                 foreach (var frame in decoded)

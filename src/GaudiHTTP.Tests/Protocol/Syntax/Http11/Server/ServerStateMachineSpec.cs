@@ -25,7 +25,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -50,7 +50,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -98,7 +98,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -121,7 +121,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -143,7 +143,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -166,7 +166,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -198,7 +198,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -231,7 +231,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -265,7 +265,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -299,7 +299,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -321,7 +321,7 @@ public sealed class ServerStateMachineSpec
             "Content-Length: 0\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
@@ -351,7 +351,7 @@ public sealed class ServerStateMachineSpec
             "Transfer-Encoding: unknown\r\n" +
             "\r\n");
 
-        var buffer = TransportBuffer.Rent(requestData.Length);
+        var buffer = WireBuffer.Rent(requestData.Length);
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
