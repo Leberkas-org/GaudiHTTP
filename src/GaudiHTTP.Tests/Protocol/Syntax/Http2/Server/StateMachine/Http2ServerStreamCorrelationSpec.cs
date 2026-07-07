@@ -12,18 +12,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 
 public sealed class Http2ServerStreamCorrelationSpec
 {
-    private static IFeatureCollection CreateResponseContext(long streamId)
-    {
-        var features = new GaudiFeatureCollection();
-        features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new GaudiHttpResponseFeature { StatusCode = 200 });
-        var bodyFeature = new GaudiHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<IHttpStreamIdFeature>(new GaudiStreamIdFeature(streamId));
-        return features;
-    }
-
     private static ReadOnlyMemory<byte> EncodeHeaders(string method, string path, string authority = "localhost")
     {
         var encoder = new HpackEncoder(useHuffman: true);
@@ -115,7 +103,7 @@ public sealed class Http2ServerStreamCorrelationSpec
 
         // Now respond to stream 3 first
         ops.Outbound.Clear();
-        var responseContext3 = CreateResponseContext(streamId: 3);
+        var responseContext3 = ServerTestContext.CreateStreamResponse(streamId: 3);
         sm.OnResponse(responseContext3);
 
         // Verify HEADERS frame for stream 3 was emitted
@@ -144,7 +132,7 @@ public sealed class Http2ServerStreamCorrelationSpec
 
         // Now respond to stream 1
         ops.Outbound.Clear();
-        var responseContext1 = CreateResponseContext(streamId: 1);
+        var responseContext1 = ServerTestContext.CreateStreamResponse(streamId: 1);
         sm.OnResponse(responseContext1);
 
         // Verify HEADERS frame for stream 1 was emitted
@@ -218,7 +206,7 @@ public sealed class Http2ServerStreamCorrelationSpec
             var reqStreamId = reqStreamIdFeature?.StreamId ?? 0;
 
             ops.Outbound.Clear();
-            var context = CreateResponseContext(streamId: reqStreamId);
+            var context = ServerTestContext.CreateStreamResponse(streamId: reqStreamId);
             sm.OnResponse(context);
 
             // Find HEADERS frame in outbound
