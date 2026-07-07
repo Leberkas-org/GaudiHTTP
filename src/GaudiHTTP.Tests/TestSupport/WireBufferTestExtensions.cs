@@ -1,3 +1,4 @@
+using System.Text;
 using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.TestSupport;
@@ -27,4 +28,7 @@ public static class WireBufferTestExtensions
 
     public static WireBuffer ToWireBuffer(this Span<byte> data)
         => ((ReadOnlySpan<byte>)data).ToWireBuffer();
+
+    public static WireBuffer ToWireBuffer(this string raw)
+        => Encoding.ASCII.GetBytes(raw).ToWireBuffer();
 }
