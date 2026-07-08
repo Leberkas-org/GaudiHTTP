@@ -8,6 +8,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
+using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Streams.Pooling;
 using static Servus.Senf;
 
@@ -23,10 +24,15 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
         ChannelWriter<HttpResponseMessage> FallbackResponseWriter);
     internal sealed record UnregisterConsumer(Guid ConsumerId);
 
+    // Reconnect layering contract: socket loss is absorbed inband by the transport state machine and
+    // the protocol layer (ReconnectPolicy / ReconnectionManager), which buffer and replay requests
+    // WITHOUT ever terminating the materialized graph — so the owner is never involved in socket-loss
+    // reconnect. The owner re-materializes ONLY on faults the protocol layer cannot recover from: a
+    // graph build/materialization exception or an engine-flow/decoder desync that FailStages the stage.
+    // All three layers share the same jittered backoff via ReconnectBackoff.Compute.
     private TimeSpan CalculateBackoff(int attempt) =>
-        TimeSpan.FromMilliseconds(
-            Math.Min(_initialBackoff.TotalMilliseconds * Math.Pow(_backoffMultiplier, attempt),
-                _maxBackoff.TotalMilliseconds));
+        ReconnectBackoff.Compute(attempt + 1, _initialBackoff, _maxBackoff, _backoffMultiplier,
+            _backoffJitter, Random.Shared);
 
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
 
@@ -41,6 +47,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
     private readonly TimeSpan _initialBackoff;
     private readonly TimeSpan _maxBackoff;
     private readonly double _backoffMultiplier;
+    private readonly double _backoffJitter;
     private readonly int _maxRetryAttempts;
 
     private int _retryAttempts;
@@ -73,6 +80,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers, IWithStash
         _initialBackoff = initialBackoffOverride ?? clientOptions.StreamRetryInitialBackoff;
         _maxBackoff = clientOptions.StreamRetryMaxBackoff;
         _backoffMultiplier = clientOptions.StreamRetryBackoffMultiplier;
+        _backoffJitter = clientOptions.StreamRetryBackoffJitter;
         _maxRetryAttempts = clientOptions.MaxStreamRetryAttempts;
 
         Initializing();

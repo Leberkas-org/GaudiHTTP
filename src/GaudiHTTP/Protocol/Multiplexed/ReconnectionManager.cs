@@ -8,6 +8,9 @@ internal sealed class ReconnectionManager(int maxAttempts, int maxBufferSize = i
     public bool IsReconnecting { get; private set; }
     public int BufferedCount => _buffer.Count;
 
+    /// <summary>Number of reconnect attempts so far in the current reconnect sequence (1-based).</summary>
+    public int Attempts => _attempts;
+
     public void OnConnectionLost(IReadOnlyList<HttpRequestMessage> replayableRequests)
     {
         IsReconnecting = true;
