@@ -2,6 +2,7 @@ using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
@@ -158,6 +159,15 @@ internal sealed class Http2ClientStateMachine(
 
                     break;
                 }
+            case ReconnectBackoff.TimerName:
+                {
+                    if (_reconnect.IsReconnecting && _transportOptions is not null)
+                    {
+                        ops.OnOutbound(new ConnectTransport(_transportOptions));
+                    }
+
+                    break;
+                }
         }
     }
 
@@ -178,7 +188,24 @@ internal sealed class Http2ClientStateMachine(
 
     public void OnBodyMessage(object msg) => _clientSession.OnBodyMessage(msg);
 
-    public void Cleanup() => _clientSession.Cleanup();
+    public void Cleanup()
+    {
+        // Fail (don't silently drop) requests still in flight or buffered for reconnect replay, so
+        // callers fault promptly on stage teardown instead of hanging until their client-side timeout.
+        // request.Fail is idempotent, so streams that already delivered a response are unaffected.
+        if (_reconnect.IsReconnecting)
+        {
+            _reconnect.FailAllBuffered(new HttpRequestException("HTTP/2 connection torn down during reconnect."));
+            _reconnect.Reset();
+        }
+
+        foreach (var (_, request) in _clientSession.GetCorrelationMap())
+        {
+            request.Fail(new HttpRequestException("HTTP/2 connection was torn down before the request completed."));
+        }
+
+        _clientSession.Cleanup();
+    }
 
     private void OnConnectionLost(int lastStreamId)
     {
@@ -262,7 +289,22 @@ internal sealed class Http2ClientStateMachine(
             return;
         }
 
-        ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        // Defer the retry behind a backoff timer instead of reconnecting immediately, so a
+        // connection-refused peer is not hammered in a tight loop (see OnTimerFired).
+        if (options.Http2.ReconnectInitialBackoff > TimeSpan.Zero)
+        {
+            ops.OnScheduleTimer(ReconnectBackoff.TimerName, ReconnectBackoff.Compute(
+                _reconnect.Attempts - 1,
+                options.Http2.ReconnectInitialBackoff,
+                options.Http2.ReconnectMaxBackoff,
+                options.Http2.ReconnectBackoffMultiplier,
+                options.Http2.ReconnectBackoffJitter,
+                Random.Shared));
+        }
+        else
+        {
+            ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        }
     }
 
     private void ScheduleKeepAlivePing()

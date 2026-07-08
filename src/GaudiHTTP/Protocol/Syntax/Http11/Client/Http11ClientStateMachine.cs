@@ -107,7 +107,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         _ops = ops;
         _options = options;
-        _reconnectPolicy = new ReconnectPolicy<Queue<HttpRequestMessage>>(ops, options.Http1.MaxReconnectAttempts);
+        _reconnectPolicy = new ReconnectPolicy<Queue<HttpRequestMessage>>(
+            ops,
+            options.Http1.MaxReconnectAttempts,
+            options.Http1.ReconnectInitialBackoff,
+            options.Http1.ReconnectMaxBackoff,
+            options.Http1.ReconnectBackoffMultiplier,
+            options.Http1.ReconnectBackoffJitter);
 
         var decoderOpts = options.ToHttp11DecoderOptions();
         var encoderOpts = options.ToHttp11EncoderOptions();
@@ -359,6 +365,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public void OnTimerFired(string name)
     {
+        _reconnectPolicy.OnReconnectTimerFired(name);
     }
 
     public void OnBodyMessage(object msg)
@@ -395,7 +402,21 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public void Cleanup()
     {
-        _inFlightQueue.Clear();
+        // Fail (don't silently drop) requests still in flight or buffered for reconnect replay, so
+        // callers fault promptly on stage teardown instead of hanging until their client-side timeout.
+        if (_inFlightQueue.Count > 0)
+        {
+            RequestFault.FailAll(_inFlightQueue,
+                new HttpRequestException("HTTP/1.1 connection was torn down before the request completed."));
+            _inFlightQueue.Clear();
+        }
+
+        if (_reconnectPolicy.TakeBuffered() is { Count: > 0 } bufferedForReplay)
+        {
+            RequestFault.FailAll(bufferedForReplay,
+                new HttpRequestException("HTTP/1.1 connection was torn down before the buffered request could be replayed."));
+        }
+
         _pendingBodyResponse?.Dispose();
         _pendingBodyResponse = null;
         _outboundBodyPending = false;
@@ -673,8 +694,28 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartReconnect()
     {
-        var buffered = new Queue<HttpRequestMessage>(_inFlightQueue);
-        _inFlightQueue.Clear();
+        // Only idempotent in-flight requests are safe to replay: a non-idempotent request
+        // (e.g. POST) may already have been received and processed by the server, so replaying
+        // it after connection loss risks a duplicate side effect (RFC 9110 §9.2.2). Fail those
+        // instead of buffering them. Mirrors the HTTP/2 IsStreamSafeToReplay gate.
+        var buffered = new Queue<HttpRequestMessage>();
+        while (_inFlightQueue.Count > 0)
+        {
+            var request = _inFlightQueue.Dequeue();
+            if (MethodProperties.IsIdempotent(request.Method))
+            {
+                buffered.Enqueue(request);
+            }
+            else
+            {
+                Tracing.For("Protocol").Info(this,
+                    "HTTP/1.1: not replaying non-idempotent request {0} {1} on reconnect (server may have already processed it)",
+                    request.Method, request.RequestUri);
+                request.Fail(new HttpRequestException(
+                    "Non-idempotent HTTP/1.1 request was not replayed after connection loss; the server may have already processed it."));
+            }
+        }
+
         _connectionState = ConnectionState.Reconnecting;
         _reconnectPolicy.Start(buffered, _transportOptions!);
     }

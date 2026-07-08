@@ -1,5 +1,6 @@
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
+using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Client;
 using GaudiHTTP.Tests.Shared;
@@ -9,6 +10,15 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 public sealed class Http3ClientConnectionErrorSpec
 {
     private readonly FakeClientOps _clientOps = new();
+
+    private static (HttpRequestMessage Request, PendingRequest Pending) MakeTrackedGet(string path = "/")
+    {
+        var pending = PendingRequest.Rent();
+        var req = new HttpRequestMessage(HttpMethod.Get, $"https://example.com{path}") { Version = new Version(3, 0) };
+        req.Options.Set(OptionsKey.Key, pending);
+        req.Options.Set(OptionsKey.VersionKey, pending.Version);
+        return (req, pending);
+    }
 
     private Http3ClientStateMachine CreateMachine()
     {
@@ -65,6 +75,74 @@ public sealed class Http3ClientConnectionErrorSpec
 
         Assert.True(sm.IsReconnecting);
         Assert.Single(_clientOps.Outbound, o => o is ConnectTransport);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-5.2")]
+    public void Reconnect_retry_should_defer_behind_backoff_then_connect_when_timer_fires()
+    {
+        var sm = CreateMachine();
+        sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "https://example.com/") { Version = new Version(3, 0) });
+        _clientOps.Outbound.Clear();
+
+        // First disconnect starts the reconnect (immediate first attempt).
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        var countAfterFirst = _clientOps.Outbound.OfType<ConnectTransport>().Count();
+
+        // Second disconnect fails the attempt → deferred behind a backoff timer, not connected instantly.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+
+        Assert.True(sm.IsReconnecting);
+        Assert.Equal(countAfterFirst, _clientOps.Outbound.OfType<ConnectTransport>().Count());
+        Assert.Contains(_clientOps.ScheduledTimers, t => t.Name == "reconnect-backoff");
+
+        sm.OnTimerFired("reconnect-backoff");
+        Assert.Equal(countAfterFirst + 1, _clientOps.Outbound.OfType<ConnectTransport>().Count());
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-5.2")]
+    public void Reconnect_retry_with_zero_backoff_should_connect_immediately()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http3ClientStateMachine(
+            new GaudiClientOptions { Http3 = { ReconnectInitialBackoff = TimeSpan.Zero } }, ops);
+        sm.PreStart();
+        sm.DecodeServerData(new TransportConnected(null!));
+        sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "https://example.com/") { Version = new Version(3, 0) });
+        ops.Outbound.Clear();
+
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        var countAfterFirst = ops.Outbound.OfType<ConnectTransport>().Count();
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+
+        Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
+        Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name == "reconnect-backoff");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleanup_should_fail_inflight_requests_instead_of_dropping_them()
+    {
+        var sm = CreateMachine();
+        var (req, pending) = MakeTrackedGet("/a");
+        sm.OnRequest(req);
+
+        sm.Cleanup();
+
+        Assert.True(pending.GetValueTask().IsFaulted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleanup_during_reconnect_should_fail_buffered_replay_requests()
+    {
+        var sm = CreateMachine();
+        var (req, pending) = MakeTrackedGet("/a");
+        sm.OnRequest(req);
+
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // buffers GET for replay
+        sm.Cleanup();
+
+        Assert.True(pending.GetValueTask().IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
