@@ -91,7 +91,8 @@ public sealed class SerialBodyPumpSpec
             Emitted.Add((streamId, data.ToArray(), endStream));
             if (!endStream)
             {
-                _pump?.OnCapacityAvailable();
+                // Model a consumer that flushes exactly the bytes just emitted and credits them back.
+                _pump?.OnCapacityAvailable(data.Length);
             }
         }
 
@@ -132,9 +133,29 @@ public sealed class SerialBodyPumpSpec
         return new MemoryStream(data);
     }
 
-    private static SerialBodyPump MakePump(IBodyDrainTarget target, int chunkSize = 16 * 1024, int maxCapacity = 2)
+    private static SerialBodyPump MakePump(IBodyDrainTarget target, int chunkSize = 16 * 1024,
+        int maxBytes = 256 * 1024)
     {
-        return new SerialBodyPump(target, new CancellationTokenSource(), chunkSize, maxCapacity);
+        return new SerialBodyPump(target, new CancellationTokenSource(), chunkSize, maxBytes);
+    }
+
+    private static long TotalEmittedBytes(FakeTarget target)
+        => target.Emitted.Where(e => !e.EndStream).Sum(e => (long)e.Data.Length);
+
+    // Processes every queued read completion WITHOUT granting additional credit, so the pump
+    // advances only as far as its current byte budget allows before parking.
+    private static void DrainPendingNoCredit(SerialBodyPump pump, FakeTarget target, int maxIterations = 10_000)
+    {
+        var iterations = 0;
+        while (target.PendingMessages.Count > 0 && iterations++ < maxIterations)
+        {
+            var msg = target.PendingMessages[0];
+            target.PendingMessages.RemoveAt(0);
+            if (msg is BodyReadComplete<int> rc)
+            {
+                pump.HandleReadComplete(rc.BytesRead);
+            }
+        }
     }
 
     [Fact(Timeout = 5000)]
@@ -169,11 +190,81 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Pump_should_park_after_maxBytes_without_credit()
+    {
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 32 * 1024);
+
+        pump.Register(MakeBody(128 * 1024), contentLength: null, CancellationToken.None);
+        DrainPendingNoCredit(pump, target);
+
+        // No flush credit was granted: at most maxBytes (+ one chunk of overshoot) drains, and the
+        // 128 KB body is NOT fully emitted (would be 8 chunks) — the pump is parked on budget.
+        var emitted = TotalEmittedBytes(target);
+        Assert.True(emitted <= 32 * 1024 + 16 * 1024,
+            $"pump emitted {emitted} bytes without any flush — no byte backpressure.");
+        Assert.True(emitted >= 32 * 1024,
+            $"pump should drain up to the initial budget before parking, only emitted {emitted}.");
+        Assert.Empty(target.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OnCapacityAvailable_should_credit_bytes_and_clamp_to_maxBytes()
+    {
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 32 * 1024);
+
+        pump.Register(MakeBody(128 * 1024), contentLength: null, CancellationToken.None);
+        DrainPendingNoCredit(pump, target);
+        var afterPark = TotalEmittedBytes(target);
+
+        // One flush of 16 KB drains one more chunk.
+        pump.OnCapacityAvailable(16 * 1024);
+        DrainPendingNoCredit(pump, target);
+        var afterOneFlush = TotalEmittedBytes(target);
+
+        Assert.True(afterOneFlush > afterPark, "one flush should resume the pump for one more chunk.");
+        Assert.True(afterOneFlush <= 48 * 1024 + 16 * 1024,
+            $"budget must stay clamped to maxBytes; emitted {afterOneFlush}.");
+
+        // A giant credit is clamped to maxBytes, so at most one budget's worth (2 chunks) drains,
+        // not the entire remaining body.
+        pump.OnCapacityAvailable(1024 * 1024);
+        DrainPendingNoCredit(pump, target);
+        var afterGiantCredit = TotalEmittedBytes(target);
+
+        Assert.True(afterGiantCredit - afterOneFlush <= 32 * 1024 + 16 * 1024,
+            $"a credit larger than maxBytes must be clamped; drained {afterGiantCredit - afterOneFlush} at once.");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ResetCredit_should_restore_full_budget_after_depletion()
+    {
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 32 * 1024);
+
+        pump.Register(MakeBody(128 * 1024), contentLength: null, CancellationToken.None);
+        DrainPendingNoCredit(pump, target);
+        var afterPark = TotalEmittedBytes(target);
+        Assert.True(afterPark <= 32 * 1024 + 16 * 1024);
+
+        // ResetCredit restores the budget to maxBytes, resuming another full budget's worth.
+        pump.ResetCredit();
+        DrainPendingNoCredit(pump, target);
+        var afterReset = TotalEmittedBytes(target);
+
+        Assert.True(afterReset >= afterPark + 32 * 1024,
+            $"ResetCredit should restore a full {32 * 1024}-byte budget; only advanced {afterReset - afterPark}.");
+        Assert.True(afterReset - afterPark <= 32 * 1024 + 16 * 1024,
+            "ResetCredit must clamp to maxBytes, not open the floodgates.");
+    }
+
+    [Fact(Timeout = 5000)]
     public void OnCapacityAvailable_should_resume_drain_after_capacity_exhaustion()
     {
         var target = new FakeTarget();
-        // maxCapacity=1 so only 1 chunk is read before pausing
-        var pump = MakePump(target, chunkSize: 16, maxCapacity: 1);
+        // maxBytes=16 (one chunk of credit) so only ~1 chunk is read before the budget is exhausted.
+        var pump = MakePump(target, chunkSize: 16, maxBytes: 16);
         var body = MakeBody(200);
 
         pump.Register(body, contentLength: null, CancellationToken.None);
@@ -197,7 +288,7 @@ public sealed class SerialBodyPumpSpec
         // Pump more capacity until drain completes
         while (target.Completed.Count == 0)
         {
-            pump.OnCapacityAvailable();
+            pump.OnCapacityAvailable(16);
             // Drain any messages generated by OnCapacityAvailable
             while (target.PendingMessages.Count > 0)
             {
@@ -220,7 +311,7 @@ public sealed class SerialBodyPumpSpec
     public void Register_should_drain_complete_body_with_auto_resume()
     {
         var target = new AutoResumeTarget();
-        var pump = MakePump(target, chunkSize: 16 * 1024, maxCapacity: 2);
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 16 * 1024);
         target.SetPump(pump);
         var body = MakeBody(200);
 
@@ -261,7 +352,7 @@ public sealed class SerialBodyPumpSpec
     public void Register_should_drain_small_body_without_additional_capacity()
     {
         var target = new FakeTarget();
-        var pump = MakePump(target, chunkSize: 16 * 1024, maxCapacity: 4);
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 64 * 1024);
         var body = MakeBody(64);
 
         pump.Register(body, contentLength: null, CancellationToken.None);
@@ -275,7 +366,7 @@ public sealed class SerialBodyPumpSpec
     public void Large_body_should_drain_fully_with_auto_resume()
     {
         var target = new AutoResumeTarget();
-        var pump = MakePump(target, chunkSize: 16 * 1024, maxCapacity: 2);
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 16 * 1024);
         target.SetPump(pump);
         var largeBodySize = 1000 * 1024;
         var body = MakeBody(largeBodySize);
@@ -291,7 +382,7 @@ public sealed class SerialBodyPumpSpec
     {
         var target = new AutoResumeTarget();
         // Small chunk so the body needs dozens of consecutive sync reads to drain.
-        var pump = MakePump(target, chunkSize: 16, maxCapacity: 2);
+        var pump = MakePump(target, chunkSize: 16, maxBytes: 16);
         target.SetPump(pump);
         var totalSize = 65 * 16;
         var body = MakeBody(totalSize);
@@ -312,7 +403,7 @@ public sealed class SerialBodyPumpSpec
         // queued BodyReadComplete emits it. The pump keeps _isReadInFlight across the hop to
         // prevent exactly this; without it, >64 KB bodies corrupt over H1.
         var target = new FakeTarget();
-        var pump = MakePump(target, chunkSize: 16, maxCapacity: 2);
+        var pump = MakePump(target, chunkSize: 16, maxBytes: 16);
         var totalSize = 16 * 8; // 8 distinct chunks
         var body = MakeBody(totalSize);
 
@@ -323,7 +414,7 @@ public sealed class SerialBodyPumpSpec
         var guard = 0;
         while (target.Completed.Count == 0 && guard++ < 10_000)
         {
-            pump.OnCapacityAvailable();
+            pump.OnCapacityAvailable(16);
             if (target.PendingMessages.Count == 0)
             {
                 continue;
@@ -349,7 +440,7 @@ public sealed class SerialBodyPumpSpec
     public void HandleReadComplete_should_complete_drain()
     {
         var target = new FakeTarget();
-        var pump = MakePump(target, chunkSize: 16, maxCapacity: 1);
+        var pump = MakePump(target, chunkSize: 16, maxBytes: 16);
 
         var neverStream = new NeverReadStream();
         pump.Register(neverStream, contentLength: null, CancellationToken.None);
@@ -366,7 +457,7 @@ public sealed class SerialBodyPumpSpec
     public void HandleReadFailed_should_report_failure()
     {
         var target = new FakeTarget();
-        var pump = MakePump(target, chunkSize: 16, maxCapacity: 1);
+        var pump = MakePump(target, chunkSize: 16, maxBytes: 16);
 
         var neverStream = new NeverReadStream();
         pump.Register(neverStream, contentLength: null, CancellationToken.None);
@@ -421,7 +512,7 @@ public sealed class SerialBodyPumpSpec
         pipe.Writer.Complete();
 
         var target = new AutoResumeTarget();
-        var pump = MakePump(target, chunkSize: 16 * 1024, maxCapacity: 4);
+        var pump = MakePump(target, chunkSize: 16 * 1024, maxBytes: 16 * 1024);
         target.SetPump(pump);
 
         var bodyStream = pipe.Reader.AsStream();

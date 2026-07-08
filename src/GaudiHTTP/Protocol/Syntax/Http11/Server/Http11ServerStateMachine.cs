@@ -125,11 +125,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
         }
 
-        if (!endStream)
-        {
-            _serialPump?.OnCapacityAvailable();
-        }
-
         EmitEndStreamIfNeeded(endStream);
     }
 
@@ -158,11 +153,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         else
         {
             owner.Dispose();
-        }
-
-        if (!endStream)
-        {
-            _serialPump?.OnCapacityAvailable();
         }
 
         EmitEndStreamIfNeeded(endStream);
@@ -203,6 +193,14 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void DecodeClientData(ITransportInbound data)
     {
+        if (data is TransportDataFlushed flushed)
+        {
+            // Real wire flush: credit the response-body pump by the bytes the transport actually
+            // drained. Replaces the emit-time OnCapacityAvailable "lie" with true byte back-pressure.
+            _serialPump?.OnCapacityAvailable(flushed.Bytes);
+            return;
+        }
+
         if (data is not TransportData { Buffer: var buffer })
         {
             return;
@@ -496,7 +494,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             var bodyStream = gaudiBody.GetResponseStream();
 
             _serialPump =
-                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxBytes: 256 * 1024);
             _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
         }
         else
@@ -728,11 +726,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
         }
-    }
-
-    public void OnOutboundFlushed()
-    {
-        _serialPump?.OnCapacityAvailable();
     }
 
     internal readonly struct ResponseHeaderScan(long? contentLength, bool hasExplicitChunked, int estimatedSize)

@@ -1,6 +1,7 @@
 using System.Buffers;
 using Akka.Actor;
 using Servus.Akka.Transport;
+using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -8,13 +9,19 @@ internal sealed class SerialBodyPump(
     IBodyDrainTarget target,
     CancellationTokenSource connectionCts,
     int chunkSize,
-    int maxCapacity)
+    int maxBytes)
 {
     private Stream? _activeStream;
     private IMemoryOwner<byte>? _activeOwner;
     private CancellationTokenSource? _linkedCts;
     private bool _isReadInFlight;
-    private int _availableCapacity;
+
+    // Credit is denominated in body bytes, not chunk count: the pump may read while the budget is
+    // positive and debits the actual bytes read at emit time (below). A real wire flush of N bytes
+    // (TransportDataFlushed) credits N bytes back via OnCapacityAvailable, clamped to maxBytes, so
+    // at most maxBytes of body is ever in flight ahead of the socket. A negative budget (a final
+    // read overshooting the remaining credit) is expected and self-heals on the next credit.
+    private long _availableBytes;
 
     // Serial stream id is always 0, so the read-completion transforms capture nothing and are
     // shared statically — no per-Register closure allocation.
@@ -27,17 +34,21 @@ internal sealed class SerialBodyPump(
         _linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
             : null;
-        _availableCapacity = maxCapacity;
+        _availableBytes = maxBytes;
         TryStartRead();
     }
 
-    public void OnCapacityAvailable()
+    public void OnCapacityAvailable(int bytes)
     {
-        if (_availableCapacity < maxCapacity)
-        {
-            _availableCapacity++;
-        }
+        _availableBytes = Math.Min(maxBytes, _availableBytes + bytes);
+        Tracing.For("Protocol").Trace(this, "serial body credit={0} budget={1}", bytes, _availableBytes);
+        TryStartRead();
+    }
 
+    public void ResetCredit()
+    {
+        _availableBytes = maxBytes;
+        Tracing.For("Protocol").Debug(this, "serial body credit reset to {0}", maxBytes);
         TryStartRead();
     }
 
@@ -65,7 +76,7 @@ internal sealed class SerialBodyPump(
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
-        _availableCapacity = 0;
+        _availableBytes = 0;
         _isReadInFlight = false;
     }
 
@@ -76,18 +87,17 @@ internal sealed class SerialBodyPump(
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
-        _availableCapacity = 0;
+        _availableBytes = 0;
         _isReadInFlight = false;
     }
 
     private void TryStartRead()
     {
-        if (_availableCapacity <= 0 || _isReadInFlight || _activeStream is null)
+        if (_availableBytes <= 0 || _isReadInFlight || _activeStream is null)
         {
             return;
         }
 
-        _availableCapacity--;
         var token = _linkedCts?.Token ?? connectionCts.Token;
         _isReadInFlight = true;
         // WireBuffer.Rent leaves Length unset (0); ReadAsync below slices Memory[..chunkSize], so
@@ -127,7 +137,9 @@ internal sealed class SerialBodyPump(
             return;
         }
 
+        _availableBytes -= bytesRead;
         target.EmitOwnedDataFrames(0, owner!, bytesRead, endStream: false);
+        Tracing.For("Protocol").Trace(this, "serial body debit={0} budget={1}", bytesRead, _availableBytes);
         TryStartRead();
     }
 
@@ -139,7 +151,7 @@ internal sealed class SerialBodyPump(
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
-        _availableCapacity = 0;
+        _availableBytes = 0;
         if (wasActive)
         {
             target.OnDrainComplete(0);

@@ -71,7 +71,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
 
-            _serialPump!.OnCapacityAvailable();
+            // H1.0 has no real-flush routing — refill the pump's byte budget inline after each chunk
+            // so the drain keeps flowing (behavior unchanged; still watermark-guarded on the TCP side).
+            _serialPump?.ResetCredit();
         }
 
         EmitEndStreamIfNeeded(endStream);
@@ -84,7 +86,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             _rateGuard.ObserveResponse(0, bytesWritten);
             _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", bytesWritten);
-            _serialPump!.OnCapacityAvailable();
+            _serialPump?.ResetCredit();
         }
         else
         {
@@ -255,7 +257,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                     _closeAfterBody = true;
                 }
 
-                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _responseBodyChunkSize, maxCapacity: 2);
+                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _responseBodyChunkSize, maxBytes: 256 * 1024);
                 EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
                 _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
                 return;
@@ -267,11 +269,6 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void OnDownstreamFinished()
     {
-    }
-
-    public void OnOutboundFlushed()
-    {
-        _serialPump?.OnCapacityAvailable();
     }
 
     public void OnTimerFired(string name)

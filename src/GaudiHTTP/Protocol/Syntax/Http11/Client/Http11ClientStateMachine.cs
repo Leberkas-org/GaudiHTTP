@@ -313,6 +313,12 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             case TransportDisconnected disconnect when !IsReconnecting:
                 HandleDisconnect(disconnect);
                 return;
+
+            case TransportDataFlushed flushed:
+                // Real wire flush: credit the request-body pump by the bytes the transport actually
+                // drained. Replaces the push-time OnOutboundFlushed "lie" with true byte back-pressure.
+                _serialPump?.OnCapacityAvailable(flushed.Bytes);
+                return;
         }
 
         if (data is not TransportData { Buffer: var buffer })
@@ -393,11 +399,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
         }
-    }
-
-    public void OnOutboundFlushed()
-    {
-        _serialPump?.OnCapacityAvailable();
     }
 
     public void Cleanup()
@@ -583,7 +584,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
         _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
-            _options.ResolveRequestBodyChunkSize(_options.Http1), maxCapacity: 2);
+            _options.ResolveRequestBodyChunkSize(_options.Http1), maxBytes: 256 * 1024);
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
@@ -724,6 +725,18 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         _connectionState = ConnectionState.Active;
         _decoder.Reset();
+
+        // Reset the request-body credit state at the reconnect point, before any buffered request is
+        // re-armed. A request whose upload was interrupted leaves a stale, budget-depleted pump in
+        // _serialPump; each replayed body-drain (StartBodyDrain) constructs a FRESH pump whose
+        // Register() already fills the budget to maxBytes, so the replay never deadlocks on stale
+        // credit. Tear the stale pump down here rather than ResetCredit()-ing it: reviving an
+        // orphaned pump would make it read the old, partially-consumed body stream and emit those
+        // stale bytes onto the freshly reconnected wire (out of order, ahead of the replayed
+        // headers) — corrupting the connection. Disposing it also frees its rented buffer and
+        // linked CTS.
+        _serialPump?.Cleanup();
+        _serialPump = null;
 
         if (_reconnectPolicy.TakeBuffered() is { Count: > 0 } queue)
         {

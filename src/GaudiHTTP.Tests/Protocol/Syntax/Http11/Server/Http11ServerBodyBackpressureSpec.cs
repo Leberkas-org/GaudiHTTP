@@ -84,13 +84,13 @@ public sealed class Http11ServerBodyBackpressureSpec
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 10));
         sm.OnBodyMessage(new BodyReadFailed<int>(0, new Exception("simulated failure")));
 
-        // Subsequent operations should not throw
-        sm.OnOutboundFlushed();
+        // Subsequent flush credits should not throw after the drain failed.
+        sm.DecodeClientData(new TransportDataFlushed(1024));
         Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
-    public void OnOutboundFlushed_should_be_no_op_after_body_complete()
+    public void Transport_flush_should_be_no_op_after_body_complete()
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
@@ -101,9 +101,9 @@ public sealed class Http11ServerBodyBackpressureSpec
 
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
 
-        // PipeTo flow has no watermarks — OnOutboundFlushed is a no-op
-        sm.OnOutboundFlushed();
-        sm.OnOutboundFlushed();
+        // After the body completes the pump is torn down — a late TransportDataFlushed is a harmless no-op.
+        sm.DecodeClientData(new TransportDataFlushed(1024));
+        sm.DecodeClientData(new TransportDataFlushed(1024));
         Assert.True(true);
     }
 }

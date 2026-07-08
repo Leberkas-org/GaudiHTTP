@@ -125,6 +125,44 @@ public sealed class Http11ServerBodyPumpStallSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Response_body_should_park_at_byte_budget_and_resume_on_client_flush()
+    {
+        var ops = new FakeServerOps();
+        var sm = CreateSm(ops);
+        SendRequest(sm);
+
+        // 320 KB of readable body exceeds the pump's 256 KB byte budget (16 * 16 KB chunks). The
+        // writer is intentionally left open: this forces the streaming pump path (a completed,
+        // fully-buffered body would instead take the buffered-coalesce path) and keeps all 320 KB
+        // synchronously readable so the byte budget — not data availability — is what parks the pump.
+        const int bodySize = 20 * ChunkSize;
+        var (context, _) = CreateStreamingResponseContext(bodySize);
+        sm.OnResponse(context);
+        DrainBodyMessages(sm, ops);
+
+        var chunksBeforeFlush = ops.Outbound.Skip(1).OfType<TransportData>().Count();
+        Assert.True(chunksBeforeFlush < 20,
+            $"Pump emitted {chunksBeforeFlush} of 20 available chunks without a flush — no byte backpressure.");
+        Assert.True(chunksBeforeFlush >= 16,
+            $"Pump should drain up to its 256 KB budget (16 chunks) before parking; emitted {chunksBeforeFlush}.");
+        Assert.Empty(ops.ResponseBodyCompletions);
+
+        // Each decoded TransportDataFlushed credits the pump; it must resume and emit the remaining
+        // buffered chunks, proving the drain is now driven by real wire flushes.
+        var guard = 0;
+        while (ops.Outbound.Skip(1).OfType<TransportData>().Count() < 20 && guard++ < 100)
+        {
+            sm.DecodeClientData(new TransportDataFlushed(ChunkSize));
+            DrainBodyMessages(sm, ops);
+        }
+
+        var chunksAfterFlush = ops.Outbound.Skip(1).OfType<TransportData>().Count();
+        Assert.True(chunksAfterFlush >= 20,
+            $"After flush credits the pump should emit all 20 buffered chunks; got {chunksAfterFlush}.");
+        Assert.True(chunksAfterFlush > chunksBeforeFlush, "Flushes must make forward progress.");
+    }
+
+    [Fact(Timeout = 5000)]
     public void OnResponse_should_handle_incomplete_pipe_gracefully()
     {
         var ops = new FakeServerOps();

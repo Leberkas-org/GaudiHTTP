@@ -91,8 +91,9 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
 
-            // H1.0 has no OnOutboundFlushed — drive the pump inline after each chunk.
-            _serialPump!.OnCapacityAvailable();
+            // H1.0 has no real-flush routing — refill the pump's byte budget inline after each chunk
+            // so the drain keeps flowing (behavior unchanged; still watermark-guarded on the TCP side).
+            _serialPump?.ResetCredit();
         }
 
         if (endStream)
@@ -108,7 +109,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", bytesWritten);
-            _serialPump!.OnCapacityAvailable();
+            _serialPump?.ResetCredit();
         }
         else
         {
@@ -310,7 +311,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     private void StartBodyDrain(Stream bodyStream)
     {
         _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
-            _options.ResolveRequestBodyChunkSize(_options.Http1), maxCapacity: 2);
+            _options.ResolveRequestBodyChunkSize(_options.Http1), maxBytes: 256 * 1024);
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
