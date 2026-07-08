@@ -723,11 +723,15 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void OnConnectionRestored()
     {
+        // Capture the reconnect state BEFORE it is overwritten below: TransportConnected fires on the
+        // INITIAL connect too (the client connects lazily inside the first OnRequest), not only on a
+        // genuine reconnect.
+        var wasReconnecting = _connectionState == ConnectionState.Reconnecting;
         _connectionState = ConnectionState.Active;
         _decoder.Reset();
 
-        // Reset the request-body credit state at the reconnect point, before any buffered request is
-        // re-armed. A request whose upload was interrupted leaves a stale, budget-depleted pump in
+        // Reset the request-body credit state ONLY on a genuine reconnect, before any buffered request
+        // is re-armed. A request whose upload was interrupted leaves a stale, budget-depleted pump in
         // _serialPump; each replayed body-drain (StartBodyDrain) constructs a FRESH pump whose
         // Register() already fills the budget to maxBytes, so the replay never deadlocks on stale
         // credit. Tear the stale pump down here rather than ResetCredit()-ing it: reviving an
@@ -735,8 +739,17 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         // stale bytes onto the freshly reconnected wire (out of order, ahead of the replayed
         // headers) — corrupting the connection. Disposing it also frees its rented buffer and
         // linked CTS.
-        _serialPump?.Cleanup();
-        _serialPump = null;
+        //
+        // On the INITIAL connect this MUST NOT run: the first OnRequest already created and started
+        // _serialPump for a bodied request (parked at the 256 KB budget for a large/async body).
+        // TransportConnected necessarily precedes any TransportDataFlushed, so tearing the pump down
+        // here would strand the still-draining first upload — later flushes hit a null pump, end-stream
+        // never fires, and the request hangs (silent truncation).
+        if (wasReconnecting)
+        {
+            _serialPump?.Cleanup();
+            _serialPump = null;
+        }
 
         if (_reconnectPolicy.TakeBuffered() is { Count: > 0 } queue)
         {

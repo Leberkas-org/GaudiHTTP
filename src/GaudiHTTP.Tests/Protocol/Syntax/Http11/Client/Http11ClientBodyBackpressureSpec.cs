@@ -1,7 +1,9 @@
+using System.Net;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
+using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
@@ -78,6 +80,31 @@ public sealed class Http11ClientBodyBackpressureSpec
         return (sm, ops, body);
     }
 
+    private static readonly ConnectionInfo DummyConnectionInfo = new(
+        new IPEndPoint(IPAddress.Loopback, 5000),
+        new IPEndPoint(IPAddress.Loopback, 80),
+        TransportProtocol.Tcp);
+
+    private static (Http11ClientStateMachine Sm, FakeClientOps Ops, CountingStream Body) CreateBodiedRequest(
+        HttpMethod method, GaudiClientOptions options)
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http11ClientStateMachine(options, ops);
+        sm.PreStart();
+
+        var body = new CountingStream(BodySize);
+        var content = new StreamContent(body);
+        content.Headers.ContentLength = BodySize;
+        var request = new HttpRequestMessage(method, "http://example.com/upload")
+        {
+            Version = new Version(1, 1),
+            Content = content,
+        };
+
+        sm.OnRequest(request);
+        return (sm, ops, body);
+    }
+
     private static void DrainBodyMessages(Http11ClientStateMachine sm, FakeClientOps ops)
     {
         while (ops.BodyMessages.Count > 0)
@@ -143,5 +170,69 @@ public sealed class Http11ClientBodyBackpressureSpec
         var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
         Assert.Equal(BodySize, totalBodyBytes);
         Assert.True(sm.CanAcceptRequest, "Request should be dispatchable again after body completion.");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Initial_TransportConnected_should_not_tear_down_first_request_pump()
+    {
+        // Regression: the client connects lazily inside the first OnRequest, which also creates the
+        // body pump. For a bodied first request larger than the 256 KB budget the pump parks mid-body;
+        // the INITIAL TransportConnected then arrives BEFORE any TransportDataFlushed. The reconnect
+        // stale-pump teardown must NOT fire here, or the first upload is silently truncated and hangs.
+        var (sm, ops, _) = CreatePostedRequest();
+
+        DrainBodyMessages(sm, ops);
+        var chunksBeforeConnect = ops.Outbound.OfType<TransportData>().Count() - 1;
+        Assert.InRange(chunksBeforeConnect, 1, TotalChunks - 1); // parked mid-body, not yet complete
+
+        // Deliver the initial connect — the still-draining first pump must survive it.
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        DrainBodyMessages(sm, ops);
+
+        // Real flushes must still drive the (intact) pump to completion.
+        var guard = 0;
+        while (!sm.CanAcceptRequest && guard++ < 10 * TotalChunks)
+        {
+            sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
+            DrainBodyMessages(sm, ops);
+        }
+
+        var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
+        Assert.Equal(BodySize, totalBodyBytes);
+        Assert.True(sm.CanAcceptRequest,
+            "Initial connect must leave the first request's pump intact so the upload completes.");
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Reconnect_should_tear_down_stale_pump_and_emit_no_stale_bytes()
+    {
+        // Contrast to the initial-connect case: a GENUINE reconnect must tear the stale, budget-parked
+        // pump down so flushes on the reconnected wire cannot revive it and emit stale body bytes.
+        var options = TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3,
+            http1ReconnectInitialBackoff: TimeSpan.Zero);
+        options.RequestBodyChunkSize = ChunkSize;
+        var (sm, ops, _) = CreateBodiedRequest(HttpMethod.Post, options);
+
+        // Initial connect, then park the (soon-to-be stale) pump mid-body.
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        DrainBodyMessages(sm, ops);
+        Assert.True(ops.Outbound.OfType<TransportData>().Count() - 1 < TotalChunks,
+            "Pump should be parked mid-body before the disconnect.");
+
+        // Ungraceful disconnect: the non-idempotent POST is failed (not replayed) and reconnect begins.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        Assert.True(sm.IsReconnecting);
+
+        // Reconnect restore tears the stale pump down; nothing safe to replay for a POST.
+        ops.Outbound.Clear();
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        DrainBodyMessages(sm, ops);
+
+        // Flushes on the reconnected wire must NOT revive the torn-down stale pump — zero body bytes.
+        sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
+        sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
+        DrainBodyMessages(sm, ops);
+
+        Assert.Empty(ops.Outbound.OfType<TransportData>());
     }
 }
