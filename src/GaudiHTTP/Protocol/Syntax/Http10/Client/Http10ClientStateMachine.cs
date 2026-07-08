@@ -56,7 +56,13 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     {
         _ops = ops;
         _options = options;
-        _reconnectPolicy = new ReconnectPolicy<HttpRequestMessage>(ops, options.Http1.MaxReconnectAttempts);
+        _reconnectPolicy = new ReconnectPolicy<HttpRequestMessage>(
+            ops,
+            options.Http1.MaxReconnectAttempts,
+            options.Http1.ReconnectInitialBackoff,
+            options.Http1.ReconnectMaxBackoff,
+            options.Http1.ReconnectBackoffMultiplier,
+            options.Http1.ReconnectBackoffJitter);
 
         var decoderOpts = options.ToHttp10DecoderOptions();
 
@@ -195,6 +201,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public void OnTimerFired(string name)
     {
+        _reconnectPolicy.OnReconnectTimerFired(name);
     }
 
     public void OnBodyMessage(object msg)

@@ -72,6 +72,30 @@ public sealed class Http1ClientOptions
     public int MaxReconnectAttempts { get; set; } = 3;
 
     /// <summary>
+    /// Delay before the first reconnect retry after a failed attempt. Successive retries grow by
+    /// <see cref="ReconnectBackoffMultiplier"/> up to <see cref="ReconnectMaxBackoff"/>, with
+    /// <see cref="ReconnectBackoffJitter"/> applied. Spacing retries avoids a tight reconnect
+    /// busy-loop against a peer that refuses connections instantly. Default is 100 ms.
+    /// </summary>
+    public TimeSpan ReconnectInitialBackoff { get; set; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Upper bound on the exponential reconnect backoff delay. Default is 5 seconds.
+    /// </summary>
+    public TimeSpan ReconnectMaxBackoff { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Growth factor applied to the reconnect backoff on each successive retry. Default is 2.0.
+    /// </summary>
+    public double ReconnectBackoffMultiplier { get; set; } = 2.0;
+
+    /// <summary>
+    /// Fractional jitter (0..1) applied symmetrically to each reconnect backoff delay to avoid a
+    /// thundering herd of correlated reconnects. Default is 0.2 (±20%).
+    /// </summary>
+    public double ReconnectBackoffJitter { get; set; } = 0.2;
+
+    /// <summary>
     /// Maximum number of header fields accepted in an HTTP/1.x response.
     /// Guards against malicious servers flooding the client with header lines. Default is 100
     /// </summary>

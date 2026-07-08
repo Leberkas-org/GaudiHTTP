@@ -9,6 +9,8 @@ internal sealed class FakeClientOps : IClientStageOperations
     public List<HttpResponseMessage> Responses { get; } = [];
     public List<ITransportOutbound> Outbound { get; } = [];
     public List<object> BodyMessages { get; } = [];
+    public List<(string Name, TimeSpan Duration)> ScheduledTimers { get; } = [];
+    public List<string> CancelledTimers { get; } = [];
 
     public FakeClientOps()
     {
@@ -20,10 +22,12 @@ internal sealed class FakeClientOps : IClientStageOperations
 
     public void OnScheduleTimer(string name, TimeSpan duration)
     {
+        ScheduledTimers.Add((name, duration));
     }
 
     public void OnCancelTimer(string name)
     {
+        CancelledTimers.Add(name);
     }
 
     public IActorRef StageActor { get; }

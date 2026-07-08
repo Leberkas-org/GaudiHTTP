@@ -136,6 +136,12 @@ public sealed class GaudiClientOptions
     public double StreamRetryBackoffMultiplier { get; set; } = 2.0;
 
     /// <summary>
+    /// Fractional jitter (0..1) applied symmetrically to each stream-materialization retry delay to
+    /// avoid a thundering herd of correlated re-materializations across clients. Default is 0.2 (±20%).
+    /// </summary>
+    public double StreamRetryBackoffJitter { get; set; } = 0.2;
+
+    /// <summary>
     /// Maximum number of stream materialization retry attempts before the client gives up and
     /// reports a failure. Default is 10.
     /// </summary>

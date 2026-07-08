@@ -12,15 +12,44 @@ namespace GaudiHTTP.Protocol.Semantics;
 /// </summary>
 internal sealed class ReconnectPolicy<TBuffered>
 {
+    /// <summary>Timer name used to defer a reconnect attempt behind an exponential backoff delay.</summary>
+    public const string BackoffTimerName = ReconnectBackoff.TimerName;
+
     private readonly IClientStageOperations _ops;
     private readonly int _maxAttempts;
+    private readonly TimeSpan _initialBackoff;
+    private readonly TimeSpan _maxBackoff;
+    private readonly double _multiplier;
+    private readonly double _jitter;
+    private readonly Random _rng;
     private int _attempts;
     private TBuffered? _buffered;
+    private TransportOptions? _transportOptions;
 
-    public ReconnectPolicy(IClientStageOperations ops, int maxAttempts)
+    /// <param name="initialBackoff">
+    /// Delay before the first retry after a failed attempt. When less than or equal to
+    /// <see cref="TimeSpan.Zero"/> (the default) reconnects fire immediately, preserving the legacy
+    /// zero-delay behaviour; a positive value defers each retry behind <see cref="BackoffTimerName"/>.
+    /// </param>
+    /// <param name="maxBackoff">Upper bound on the (pre-jitter) exponential backoff delay.</param>
+    /// <param name="multiplier">Growth factor applied per successive retry.</param>
+    /// <param name="jitter">Fractional jitter (0..1) applied symmetrically to each computed delay.</param>
+    public ReconnectPolicy(
+        IClientStageOperations ops,
+        int maxAttempts,
+        TimeSpan initialBackoff = default,
+        TimeSpan maxBackoff = default,
+        double multiplier = 2.0,
+        double jitter = 0.2,
+        Random? rng = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxAttempts = maxAttempts;
+        _initialBackoff = initialBackoff;
+        _maxBackoff = maxBackoff > TimeSpan.Zero ? maxBackoff : initialBackoff;
+        _multiplier = multiplier <= 0 ? 1.0 : multiplier;
+        _jitter = Math.Clamp(jitter, 0.0, 1.0);
+        _rng = rng ?? Random.Shared;
     }
 
     public bool CanReconnect => _maxAttempts > 0;
@@ -32,11 +61,14 @@ internal sealed class ReconnectPolicy<TBuffered>
 
     /// <summary>
     /// Begins reconnecting: stashes <paramref name="buffered"/> for later replay/failure, resets
-    /// the attempt counter to 1, and emits the first <see cref="ConnectTransport"/>.
+    /// the attempt counter to 1, and emits the first <see cref="ConnectTransport"/>. The first
+    /// attempt fires immediately (a real disconnect just occurred); only subsequent retries via
+    /// <see cref="OnAttemptFailed"/> are spaced by the backoff.
     /// </summary>
     public void Start(TBuffered buffered, TransportOptions transportOptions)
     {
         _buffered = buffered;
+        _transportOptions = transportOptions;
         _attempts = 1;
         _ops.OnOutbound(new ConnectTransport(transportOptions));
     }
@@ -52,6 +84,12 @@ internal sealed class ReconnectPolicy<TBuffered>
         var buffered = _buffered;
         _buffered = default;
         _attempts = 0;
+        _transportOptions = default;
+        if (_initialBackoff > TimeSpan.Zero)
+        {
+            _ops.OnCancelTimer(BackoffTimerName);
+        }
+
         return buffered;
     }
 
@@ -74,7 +112,43 @@ internal sealed class ReconnectPolicy<TBuffered>
 
         buffered = default;
         _attempts++;
-        _ops.OnOutbound(new ConnectTransport(transportOptions));
+        _transportOptions = transportOptions;
+
+        if (_initialBackoff > TimeSpan.Zero)
+        {
+            // Defer the retry behind a backoff timer instead of reconnecting immediately, so a
+            // connection-refused peer is not hammered in a tight loop (see OnReconnectTimerFired).
+            _ops.OnScheduleTimer(BackoffTimerName, ComputeBackoff(_attempts));
+        }
+        else
+        {
+            _ops.OnOutbound(new ConnectTransport(transportOptions));
+        }
+
         return false;
     }
+
+    /// <summary>
+    /// Emits the deferred <see cref="ConnectTransport"/> when the backoff timer named
+    /// <see cref="BackoffTimerName"/> fires. Returns <see langword="false"/> for any other timer so
+    /// the caller can continue dispatching, and is a no-op if the reconnect was already abandoned.
+    /// </summary>
+    public bool OnReconnectTimerFired(string name)
+    {
+        if (name != BackoffTimerName)
+        {
+            return false;
+        }
+
+        if (_transportOptions is not null)
+        {
+            _ops.OnOutbound(new ConnectTransport(_transportOptions));
+        }
+
+        return true;
+    }
+
+    // _attempts is post-increment: 2 for the first retry, 3 for the second, ... so retryNumber = attempts - 1.
+    private TimeSpan ComputeBackoff(int attempt)
+        => ReconnectBackoff.Compute(attempt - 1, _initialBackoff, _maxBackoff, _multiplier, _jitter, _rng);
 }
