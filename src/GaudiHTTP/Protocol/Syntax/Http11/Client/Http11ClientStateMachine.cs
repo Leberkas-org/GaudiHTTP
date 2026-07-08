@@ -756,6 +756,22 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             while (queue.Count > 0)
             {
                 var req = queue.Dequeue();
+
+                // The encoder re-reads the body via HttpContent.ReadAsStream(), which returns the
+                // SAME cached stream now sitting at EOF from the interrupted first attempt. Rewind a
+                // seekable body to the start so the replay re-sends it in full; fail fast on a
+                // consumed forward-only body instead of advertising the full Content-Length while
+                // emitting a truncated body (which would hang a fixed-length server read).
+                if (!RequestBodyReplay.TryRewindForReplay(req))
+                {
+                    Tracing.For("Protocol").Warning(this,
+                        "HTTP/1.1: cannot replay {0} {1} after reconnect — request body is not rewindable",
+                        req.Method, req.RequestUri);
+                    req.Fail(new HttpRequestException(
+                        "HTTP/1.1 request body could not be replayed after connection loss: the content stream is not rewindable."));
+                    continue;
+                }
+
                 OnRequest(req);
             }
         }

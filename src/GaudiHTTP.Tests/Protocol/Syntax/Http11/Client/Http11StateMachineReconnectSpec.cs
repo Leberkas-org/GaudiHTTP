@@ -9,6 +9,45 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11StateMachineReconnectSpec
 {
+    private static void DrainBodyMessages(Http11ClientStateMachine sm, FakeClientOps ops)
+    {
+        while (ops.BodyMessages.Count > 0)
+        {
+            var msg = ops.BodyMessages[0];
+            ops.BodyMessages.RemoveAt(0);
+            sm.OnBodyMessage(msg);
+        }
+    }
+
+    /// <summary>Forward-only body stream: CanSeek == false, cannot be rewound for replay.</summary>
+    private sealed class NonSeekableStream(int length) : Stream
+    {
+        private int _position;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => length;
+        public override long Position { get => _position; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var n = Math.Min(count, length - _position);
+            buffer.AsSpan(offset, n).Fill(0x42);
+            _position += n;
+            return n;
+        }
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            var n = Math.Min(buffer.Length, length - _position);
+            buffer.Span[..n].Fill(0x42);
+            _position += n;
+            return ValueTask.FromResult(n);
+        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
     private static HttpRequestMessage MakeRequest(string path = "/")
         => new(HttpMethod.Get, $"http://example.com{path}")
         {
@@ -186,6 +225,90 @@ public sealed class Http11StateMachineReconnectSpec
 
         // Only the idempotent GET is replayed.
         Assert.Single(ops.Outbound.OfType<TransportData>());
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-9.2.2")]
+    public void Reconnect_replay_should_resend_full_seekable_body()
+    {
+        const int bodySize = 64 * 1024;
+        var payload = new byte[bodySize];
+        new Random(1).NextBytes(payload);
+
+        var ops = new FakeClientOps();
+        var options = TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3,
+            http1ReconnectInitialBackoff: TimeSpan.Zero);
+        options.RequestBodyChunkSize = 16 * 1024;
+        var sm = new Http11ClientStateMachine(options, ops);
+        sm.PreStart();
+
+        var content = new ByteArrayContent(payload);
+        content.Headers.ContentLength = bodySize;
+        var request = new HttpRequestMessage(HttpMethod.Put, "http://example.com/upload")
+        {
+            Version = new Version(1, 1),
+            Content = content,
+        };
+
+        // First attempt: the 64 KB body fits within the 256 KB pump budget, so it fully drains.
+        sm.OnRequest(request);
+        DrainBodyMessages(sm, ops);
+        Assert.Equal(bodySize, ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length));
+
+        // Ungraceful disconnect: the idempotent PUT is buffered for reconnect replay.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        Assert.True(sm.IsReconnecting);
+
+        // Reconnect replay MUST re-send the FULL body. Before the fix the cached, already-consumed
+        // content stream (Position == Length) yields 0 body bytes while headers still declare the
+        // full Content-Length — the server then blocks forever on ReadAsync.
+        ops.Outbound.Clear();
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        DrainBodyMessages(sm, ops);
+
+        var replayedBody = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
+        Assert.Equal(bodySize, replayedBody);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-9.2.2")]
+    public void Reconnect_replay_should_fail_fast_when_body_is_non_rewindable()
+    {
+        const int bodySize = 64 * 1024;
+
+        var ops = new FakeClientOps();
+        var options = TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3,
+            http1ReconnectInitialBackoff: TimeSpan.Zero);
+        options.RequestBodyChunkSize = 16 * 1024;
+        var sm = new Http11ClientStateMachine(options, ops);
+        sm.PreStart();
+
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var content = new StreamContent(new NonSeekableStream(bodySize));
+        content.Headers.ContentLength = bodySize;
+        var request = new HttpRequestMessage(HttpMethod.Put, "http://example.com/upload")
+        {
+            Version = new Version(1, 1),
+            Content = content,
+        };
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, version);
+
+        sm.OnRequest(request);
+        DrainBodyMessages(sm, ops);
+
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        Assert.True(sm.IsReconnecting);
+
+        // A consumed forward-only body cannot be rewound. Replaying it would advertise the full
+        // Content-Length but send a truncated body, hanging the server. Fail fast instead.
+        ops.Outbound.Clear();
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        DrainBodyMessages(sm, ops);
+
+        Assert.True(pending.GetValueTask().IsFaulted);
+        Assert.Empty(ops.Outbound.OfType<TransportData>());
     }
 
     [Fact(Timeout = 5000)]

@@ -27,14 +27,14 @@ namespace GaudiHTTP.IntegrationTests.End2End.H11;
 /// cooperation to produce. The real server is untouched and keeps serving the replay after
 /// reconnect, through the same still-listening proxy.
 ///
-/// SKIPPED: this spec currently reproduces a server-side defect unrelated to the client-side
-/// credit-gating feature this branch adds (see task-9-report.md for full trace evidence). After a
-/// mid-body kill + reconnect, the client correctly replays the full body onto a fresh connection
-/// and the server correctly dispatches it on a fresh <c>Http11ServerStateMachine</c> instance --
-/// but the eventual "response received" / "response body writer starting" trace fires on the OLD
-/// (already-torn-down) connection's state machine instance instead of the new one, and no response
-/// ever reaches the client, so the request hangs until the client's own timeout. Left skipped
-/// (rather than deleted) so it can be re-enabled once that response mis-routing is fixed upstream.
+/// The earlier "server-side response mis-routing" attribution was a red herring: connection 1's own
+/// slow handler legitimately completes against its dead socket (its response is discarded), while the
+/// real defect was purely client-side. On replay the client re-encoded the body from the cached,
+/// already-consumed <see cref="HttpContent.ReadAsStream()"/> stream (Position == Length == EOF), so
+/// the replayed request declared the full <c>Content-Length</c> but sent 0 body bytes and the server
+/// blocked forever on <c>ReadAsync</c>. Fixed in <c>Http11ClientStateMachine.OnConnectionRestored</c>
+/// via <c>RequestBodyReplay.TryRewindForReplay</c> (rewind seekable bodies before replay; fail fast on
+/// non-rewindable ones).
 /// </remarks>
 [Collection("H11")]
 public sealed class UploadReconnectSpec : End2EndSpecBase
@@ -119,12 +119,7 @@ public sealed class UploadReconnectSpec : End2EndSpecBase
         await base.DisposeAsync();
     }
 
-    [Fact(Timeout = 90000, Skip =
-        "Reproduces a server-side response mis-routing defect after mid-body reconnect: the " +
-        "replayed request is correctly dispatched on the fresh connection's Http11ServerStateMachine, " +
-        "but the response trace fires on the OLD (torn-down) connection's instance instead, so no " +
-        "response ever reaches the client. Unrelated to this branch's client-side credit-gating " +
-        "change -- see task-9-report.md. Re-enable once fixed upstream.")]
+    [Fact(Timeout = 90000)]
     [Trait("RFC", "RFC9112-9.3")]
     public async Task UploadReconnect_should_replay_and_complete_after_mid_upload_connection_drop()
     {
