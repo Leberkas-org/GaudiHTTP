@@ -91,8 +91,13 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
         }
     }
 
-    public bool TrySetCanceled(CancellationToken ct = default)
+    public bool TrySetCanceled(CancellationToken ct, short expectedVersion)
     {
+        if (_core.Version != expectedVersion)
+        {
+            return false;
+        }
+
         try
         {
             _core.SetException(new OperationCanceledException(ct));

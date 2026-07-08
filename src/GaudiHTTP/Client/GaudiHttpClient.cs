@@ -191,8 +191,12 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
             if (!hasTimeout)
             {
                 await using (cancellationToken.UnsafeRegister(
-                                 static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
-                                 pending))
+                                 static (state, ct) =>
+                                 {
+                                     var (p, v) = ((PendingRequest, short))state!;
+                                     p.TrySetCanceled(ct, v);
+                                 },
+                                 (pending, version)))
                 {
                     return await pending.GetValueTask();
                 }
@@ -200,8 +204,12 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
 
             cts!.CancelAfter(effectiveTimeout);
             await using (cts.Token.UnsafeRegister(
-                             static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
-                             pending))
+                             static (state, ct) =>
+                             {
+                                 var (p, v) = ((PendingRequest, short))state!;
+                                 p.TrySetCanceled(ct, v);
+                             },
+                             (pending, version)))
             {
                 return await pending.GetValueTask();
             }
@@ -250,7 +258,7 @@ public sealed class GaudiHttpClient : IGaudiHttpClient
     {
         foreach (var pending in _pendingTcs.Keys)
         {
-            pending.TrySetCanceled();
+            pending.TrySetCanceled(default, pending.Version);
             _pendingTcs.TryRemove(pending, out _);
         }
 

@@ -51,7 +51,7 @@ public sealed class PendingRequestLifecycleSpec
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        Assert.True(pr.TrySetCanceled(cts.Token));
+        Assert.True(pr.TrySetCanceled(cts.Token, pr.Version));
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () => await pr.GetValueTask());
 
@@ -170,7 +170,7 @@ public sealed class PendingRequestLifecycleSpec
             {
                 foreach (var pending in pendingTcs.Keys)
                 {
-                    pending.TrySetCanceled();
+                    pending.TrySetCanceled(default, pending.Version);
                     if (pendingTcs.TryRemove(pending, out _))
                     {
                         Interlocked.Increment(ref cancelCount);
@@ -184,7 +184,7 @@ public sealed class PendingRequestLifecycleSpec
 
         foreach (var pending in pendingTcs.Keys)
         {
-            pending.TrySetCanceled(TestContext.Current.CancellationToken);
+            pending.TrySetCanceled(TestContext.Current.CancellationToken, pending.Version);
             pendingTcs.TryRemove(pending, out _);
             PendingRequest.Return(pending);
         }

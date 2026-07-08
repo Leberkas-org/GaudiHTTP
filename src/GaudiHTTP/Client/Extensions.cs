@@ -45,14 +45,19 @@ public static class Extensions
         CancellationToken ct = default)
     {
         var pending = PendingRequest.Rent();
+        var version = pending.Version;
         request.Options.Set(OptionsKey.Key, pending);
-        request.Options.Set(OptionsKey.VersionKey, pending.Version);
+        request.Options.Set(OptionsKey.VersionKey, version);
 
         if (ct.CanBeCanceled)
         {
             ct.UnsafeRegister(
-                static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
-                pending);
+                static (state, ct) =>
+                {
+                    var (p, v) = ((PendingRequest, short))state!;
+                    p.TrySetCanceled(ct, v);
+                },
+                (pending, version));
         }
 
         return pending.GetValueTask();

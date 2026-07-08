@@ -151,7 +151,7 @@ public sealed class PendingRequestPoolingSpec
     {
         var pending = PendingRequest.Rent();
 
-        var result = pending.TrySetCanceled(TestContext.Current.CancellationToken);
+        var result = pending.TrySetCanceled(TestContext.Current.CancellationToken, pending.Version);
 
         Assert.True(result);
     }
@@ -162,7 +162,7 @@ public sealed class PendingRequestPoolingSpec
         var pending = PendingRequest.Rent();
         using var cts = new CancellationTokenSource();
 
-        var result = pending.TrySetCanceled(cts.Token);
+        var result = pending.TrySetCanceled(cts.Token, pending.Version);
 
         Assert.True(result);
     }
@@ -173,7 +173,7 @@ public sealed class PendingRequestPoolingSpec
         var pending = PendingRequest.Rent();
         var task = pending.GetValueTask();
 
-        pending.TrySetCanceled(TestContext.Current.CancellationToken);
+        pending.TrySetCanceled(TestContext.Current.CancellationToken, pending.Version);
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () => await task);
     }
@@ -260,7 +260,7 @@ public sealed class PendingRequestPoolingSpec
             version,
             ValueTaskSourceOnCompletedFlags.UseSchedulingContext);
 
-        pending.TrySetCanceled(TestContext.Current.CancellationToken);
+        pending.TrySetCanceled(TestContext.Current.CancellationToken, version);
 
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(4), TestContext.Current.CancellationToken);
     }
@@ -310,5 +310,44 @@ public sealed class PendingRequestPoolingSpec
             Task.Delay(100, TestContext.Current.CancellationToken));
 
         Assert.NotSame(completed, Task.Run(async () => await task1));
+    }
+
+    // Reproduces the TrailerSpec cross-test flake: a cancellation callback registered against one
+    // request's pooled PendingRequest can fire AFTER that instance was returned to the process-global
+    // pool and re-rented by a different in-flight request. Without a version guard, TrySetCanceled
+    // would cancel the unrelated new renter and its real response would be dropped. The version guard
+    // makes the stale cancel a no-op.
+    [Fact(Timeout = 5000)]
+    public async Task TrySetCanceled_WithStaleVersion_DoesNotCancelRecycledPending()
+    {
+        // Rent P for request R1; capture the version the cancel callback is bound to.
+        var pending = PendingRequest.Rent();
+        var staleVersion = pending.Version;
+
+        // R1 completes and P is returned to the global pool.
+        pending.TrySetResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK), staleVersion);
+        _ = await pending.GetValueTask();
+        PendingRequest.Return(pending);
+
+        // A different in-flight request R2 re-rents the SAME pooled instance (version bumped).
+        var reused = PendingRequest.Rent();
+        var newVersion = reused.Version;
+        Assert.Same(pending, reused);
+        Assert.NotEqual(staleVersion, newVersion);
+
+        var r2Task = reused.GetValueTask();
+
+        // The stale cancel callback from R1 fires late, still bound to the OLD version.
+        var staleCancelResult = reused.TrySetCanceled(TestContext.Current.CancellationToken, staleVersion);
+
+        // The version guard must reject it — R2 is untouched.
+        Assert.False(staleCancelResult);
+
+        // R2's real response still completes it, and awaiting yields that response (not a cancellation).
+        var expected = new HttpResponseMessage(System.Net.HttpStatusCode.Created);
+        Assert.True(reused.TrySetResult(expected, newVersion));
+        Assert.Same(expected, await r2Task);
+
+        PendingRequest.Return(reused);
     }
 }

@@ -58,7 +58,7 @@ public sealed class ClientConsumerStaleResponseSpec : StreamTestBase
 
         // Advance the version by cancelling — now TrySetResult with the old version returns false
 #pragma warning disable xUnit1051 // SUT behavior: simulates request cancellation, not test cooperative cancellation
-        pending.TrySetCanceled();
+        pending.TrySetCanceled(default, staleVersion);
 #pragma warning restore xUnit1051
 
         // Inject a stale response that references the request (with old version in Options)

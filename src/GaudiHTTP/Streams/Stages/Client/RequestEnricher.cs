@@ -101,8 +101,12 @@ internal sealed class RequestEnricher(Func<GaudiRequestOptions> optionsFactory)
                 if (request.Options.TryGetValue(OptionsKey.Key, out var pending))
                 {
                     cts.Token.UnsafeRegister(
-                        static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
-                        pending);
+                        static (state, ct) =>
+                        {
+                            var (p, v) = ((PendingRequest, short))state!;
+                            p.TrySetCanceled(ct, v);
+                        },
+                        (pending, pending.Version));
 
                     // Hand ownership of the timer-backed source to the pending request so it is
                     // disposed the moment the response is delivered, instead of lingering (and holding
