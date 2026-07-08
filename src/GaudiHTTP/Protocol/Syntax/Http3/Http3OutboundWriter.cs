@@ -7,17 +7,18 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// <summary>
 /// Owns the outbound wire-emission concerns shared by the HTTP/3 client and server session
 /// managers: control-preface construction, DATA-frame framing, and the multiplexed body pump
-/// together with its connection-level outbound credit. Client/server differences (throw-vs-null
+/// together with its per-stream outbound byte budget. Client/server differences (throw-vs-null
 /// preface handling, <c>CompleteWrites</c>/rate-observation on DATA emission) stay in the
 /// session managers, which call into this writer for the shared mechanics.
 /// </summary>
 internal sealed class Http3OutboundWriter
 {
-    // Connection-level outbound credit for the multiplexed body pump. Each emitted DATA frame
-    // consumes one unit; the transport replenishes one unit per drained outbound item via
-    // OnOutboundFlushed. Caps the in-flight (emitted-but-unflushed) 16 KB frames per connection,
-    // keeping the shared array pool warm instead of exhausting it under concurrent uploads.
-    public const int OutboundBodyCapacity = 16;
+    // Per-stream outbound byte budget for the multiplexed body pump. Each emitted DATA frame debits
+    // the bytes it carries; the transport credits the bytes it actually flushed back per stream via
+    // MultiplexedDataFlushed -> OnCapacityAvailable. Caps the in-flight (emitted-but-unflushed) body
+    // bytes PER STREAM, so one slow reader parks only itself and the shared array pool stays bounded
+    // under concurrent uploads.
+    public const int OutboundBodyByteBudget = 256 * 1024;
 
     private readonly IMultiplexedBodyDrainTarget _target;
     private readonly CancellationTokenSource _connectionCts;
@@ -95,12 +96,12 @@ internal sealed class Http3OutboundWriter
     }
 
     /// <summary>
-    /// Lazily creates the shared multiplexed body pump (bounded by <see cref="OutboundBodyCapacity"/>)
-    /// and registers a stream's body for draining.
+    /// Lazily creates the shared multiplexed body pump (each stream bounded by
+    /// <see cref="OutboundBodyByteBudget"/>) and registers a stream's body for draining.
     /// </summary>
     public void Register(long streamId, Stream bodyStream, CancellationToken cancellationToken)
     {
-        _pump ??= new MultiplexedBodyPump(_target, _connectionCts, _bodyChunkSize, OutboundBodyCapacity);
+        _pump ??= new MultiplexedBodyPump(_target, _connectionCts, _bodyChunkSize, OutboundBodyByteBudget);
         _pump.Register(streamId, bodyStream, contentLength: null, cancellationToken);
     }
 
@@ -114,9 +115,9 @@ internal sealed class Http3OutboundWriter
         _pump?.HandleReadFailed(streamId, reason);
     }
 
-    public void OnCapacityAvailable()
+    public void OnCapacityAvailable(long streamId, int bytes)
     {
-        _pump?.OnCapacityAvailable();
+        _pump?.OnCapacityAvailable(streamId, bytes);
     }
 
     public void Cancel(long streamId)

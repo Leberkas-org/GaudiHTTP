@@ -68,14 +68,15 @@ public sealed class Http3OutboundWriterSpec
     }
 
     private static void DrainToCompletion(
-        Http3OutboundWriter writer, FakeTarget target, int expectedCompletions = 1, int maxIterations = 10_000)
+        Http3OutboundWriter writer, FakeTarget target, long streamId = 1L,
+        int expectedCompletions = 1, int maxIterations = 10_000)
     {
         var iterations = 0;
         while (target.Completed.Count < expectedCompletions
                && target.Failed.Count == 0
                && iterations++ < maxIterations)
         {
-            writer.OnCapacityAvailable();
+            writer.OnCapacityAvailable(streamId, 1 * 1024 * 1024);
 
             if (target.PendingMessages.Count == 0)
             {
@@ -169,19 +170,19 @@ public sealed class Http3OutboundWriterSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Register_should_bound_in_flight_emissions_to_OutboundBodyCapacity_without_drain_signal()
+    public void Register_should_bound_in_flight_bytes_to_OutboundBodyByteBudget_without_drain_signal()
     {
         var target = new FakeTarget();
-        // Body large enough to need far more chunks than the credit cap allows.
-        var writer = new Http3OutboundWriter(target, new CancellationTokenSource(), bodyChunkSize: 16);
+        // Body larger than the per-stream byte budget so the stream must park before draining.
+        var writer = new Http3OutboundWriter(target, new CancellationTokenSource(), bodyChunkSize: 16 * 1024);
 
-        writer.Register(1L, MakeBody(16 * (Http3OutboundWriter.OutboundBodyCapacity * 4)), CancellationToken.None);
+        writer.Register(1L, MakeBody(Http3OutboundWriter.OutboundBodyByteBudget + 64 * 1024), CancellationToken.None);
         DriveReadsWithoutCapacity(writer, target);
 
-        var emittedData = target.Emitted.Count(e => !e.EndStream);
+        var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
         Assert.True(
-            emittedData <= Http3OutboundWriter.OutboundBodyCapacity,
-            $"expected at most {Http3OutboundWriter.OutboundBodyCapacity} in-flight emissions without a drain signal, got {emittedData}");
+            emittedBytes <= Http3OutboundWriter.OutboundBodyByteBudget,
+            $"expected at most {Http3OutboundWriter.OutboundBodyByteBudget} in-flight bytes without a drain signal, got {emittedBytes}");
         Assert.Empty(target.Completed);
     }
 

@@ -41,6 +41,16 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
 
     public void DecodeClientData(ITransportInbound data)
     {
+        if (data is MultiplexedDataFlushed flushed)
+        {
+            // Real per-stream wire flush: credit that stream's response-body pump by the bytes the
+            // transport actually drained. Replaces the push-time OnOutboundFlushed "lie" with true
+            // per-stream byte back-pressure. A flush never changes the active-stream count, so it
+            // bypasses the keep-alive bookkeeping below.
+            _sessionManager.OnCapacityAvailable(flushed.StreamId.Value, flushed.Bytes);
+            return;
+        }
+
         _sessionManager.DecodeClientData(data);
 
         var streamCount = _sessionManager.ActiveStreamCount;
@@ -70,11 +80,6 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
     public void OnDownstreamFinished()
     {
         _sessionManager.FlushAllPendingRequests();
-    }
-
-    public void OnOutboundFlushed()
-    {
-        _sessionManager.OnOutboundFlushed();
     }
 
     public void OnTimerFired(string name)

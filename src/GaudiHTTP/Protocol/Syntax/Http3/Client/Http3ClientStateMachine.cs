@@ -168,6 +168,15 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
                     return;
                 }
 
+            case MultiplexedDataFlushed flushed:
+                {
+                    // Real per-stream wire flush: credit that stream's request-body pump by the bytes
+                    // the transport actually drained. Replaces the push-time OnOutboundFlushed "lie"
+                    // (aggregate, per-item) with true per-stream byte back-pressure.
+                    _clientSession.OnCapacityAvailable(flushed.StreamId.Value, flushed.Bytes);
+                    return;
+                }
+
             case MultiplexedData multiplexed:
                 {
                     HandleTaggedStreamData(multiplexed);
@@ -251,11 +260,6 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     public void OnBodyMessage(object msg)
     {
         _clientSession.OnBodyMessage(msg);
-    }
-
-    public void OnOutboundFlushed()
-    {
-        _clientSession.OnOutboundFlushed();
     }
 
     public void Cleanup()

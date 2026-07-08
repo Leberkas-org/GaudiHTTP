@@ -16,6 +16,16 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
     public bool IsReadInFlight { get; private set; }
     public bool IsOrphaned { get; private set; }
 
+    // Per-stream outbound byte budget for MultiplexedBodyPump. Denominated in body bytes (not chunk
+    // count): the slot may be read while positive, is debited by the actual bytes emitted, and is
+    // credited back per real transport flush (MultiplexedDataFlushed) up to the per-stream cap. A
+    // depleted budget parks only THIS stream, leaving sibling streams free to drain.
+    public long AvailableBytes { get; set; }
+
+    // True while this stream is sitting in the pump's ready queue awaiting a read slot. Guards
+    // against enqueuing the same stream twice (a credit arriving while it is already queued).
+    public bool IsQueued { get; set; }
+
     // Created once per pooled slot instead of per Initialize: the transforms read StreamId at
     // invocation (it is a property, not captured by value), so a single instance stays correct
     // across slot reuse and avoids two closure allocations per stream registration.
@@ -78,5 +88,7 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
         ReservedWindow = 0;
         IsReadInFlight = false;
         IsOrphaned = false;
+        AvailableBytes = 0;
+        IsQueued = false;
     }
 }

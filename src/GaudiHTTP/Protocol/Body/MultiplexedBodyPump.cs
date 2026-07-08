@@ -1,4 +1,5 @@
 using GaudiHTTP.Pooling;
+using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -6,7 +7,7 @@ internal sealed class MultiplexedBodyPump(
     IMultiplexedBodyDrainTarget target,
     CancellationTokenSource connectionCts,
     int chunkSize,
-    int maxCapacity,
+    int maxBytesPerStream,
     int maxConcurrentReads = 4)
 {
     private readonly Queue<long> _readyQueue = new();
@@ -14,12 +15,12 @@ internal sealed class MultiplexedBodyPump(
 
     private int _asyncInFlight;
 
-    // Connection-level outbound credit shared across all multiplexed streams. Decremented once per
-    // emitted DATA frame and replenished by OnCapacityAvailable when the transport drains an
-    // outbound item. Without this gate the pump reads an entire in-memory body as fast as the
-    // mailbox cycles, flooding the per-stream output pipes and exhausting the shared array pool.
-    private readonly int _maxCapacity = maxCapacity;
-    private int _availableCapacity = maxCapacity;
+    // Per-stream outbound byte budget. Each slot carries its own AvailableBytes (seeded to
+    // maxBytesPerStream at Register), debited by the actual bytes emitted per DATA frame and
+    // credited back per real per-stream transport flush (MultiplexedDataFlushed) via
+    // OnCapacityAvailable. Unlike the old connection-wide aggregate counter, a depleted budget
+    // parks ONLY the offending stream — sibling streams keep draining — so one slow reader can no
+    // longer stall the whole connection, and the shared array pool stays bounded per stream.
 
     public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
@@ -30,6 +31,8 @@ internal sealed class MultiplexedBodyPump(
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
         slot.ContentLength = contentLength;
         _activeSlots[streamId] = slot;
+        slot.AvailableBytes = maxBytesPerStream;
+        slot.IsQueued = true;
         _readyQueue.Enqueue(streamId);
         TryScheduleReads();
     }
@@ -77,11 +80,21 @@ internal sealed class MultiplexedBodyPump(
         slot.Dispose();
     }
 
-    public void OnCapacityAvailable()
+    public void OnCapacityAvailable(long streamId, int bytes)
     {
-        if (_availableCapacity < _maxCapacity)
+        if (!_activeSlots.TryGetValue(streamId, out var slot))
         {
-            _availableCapacity++;
+            return;
+        }
+
+        slot.AvailableBytes = Math.Min(maxBytesPerStream, slot.AvailableBytes + bytes);
+        Tracing.For("Protocol").Trace(this, "mux body stream={0} credit={1} budget={2}",
+            streamId, bytes, slot.AvailableBytes);
+
+        if (!slot.IsQueued && !slot.IsReadInFlight && slot.AvailableBytes > 0)
+        {
+            _readyQueue.Enqueue(streamId);
+            slot.IsQueued = true;
         }
 
         TryScheduleReads();
@@ -127,7 +140,7 @@ internal sealed class MultiplexedBodyPump(
 
     private void TryScheduleReads()
     {
-        while (_asyncInFlight < maxConcurrentReads && _availableCapacity > 0 && _readyQueue.Count > 0)
+        while (_asyncInFlight < maxConcurrentReads && _readyQueue.Count > 0)
         {
             var streamId = _readyQueue.Dequeue();
 
@@ -137,7 +150,15 @@ internal sealed class MultiplexedBodyPump(
                 continue;
             }
 
-            _availableCapacity--;
+            slot.IsQueued = false;
+
+            if (slot.AvailableBytes <= 0)
+            {
+                // Parked: this stream has no outbound budget left. It is re-enqueued by
+                // OnCapacityAvailable when a real flush credits it — leaving siblings free to drain.
+                continue;
+            }
+
             slot.EnsureBuffer(chunkSize);
 
             StartRead(slot);
@@ -159,8 +180,17 @@ internal sealed class MultiplexedBodyPump(
             return;
         }
 
+        slot.AvailableBytes -= bytesRead;
         target.EmitDataFrames(slot.StreamId, slot.Buffer!.Memory[..bytesRead], endStream: false);
-        _readyQueue.Enqueue(slot.StreamId);
+        Tracing.For("Protocol").Trace(this, "mux body stream={0} debit={1} budget={2}",
+            slot.StreamId, bytesRead, slot.AvailableBytes);
+
+        if (slot.AvailableBytes > 0)
+        {
+            _readyQueue.Enqueue(slot.StreamId);
+            slot.IsQueued = true;
+        }
+
         TryScheduleReads();
     }
 

@@ -308,9 +308,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         _transportConnected = false;
     }
 
-    public void OnOutboundFlushed()
+    public void OnCapacityAvailable(long streamId, int bytes)
     {
-        _writer.OnCapacityAvailable();
+        _writer.OnCapacityAvailable(streamId, bytes);
     }
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()

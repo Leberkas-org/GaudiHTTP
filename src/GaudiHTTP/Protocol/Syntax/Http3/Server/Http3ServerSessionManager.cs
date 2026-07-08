@@ -260,9 +260,9 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    public void OnOutboundFlushed()
+    public void OnCapacityAvailable(long streamId, int bytes)
     {
-        _writer.OnCapacityAvailable();
+        _writer.OnCapacityAvailable(streamId, bytes);
     }
 
     public void FlushAllPendingRequests()
