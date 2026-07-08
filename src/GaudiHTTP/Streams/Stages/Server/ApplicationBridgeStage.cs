@@ -204,10 +204,11 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 DispatchAsync(features, seq);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                FinishRequest(seq, features, error: null, failStatus: 500, emit: true,
-                    cleanupSlot: false, resetBackpressure: false);
+                Tracing.For("Handler").Error(this, "handler dispatch threw for seq {0}: {1}", seq, ex);
+                FinishRequest(seq, features, error: ex, failStatus: 500, emit: true,
+                    cleanupSlot: true, resetBackpressure: false);
             }
 
             TryPullNext();
@@ -220,9 +221,12 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 appContext = _stage._application.CreateContext(ContainerFor(features));
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                FinishRequest(seq, features, error: null, failStatus: 500, emit: true,
+                // Context creation failed before a slot exists, so there is no AppContext to dispose
+                // the error onto; tracing is the only place operators can see this crash.
+                Tracing.For("Handler").Error(this, "context creation threw for seq {0}: {1}", seq, ex);
+                FinishRequest(seq, features, error: ex, failStatus: 500, emit: true,
                     cleanupSlot: false, trackMetrics: false);
                 return;
             }
