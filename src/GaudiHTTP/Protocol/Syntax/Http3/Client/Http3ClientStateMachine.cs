@@ -368,13 +368,8 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             // from HttpContent.ReadAsStream(), which returns the SAME cached stream now at EOF from
             // the interrupted attempt. Rewind a seekable body so the replay re-sends it in full; fail
             // fast on a consumed forward-only body instead of truncating a fixed-length request.
-            if (!RequestBodyReplay.TryRewindForReplay(req))
+            if (!RequestBodyReplay.TryRewindOrFail(req, "HTTP/3", this))
             {
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: cannot replay {0} {1} after reconnect — request body is not rewindable",
-                    req.Method, req.RequestUri);
-                req.Fail(new HttpRequestException(
-                    "HTTP/3 request body could not be replayed after connection loss: the content stream is not rewindable."));
                 continue;
             }
 

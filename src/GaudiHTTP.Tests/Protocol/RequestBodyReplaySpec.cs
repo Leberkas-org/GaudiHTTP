@@ -39,7 +39,7 @@ public sealed class RequestBodyReplaySpec
     [Trait("RFC", "RFC9110-9.2.2")]
     public void TryRewindForReplay_should_rewind_consumed_seekable_body_to_start()
     {
-        var payload = new byte[4096];
+        var payload = new byte[4 * 1024];
         var content = new ByteArrayContent(payload);
         var request = new HttpRequestMessage(HttpMethod.Put, "http://example.com/") { Content = content };
 

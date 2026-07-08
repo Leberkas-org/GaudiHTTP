@@ -462,7 +462,15 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
         if (_reconnectPolicy.TakeBuffered() is { } req)
         {
-            EncodeRequest(req);
+            // The encoder re-reads the body via HttpContent.ReadAsStream(), which returns the SAME
+            // cached stream now sitting at EOF from the interrupted first attempt. Rewind a seekable
+            // body so the replay re-sends it in full; fail fast on a consumed forward-only body
+            // instead of advertising the full Content-Length while emitting a truncated body (which
+            // would hang a fixed-length server read).
+            if (RequestBodyReplay.TryRewindOrFail(req, "HTTP/1.0", this))
+            {
+                EncodeRequest(req);
+            }
         }
     }
 

@@ -1,3 +1,5 @@
+using static Servus.Senf;
+
 namespace GaudiHTTP.Protocol;
 
 /// <summary>
@@ -49,5 +51,28 @@ internal static class RequestBodyReplay
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// The reconnect-replay decision shared by all four client state machines. Returns <c>true</c>
+    /// when <paramref name="request"/> may be re-encoded onto the reconnected wire (its seekable body
+    /// was rewound); on <c>false</c> it has already faulted the request with a clear, protocol-tagged
+    /// exception and logged a warning, so the caller simply skips it. <paramref name="protocol"/> is
+    /// the wire label for the message (e.g. <c>"HTTP/1.1"</c>); <paramref name="source"/> is the
+    /// state machine instance, forwarded to the tracer for SourceType/SourceHash attribution.
+    /// </summary>
+    public static bool TryRewindOrFail(HttpRequestMessage request, string protocol, object source)
+    {
+        if (TryRewindForReplay(request))
+        {
+            return true;
+        }
+
+        Tracing.For("Protocol").Warning(source,
+            "{0}: cannot replay {1} {2} after reconnect — request body is not rewindable",
+            protocol, request.Method, request.RequestUri);
+        request.Fail(new HttpRequestException(
+            protocol + " request body could not be replayed after connection loss: the content stream is not rewindable."));
+        return false;
     }
 }
