@@ -362,7 +362,6 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
     private void PushOutbound()
     {
         Push(_outNetwork, _outboundQueue.Dequeue());
-        _sm.OnOutboundFlushed();
 
         if (_completeAfterFlush && _outboundQueue.Count == 0)
         {

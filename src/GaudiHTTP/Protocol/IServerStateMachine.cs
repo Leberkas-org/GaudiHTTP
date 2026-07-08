@@ -25,7 +25,6 @@ internal interface IServerStateMachine
     void OnDownstreamFinished();
     void OnTimerFired(string name);
     void OnBodyMessage(object msg);
-    void OnOutboundFlushed() { }
     void ResumeBody() { }
     void Cleanup();
 }

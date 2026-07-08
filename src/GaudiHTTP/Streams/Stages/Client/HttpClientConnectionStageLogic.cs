@@ -191,7 +191,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         if (_outboundQueue.Count > 0)
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
-            _sm.OnOutboundFlushed();
             TryCompleteAfterAllResponses();
             return;
         }
@@ -242,7 +241,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         if (IsAvailable(_outNetwork))
         {
             Push(_outNetwork, item);
-            _sm.OnOutboundFlushed();
             return;
         }
 

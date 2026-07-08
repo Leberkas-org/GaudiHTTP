@@ -16,6 +16,5 @@ internal interface IClientStateMachine
     void OnUpstreamFinished();
     void OnTimerFired(string name);
     void OnBodyMessage(object msg);
-    void OnOutboundFlushed() { }
     void Cleanup();
 }
