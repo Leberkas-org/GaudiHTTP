@@ -53,6 +53,36 @@ public sealed class Http2StateMachineReconnectSpec
         TransportProtocol.Tcp);
 
     [Fact(Timeout = 5000)]
+    public void Cleanup_should_fail_inflight_requests_instead_of_dropping_them()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
+        sm.PreStart();
+        var (req, pending) = MakeTrackedGet("/a");
+        sm.OnRequest(req);
+
+        // Stage teardown must FAIL a stream still awaiting its response, not silently drop it.
+        sm.Cleanup();
+
+        Assert.True(pending.GetValueTask().IsFaulted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleanup_during_reconnect_should_fail_buffered_replay_requests()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
+        sm.PreStart();
+        var (req, pending) = MakeTrackedGet("/a");
+        sm.OnRequest(req);
+
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // buffers GET for replay
+        sm.Cleanup();
+
+        Assert.True(pending.GetValueTask().IsFaulted);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_start_reconnect_on_disconnect_with_inflight()
     {
@@ -142,10 +172,34 @@ public sealed class Http2StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void DecodeServerData_should_emit_new_connect_when_reconnect_under_limit()
+    public void DecodeServerData_should_defer_retry_behind_backoff_then_connect_when_timer_fires()
     {
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(http2MaxReconnectAttempts: 3), ops);
+        sm.PreStart();
+        sm.OnRequest(MakeGet());
+
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        var countAfterFirst = ops.Outbound.OfType<ConnectTransport>().Count();
+
+        // Second failure schedules a backoff timer instead of reconnecting immediately.
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+
+        Assert.True(sm.IsReconnecting);
+        Assert.Equal(countAfterFirst, ops.Outbound.OfType<ConnectTransport>().Count());
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "reconnect-backoff");
+
+        sm.OnTimerFired("reconnect-backoff");
+        Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.8")]
+    public void DecodeServerData_with_zero_backoff_should_connect_immediately_on_retry()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(
+            TestClientOptions.Create(http2MaxReconnectAttempts: 3, http2ReconnectInitialBackoff: TimeSpan.Zero), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
@@ -156,6 +210,7 @@ public sealed class Http2StateMachineReconnectSpec
 
         Assert.True(sm.IsReconnecting);
         Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
+        Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name == "reconnect-backoff");
     }
 
     [Fact(Timeout = 5000)]

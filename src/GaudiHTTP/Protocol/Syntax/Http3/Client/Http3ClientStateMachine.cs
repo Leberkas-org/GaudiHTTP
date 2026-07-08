@@ -2,6 +2,7 @@ using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Multiplexed;
+using GaudiHTTP.Protocol.Semantics;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Streams.Stages.Client;
 using static Servus.Senf;
@@ -203,6 +204,16 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     public void OnTimerFired(string name)
     {
+        if (name == ReconnectBackoff.TimerName)
+        {
+            if (_reconnect.IsReconnecting && _transportOptions is not null)
+            {
+                _ops.OnOutbound(new ConnectTransport(_transportOptions));
+            }
+
+            return;
+        }
+
         if (name != IdleTimeoutCheckTimer)
         {
             return;
@@ -249,6 +260,20 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     public void Cleanup()
     {
+        // Fail (don't silently drop) requests still in flight or buffered for reconnect replay, so
+        // callers fault promptly on stage teardown instead of hanging until their client-side timeout.
+        // request.Fail is idempotent, so streams that already delivered a response are unaffected.
+        if (_reconnect.IsReconnecting)
+        {
+            _reconnect.FailAllBuffered(new HttpRequestException("HTTP/3 connection torn down during reconnect."));
+            _reconnect.Reset();
+        }
+
+        foreach (var (_, request) in _clientSession.GetCorrelationMap())
+        {
+            request.Fail(new HttpRequestException("HTTP/3 connection was torn down before the request completed."));
+        }
+
         _clientSession.Cleanup();
     }
 
@@ -346,7 +371,22 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             return;
         }
 
-        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        // Defer the retry behind a backoff timer instead of reconnecting immediately, so a
+        // connection-refused peer is not hammered in a tight loop (see OnTimerFired).
+        if (_options.Http3.ReconnectInitialBackoff > TimeSpan.Zero)
+        {
+            _ops.OnScheduleTimer(ReconnectBackoff.TimerName, ReconnectBackoff.Compute(
+                _reconnect.Attempts - 1,
+                _options.Http3.ReconnectInitialBackoff,
+                _options.Http3.ReconnectMaxBackoff,
+                _options.Http3.ReconnectBackoffMultiplier,
+                _options.Http3.ReconnectBackoffJitter,
+                Random.Shared));
+        }
+        else
+        {
+            _ops.OnOutbound(new ConnectTransport(_transportOptions!));
+        }
     }
 
     private void ScheduleIdleCheck()
