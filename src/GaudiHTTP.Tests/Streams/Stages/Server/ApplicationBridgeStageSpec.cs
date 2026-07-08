@@ -14,12 +14,13 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     private sealed class FakeApplication(Func<IFeatureCollection, Task> handler)
         : IHttpApplication<IFeatureCollection>
     {
+        public Action<IFeatureCollection, Exception?>? OnDispose { get; init; }
+
         public IFeatureCollection CreateContext(IFeatureCollection contextFeatures) => contextFeatures;
         public Task ProcessRequestAsync(IFeatureCollection context) => handler(context);
 
         public void DisposeContext(IFeatureCollection context, Exception? exception)
-        {
-        }
+            => OnDispose?.Invoke(context, exception);
     }
 
     private static IFeatureCollection Request(string protocol = "HTTP/2")
@@ -133,6 +134,31 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
 
         var result = downstream.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(500, result.Get<IHttpResponseFeature>()?.StatusCode);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ApplicationBridgeStage_should_surface_handler_exception_to_context_disposal()
+    {
+        Exception? captured = null;
+        var app = new FakeApplication(_ => throw new InvalidOperationException("handler boom"))
+        {
+            OnDispose = (_, ex) => captured = ex
+        };
+        var stage = CreateStage(app);
+
+        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
+            .Via(stage)
+            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
+            .Run(Materializer);
+
+        downstream.Request(1);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+
+        var result = downstream.ExpectNext(TestContext.Current.CancellationToken);
+        Assert.Equal(500, result.Get<IHttpResponseFeature>()?.StatusCode);
+
+        // The handler crash must not vanish — it reaches context disposal so operators can observe it.
+        Assert.IsType<InvalidOperationException>(captured);
     }
 
     [Fact(Timeout = 5000)]
