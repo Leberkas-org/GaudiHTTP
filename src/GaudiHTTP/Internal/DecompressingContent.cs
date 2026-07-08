@@ -18,6 +18,7 @@ internal sealed class DecompressingContent(HttpContent inner, string encoding) :
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
+            throw DecodeFailure(ex);
         }
     }
 
@@ -32,6 +33,7 @@ internal sealed class DecompressingContent(HttpContent inner, string encoding) :
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
+            throw DecodeFailure(ex);
         }
     }
 
@@ -46,8 +48,16 @@ internal sealed class DecompressingContent(HttpContent inner, string encoding) :
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
+            throw DecodeFailure(ex);
         }
     }
+
+    // HttpRequestException (not IOException/HttpIOException) so HttpContent's stream-copy wrapping
+    // passes it through unwrapped — the caller sees a single, clear content-decode failure.
+    private HttpRequestException DecodeFailure(Exception inner)
+        => new(
+            $"Failed to decode the response body (Content-Encoding: {encoding}); the compressed data is corrupt or truncated.",
+            inner);
 
     protected override bool TryComputeLength(out long length)
     {
