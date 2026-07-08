@@ -66,6 +66,7 @@ namespace GaudiHTTP.Client
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
         public int? SocketSendBufferSize { get; set; }
+        public double StreamRetryBackoffJitter { get; set; }
         public double StreamRetryBackoffMultiplier { get; set; }
         public System.TimeSpan StreamRetryInitialBackoff { get; set; }
         public System.TimeSpan StreamRetryMaxBackoff { get; set; }
@@ -146,6 +147,10 @@ namespace GaudiHTTP.Client
         public int MaxResponseHeaderCount { get; set; }
         public int MaxResponseHeaderLineLength { get; set; }
         public int MaxResponseHeadersLength { get; set; }
+        public double ReconnectBackoffJitter { get; set; }
+        public double ReconnectBackoffMultiplier { get; set; }
+        public System.TimeSpan ReconnectInitialBackoff { get; set; }
+        public System.TimeSpan ReconnectMaxBackoff { get; set; }
         public int? RequestBodyChunkSize { get; set; }
     }
     public sealed class Http2ClientOptions
@@ -167,6 +172,10 @@ namespace GaudiHTTP.Client
         public int MaxReconnectBufferSize { get; set; }
         public int MaxResponseHeaderListSize { get; set; }
         public int MaxStreamWindowSize { get; set; }
+        public double ReconnectBackoffJitter { get; set; }
+        public double ReconnectBackoffMultiplier { get; set; }
+        public System.TimeSpan ReconnectInitialBackoff { get; set; }
+        public System.TimeSpan ReconnectMaxBackoff { get; set; }
         public int? RequestBodyChunkSize { get; set; }
         public double WindowScaleThresholdMultiplier { get; set; }
     }
@@ -184,6 +193,10 @@ namespace GaudiHTTP.Client
         public int MaxReconnectBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
+        public double ReconnectBackoffJitter { get; set; }
+        public double ReconnectBackoffMultiplier { get; set; }
+        public System.TimeSpan ReconnectInitialBackoff { get; set; }
+        public System.TimeSpan ReconnectMaxBackoff { get; set; }
         public int? RequestBodyChunkSize { get; set; }
     }
     public interface IGaudiHttpClient : System.IDisposable

@@ -101,7 +101,8 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         var response = await SendDecompressingAsync(request, (_, _) => responseBytes);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -127,7 +128,8 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         var response = await SendDecompressingAsync(request, (_, _) => responseBytes);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
