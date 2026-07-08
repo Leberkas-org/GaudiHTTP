@@ -96,4 +96,27 @@ public sealed class LargePayloadSpec : End2EndSpecBase
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         Assert.Equal("0", body);
     }
+
+    // 4 MiB is >16x the 256 KiB outbound credit budget for a QUIC stream
+    // (Http3OutboundWriter.OutboundBodyByteBudget), so this exercises many
+    // credit-park/refill cycles (gated on real MultiplexedDataFlushed wire flush) rather than a
+    // single in-budget send.
+    [Fact(Timeout = 30000)]
+    public async Task LargePayload_should_roundtrip_upload_exceeding_the_stream_credit_budget()
+    {
+        var payload = new byte[4 * 1024 * 1024];
+        RandomNumberGenerator.Fill(payload);
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUri}/echo-bytes")
+        {
+            Content = new ByteArrayContent(payload)
+        };
+
+        var response = await Client.SendAsync(request, CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var responseBytes = await response.Content.ReadAsByteArrayAsync(CancellationToken);
+        Assert.Equal(payload.Length, responseBytes.Length);
+        Assert.Equal(payload, responseBytes);
+    }
 }

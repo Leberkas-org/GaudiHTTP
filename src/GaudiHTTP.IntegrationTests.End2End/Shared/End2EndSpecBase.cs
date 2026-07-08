@@ -88,6 +88,13 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
     protected IGaudiHttpClient Client => _client!;
 
+    /// <summary>
+    /// The server host. Exposed (rather than kept private) so fault-injection specs can call
+    /// <c>StopAsync</c> on it directly mid-test to force a genuine wire-level disconnect, without
+    /// waiting for the fixture's own <see cref="DisposeAsync"/> teardown.
+    /// </summary>
+    protected WebApplication App => _app ?? throw new InvalidOperationException("Server not started.");
+
     protected string BaseUri { get; private set; } = string.Empty;
 
     protected CancellationToken CancellationToken => TestContext.Current.CancellationToken;
