@@ -12,6 +12,7 @@ internal sealed class MultiplexedBodyPump(
 {
     private readonly Queue<long> _readyQueue = new();
     private readonly Dictionary<long, PumpSlot<long>> _activeSlots = new();
+    private readonly List<long> _cleanupScratch = new();
 
     private int _asyncInFlight;
 
@@ -124,18 +125,34 @@ internal sealed class MultiplexedBodyPump(
     public void Cleanup()
     {
         connectionCts.Cancel();
+        _readyQueue.Clear();
 
-        foreach (var (_, slot) in _activeSlots)
+        // A slot with a read still in flight cannot be disposed/returned here: the pending ReadAsync
+        // still targets its pooled array, and the returned slot would be re-rented mid-read (buffer
+        // UAF + BodyReadComplete mis-route). MarkOrphaned and RETAIN it — connectionCts.Cancel above
+        // completes the read, and HandleReadComplete/HandleReadFailed releases the orphaned slot then,
+        // exactly as Cancel already does per-slot. Only non-in-flight slots are released immediately.
+        _cleanupScratch.Clear();
+        foreach (var (streamId, slot) in _activeSlots)
         {
-            if (!slot.IsOrphaned)
+            if (slot.IsReadInFlight)
+            {
+                slot.MarkOrphaned();
+            }
+            else
             {
                 slot.DisposeResources();
                 slot.Dispose();
+                _cleanupScratch.Add(streamId);
             }
         }
 
-        _activeSlots.Clear();
-        _readyQueue.Clear();
+        foreach (var streamId in _cleanupScratch)
+        {
+            _activeSlots.Remove(streamId);
+        }
+
+        _cleanupScratch.Clear();
     }
 
     private void TryScheduleReads()

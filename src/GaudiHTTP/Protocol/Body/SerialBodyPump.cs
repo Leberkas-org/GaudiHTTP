@@ -16,6 +16,13 @@ internal sealed class SerialBodyPump(
     private CancellationTokenSource? _linkedCts;
     private bool _isReadInFlight;
 
+    // Set by Cancel/Cleanup when a body read is still in flight: the pending ReadAsync still targets
+    // _activeOwner's pooled array, so disposing it now would recycle the array under the read (buffer
+    // UAF) and the late completion would dereference a nulled owner (NRE). Instead we defer the
+    // dispose+teardown to HandleReadComplete/HandleReadFailed, mirroring the MarkOrphaned/defer
+    // discipline the multiplexed pumps use in Cancel.
+    private bool _teardownPending;
+
     // Credit is denominated in body bytes, not chunk count: the pump may read while the budget is
     // positive and debits the actual bytes read at emit time (below). A real wire flush of N bytes
     // (TransportDataFlushed) credits N bytes back via OnCapacityAvailable, clamped to maxBytes, so
@@ -55,12 +62,26 @@ internal sealed class SerialBodyPump(
     public void HandleReadComplete(int bytesRead)
     {
         _isReadInFlight = false;
+
+        if (_teardownPending)
+        {
+            FinishDeferredTeardown();
+            return;
+        }
+
         ProcessReadResult(bytesRead);
     }
 
     public void HandleReadFailed(Exception reason)
     {
         _isReadInFlight = false;
+
+        if (_teardownPending)
+        {
+            FinishDeferredTeardown();
+            return;
+        }
+
         _activeOwner?.Dispose();
         _activeOwner = null;
         _activeStream = null;
@@ -71,24 +92,55 @@ internal sealed class SerialBodyPump(
     public void Cancel()
     {
         _linkedCts?.Cancel();
+
+        if (_isReadInFlight)
+        {
+            // Read still outstanding: defer dispose+teardown to the completion so the in-flight
+            // ReadAsync does not write into a recycled pool array and the late completion does not
+            // dereference a nulled owner. LinkedCts stays alive (cancelled above) so the read observes
+            // cancellation; it is disposed by FinishDeferredTeardown when the read lands.
+            _teardownPending = true;
+            _availableBytes = 0;
+            return;
+        }
+
         _activeOwner?.Dispose();
         _activeOwner = null;
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
         _availableBytes = 0;
-        _isReadInFlight = false;
     }
 
     public void Cleanup()
     {
+        if (_isReadInFlight)
+        {
+            // Connection teardown with a read in flight: defer exactly as Cancel does. The caller
+            // cancels the connection CTS immediately after Cleanup, which completes the outstanding
+            // read and drives FinishDeferredTeardown.
+            _teardownPending = true;
+            _availableBytes = 0;
+            return;
+        }
+
         _activeOwner?.Dispose();
         _activeOwner = null;
         _linkedCts?.Dispose();
         _linkedCts = null;
         _activeStream = null;
         _availableBytes = 0;
-        _isReadInFlight = false;
+    }
+
+    private void FinishDeferredTeardown()
+    {
+        _teardownPending = false;
+        _activeOwner?.Dispose();
+        _activeOwner = null;
+        _linkedCts?.Dispose();
+        _linkedCts = null;
+        _activeStream = null;
+        _availableBytes = 0;
     }
 
     private void TryStartRead()

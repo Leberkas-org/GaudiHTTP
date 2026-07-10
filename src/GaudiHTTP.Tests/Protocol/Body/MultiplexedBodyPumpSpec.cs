@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Reflection;
 using Akka.Actor;
 using GaudiHTTP.Protocol.Body;
 
@@ -193,6 +195,65 @@ public sealed class MultiplexedBodyPumpSpec
 
         pump.Cleanup();
         pump.Cleanup();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleanup_should_defer_slot_release_while_read_in_flight()
+    {
+        // Race R1/H2: Cleanup must NOT dispose the buffer and return the slot to the process-global
+        // pool while a read is still in flight. The pending ReadAsync would write into a recycled
+        // pool array, and the re-rented slot's CachedSuccessTransform would mis-route the late
+        // BodyReadComplete to another stream. Teardown must be deferred (MarkOrphaned) to the read
+        // completion, exactly as Cancel already does per-slot.
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 256);
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(1L, new GatedReadStream(tcs.Task), contentLength: null, CancellationToken.None);
+
+        var slots = GetActiveSlots(pump);
+        Assert.True(slots.Contains(1L), "read should be in-flight with an active slot");
+
+        pump.Cleanup();
+
+        // RED without the fix: Cleanup disposed+returned the in-flight slot and cleared the map.
+        // GREEN: the slot is retained (orphaned) so its outstanding read can release it safely.
+        Assert.True(slots.Contains(1L),
+            "Cleanup must defer release of an in-flight slot, not recycle it mid-read");
+
+        // The read finally lands: the orphaned slot is released now, without mis-route or crash.
+        pump.HandleReadComplete(1L, 0);
+
+        Assert.False(slots.Contains(1L), "orphaned slot must be released once the read lands");
+        Assert.Empty(target.Completed);
+        Assert.Empty(target.Failed);
+    }
+
+    private static IDictionary GetActiveSlots(MultiplexedBodyPump pump)
+    {
+        var field = typeof(MultiplexedBodyPump).GetField("_activeSlots", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (IDictionary)field.GetValue(pump)!;
+    }
+
+    /// <summary>
+    /// A stream whose ReadAsync blocks on a Task and ignores the cancellation token, so the pump
+    /// keeps a read parked in-flight until the test drives the completion by hand.
+    /// </summary>
+    private sealed class GatedReadStream(Task<int> gate) : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => new(gate);
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     [Fact(Timeout = 5000)]

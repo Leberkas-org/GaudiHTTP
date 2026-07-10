@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.IO.Pipelines;
+using System.Reflection;
 using Akka.Actor;
 using GaudiHTTP.Protocol.Body;
 
@@ -322,6 +324,88 @@ public sealed class SerialBodyPumpSpec
         Assert.Equal(200, dataEmits.Sum(e => e.Data.Length));
         Assert.True(target.Emitted[^1].EndStream);
         Assert.Single(target.Completed);
+    }
+
+    private static IMemoryOwner<byte>? GetActiveOwner(SerialBodyPump pump)
+    {
+        var field = typeof(SerialBodyPump).GetField("_activeOwner", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (IMemoryOwner<byte>?)field.GetValue(pump);
+    }
+
+    /// <summary>
+    /// A stream whose ReadAsync blocks on a TaskCompletionSource and ignores the cancellation token,
+    /// so the pump keeps a read parked in-flight until the test drives the completion by hand.
+    /// </summary>
+    private sealed class GatedReadStream(Task<int> gate) : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            => new(gate);
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cancel_should_defer_owner_teardown_while_read_in_flight()
+    {
+        // Race R1/H1: Cancel must NOT dispose+null _activeOwner while a body read is still in flight
+        // (the pending ReadAsync would write into a recycled pool array, and the late completion would
+        // dereference a null owner -> NRE). Teardown must be deferred to the read completion, mirroring
+        // the multiplexed pumps' MarkOrphaned/defer discipline.
+        var target = new FakeTarget();
+        var pump = MakePump(target);
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(new GatedReadStream(tcs.Task), contentLength: null, CancellationToken.None);
+
+        // A read is parked in-flight, so the pump holds a rented owner.
+        Assert.NotNull(GetActiveOwner(pump));
+
+        pump.Cancel();
+
+        // RED without the fix: Cancel disposed and nulled the owner mid-read. GREEN: deferred.
+        Assert.NotNull(GetActiveOwner(pump));
+
+        // The outstanding read now lands. It must not NRE and must not emit the cancelled body; the
+        // owner is disposed exactly once here, on the deferred completion.
+        pump.HandleReadComplete(64);
+
+        Assert.Null(GetActiveOwner(pump));
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Completed);
+        Assert.Empty(target.Failed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Cleanup_should_defer_owner_teardown_while_read_in_flight()
+    {
+        // Same race as Cancel, on the connection-teardown path (Cleanup).
+        var target = new FakeTarget();
+        var pump = MakePump(target);
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(new GatedReadStream(tcs.Task), contentLength: null, CancellationToken.None);
+
+        Assert.NotNull(GetActiveOwner(pump));
+
+        pump.Cleanup();
+
+        // RED without the fix: Cleanup disposed and nulled the owner mid-read. GREEN: deferred.
+        Assert.NotNull(GetActiveOwner(pump));
+
+        pump.HandleReadComplete(64);
+
+        Assert.Null(GetActiveOwner(pump));
+        Assert.Empty(target.Emitted);
+        Assert.Empty(target.Completed);
+        Assert.Empty(target.Failed);
     }
 
     [Fact(Timeout = 5000)]

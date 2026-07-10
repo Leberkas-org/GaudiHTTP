@@ -226,6 +226,44 @@ public sealed class FlowControlledBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Cleanup_should_defer_slot_release_while_read_in_flight()
+    {
+        // Race R1/H2: Cleanup must NOT dispose the buffer and return the slot to the process-global
+        // pool while a read is still in flight. The pending ReadAsync would write into a recycled
+        // pool array, and the re-rented slot's CachedSuccessTransform would mis-route the late
+        // BodyReadComplete to another stream. Teardown must be deferred (MarkOrphaned) to the read
+        // completion, exactly as Cancel already does per-slot.
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var windowBefore = flow.ConnectionSendWindow;
+
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockingStream = new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task));
+        scheduler.Register(1, blockingStream, null, CancellationToken.None);
+
+        var slots = GetActiveSlots(scheduler);
+        Assert.True(slots.Contains(1), "read should be in-flight with an active slot");
+
+        scheduler.Cleanup();
+
+        // RED without the fix: Cleanup disposed+returned the in-flight slot and cleared the map.
+        // GREEN: the slot is retained (orphaned) so its outstanding read can release it safely.
+        Assert.True(slots.Contains(1),
+            "Cleanup must defer release of an in-flight slot, not recycle it mid-read");
+
+        // The read finally lands: the orphaned slot is released, its reserved window refunded, no crash.
+        scheduler.HandleReadComplete(1, 0);
+
+        Assert.False(slots.Contains(1), "orphaned slot must be released once the read lands");
+        Assert.Equal(windowBefore, flow.ConnectionSendWindow);
+        Assert.Empty(target.Completed);
+        Assert.Empty(target.Failed);
+    }
+
+    [Fact(Timeout = 5000)]
     public void SyncFastPath_should_drain_without_PipeTo()
     {
         var target = new FakeTarget();
