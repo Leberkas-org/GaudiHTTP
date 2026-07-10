@@ -208,6 +208,61 @@ public sealed class QueuedBodyReaderSpec
     }
 
     [Fact(Timeout = 5000)]
+    public async Task Stale_cancellation_after_recycle_should_not_cancel_new_rentals_read()
+    {
+        // Regression: QueuedBodyReader is a Poolable rented per response body. ReadAsync
+        // registered a cancel callback that captured only `this` — no version guard and never
+        // disposed. After the reader was recycled and re-rented for an UNRELATED later request,
+        // a stale token firing (owner A's operation cancelled/disposed after A finished) cancelled
+        // owner B's in-flight body read. Mirror of the PendingRequest.TrySetCanceled fix.
+        var reader = new QueuedBodyReader(4);
+
+        // Owner A: an async read that registers a cancel callback bound to ctsA.
+        using var ctsA = new CancellationTokenSource();
+        var readA = reader.ReadAsync(ctsA.Token);
+        Assert.False(readA.IsCompleted);
+
+        // Owner A's body ends; consumer stops; reader is recycled back to the pool.
+        reader.Complete();
+        var resultA = await readA;
+        Assert.True(resultA.IsCompleted);
+        reader.Reset();
+
+        // Owner B: re-rent and start a fresh read (rental version now bumped).
+        using var ctsB = new CancellationTokenSource();
+        var readB = reader.ReadAsync(ctsB.Token);
+        Assert.False(readB.IsCompleted);
+
+        // Fire the STALE token from owner A's rental.
+        ctsA.Cancel();
+
+        // Owner B's read must NOT be cancelled by the stale, unrelated token.
+        Assert.False(readB.IsCompleted,
+            "stale cancellation from a recycled rental corrupted the new rental's in-flight read");
+
+        // And it still completes normally when owner B's data arrives.
+        reader.TryEnqueue("live"u8);
+        var resultB = await readB;
+        Assert.Equal("live"u8.ToArray(), resultB.Memory.ToArray());
+        Assert.False(resultB.IsCompleted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Cancellation_of_the_current_read_should_still_cancel_it()
+    {
+        // Guard must not over-reject: a legitimate in-time cancel of the CURRENT read still fires.
+        var reader = new QueuedBodyReader(4);
+
+        using var cts = new CancellationTokenSource();
+        var readTask = reader.ReadAsync(cts.Token);
+        Assert.False(readTask.IsCompleted);
+
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await readTask);
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task Reset_should_not_return_a_checked_out_rental_to_the_pool()
     {
         // Regression: on connection teardown/abort, Reset/Dispose ran while a consumer was

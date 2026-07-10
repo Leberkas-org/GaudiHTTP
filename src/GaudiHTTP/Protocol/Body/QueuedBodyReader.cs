@@ -28,6 +28,7 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
     private int _count;
     private OwnedChunk _current;
     private ManualResetValueTaskSourceCore<BodyReadResult> _core;
+    private CancellationTokenRegistration _cancelRegistration;
     private bool _readPending;
     private bool _completed;
     private Exception? _fault;
@@ -156,6 +157,8 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
 
     public ValueTask<BodyReadResult> ReadAsync(CancellationToken ct = default)
     {
+        short version;
+
         lock (_sync)
         {
             if (_count > 0)
@@ -186,36 +189,54 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
             // producer may complete the core at any moment.
             _core.Reset();
             _readPending = true;
+
+            // Capture this rental's core version so a stale cancel callback (this reader is
+            // Poolable and re-rented for unrelated later requests) can re-check it before
+            // completing — the OnReset version is monotonic, so a recycled rental never
+            // collides with an earlier one.
+            version = _core.Version;
         }
 
         if (ct.CanBeCanceled)
         {
-            ct.UnsafeRegister(static (state, token) =>
+            _cancelRegistration = ct.UnsafeRegister(static (state, token) =>
             {
-                var self = (QueuedBodyReader)state!;
-                bool deliver;
-
-                lock (self._sync)
-                {
-                    deliver = self._readPending;
-                    if (deliver)
-                    {
-                        self._readPending = false;
-                    }
-                }
-
-                if (deliver)
-                {
-                    self._core.SetException(new OperationCanceledException(token));
-                }
-            }, this);
+                var (self, expectedVersion) = ((QueuedBodyReader Reader, short Version))state!;
+                self.OnReadCancelled(expectedVersion, token);
+            }, (Reader: this, Version: version));
         }
 
-        return new ValueTask<BodyReadResult>(this, _core.Version);
+        return new ValueTask<BodyReadResult>(this, version);
+    }
+
+    private void OnReadCancelled(short expectedVersion, CancellationToken token)
+    {
+        // Guard + complete under the lock so OnReset cannot swap the core out from under the
+        // SetException (mirror of the version-guarded PendingRequest.TrySetCanceled). A stale
+        // callback fired after recycle/re-rent sees a bumped version and is rejected.
+        lock (_sync)
+        {
+            if (_core.Version != expectedVersion || !_readPending)
+            {
+                return;
+            }
+
+            _readPending = false;
+
+            try
+            {
+                _core.SetException(new OperationCanceledException(token));
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
     }
 
     public void AdvanceTo()
     {
+        CancellationTokenRegistration registration;
+
         lock (_sync)
         {
             if (_current.Rental is not null)
@@ -224,7 +245,13 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
             }
 
             _current = default;
+            registration = _cancelRegistration;
+            _cancelRegistration = default;
         }
+
+        // Dispose outside the lock: Dispose blocks until any in-flight cancel callback returns,
+        // and that callback takes _sync — disposing under the lock would deadlock.
+        registration.Dispose();
 
         SlotFreed?.Invoke();
     }
@@ -247,11 +274,14 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
     protected override void OnReset()
     {
         bool deliver;
+        CancellationTokenRegistration registration;
 
         lock (_sync)
         {
             deliver = _readPending;
             _readPending = false;
+            registration = _cancelRegistration;
+            _cancelRegistration = default;
 
             while (_count > 0)
             {
@@ -284,8 +314,11 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
 
             if (!deliver)
             {
-                _core = default;
-                _core.RunContinuationsAsynchronously = true;
+                // Reset (bump version) rather than `= default`: `default` would zero the version
+                // counter and let a recycled rental collide with an earlier rental's captured
+                // version, defeating the stale-cancel guard. Reset keeps the version monotonic
+                // and preserves RunContinuationsAsynchronously.
+                _core.Reset();
             }
 
             if (_slots.Length != _initialSlotCount)
@@ -293,6 +326,11 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
                 _slots = new OwnedChunk[_initialSlotCount];
             }
         }
+
+        // Dispose outside the lock: the cancel callback takes _sync, and Dispose blocks until it
+        // returns — disposing under the lock would deadlock. A stale registration carried into the
+        // next rental is also rejected by the version guard; disposal closes the window and the leak.
+        registration.Dispose();
 
         if (deliver)
         {
