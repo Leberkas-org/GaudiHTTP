@@ -26,16 +26,21 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
     // against enqueuing the same stream twice (a credit arriving while it is already queued).
     public bool IsQueued { get; set; }
 
-    // Created once per pooled slot instead of per Initialize: the transforms read StreamId at
-    // invocation (it is a property, not captured by value), so a single instance stays correct
-    // across slot reuse and avoids two closure allocations per stream registration.
+    // Pump incarnation this slot's current read was STARTED under (set by the pump at read start).
+    // Carried into the read-completion message so the pump can drop a completion that outlived a
+    // reconnect (generation bump) instead of mis-routing it onto a reused stream id.
+    public int Generation { get; set; }
+
+    // Created once per pooled slot instead of per Initialize: the transforms read StreamId and
+    // Generation at invocation (they are properties, not captured by value), so a single instance
+    // stays correct across slot reuse and avoids two closure allocations per stream registration.
     public Func<int, object> CachedSuccessTransform { get; }
     public Func<Exception, object> CachedFailureTransform { get; }
 
     public PumpSlot()
     {
-        CachedSuccessTransform = n => new BodyReadComplete<TStreamId>(StreamId, n);
-        CachedFailureTransform = ex => new BodyReadFailed<TStreamId>(StreamId, ex);
+        CachedSuccessTransform = n => new BodyReadComplete<TStreamId>(StreamId, n, Generation);
+        CachedFailureTransform = ex => new BodyReadFailed<TStreamId>(StreamId, ex, Generation);
     }
 
     public void Initialize(
@@ -90,5 +95,6 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
         IsOrphaned = false;
         AvailableBytes = 0;
         IsQueued = false;
+        Generation = 0;
     }
 }

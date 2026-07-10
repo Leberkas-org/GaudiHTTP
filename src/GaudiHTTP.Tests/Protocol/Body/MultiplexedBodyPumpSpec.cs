@@ -79,7 +79,7 @@ public sealed class MultiplexedBodyPumpSpec
             switch (msg)
             {
                 case BodyReadComplete<long> rc:
-                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead, rc.Generation);
                     break;
             }
         }
@@ -103,7 +103,7 @@ public sealed class MultiplexedBodyPumpSpec
             switch (msg)
             {
                 case BodyReadComplete<long> rc:
-                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    pump.HandleReadComplete(rc.StreamId, rc.BytesRead, rc.Generation);
                     break;
             }
         }
@@ -216,14 +216,16 @@ public sealed class MultiplexedBodyPumpSpec
         pump.Cleanup();
 
         // RED without the fix: Cleanup disposed+returned the in-flight slot and cleared the map.
-        // GREEN: the slot is retained (orphaned) so its outstanding read can release it safely.
-        Assert.True(slots.Contains(1L),
-            "Cleanup must defer release of an in-flight slot, not recycle it mid-read");
+        // GREEN: the slot is moved to _draining (out of the active map so a replayed reused id cannot
+        // clobber it) and NOT disposed, so its outstanding read can release it safely.
+        Assert.False(slots.Contains(1L), "Cleanup must move the in-flight slot out of the active map");
+        Assert.Equal(1, GetDrainingCount(pump));
 
-        // The read finally lands: the orphaned slot is released now, without mis-route or crash.
+        // The read finally lands (stale generation after the Cleanup bump): the draining slot is
+        // released now, without mis-route or crash.
         pump.HandleReadComplete(1L, 0);
 
-        Assert.False(slots.Contains(1L), "orphaned slot must be released once the read lands");
+        Assert.Equal(0, GetDrainingCount(pump));
         Assert.Empty(target.Completed);
         Assert.Empty(target.Failed);
     }
@@ -232,6 +234,93 @@ public sealed class MultiplexedBodyPumpSpec
     {
         var field = typeof(MultiplexedBodyPump).GetField("_activeSlots", BindingFlags.NonPublic | BindingFlags.Instance)!;
         return (IDictionary)field.GetValue(pump)!;
+    }
+
+    private static int GetDrainingCount(MultiplexedBodyPump pump)
+    {
+        var field = typeof(MultiplexedBodyPump).GetField("_draining", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return ((ICollection)field.GetValue(pump)!).Count;
+    }
+
+    private static int GetGeneration(MultiplexedBodyPump pump)
+    {
+        var field = typeof(MultiplexedBodyPump).GetField("_generation", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (int)field.GetValue(pump)!;
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Reconnect_should_bump_generation_and_move_inflight_read_to_draining()
+    {
+        // Race H5 (Part A): reconnect must drain the pump. An in-flight read is moved OUT of the
+        // active slots (so a replayed stream reusing its id cannot clobber it) and parked in
+        // _draining until its stale completion lands; the generation bumps so that completion is
+        // recognizable as stale.
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 256);
+
+        var gate = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(1L, new GatedReadStream(gate.Task), contentLength: null, CancellationToken.None);
+        Assert.True(GetActiveSlots(pump).Contains(1L));
+        Assert.Equal(0, GetGeneration(pump));
+
+        pump.Cleanup();
+
+        Assert.Equal(1, GetGeneration(pump));
+        Assert.False(GetActiveSlots(pump).Contains(1L), "in-flight slot must leave the active map on reconnect");
+        Assert.Equal(1, GetDrainingCount(pump));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Stale_completion_after_reconnect_must_not_advance_a_reused_stream()
+    {
+        // Race H5 (Part B): after reconnect the stream ids reset and reuse (H3 -> 0). A stale
+        // BodyReadComplete from the OLD incarnation, landing AFTER a NEW request re-registered the
+        // SAME id, must be DROPPED (generation mismatch) — never mis-advance the new stream's body —
+        // and the old orphaned slot must be released (no buffer/slot leak).
+        var target = new FakeTarget();
+        var pump = MakePump(target, chunkSize: 256);
+
+        // Old incarnation: stream 1 with a read parked in flight.
+        var oldGate = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(1L, new GatedReadStream(oldGate.Task), contentLength: null, CancellationToken.None);
+        var oldGeneration = GetGeneration(pump);
+
+        // Reconnect.
+        pump.Cleanup();
+        Assert.Equal(1, GetDrainingCount(pump));
+
+        // New incarnation reuses stream id 1, its own read parked in flight.
+        var newGate = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        pump.Register(1L, new GatedReadStream(newGate.Task), contentLength: null, CancellationToken.None);
+        Assert.True(GetActiveSlots(pump).Contains(1L));
+
+        // The OLD read finally lands, stamped with the OLD generation.
+        pump.HandleReadComplete(1L, 500, oldGeneration);
+
+        // Dropped: no phantom body bytes emitted onto the new stream, new slot intact, orphan freed.
+        Assert.Equal(0, target.EmittedBytes(1L));
+        Assert.Empty(target.Completed);
+        Assert.True(GetActiveSlots(pump).Contains(1L), "the new stream's slot must survive the stale completion");
+        Assert.Equal(0, GetDrainingCount(pump));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Current_generation_completion_after_reconnect_still_drains()
+    {
+        // The generation guard must not over-reject: a legitimate read started AFTER the reconnect
+        // (current generation) drains normally.
+        var target = new FakeTarget();
+        var pump = MakePump(target);
+
+        // Force a reconnect so the pump is at a non-zero generation.
+        pump.Cleanup();
+        Assert.Equal(1, GetGeneration(pump));
+
+        pump.Register(1L, MakeBody(100), contentLength: null, CancellationToken.None);
+        DrainToCompletion(pump, target, [1L]);
+
+        Assert.Single(target.Completed);
+        Assert.Equal(100, target.EmittedBytes(1L));
     }
 
     /// <summary>

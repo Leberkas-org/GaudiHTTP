@@ -251,11 +251,11 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         switch (msg)
         {
             case BodyReadComplete<long> read:
-                _writer.HandleReadComplete(read.StreamId, read.BytesRead);
+                _writer.HandleReadComplete(read.StreamId, read.BytesRead, read.Generation);
                 break;
 
             case BodyReadFailed<long> failed:
-                _writer.HandleReadFailed(failed.StreamId, failed.Reason);
+                _writer.HandleReadFailed(failed.StreamId, failed.Reason, failed.Generation);
                 break;
         }
     }

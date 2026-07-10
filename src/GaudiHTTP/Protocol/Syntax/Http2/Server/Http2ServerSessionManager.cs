@@ -348,11 +348,11 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         switch (msg)
         {
             case BodyReadComplete<int> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead, read.Generation);
                 break;
 
             case BodyReadFailed<int> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason, failed.Generation);
                 break;
 
             case StreamBodyConsumed consumed:

@@ -89,7 +89,7 @@ public sealed class FlowControlledBodyPumpSpec
             switch (msg)
             {
                 case BodyReadComplete<int> rc:
-                    scheduler.HandleReadComplete(rc.StreamId, rc.BytesRead);
+                    scheduler.HandleReadComplete(rc.StreamId, rc.BytesRead, rc.Generation);
                     break;
             }
         }
@@ -238,7 +238,6 @@ public sealed class FlowControlledBodyPumpSpec
         var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
 
         flow.InitStreamSendWindow(1);
-        var windowBefore = flow.ConnectionSendWindow;
 
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var blockingStream = new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task));
@@ -250,15 +249,18 @@ public sealed class FlowControlledBodyPumpSpec
         scheduler.Cleanup();
 
         // RED without the fix: Cleanup disposed+returned the in-flight slot and cleared the map.
-        // GREEN: the slot is retained (orphaned) so its outstanding read can release it safely.
-        Assert.True(slots.Contains(1),
-            "Cleanup must defer release of an in-flight slot, not recycle it mid-read");
+        // GREEN: the slot is moved to _draining (out of the active map so a replayed reused id cannot
+        // clobber it) and NOT disposed, so its outstanding read can release it safely. Its reserved
+        // window is NOT refunded — the connection's flow controller is dead/reset on reconnect, and
+        // refunding to a reused stream id would inflate the new stream's window.
+        Assert.False(slots.Contains(1), "Cleanup must move the in-flight slot out of the active map");
+        Assert.Equal(1, GetDrainingCount(scheduler));
 
-        // The read finally lands: the orphaned slot is released, its reserved window refunded, no crash.
+        // The read finally lands (stale generation after the Cleanup bump): the draining slot is
+        // released now, without mis-route or crash.
         scheduler.HandleReadComplete(1, 0);
 
-        Assert.False(slots.Contains(1), "orphaned slot must be released once the read lands");
-        Assert.Equal(windowBefore, flow.ConnectionSendWindow);
+        Assert.Equal(0, GetDrainingCount(scheduler));
         Assert.Empty(target.Completed);
         Assert.Empty(target.Failed);
     }
@@ -475,6 +477,95 @@ public sealed class FlowControlledBodyPumpSpec
     {
         var field = typeof(FlowControlledBodyPump).GetField("_activeSlots", BindingFlags.NonPublic | BindingFlags.Instance)!;
         return (IDictionary)field.GetValue(scheduler)!;
+    }
+
+    private static int GetDrainingCount(FlowControlledBodyPump scheduler)
+    {
+        var field = typeof(FlowControlledBodyPump).GetField("_draining", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return ((ICollection)field.GetValue(scheduler)!).Count;
+    }
+
+    private static int GetGeneration(FlowControlledBodyPump scheduler)
+    {
+        var field = typeof(FlowControlledBodyPump).GetField("_generation", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        return (int)field.GetValue(scheduler)!;
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Reconnect_should_bump_generation_and_move_inflight_read_to_draining()
+    {
+        // Race H4 (Part A): reconnect must drain the pump. The in-flight read is moved OUT of the
+        // active slots (so a replayed stream reusing its id cannot clobber it) into _draining, and
+        // the generation bumps so its late completion is recognizable as stale.
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        scheduler.Register(1, new DelegatingReadStream((_, _) => new ValueTask<int>(tcs.Task)), null, CancellationToken.None);
+        Assert.True(GetActiveSlots(scheduler).Contains(1));
+        Assert.Equal(0, GetGeneration(scheduler));
+
+        scheduler.Cleanup();
+
+        Assert.Equal(1, GetGeneration(scheduler));
+        Assert.False(GetActiveSlots(scheduler).Contains(1), "in-flight slot must leave the active map on reconnect");
+        Assert.Equal(1, GetDrainingCount(scheduler));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Stale_completion_after_reconnect_must_not_advance_a_reused_stream()
+    {
+        // Race H4 (Part B): after reconnect the stream ids reset and reuse (H2 -> 1). A stale
+        // BodyReadComplete from the OLD incarnation, landing AFTER a NEW request re-registered the
+        // SAME id, must be DROPPED (generation mismatch) — never mis-advance the new stream's body
+        // nor refund window to it — and the old orphaned slot must be released (no buffer/slot leak).
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
+
+        flow.InitStreamSendWindow(1);
+        var oldTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        scheduler.Register(1, new DelegatingReadStream((_, _) => new ValueTask<int>(oldTcs.Task)), null, CancellationToken.None);
+        var oldGeneration = GetGeneration(scheduler);
+
+        scheduler.Cleanup();
+        Assert.Equal(1, GetDrainingCount(scheduler));
+
+        // New incarnation reuses stream id 1 with its own parked read.
+        flow.InitStreamSendWindow(1);
+        var newTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        scheduler.Register(1, new DelegatingReadStream((_, _) => new ValueTask<int>(newTcs.Task)), null, CancellationToken.None);
+        Assert.True(GetActiveSlots(scheduler).Contains(1));
+
+        // The OLD read finally lands, stamped with the OLD generation.
+        scheduler.HandleReadComplete(1, 500, oldGeneration);
+
+        // Dropped: nothing emitted for the phantom read, new slot intact, orphan freed.
+        Assert.DoesNotContain(target.Emitted, e => e.StreamId == 1 && !e.EndStream);
+        Assert.Empty(target.Completed);
+        Assert.True(GetActiveSlots(scheduler).Contains(1), "the new stream's slot must survive the stale completion");
+        Assert.Equal(0, GetDrainingCount(scheduler));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Current_generation_completion_after_reconnect_still_drains()
+    {
+        // The generation guard must not over-reject: a read started AFTER the reconnect (current
+        // generation) drains normally.
+        var target = new FakeTarget();
+        var flow = MakeFlow();
+        var scheduler = new FlowControlledBodyPump(target, flow, new CancellationTokenSource(), chunkSize: 1 * 1024, hardCap: 16);
+
+        scheduler.Cleanup();
+        Assert.Equal(1, GetGeneration(scheduler));
+
+        flow.InitStreamSendWindow(1);
+        scheduler.Register(1, MakeBody(100), 100, CancellationToken.None);
+        DrainToCompletion(scheduler, target);
+
+        Assert.Single(target.Completed);
     }
 
     [Fact(Timeout = 5000)]

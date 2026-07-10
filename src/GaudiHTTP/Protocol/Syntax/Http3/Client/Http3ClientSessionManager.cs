@@ -221,11 +221,11 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
         switch (msg)
         {
             case BodyReadComplete<long> read:
-                _writer.HandleReadComplete(read.StreamId, read.BytesRead);
+                _writer.HandleReadComplete(read.StreamId, read.BytesRead, read.Generation);
                 break;
 
             case BodyReadFailed<long> failed:
-                _writer.HandleReadFailed(failed.StreamId, failed.Reason);
+                _writer.HandleReadFailed(failed.StreamId, failed.Reason, failed.Generation);
                 break;
 
             case AbandonedResponseBody abandoned:
@@ -341,6 +341,13 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 
     public void ResetConnectionState()
     {
+        // Reconnect-only path (never called on initial connect or plain teardown). Tear down the
+        // request-body pump BEFORE any request replays: an interrupted upload leaves a slot whose
+        // read is still in flight. Cleanup cancels that read, bumps the pump generation, and moves
+        // the slot aside so its stale BodyReadComplete/OnCapacityAvailable cannot pump the old body
+        // onto the new wire or mis-advance a replayed request that reuses the same (reset) stream id.
+        // Mirrors the H1.1/H2 template.
+        _writer.Cleanup();
         _tracker.Reset();
         _controlPrefaceSent = false;
         _tableSync.Reset();

@@ -507,6 +507,13 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     public void ResetConnectionState()
     {
+        // Reconnect-only path (never called on initial connect or plain teardown). Tear down the
+        // request-body pump BEFORE any request replays: an interrupted upload leaves a slot whose
+        // read is still in flight. Cleanup cancels that read, bumps the pump generation, and moves
+        // the slot aside so its stale BodyReadComplete cannot pump the old body onto the new wire or
+        // mis-advance a replayed request that reuses the same (reset) stream id. Mirrors the H1.1
+        // template (Http11ClientStateMachine.OnConnectionRestored, gated to genuine reconnect).
+        _pump?.Cleanup();
         _tracker.Reset();
         _flow.Reset(_decoderOptions.InitialConnectionWindowSize, _decoderOptions.InitialStreamWindowSize);
         _requestEncoder.ResetHpack();
@@ -1016,11 +1023,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         switch (msg)
         {
             case BodyReadComplete<int> read:
-                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead, read.Generation);
                 break;
 
             case BodyReadFailed<int> failed:
-                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason, failed.Generation);
                 break;
 
             case AbandonedResponseBody abandoned:

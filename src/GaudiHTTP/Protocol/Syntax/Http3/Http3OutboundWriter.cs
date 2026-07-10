@@ -105,14 +105,14 @@ internal sealed class Http3OutboundWriter
         _pump.Register(streamId, bodyStream, contentLength: null, cancellationToken);
     }
 
-    public void HandleReadComplete(long streamId, int bytesRead)
+    public void HandleReadComplete(long streamId, int bytesRead, int generation = 0)
     {
-        _pump?.HandleReadComplete(streamId, bytesRead);
+        _pump?.HandleReadComplete(streamId, bytesRead, generation);
     }
 
-    public void HandleReadFailed(long streamId, Exception reason)
+    public void HandleReadFailed(long streamId, Exception reason, int generation = 0)
     {
-        _pump?.HandleReadFailed(streamId, reason);
+        _pump?.HandleReadFailed(streamId, reason, generation);
     }
 
     public void OnCapacityAvailable(long streamId, int bytes)

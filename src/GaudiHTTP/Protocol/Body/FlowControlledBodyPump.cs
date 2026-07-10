@@ -14,7 +14,19 @@ internal sealed class FlowControlledBodyPump(
     private readonly Dictionary<int, PumpSlot<int>> _activeSlots = new();
     private readonly HashSet<int> _windowBlockedStreams = new();
     private readonly List<int> _stillBlockedScratch = new();
-    private readonly List<int> _cleanupScratch = new();
+
+    // In-flight reads orphaned by a reconnect (Cleanup): moved OUT of _activeSlots so a replayed
+    // request re-registering the SAME stream id cannot overwrite (and leak) them. Each is released
+    // when its stale completion finally lands.
+    private readonly List<PumpSlot<int>> _draining = new();
+
+    // Bumped on every Cleanup/reconnect; reads are stamped with the generation they start under so
+    // a completion from a torn-down connection is identifiable as stale (see HandleReadComplete).
+    private int _generation;
+
+    // Owned mutably so a reconnect can cancel the old token and swap in a fresh CTS for the new
+    // incarnation's reads.
+    private CancellationTokenSource _cts = connectionCts;
 
     private int _readSlots = 2;
     private int _asyncInFlight;
@@ -22,7 +34,7 @@ internal sealed class FlowControlledBodyPump(
     public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         var linkedCts = requestCt.CanBeCanceled
-            ? CancellationTokenSource.CreateLinkedTokenSource(connectionCts.Token, requestCt)
+            ? CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, requestCt)
             : null;
         var slot = ConnectionObjectPool.Instance.Rent(static () => new PumpSlot<int>());
         slot.Initialize(streamId, bodyStream, requestCt, linkedCts);
@@ -76,9 +88,20 @@ internal sealed class FlowControlledBodyPump(
         TryScheduleReads();
     }
 
-    public void HandleReadComplete(int streamId, int bytesRead)
+    public void HandleReadComplete(int streamId, int bytesRead, int generation = 0)
     {
         _asyncInFlight--;
+
+        // Stale completion from a torn-down connection (reconnect bumped the generation). Its slot
+        // was moved to _draining at Cleanup; release it there. Do NOT touch _activeSlots — a
+        // replayed request may already occupy this reused stream id, and mis-advancing its body (or
+        // refunding its window) is exactly the corruption this guard prevents.
+        if (generation != _generation)
+        {
+            ReleaseDrainingOrphan(streamId, generation);
+            TryScheduleReads();
+            return;
+        }
 
         if (!_activeSlots.TryGetValue(streamId, out var slot))
         {
@@ -102,9 +125,16 @@ internal sealed class FlowControlledBodyPump(
         ProcessReadResult(slot, bytesRead);
     }
 
-    public void HandleReadFailed(int streamId, Exception reason)
+    public void HandleReadFailed(int streamId, Exception reason, int generation = 0)
     {
         _asyncInFlight--;
+
+        if (generation != _generation)
+        {
+            ReleaseDrainingOrphan(streamId, generation);
+            TryScheduleReads();
+            return;
+        }
 
         if (!_activeSlots.TryGetValue(streamId, out var slot))
         {
@@ -137,6 +167,27 @@ internal sealed class FlowControlledBodyPump(
         slot.Dispose();
     }
 
+    // Releases the orphaned slot that a reconnect moved to _draining, once its outstanding read
+    // finally lands. (generation, streamId) uniquely identifies it. The old connection's flow
+    // window is dead (the FlowController was reset on reconnect), so the reserved window is NOT
+    // refunded — the buffer and linked CTS are simply released so neither leaks.
+    private void ReleaseDrainingOrphan(int streamId, int generation)
+    {
+        for (var i = 0; i < _draining.Count; i++)
+        {
+            var slot = _draining[i];
+            if (slot.Generation == generation && slot.StreamId == streamId)
+            {
+                _draining.RemoveAt(i);
+                slot.CompleteRead();
+                slot.ReservedWindow = 0;
+                slot.DisposeResources();
+                slot.Dispose();
+                return;
+            }
+        }
+    }
+
     public void Cancel(int streamId)
     {
         if (!_activeSlots.TryGetValue(streamId, out var slot))
@@ -161,37 +212,39 @@ internal sealed class FlowControlledBodyPump(
 
     public void Cleanup()
     {
-        connectionCts.Cancel();
+        _cts.Cancel();
         _windowBlockedStreams.Clear();
         _readyQueue.Clear();
 
+        // Bump the generation FIRST: every read still in flight was stamped with the old generation,
+        // so its late completion is now identifiable as stale (see HandleReadComplete).
+        _generation++;
+
         // A slot with a read still in flight cannot be disposed/returned here: the pending ReadAsync
         // still targets its pooled array, and the returned slot would be re-rented mid-read (buffer
-        // UAF + BodyReadComplete mis-route). MarkOrphaned and RETAIN it — connectionCts.Cancel above
-        // completes the read, and HandleReadComplete/HandleReadFailed releases the orphaned slot then
-        // (refunding its reserved window), exactly as Cancel already does per-slot. Only non-in-flight
-        // slots are released immediately.
-        _cleanupScratch.Clear();
-        foreach (var (streamId, slot) in _activeSlots)
+        // UAF + BodyReadComplete mis-route). Move it to _draining (out of _activeSlots so a replayed
+        // request reusing this id cannot overwrite and leak it). The CTS cancel above completes the
+        // read, and its stale completion releases the draining slot. Non-in-flight slots are released
+        // immediately.
+        foreach (var (_, slot) in _activeSlots)
         {
             if (slot.IsReadInFlight)
             {
                 slot.MarkOrphaned();
+                _draining.Add(slot);
             }
             else
             {
                 slot.DisposeResources();
                 slot.Dispose();
-                _cleanupScratch.Add(streamId);
             }
         }
 
-        foreach (var streamId in _cleanupScratch)
-        {
-            _activeSlots.Remove(streamId);
-        }
+        _activeSlots.Clear();
 
-        _cleanupScratch.Clear();
+        // Fresh CTS for the next incarnation's reads; the old (cancelled) one stays referenced by
+        // the still-outstanding draining reads until they observe cancellation and complete.
+        _cts = new CancellationTokenSource();
     }
 
     private void TryScheduleReads()
@@ -238,7 +291,8 @@ internal sealed class FlowControlledBodyPump(
         flowController.Reserve(slot.StreamId, readSize);
         slot.ReservedWindow = readSize;
 
-        var token = slot.LinkedCts?.Token ?? connectionCts.Token;
+        slot.Generation = _generation;
+        var token = slot.LinkedCts?.Token ?? _cts.Token;
         PumpSlotLifecycle.StartRead(slot, readSize, token, target.StageActor, ref _asyncInFlight);
     }
 
