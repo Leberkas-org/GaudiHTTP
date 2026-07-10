@@ -195,15 +195,20 @@ internal sealed class QueuedBodyReader : Poolable<QueuedBodyReader>, IStreamingB
             // completing — the OnReset version is monotonic, so a recycled rental never
             // collides with an earlier one.
             version = _core.Version;
-        }
 
-        if (ct.CanBeCanceled)
-        {
-            _cancelRegistration = ct.UnsafeRegister(static (state, token) =>
+            // Registration, version capture, and _readPending are set atomically under _sync
+            // (the class invariant): a concurrent OnReset/AdvanceTo reading _cancelRegistration
+            // can never observe a torn or already-recycled slot. Monitor is reentrant, so if the
+            // token is already cancelled and UnsafeRegister fires OnReadCancelled synchronously,
+            // re-entering _sync is safe — it only schedules an async VTS continuation.
+            if (ct.CanBeCanceled)
             {
-                var (self, expectedVersion) = ((QueuedBodyReader Reader, short Version))state!;
-                self.OnReadCancelled(expectedVersion, token);
-            }, (Reader: this, Version: version));
+                _cancelRegistration = ct.UnsafeRegister(static (state, token) =>
+                {
+                    var (self, expectedVersion) = ((QueuedBodyReader Reader, short Version))state!;
+                    self.OnReadCancelled(expectedVersion, token);
+                }, (Reader: this, Version: version));
+            }
         }
 
         return new ValueTask<BodyReadResult>(this, version);
