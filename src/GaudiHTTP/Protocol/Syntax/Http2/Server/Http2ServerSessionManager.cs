@@ -141,14 +141,15 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     {
         try
         {
+            using var inputBuffer = buffer;
+            ReadOnlyMemory<byte> memory = inputBuffer.Memory;
+
             if (!_prefaceConsumed)
             {
-                SkipConnectionPreface(buffer);
+                memory = SkipConnectionPreface(memory);
             }
 
-            // Decode returns the decoder's reused frame list; iterate it synchronously here within
-            // the same actor message and never retain it (Akka back-pressure guarantees consumption).
-            var frames = _frameDecoder.Decode(buffer);
+            var frames = _frameDecoder.DecodeAll(memory, out _);
             for (var i = 0; i < frames.Count; i++)
             {
                 ProcessFrame(frames[i]);
@@ -190,18 +191,17 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private static ReadOnlySpan<byte> ConnectionPrefaceMagic => "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
 
-    private void SkipConnectionPreface(WireBuffer buffer)
+    private ReadOnlyMemory<byte> SkipConnectionPreface(ReadOnlyMemory<byte> memory)
     {
         _prefaceConsumed = true;
 
-        var span = buffer.Memory.Span;
-        if (span.Length >= ConnectionPrefaceMagic.Length
-            && span[..ConnectionPrefaceMagic.Length].SequenceEqual(ConnectionPrefaceMagic))
+        if (memory.Length >= ConnectionPrefaceMagic.Length
+            && memory.Span[..ConnectionPrefaceMagic.Length].SequenceEqual(ConnectionPrefaceMagic))
         {
-            var remaining = span.Length - ConnectionPrefaceMagic.Length;
-            span[ConnectionPrefaceMagic.Length..].CopyTo(span);
-            buffer.Length = remaining;
+            return memory[ConnectionPrefaceMagic.Length..];
         }
+
+        return memory;
     }
 
     private void ProcessFrame(Http2Frame frame)

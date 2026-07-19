@@ -24,7 +24,7 @@ public sealed class Http3ServerStateMachineSpec
     {
         using var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(data.Length);
         data.CopyTo(owner.Memory);
-        var dataFrame = new DataFrame(owner, data.Length);
+        var dataFrame = new DataFrame(owner.Memory[..data.Length]);
         var buffer = new byte[dataFrame.SerializedSize];
         var span = buffer.AsSpan();
         dataFrame.WriteTo(ref span);

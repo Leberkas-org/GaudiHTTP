@@ -190,13 +190,4 @@ internal static class FeatureCollectionFactory
         return new ArrayBufferWriter<byte>();
     }
 
-    internal static void ReturnBuffer(ArrayBufferWriter<byte> buffer)
-    {
-        buffer.ResetWrittenCount();
-        _bufferPool ??= new Stack<ArrayBufferWriter<byte>>(MaxPoolSize);
-        if (_bufferPool.Count < MaxPoolSize)
-        {
-            _bufferPool.Push(buffer);
-        }
-    }
 }

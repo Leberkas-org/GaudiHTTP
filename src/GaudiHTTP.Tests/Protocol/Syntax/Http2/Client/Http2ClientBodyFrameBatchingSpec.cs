@@ -27,7 +27,7 @@ public sealed class Http2ClientBodyFrameBatchingSpec
                 return;
             }
 
-            var frames = new FrameDecoder().Decode(buf);
+            var frames = new FrameDecoder().DecodeAll(buf.Memory, out _);
             var sawData = false;
             foreach (var frame in frames)
             {

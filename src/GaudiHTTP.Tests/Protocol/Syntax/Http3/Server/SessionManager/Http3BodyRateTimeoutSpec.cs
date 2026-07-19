@@ -16,7 +16,7 @@ public sealed class Http3BodyRateTimeoutSpec
     private static byte[] BuildDataFrameBytes(int size)
     {
         using var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(size);
-        var df = new DataFrame(owner, size);
+        var df = new DataFrame(owner.Memory[..size]);
         var buf = new byte[df.SerializedSize];
         var span = buf.AsSpan();
         df.WriteTo(ref span);

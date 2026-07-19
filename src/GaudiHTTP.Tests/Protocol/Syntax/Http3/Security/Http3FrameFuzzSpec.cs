@@ -69,10 +69,9 @@ public sealed class Http3FrameFuzzSpec
             rng.NextBytes(payload);
 
             var frame = BuildRawFrame(unknownType, payload);
-            var status = decoder.TryDecode(frame, out var decoded, out _);
+            var decoded = decoder.DecodeAll(frame, out _);
 
-            Assert.Equal(DecodeStatus.Success, status);
-            Assert.Null(decoded); // Unknown frames produce null (skipped)
+            Assert.Empty(decoded); // Unknown frames are skipped
         }
     }
 
@@ -86,10 +85,9 @@ public sealed class Http3FrameFuzzSpec
         var frame = BuildRawFrameWithDeclaredLength(
             (long)FrameType.Data, 100, new byte[10]);
 
-        var status = decoder.TryDecode(frame, out var decoded, out _);
+        var decoded = decoder.DecodeAll(frame, out _);
 
-        Assert.Equal(DecodeStatus.NeedMoreData, status);
-        Assert.Null(decoded);
+        Assert.Empty(decoded);
         Assert.True(decoder.HasRemainder);
     }
 
@@ -99,10 +97,9 @@ public sealed class Http3FrameFuzzSpec
     {
         using var decoder = new FrameDecoder();
 
-        var status = decoder.TryDecode(ReadOnlySpan<byte>.Empty, out var frame, out var consumed);
+        var frames = decoder.DecodeAll(ReadOnlyMemory<byte>.Empty, out var consumed);
 
-        Assert.Equal(DecodeStatus.NeedMoreData, status);
-        Assert.Null(frame);
+        Assert.Empty(frames);
         Assert.Equal(0, consumed);
     }
 
@@ -129,12 +126,10 @@ public sealed class Http3FrameFuzzSpec
         var payload = "Hello"u8.ToArray(); // "Hello"
         var frame = BuildRawFrame((long)FrameType.Data, payload);
 
-        var status = decoder.TryDecode(frame, out var decoded, out _);
+        var frames = decoder.DecodeAll(frame, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var dataFrame = Assert.IsType<DataFrame>(decoded);
+        var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(5, dataFrame.Data.Length);
-        dataFrame.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -225,18 +220,15 @@ public sealed class Http3FrameFuzzSpec
 
         // Valid DATA frame
         var validFrame = BuildRawFrame((long)FrameType.Data, [0x01, 0x02, 0x03]);
-        var status = decoder.TryDecode(validFrame, out var frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.IsType<DataFrame>(frame);
-        ((DataFrame)frame).Dispose();
+        var frames1 = decoder.DecodeAll(validFrame, out _);
+        var frame = Assert.IsType<DataFrame>(Assert.Single(frames1));
 
         // Valid GOAWAY frame
         var goawayPayload = new byte[8];
         var goawayLen = QuicVarInt.Encode(4, goawayPayload);
         var goawayFrame = BuildRawFrame((long)FrameType.GoAway, goawayPayload[..goawayLen]);
-        status = decoder.TryDecode(goawayFrame, out frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.IsType<GoAwayFrame>(frame);
+        var frames2 = decoder.DecodeAll(goawayFrame, out _);
+        Assert.IsType<GoAwayFrame>(Assert.Single(frames2));
     }
 
     [Fact(Timeout = 5000)]
@@ -247,11 +239,9 @@ public sealed class Http3FrameFuzzSpec
 
         var frame = BuildRawFrame((long)FrameType.Data, []);
 
-        var status = decoder.TryDecode(frame, out var decoded, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        var dataFrame = Assert.IsType<DataFrame>(decoded);
+        var frames = decoder.DecodeAll(frame, out _);
+        var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(0, dataFrame.Data.Length);
-        dataFrame.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -262,11 +252,9 @@ public sealed class Http3FrameFuzzSpec
 
         var frame = BuildRawFrame((long)FrameType.Headers, []);
 
-        var status = decoder.TryDecode(frame, out var decoded, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        var headersFrame = Assert.IsType<HeadersFrame>(decoded);
+        var frames = decoder.DecodeAll(frame, out _);
+        var headersFrame = Assert.IsType<HeadersFrame>(Assert.Single(frames));
         Assert.Equal(0, headersFrame.HeaderBlock.Length);
-        headersFrame.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -290,7 +278,6 @@ public sealed class Http3FrameFuzzSpec
         {
             if (f is IDisposable d)
             {
-                d.Dispose();
             }
         }
     }
@@ -309,15 +296,12 @@ public sealed class Http3FrameFuzzSpec
         var part1 = fullFrame[..half];
         var part2 = fullFrame[half..];
 
-        var status1 = decoder.TryDecode(part1, out var frame1, out _);
-        Assert.Equal(DecodeStatus.NeedMoreData, status1);
-        Assert.Null(frame1);
+        var frames1 = decoder.DecodeAll(part1, out _);
+        Assert.Empty(frames1);
 
-        var status2 = decoder.TryDecode(part2, out var frame2, out _);
-        Assert.Equal(DecodeStatus.Success, status2);
-        var dataFrame = Assert.IsType<DataFrame>(frame2);
+        var frames2 = decoder.DecodeAll(part2, out _);
+        var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames2));
         Assert.Equal(5, dataFrame.Data.Length);
-        dataFrame.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -328,7 +312,7 @@ public sealed class Http3FrameFuzzSpec
 
         // Feed partial frame
         var fullFrame = BuildRawFrame((long)FrameType.Data, new byte[100]);
-        decoder.TryDecode(fullFrame[..5], out _, out _);
+        decoder.DecodeAll(fullFrame[..5], out _);
         Assert.True(decoder.HasRemainder);
 
         decoder.Reset();

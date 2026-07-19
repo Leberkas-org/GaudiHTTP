@@ -74,8 +74,6 @@ internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
         }
 
         HeaderBlockWriter.Write(ref writer, _reusableHeaders);
-
-        // Body encoding is handled separately via the BodySink
         return writer.BytesWritten;
     }
 

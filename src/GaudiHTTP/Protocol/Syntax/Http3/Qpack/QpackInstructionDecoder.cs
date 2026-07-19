@@ -16,48 +16,33 @@ namespace GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 ///   - Stream Cancellation (§4.4.2):        01xxxxxx
 ///   - Insert Count Increment (§4.4.3):     00xxxxxx
 ///
-/// Maintains a remainder buffer for partial instructions split across reads.
-/// When combining remainder + new data, a transient working buffer is rented from
-/// <see cref="MemoryPool{T}"/> to avoid per-call heap allocations on the hot path.
+/// Maintains a field-level byte[] remainder buffer (grow-on-demand, never-shrink)
+/// for partial instructions split across reads, avoiding per-call MemoryPool allocations.
 /// </summary>
 internal sealed class QpackInstructionDecoder : IDisposable
 {
-    private IMemoryOwner<byte>? _remainderOwner;
+    private byte[]? _remainderBuffer;
     private int _remainderLength;
 
-    // Per-decoder scratch buffer for Huffman decoding. Grown on demand (grow-and-replace).
-    // Actor-thread-confined: no synchronization needed.
     private byte[] _huffmanScratch = new byte[4 * 1024];
 
     private readonly HeaderNameCache _nameCache = new();
 
-    /// <summary>True if there is unconsumed data from a previous call.</summary>
     public bool HasRemainder => _remainderLength > 0;
 
-    /// <summary>Resets the decoder state, clearing any buffered remainder.</summary>
     public void Reset()
     {
-        _remainderOwner?.Dispose();
-        _remainderOwner = null;
+        _remainderBuffer = null;
         _remainderLength = 0;
     }
 
-    /// <summary>Disposes the decoder, returning any pooled remainder buffer to the pool.</summary>
     public void Dispose() => Reset();
 
-    /// <summary>
-    /// Attempts to decode one encoder instruction (RFC 9204 §4.3).
-    /// </summary>
-    /// <param name="data">Input data (appended to any existing remainder).</param>
-    /// <param name="instruction">The decoded instruction, or null if more data is needed.</param>
-    /// <returns><see cref="QpackDecodeStatus.Success"/> if an instruction was decoded.</returns>
     public QpackDecodeStatus TryDecodeEncoderInstruction(ReadOnlySpan<byte> data, out EncoderInstruction? instruction)
     {
         instruction = null;
 
-        // Build the working span — rent a combined buffer only when we have a remainder to merge
         ReadOnlySpan<byte> span;
-        IMemoryOwner<byte>? rentedCombined = null;
         int spanLength;
 
         if (_remainderLength == 0)
@@ -67,26 +52,20 @@ internal sealed class QpackInstructionDecoder : IDisposable
                 return QpackDecodeStatus.NeedMoreData;
             }
 
-            // Hot path: no remainder, use incoming data directly (zero allocation)
             span = data;
             spanLength = data.Length;
         }
         else if (data.Length == 0)
         {
-            // Only remainder present — parse it as-is
-            span = _remainderOwner!.Memory.Span[.._remainderLength];
+            span = _remainderBuffer.AsSpan(0, _remainderLength);
             spanLength = _remainderLength;
         }
         else
         {
-            // Combine remainder + new data into a pooled working buffer
             spanLength = _remainderLength + data.Length;
-            rentedCombined = MemoryPool<byte>.Shared.Rent(spanLength);
-            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
-            data.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
-            span = rentedCombined.Memory.Span[..spanLength];
-            _remainderOwner?.Dispose();
-            _remainderOwner = null;
+            EnsureRemainderCapacity(spanLength);
+            data.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
+            span = _remainderBuffer.AsSpan(0, spanLength);
             _remainderLength = 0;
         }
 
@@ -98,7 +77,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
 
             if ((firstByte & 0x80) != 0)
             {
-                // §4.3.2 — Insert With Name Reference: 1Txxxxxx
                 var isStatic = (firstByte & 0x40) != 0;
                 var nameIndex = QpackIntegerCodec.Decode(span, ref pos, 6);
                 var value = QpackStringCodec.DecodeToString(span, ref pos, 7, ref _huffmanScratch);
@@ -113,7 +91,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
             }
             else if ((firstByte & 0x40) != 0)
             {
-                // §4.3.3 — Insert With Literal Name: 01Hxxxxx
                 var name = QpackStringCodec.DecodeToString(span, ref pos, 5, ref _huffmanScratch, _nameCache);
                 var value = QpackStringCodec.DecodeToString(span, ref pos, 7, ref _huffmanScratch);
 
@@ -126,7 +103,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
             }
             else if ((firstByte & 0x20) != 0)
             {
-                // §4.3.1 — Set Dynamic Table Capacity: 001xxxxx
                 var capacity = QpackIntegerCodec.Decode(span, ref pos, 5);
 
                 instruction = new EncoderInstruction
@@ -137,7 +113,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
             }
             else
             {
-                // §4.3.4 — Duplicate: 000xxxxx
                 var index = QpackIntegerCodec.Decode(span, ref pos, 5);
 
                 instruction = new EncoderInstruction
@@ -147,17 +122,12 @@ internal sealed class QpackInstructionDecoder : IDisposable
                 };
             }
 
-            // Store any leftover bytes in remainder buffer
             if (pos < spanLength)
             {
-                _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength - pos);
-                span[pos..].CopyTo(_remainderOwner.Memory.Span);
-                _remainderLength = spanLength - pos;
+                StoreRemainder(span[pos..]);
             }
             else
             {
-                _remainderOwner?.Dispose();
-                _remainderOwner = null;
                 _remainderLength = 0;
             }
 
@@ -165,37 +135,20 @@ internal sealed class QpackInstructionDecoder : IDisposable
         }
         catch (QpackException)
         {
-            // Integer or string codec threw because data was truncated — need more data.
-            // Store the entire working span to remainder before returning the rented buffer.
             if (spanLength > 0)
             {
-                _remainderOwner?.Dispose();
-                _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength);
-                span.CopyTo(_remainderOwner.Memory.Span);
-                _remainderLength = spanLength;
+                StoreRemainder(span[..spanLength]);
             }
 
             return QpackDecodeStatus.NeedMoreData;
         }
-        finally
-        {
-            rentedCombined?.Dispose();
-        }
     }
 
-    /// <summary>
-    /// Attempts to decode one decoder instruction (RFC 9204 §4.4).
-    /// </summary>
-    /// <param name="data">Input data (appended to any existing remainder).</param>
-    /// <param name="instruction">The decoded instruction, or null if more data is needed.</param>
-    /// <returns><see cref="QpackDecodeStatus.Success"/> if an instruction was decoded.</returns>
     public QpackDecodeStatus TryDecodeDecoderInstruction(ReadOnlySpan<byte> data, out DecoderInstruction? instruction)
     {
         instruction = null;
 
-        // Build the working span — rent a combined buffer only when we have a remainder to merge
         ReadOnlySpan<byte> span;
-        IMemoryOwner<byte>? rentedCombined = null;
         int spanLength;
 
         if (_remainderLength == 0)
@@ -205,26 +158,20 @@ internal sealed class QpackInstructionDecoder : IDisposable
                 return QpackDecodeStatus.NeedMoreData;
             }
 
-            // Hot path: no remainder, use incoming data directly (zero allocation)
             span = data;
             spanLength = data.Length;
         }
         else if (data.Length == 0)
         {
-            // Only remainder present — parse it as-is
-            span = _remainderOwner!.Memory.Span[.._remainderLength];
+            span = _remainderBuffer.AsSpan(0, _remainderLength);
             spanLength = _remainderLength;
         }
         else
         {
-            // Combine remainder + new data into a pooled working buffer
             spanLength = _remainderLength + data.Length;
-            rentedCombined = MemoryPool<byte>.Shared.Rent(spanLength);
-            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
-            data.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
-            span = rentedCombined.Memory.Span[..spanLength];
-            _remainderOwner?.Dispose();
-            _remainderOwner = null;
+            EnsureRemainderCapacity(spanLength);
+            data.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
+            span = _remainderBuffer.AsSpan(0, spanLength);
             _remainderLength = 0;
         }
 
@@ -236,7 +183,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
 
             if ((firstByte & 0x80) != 0)
             {
-                // §4.4.1 — Section Acknowledgment: 1xxxxxxx
                 var streamId = QpackIntegerCodec.Decode(span, ref pos, 7);
 
                 instruction = new DecoderInstruction
@@ -247,7 +193,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
             }
             else if ((firstByte & 0x40) != 0)
             {
-                // §4.4.2 — Stream Cancellation: 01xxxxxx
                 var streamId = QpackIntegerCodec.Decode(span, ref pos, 6);
 
                 instruction = new DecoderInstruction
@@ -258,7 +203,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
             }
             else
             {
-                // §4.4.3 — Insert Count Increment: 00xxxxxx
                 var increment = QpackIntegerCodec.Decode(span, ref pos, 6);
 
                 instruction = new DecoderInstruction
@@ -268,17 +212,12 @@ internal sealed class QpackInstructionDecoder : IDisposable
                 };
             }
 
-            // Store any leftover bytes in remainder buffer
             if (pos < spanLength)
             {
-                _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength - pos);
-                span[pos..].CopyTo(_remainderOwner.Memory.Span);
-                _remainderLength = spanLength - pos;
+                StoreRemainder(span[pos..]);
             }
             else
             {
-                _remainderOwner?.Dispose();
-                _remainderOwner = null;
                 _remainderLength = 0;
             }
 
@@ -286,27 +225,15 @@ internal sealed class QpackInstructionDecoder : IDisposable
         }
         catch (QpackException)
         {
-            // Store the entire working span to remainder before returning the rented buffer.
             if (spanLength > 0)
             {
-                _remainderOwner?.Dispose();
-                _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength);
-                span.CopyTo(_remainderOwner.Memory.Span);
-                _remainderLength = spanLength;
+                StoreRemainder(span[..spanLength]);
             }
 
             return QpackDecodeStatus.NeedMoreData;
         }
-        finally
-        {
-            rentedCombined?.Dispose();
-        }
     }
 
-    /// <summary>
-    /// Decodes all encoder instructions from the given data.
-    /// Partial trailing data is buffered for the next call.
-    /// </summary>
     public EncoderInstruction[] DecodeAllEncoderInstructions(ReadOnlySpan<byte> data)
     {
         var rented = ArrayPool<EncoderInstruction>.Shared.Rent(16);
@@ -342,10 +269,6 @@ internal sealed class QpackInstructionDecoder : IDisposable
         return result;
     }
 
-    /// <summary>
-    /// Decodes all decoder instructions from the given data.
-    /// Partial trailing data is buffered for the next call.
-    /// </summary>
     public DecoderInstruction[] DecodeAllDecoderInstructions(ReadOnlySpan<byte> data)
     {
         var rented = ArrayPool<DecoderInstruction>.Shared.Rent(16);
@@ -380,5 +303,25 @@ internal sealed class QpackInstructionDecoder : IDisposable
         ArrayPool<DecoderInstruction>.Shared.Return(rented, true);
         return result;
     }
-}
 
+    private void EnsureRemainderCapacity(int needed)
+    {
+        if (_remainderBuffer is null || _remainderBuffer.Length < needed)
+        {
+            var newBuffer = new byte[Math.Max(needed, 256)];
+            if (_remainderBuffer is not null && _remainderLength > 0)
+            {
+                _remainderBuffer.AsSpan(0, _remainderLength).CopyTo(newBuffer);
+            }
+
+            _remainderBuffer = newBuffer;
+        }
+    }
+
+    private void StoreRemainder(ReadOnlySpan<byte> data)
+    {
+        EnsureRemainderCapacity(data.Length);
+        data.CopyTo(_remainderBuffer);
+        _remainderLength = data.Length;
+    }
+}

@@ -58,7 +58,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         var tasks = Enumerable.Range(0, 50).Select(_ => Task.Run(() =>
         {
             var decoder = new FrameDecoder();
-            var frames = decoder.Decode(headersFrame.ToWireBuffer());
+            var frames = decoder.DecodeAll(headersFrame, out _);
             Assert.NotEmpty(frames);
         }));
 
@@ -76,7 +76,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
 
             for (var i = 0; i < 20; i++)
             {
-                var frames = decoder.Decode(BuildHeadersFrame(2 * i + 1, endStream: true).ToWireBuffer());
+                var frames = decoder.DecodeAll(BuildHeadersFrame(2 * i + 1, endStream: true), out _);
                 foreach (var frame in frames)
                 {
                     if (frame is HeadersFrame hf)
@@ -109,7 +109,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
 
             for (var i = 0; i < n + 1; i++)
             {
-                var frames = decoder.Decode(BuildHeadersFrame(2 * i + 1, endStream: false).ToWireBuffer());
+                var frames = decoder.DecodeAll(BuildHeadersFrame(2 * i + 1, endStream: false), out _);
                 foreach (var frame in frames)
                 {
                     if (frame is HeadersFrame)
@@ -158,7 +158,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         var expectedClosed = 0;
         for (var i = 0; i < streamCount; i++)
         {
-            var frames = seqDecoder.Decode(BuildHeadersFrame(2 * i + 1, endStream: true).ToWireBuffer());
+            var frames = seqDecoder.DecodeAll(BuildHeadersFrame(2 * i + 1, endStream: true), out _);
             foreach (var frame in frames)
             {
                 if (frame is HeadersFrame { EndStream: true })
@@ -176,7 +176,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
 
             for (var i = 0; i < streamCount; i++)
             {
-                var frames = decoder.Decode(BuildHeadersFrame(2 * i + 1, endStream: true).ToWireBuffer());
+                var frames = decoder.DecodeAll(BuildHeadersFrame(2 * i + 1, endStream: true), out _);
                 foreach (var frame in frames)
                 {
                     if (frame is HeadersFrame { EndStream: true })
@@ -201,12 +201,12 @@ public sealed class Http2ParallelDecoderIsolationSpec
         var connectionWindow = 65535;
 
         // Open stream 1
-        decoder.Decode(BuildHeadersFrame(1, endStream: false).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, endStream: false), out _);
 
         // Use 15000-byte chunks â€” each well within the 16384 MAX_FRAME_SIZE limit
         var chunk = new byte[15000];
 
-        var frames1 = decoder.Decode(BuildDataFrame(1, chunk, endStream: false).ToWireBuffer());
+        var frames1 = decoder.DecodeAll(BuildDataFrame(1, chunk, endStream: false), out _);
         foreach (var frame in frames1)
         {
             if (frame is DataFrame df)
@@ -215,7 +215,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
             }
         }
 
-        var frames2 = decoder.Decode(BuildDataFrame(1, chunk, endStream: false).ToWireBuffer());
+        var frames2 = decoder.DecodeAll(BuildDataFrame(1, chunk, endStream: false), out _);
         foreach (var frame in frames2)
         {
             if (frame is DataFrame df)
@@ -224,7 +224,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
             }
         }
 
-        var frames3 = decoder.Decode(BuildDataFrame(1, chunk, endStream: true).ToWireBuffer());
+        var frames3 = decoder.DecodeAll(BuildDataFrame(1, chunk, endStream: true), out _);
         foreach (var frame in frames3)
         {
             if (frame is DataFrame df)
@@ -244,10 +244,10 @@ public sealed class Http2ParallelDecoderIsolationSpec
         var decoder = new FrameDecoder();
         var connectionWindow = 100;
 
-        decoder.Decode(BuildHeadersFrame(1, endStream: false).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, endStream: false), out _);
 
         var oversized = new byte[101];
-        var frames = decoder.Decode(BuildDataFrame(1, oversized, endStream: false).ToWireBuffer());
+        var frames = decoder.DecodeAll(BuildDataFrame(1, oversized, endStream: false), out _);
 
         foreach (var frame in frames)
         {
@@ -265,13 +265,13 @@ public sealed class Http2ParallelDecoderIsolationSpec
     {
         var decoder = new FrameDecoder();
 
-        decoder.Decode(BuildHeadersFrame(1, endStream: false).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, endStream: false), out _);
 
         // Exhaust the window
         var chunk = new byte[50];
         var connectionWindow = 50;
 
-        var frames1 = decoder.Decode(BuildDataFrame(1, chunk, endStream: false).ToWireBuffer());
+        var frames1 = decoder.DecodeAll(BuildDataFrame(1, chunk, endStream: false), out _);
         foreach (var frame in frames1)
         {
             if (frame is DataFrame df)
@@ -283,7 +283,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         // Restore via simulated WINDOW_UPDATE
         connectionWindow = 65535;
 
-        var frames2 = decoder.Decode(BuildDataFrame(1, chunk, endStream: true).ToWireBuffer());
+        var frames2 = decoder.DecodeAll(BuildDataFrame(1, chunk, endStream: true), out _);
         foreach (var frame in frames2)
         {
             if (frame is DataFrame df)
@@ -307,12 +307,12 @@ public sealed class Http2ParallelDecoderIsolationSpec
             { 3, 65535 }
         };
 
-        decoder.Decode(BuildHeadersFrame(1, endStream: false).ToWireBuffer());
-        decoder.Decode(BuildHeadersFrame(3, endStream: false).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, endStream: false), out _);
+        decoder.DecodeAll(BuildHeadersFrame(3, endStream: false), out _);
 
         // Saturate stream 1's receive window
         var oversized = new byte[51];
-        var frames1 = decoder.Decode(BuildDataFrame(1, oversized, endStream: false).ToWireBuffer());
+        var frames1 = decoder.DecodeAll(BuildDataFrame(1, oversized, endStream: false), out _);
         foreach (var frame in frames1)
         {
             if (frame is DataFrame df)
@@ -323,7 +323,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         }
 
         // Stream 3 (different stream, fresh window) should be unaffected
-        var frames3 = decoder.Decode(BuildDataFrame(3, new byte[100], endStream: true).ToWireBuffer());
+        var frames3 = decoder.DecodeAll(BuildDataFrame(3, new byte[100], endStream: true), out _);
         foreach (var frame in frames3)
         {
             if (frame is DataFrame df)
@@ -347,7 +347,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
             var streamId = 2 * round + 1;
 
             // Open
-            var framesOpen = decoder.Decode(BuildHeadersFrame(streamId, endStream: false).ToWireBuffer());
+            var framesOpen = decoder.DecodeAll(BuildHeadersFrame(streamId, endStream: false), out _);
             foreach (var frame in framesOpen)
             {
                 if (frame is HeadersFrame)
@@ -357,7 +357,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
             }
 
             // Send data
-            var framesSend = decoder.Decode(BuildDataFrame(streamId, new byte[1024], endStream: true).ToWireBuffer());
+            var framesSend = decoder.DecodeAll(BuildDataFrame(streamId, new byte[1024], endStream: true), out _);
             foreach (var frame in framesSend)
             {
                 if (frame is DataFrame df)
@@ -388,7 +388,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         // Load the first decoder with 500 open streams
         for (var i = 0; i < 500; i++)
         {
-            decoder1.Decode(BuildHeadersFrame(2 * i + 1, endStream: false).ToWireBuffer());
+            decoder1.DecodeAll(BuildHeadersFrame(2 * i + 1, endStream: false), out _);
         }
 
         // Create a fresh decoder (no prior state)
@@ -400,7 +400,7 @@ public sealed class Http2ParallelDecoderIsolationSpec
         for (var i = 0; i < 20; i++)
         {
             var streamId = 2 * i + 1;
-            var frames = decoder2.Decode(BuildHeadersFrame(streamId, endStream: true).ToWireBuffer());
+            var frames = decoder2.DecodeAll(BuildHeadersFrame(streamId, endStream: true), out _);
             decodedCount += frames.Count;
         }
 

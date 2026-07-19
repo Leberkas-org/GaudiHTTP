@@ -376,7 +376,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         Assert.False(sm.IsReconnecting);
         var replayed = ops.Outbound.OfType<TransportData>().Last();
-        Assert.Contains(new FrameDecoder().Decode(replayed.Buffer), f => f is HeadersFrame);
+        Assert.Contains(new FrameDecoder().DecodeAll(replayed.Buffer.Memory, out _), f => f is HeadersFrame);
         Assert.False(pending.GetValueTask().IsFaulted);
     }
 
@@ -395,7 +395,7 @@ public sealed class Http2StateMachineReconnectSpec
         {
             if (item is TransportData { Buffer: var buffer })
             {
-                result.AddRange(decoder.Decode(buffer));
+                result.AddRange(decoder.DecodeAll(buffer.Memory, out _));
             }
         }
 

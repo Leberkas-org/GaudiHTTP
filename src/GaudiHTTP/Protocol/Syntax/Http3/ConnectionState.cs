@@ -16,10 +16,6 @@ internal sealed class ConnectionState(TimeSpan idleTimeout, int maxPushCount = 0
 
     public int ActiveStreamCount { get; private set; }
     public bool IsTimeoutDisabled => idleTimeout == TimeSpan.Zero;
-    public long MaxPushId { get; set; }
-
-    private readonly HashSet<long> _cancelledPushIds = [];
-    private int _pushCount;
 
     public void OnServerGoAway(GoAwayFrame frame)
     {
@@ -103,51 +99,10 @@ internal sealed class ConnectionState(TimeSpan idleTimeout, int maxPushCount = 0
         return remainingMs > 0 ? TimeSpan.FromMilliseconds(remainingMs) : TimeSpan.Zero;
     }
 
-    public static TimeSpan ComputeEffectiveTimeout(TimeSpan localTimeout, TimeSpan remoteTimeout)
-    {
-        if (localTimeout < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(localTimeout), localTimeout,
-                "Timeout must be non-negative.");
-        }
-
-        if (remoteTimeout < TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(remoteTimeout), remoteTimeout,
-                "Timeout must be non-negative.");
-        }
-
-        if (localTimeout == TimeSpan.Zero)
-        {
-            return remoteTimeout;
-        }
-
-        if (remoteTimeout == TimeSpan.Zero)
-        {
-            return localTimeout;
-        }
-
-        return localTimeout < remoteTimeout ? localTimeout : remoteTimeout;
-    }
-
-    public void RecordPush()
-    {
-        if (_pushCount >= maxPushCount)
-        {
-            throw new HttpProtocolException(
-                $"Server exceeded push limit of {maxPushCount} push promises (RFC 9114 §10.5).");
-        }
-
-        _pushCount++;
-    }
-
     public void OnReceivedCancelPush(CancelPushFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        _cancelledPushIds.Add(frame.PushId);
     }
-
-    public bool IsPushCancelled(long pushId) => _cancelledPushIds.Contains(pushId);
 
     public void Reset()
     {
@@ -156,9 +111,6 @@ internal sealed class ConnectionState(TimeSpan idleTimeout, int maxPushCount = 0
         RemoteSettingsReceived = false;
         RemoteSettings = null;
         ActiveStreamCount = 0;
-        _pushCount = 0;
-        _cancelledPushIds.Clear();
-        MaxPushId = 0;
         RecordActivity();
     }
 }

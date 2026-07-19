@@ -61,10 +61,8 @@ public sealed class Http2ClientBodyFastPathSpec
             {
                 // Use a fresh decoder per buffer: the H2 preface magic ("PRI *...") would
                 // otherwise leave bytes as remainder and corrupt the next frame parse.
-                // Copy frame data before the decoder is disposed (its working buffer is
-                // the same WireBuffer, disposed with the decoder).
                 var decoder = new FrameDecoder();
-                var decoded = decoder.Decode(buf);
+                var decoded = decoder.DecodeAll(buf.Memory, out _);
                 foreach (var frame in decoded)
                 {
                     // Copy the frame's memory slices so they remain valid after Dispose.

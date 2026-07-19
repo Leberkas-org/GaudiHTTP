@@ -57,7 +57,7 @@ public sealed class Http3ClientBodyFastPathSpec
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
                 // ToList so the reused decoder buffer is copied before the next decode call
-                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory.Span, out _).ToList());
+                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory, out _).ToList());
                 md.Buffer.Dispose();
             }
         }

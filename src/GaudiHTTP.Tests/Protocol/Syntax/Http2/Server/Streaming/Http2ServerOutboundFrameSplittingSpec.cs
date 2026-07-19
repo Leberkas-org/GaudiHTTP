@@ -122,7 +122,7 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         {
             if (outbound[i] is TransportData td)
             {
-                var decodedFrames = decoder.Decode(td.Buffer);
+                var decodedFrames = decoder.DecodeAll(td.Buffer.Memory, out _);
                 frames.AddRange(decodedFrames);
             }
         }

@@ -62,7 +62,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.RefusedStream);
-        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
+        var frames = decoder.DecodeAll(rstFrame.Serialize(), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.RefusedStream, rst.ErrorCode);
@@ -74,7 +74,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.NoError);
-        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
+        var frames = decoder.DecodeAll(rstFrame.Serialize(), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.NoError, rst.ErrorCode);
@@ -86,7 +86,7 @@ public sealed class ResponseRetentionSpec
     {
         var decoder = new FrameDecoder();
         var rstFrame = new RstStreamFrame(42, Http2ErrorCode.Cancel);
-        var frames = decoder.Decode(rstFrame.Serialize().ToWireBuffer());
+        var frames = decoder.DecodeAll(rstFrame.Serialize(), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(42, rst.StreamId);

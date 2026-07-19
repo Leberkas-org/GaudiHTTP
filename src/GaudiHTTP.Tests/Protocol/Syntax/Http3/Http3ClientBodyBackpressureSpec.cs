@@ -135,7 +135,7 @@ public sealed class Http3ClientBodyBackpressureSpec
         {
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
-                foreach (var frame in decoder.DecodeAll(md.Buffer.Memory.Span, out _).ToList())
+                foreach (var frame in decoder.DecodeAll(md.Buffer.Memory, out _).ToList())
                 {
                     if (frame is DataFrame df)
                     {

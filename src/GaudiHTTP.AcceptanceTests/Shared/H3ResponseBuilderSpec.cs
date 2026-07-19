@@ -18,7 +18,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Equal(3, frames.Count);
@@ -48,7 +48,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Single(frames);
@@ -64,7 +64,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Single(frames);
@@ -80,7 +80,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Single(frames);
@@ -101,7 +101,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Single(frames);
@@ -121,7 +121,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Equal(4, frames.Count);
@@ -139,7 +139,7 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes.AsSpan(), out var bytesConsumed);
+        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Single(frames);

@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
-using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
@@ -11,7 +10,7 @@ public sealed class Http2FuzzFrameSequenceSpec
     {
         try
         {
-            decoder.Decode(frame.ToWireBuffer());
+            decoder.DecodeAll(frame, out _);
         }
         catch (HttpProtocolException)
         {
@@ -207,7 +206,7 @@ public sealed class Http2FuzzFrameSequenceSpec
         frame[4] = 0x0;
         // Remaining bytes left zeroed (only 4, not the declared 8)
 
-        var framesDecoded = decoder.Decode(frame.ToWireBuffer());
+        var framesDecoded = decoder.DecodeAll(frame, out _);
         Assert.Empty(framesDecoded); // incomplete frame — buffered, not crashed
     }
 
@@ -221,7 +220,7 @@ public sealed class Http2FuzzFrameSequenceSpec
         var payload = new byte[5];
         var frame = BuildRawFrame(0x6, 0, 0, payload);
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -234,7 +233,7 @@ public sealed class Http2FuzzFrameSequenceSpec
         var payload = new byte[7];
         var frame = BuildRawFrame(0x4, 0, 0, payload);
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
     }
 
     [Fact(Timeout = 5000)]

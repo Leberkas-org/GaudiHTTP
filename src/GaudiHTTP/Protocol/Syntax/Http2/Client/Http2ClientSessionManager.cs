@@ -348,10 +348,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     public IReadOnlyList<Http2Frame> DecodeFrames(WireBuffer buffer)
     {
-        // Decode returns the decoder's reused frame list; the only caller
-        // (Http2ClientStateMachine.OnInbound) iterates it synchronously within the same actor
-        // message and never retains it across Decode calls.
-        return _frameDecoder.Decode(buffer);
+        return _frameDecoder.DecodeAll(buffer.Memory, out _);
     }
 
     public void ProcessFrame(Http2Frame frame)

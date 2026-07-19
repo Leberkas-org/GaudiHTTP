@@ -20,7 +20,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         ping.CopyTo(owner.Memory.Span[headroom..]);
         var buffer = WireBuffer.Wrap(owner, headroom, ping.Length);
 
-        var frames = new FrameDecoder().Decode(buffer);
+        var frames = new FrameDecoder().DecodeAll(buffer.Memory, out _);
 
         Assert.Single(frames);
         Assert.IsType<PingFrame>(frames[0]);
@@ -30,7 +30,7 @@ public sealed class Http2FrameDecoderBoundarySpec
     [Trait("RFC", "RFC9113-4.1")]
     public void Http2FrameDecoder_should_return_empty_when_zero_bytes_provided()
     {
-        var frames = new FrameDecoder().Decode(Array.Empty<byte>().ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(Array.Empty<byte>(), out _);
         Assert.Empty(frames);
     }
 
@@ -39,7 +39,7 @@ public sealed class Http2FrameDecoderBoundarySpec
     public void Http2FrameDecoder_should_return_empty_when_eight_bytes_provided()
     {
         var partial = new byte[8];
-        var frames = new FrameDecoder().Decode(partial.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(partial, out _);
         Assert.Empty(frames);
     }
 
@@ -50,7 +50,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         var frame = SettingsFrame.SettingsAck();
         Assert.Equal(9, frame.Length);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<SettingsFrame>(frames[0]);
     }
@@ -66,7 +66,7 @@ public sealed class Http2FrameDecoderBoundarySpec
             0x01,
             0x00, 0x00, 0x00, 0x00
         };
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<SettingsFrame>(frames[0]);
     }
@@ -83,7 +83,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         chunk1.CopyTo(combined, 0);
         chunk2.CopyTo(combined, chunk1.Length);
 
-        var frames = new FrameDecoder().Decode(combined.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(combined, out _);
         Assert.Single(frames);
         Assert.IsType<PingFrame>(frames[0]);
     }
@@ -104,7 +104,7 @@ public sealed class Http2FrameDecoderBoundarySpec
             buf[9 + i + 1] = 0x01;
         }
 
-        var frames = new FrameDecoder().Decode(buf.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(buf, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<SettingsFrame>(frames[0]);
         var settingsFrame = (SettingsFrame)frames[0];
@@ -127,7 +127,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         dataFrame[7] = 0;
         dataFrame[8] = 1;
 
-        var frames = new FrameDecoder().Decode(dataFrame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(dataFrame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<DataFrame>(frames[0]);
     }
@@ -144,7 +144,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         frame[3] = 0x04;
         frame[4] = 0x00;
 
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frame, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -172,7 +172,7 @@ public sealed class Http2FrameDecoderBoundarySpec
     public void Http2FrameDecoder_should_throw_protocol_error_when_max_frame_size_is_below_min()
     {
         var settings = new SettingsFrame([(SettingsParameter.MaxFrameSize, 16383u)]).Serialize();
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(settings.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(settings, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -180,7 +180,7 @@ public sealed class Http2FrameDecoderBoundarySpec
     public void Http2FrameDecoder_should_throw_protocol_error_when_max_frame_size_is_above_max()
     {
         var settings = new SettingsFrame([(SettingsParameter.MaxFrameSize, 16777216u)]).Serialize();
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(settings.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(settings, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -188,7 +188,7 @@ public sealed class Http2FrameDecoderBoundarySpec
     public void Http2FrameDecoder_should_accept_when_max_frame_size_is_at_max_boundary()
     {
         var settings = new SettingsFrame([(SettingsParameter.MaxFrameSize, 16777215u)]).Serialize();
-        var ex = Record.Exception(() => new FrameDecoder().Decode(settings.ToWireBuffer()));
+        var ex = Record.Exception(() => new FrameDecoder().DecodeAll(settings, out _));
         Assert.Null(ex);
     }
 
@@ -204,7 +204,7 @@ public sealed class Http2FrameDecoderBoundarySpec
             0x00, 0x00, 0x00, 0x01,
             0x00, 0x00, 0x00, 0x00
         };
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Empty(frames);
     }
 
@@ -218,7 +218,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         frame1.CopyTo(combined, 0);
         frame2.CopyTo(combined, frame1.Length);
 
-        var frames = new FrameDecoder().Decode(combined.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(combined, out _);
         Assert.Empty(frames);
     }
 
@@ -238,7 +238,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         frame[3] = 0x00; // DATA
         frame[8] = 1; // stream 1
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame.ToWireBuffer()));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -254,7 +254,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         frame[3] = 0x00; // DATA
         frame[8] = 1; // stream 1
 
-        var frames = decoder.Decode(frame.ToWireBuffer());
+        var frames = decoder.DecodeAll(frame, out _);
 
         Assert.NotEmpty(frames);
         Assert.IsType<DataFrame>(frames[0]);
@@ -276,7 +276,7 @@ public sealed class Http2FrameDecoderBoundarySpec
         frame[7] = 0;
         frame[8] = 1;
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Empty(frames);
     }
 }

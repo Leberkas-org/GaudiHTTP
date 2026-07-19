@@ -337,91 +337,6 @@ public sealed class Http3ConnectionStateEdgeCasesSpec
         Assert.False(state.IsIdleTimeoutExpired());
     }
 
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void RecordPush_should_track_push_count()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30), maxPushCount: 10);
-
-        for (var i = 0; i < 5; i++)
-        {
-            state.RecordPush(); // Should not throw
-        }
-
-        // Internal push count is incremented (no public way to verify, but no exception = success)
-        Assert.True(true);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void RecordPush_should_reject_push_beyond_limit()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30), maxPushCount: 3);
-
-        for (var i = 0; i < 3; i++)
-        {
-            state.RecordPush();
-        }
-
-        var ex = Assert.Throws<HttpProtocolException>(() => state.RecordPush());
-        Assert.Contains("push limit", ex.Message);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void RecordPush_should_handle_zero_max_push_count()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30), maxPushCount: 0);
-
-        var ex = Assert.Throws<HttpProtocolException>(() => state.RecordPush());
-        Assert.Contains("push limit", ex.Message);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void OnReceivedCancelPush_should_track_cancelled_push_ids()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30));
-        var frame = new CancelPushFrame(pushId: 42);
-
-        state.OnReceivedCancelPush(frame);
-
-        Assert.True(state.IsPushCancelled(42));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void OnReceivedCancelPush_should_track_multiple_cancelled_push_ids()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30));
-
-        state.OnReceivedCancelPush(new CancelPushFrame(pushId: 1));
-        state.OnReceivedCancelPush(new CancelPushFrame(pushId: 2));
-        state.OnReceivedCancelPush(new CancelPushFrame(pushId: 3));
-
-        Assert.True(state.IsPushCancelled(1));
-        Assert.True(state.IsPushCancelled(2));
-        Assert.True(state.IsPushCancelled(3));
-        Assert.False(state.IsPushCancelled(4));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void OnReceivedCancelPush_should_throw_on_null_frame()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30));
-
-        Assert.Throws<ArgumentNullException>(() => state.OnReceivedCancelPush(null!));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void IsPushCancelled_should_return_false_for_unknown_push_id()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30));
-
-        Assert.False(state.IsPushCancelled(999));
-    }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-5.2")]
@@ -471,24 +386,6 @@ public sealed class Http3ConnectionStateEdgeCasesSpec
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void Reset_should_clear_push_state()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30), maxPushCount: 10);
-
-        state.RecordPush();
-        state.RecordPush();
-        state.OnReceivedCancelPush(new CancelPushFrame(pushId: 5));
-
-        state.Reset();
-
-        // After reset, can record push again (count cleared)
-        state.RecordPush();
-
-        Assert.False(state.IsPushCancelled(5));
-    }
-
-    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-5")]
     public async Task Reset_should_record_activity()
     {
@@ -503,81 +400,6 @@ public sealed class Http3ConnectionStateEdgeCasesSpec
         Assert.False(state.IsIdleTimeoutExpired());
     }
 
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_prefer_zero_local()
-    {
-        var result = ConnectionState.ComputeEffectiveTimeout(
-            TimeSpan.Zero,
-            TimeSpan.FromSeconds(30));
-
-        Assert.Equal(TimeSpan.FromSeconds(30), result);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_prefer_zero_remote()
-    {
-        var result = ConnectionState.ComputeEffectiveTimeout(
-            TimeSpan.FromSeconds(30),
-            TimeSpan.Zero);
-
-        Assert.Equal(TimeSpan.FromSeconds(30), result);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_prefer_minimum_of_two_values()
-    {
-        var result = ConnectionState.ComputeEffectiveTimeout(
-            TimeSpan.FromSeconds(10),
-            TimeSpan.FromSeconds(20));
-
-        Assert.Equal(TimeSpan.FromSeconds(10), result);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_prefer_minimum_reverse()
-    {
-        var result = ConnectionState.ComputeEffectiveTimeout(
-            TimeSpan.FromSeconds(20),
-            TimeSpan.FromSeconds(10));
-
-        Assert.Equal(TimeSpan.FromSeconds(10), result);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_reject_negative_local()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            ConnectionState.ComputeEffectiveTimeout(
-                TimeSpan.FromSeconds(-1),
-                TimeSpan.FromSeconds(30)));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-5")]
-    public void ComputeEffectiveTimeout_should_reject_negative_remote()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            ConnectionState.ComputeEffectiveTimeout(
-                TimeSpan.FromSeconds(30),
-                TimeSpan.FromSeconds(-1)));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.5")]
-    public void MaxPushId_should_be_settable()
-    {
-        var state = new ConnectionState(TimeSpan.FromSeconds(30))
-        {
-            MaxPushId = 99
-        };
-
-        Assert.Equal(99, state.MaxPushId);
-    }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.2.4")]

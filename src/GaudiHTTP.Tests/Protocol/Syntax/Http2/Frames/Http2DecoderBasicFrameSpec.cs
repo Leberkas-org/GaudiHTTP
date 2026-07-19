@@ -1,6 +1,5 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
-using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -13,7 +12,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var settings = new SettingsFrame([(SettingsParameter.HeaderTableSize, 4096u)]);
         var frame = settings.Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         Assert.IsType<SettingsFrame>(frames[0]);
     }
@@ -25,7 +24,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var frame = new DataFrame(1, data).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         Assert.IsType<DataFrame>(frames[0]);
     }
@@ -38,7 +37,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var headerBlock = hpack.Encode([(":method", "GET")]);
         var frame = new HeadersFrame(1, headerBlock).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
     }
@@ -49,7 +48,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var frame = new WindowUpdateFrame(1, 65535).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         var wuFrame = Assert.IsType<WindowUpdateFrame>(frames[0]);
         Assert.Equal(65535, wuFrame.Increment);
@@ -61,7 +60,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var frame = new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         Assert.IsType<RstStreamFrame>(frames[0]);
     }
@@ -72,7 +71,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var frame = new GoAwayFrame(1, Http2ErrorCode.NoError, ReadOnlyMemory<byte>.Empty).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         Assert.IsType<GoAwayFrame>(frames[0]);
     }
@@ -89,7 +88,7 @@ public sealed class Http2DecoderBasicFrameSpec
         chunk1.CopyTo(combined, 0);
         chunk2.CopyTo(combined, chunk1.Length);
 
-        var frames = new FrameDecoder().Decode(combined.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(combined, out _);
         Assert.Single(frames);
         Assert.IsType<PingFrame>(frames[0]);
     }
@@ -106,7 +105,7 @@ public sealed class Http2DecoderBasicFrameSpec
         settingsBytes.CopyTo(combined, 0);
         pingBytes.CopyTo(combined, settingsBytes.Length);
 
-        var frames = new FrameDecoder().Decode(combined.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(combined, out _);
         Assert.Equal(2, frames.Count);
         Assert.IsType<SettingsFrame>(frames[0]);
         Assert.IsType<PingFrame>(frames[1]);
@@ -119,7 +118,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var data = new byte[] { 1, 2, 3 };
         var frame = new DataFrame(1, data, endStream: true).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         var dataFrame = Assert.IsType<DataFrame>(frames[0]);
         Assert.True(dataFrame.EndStream);
@@ -133,7 +132,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var headerBlock = hpack.Encode([(":status", "200")]);
         var frame = new HeadersFrame(1, headerBlock, endHeaders: true).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.True(headersFrame.EndHeaders);
@@ -145,7 +144,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var ack = SettingsFrame.SettingsAck();
 
-        var frames = new FrameDecoder().Decode(ack.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(ack, out _);
         Assert.Single(frames);
         var settingsFrame = Assert.IsType<SettingsFrame>(frames[0]);
         Assert.True(settingsFrame.IsAck);
@@ -158,7 +157,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var data = new byte[] { 1, 2, 3 };
         var frame = new DataFrame(0, data).Serialize();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frame, out _));
         Assert.Contains("RFC 9113 §6.1", ex.Message);
     }
 
@@ -178,7 +177,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[7] = 0;
         frameBytes[8] = 1;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("payload is empty", ex.Message);
     }
 
@@ -199,7 +198,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 1;
         frameBytes[9] = 255; // pad_length = 255, exceeds 1-byte payload
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("pad_length exceeds payload size", ex.Message);
     }
 
@@ -219,7 +218,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[7] = 0;
         frameBytes[8] = 1;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("payload is empty", ex.Message);
     }
 
@@ -240,7 +239,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 1;
         frameBytes[9] = 255; // pad_length = 255, exceeds 1-byte payload
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("pad_length exceeds payload size", ex.Message);
     }
 
@@ -264,7 +263,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[11] = 0;
         frameBytes[12] = (byte)Http2ErrorCode.NoError;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("RST_STREAM frame must be exactly 4 bytes", ex.Message);
     }
 
@@ -285,7 +284,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 0;
         // 7 bytes of payload follow
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("PING frame must be exactly 8 bytes", ex.Message);
     }
 
@@ -300,7 +299,7 @@ public sealed class Http2DecoderBasicFrameSpec
         ping[7] = 0;
         ping[8] = 1;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(ping.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(ping, out _));
         Assert.Contains("RFC 9113 §6.7", ex.Message);
     }
 
@@ -316,7 +315,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frame[7] = 0;
         frame[8] = 1;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frame.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frame, out _));
         Assert.Contains("RFC 9113 §6.5", ex.Message);
     }
 
@@ -341,7 +340,7 @@ public sealed class Http2DecoderBasicFrameSpec
             frameBytes[i] = 0xFF;
         }
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("SETTINGS frame with ACK flag MUST have empty payload", ex.Message);
     }
 
@@ -366,7 +365,7 @@ public sealed class Http2DecoderBasicFrameSpec
             frameBytes[i] = 0;
         }
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("not a multiple of 6", ex.Message);
     }
 
@@ -393,7 +392,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[13] = 0x03;
         frameBytes[14] = 0xE8;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("SETTINGS_MAX_FRAME_SIZE", ex.Message);
     }
 
@@ -408,7 +407,7 @@ public sealed class Http2DecoderBasicFrameSpec
         goaway[7] = 0;
         goaway[8] = 1;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(goaway.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(goaway, out _));
         Assert.Contains("RFC 9113 §6.8", ex.Message);
     }
 
@@ -429,7 +428,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 0;
         // 7 bytes of payload follow
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("GOAWAY payload must be at least 8 bytes", ex.Message);
     }
 
@@ -440,7 +439,7 @@ public sealed class Http2DecoderBasicFrameSpec
         var debugData = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
         var frame = new GoAwayFrame(1, Http2ErrorCode.NoError, debugData).Serialize();
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.Single(frames);
         var goawayFrame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(1, goawayFrame.LastStreamId);
@@ -454,7 +453,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var continuation = new ContinuationFrame(1, ReadOnlyMemory<byte>.Empty, endHeaders: true).Serialize();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(continuation.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(continuation, out _));
         Assert.Contains("RFC 9113 §6.10", ex.Message);
         Assert.Contains("without preceding HEADERS or PUSH_PROMISE", ex.Message);
     }
@@ -465,7 +464,7 @@ public sealed class Http2DecoderBasicFrameSpec
     {
         var continuation = new ContinuationFrame(0, ReadOnlyMemory<byte>.Empty, endHeaders: true).Serialize();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(continuation.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(continuation, out _));
         Assert.Contains("RFC 9113 §6.10", ex.Message);
     }
 
@@ -484,7 +483,7 @@ public sealed class Http2DecoderBasicFrameSpec
         headers.CopyTo(combined, 0);
         continuation.CopyTo(combined, headers.Length);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(combined.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(combined, out _));
         Assert.Contains("Expected CONTINUATION on stream 1", ex.Message);
     }
 
@@ -503,7 +502,7 @@ public sealed class Http2DecoderBasicFrameSpec
         headers.CopyTo(combined, 0);
         ping.CopyTo(combined, headers.Length);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(combined.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(combined, out _));
         Assert.Contains("Expected CONTINUATION frame on stream 1", ex.Message);
     }
 
@@ -524,7 +523,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 1;
         // 3 bytes of payload follow
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("PUSH_PROMISE payload must be at least 4 bytes", ex.Message);
     }
 
@@ -549,7 +548,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[11] = 0;
         frameBytes[12] = 0;
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("WINDOW_UPDATE increment of 0", ex.Message);
     }
 
@@ -570,7 +569,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[8] = 1;
         // 3 bytes of payload
 
-        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().Decode(frameBytes.ToWireBuffer()));
+        var ex = Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frameBytes, out _));
         Assert.Contains("WINDOW_UPDATE payload must be exactly 4 bytes", ex.Message);
     }
 
@@ -590,7 +589,7 @@ public sealed class Http2DecoderBasicFrameSpec
         frameBytes[7] = 0;
         frameBytes[8] = 1;
 
-        var frames = new FrameDecoder().Decode(frameBytes.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frameBytes, out _);
         Assert.Empty(frames); // Unknown frames are silently ignored
     }
 
@@ -601,13 +600,13 @@ public sealed class Http2DecoderBasicFrameSpec
         var decoder = new FrameDecoder();
         var ping1 = new PingFrame(new byte[8], isAck: false).Serialize();
 
-        var frames1 = decoder.Decode(ping1.ToWireBuffer());
+        var frames1 = decoder.DecodeAll(ping1, out _);
         Assert.Single(frames1);
 
         decoder.Reset();
 
         var ping2 = new PingFrame(new byte[8], isAck: true).Serialize();
-        var frames2 = decoder.Decode(ping2.ToWireBuffer());
+        var frames2 = decoder.DecodeAll(ping2, out _);
         Assert.Single(frames2);
         var pingFrame = Assert.IsType<PingFrame>(frames2[0]);
         Assert.True(pingFrame.IsAck);

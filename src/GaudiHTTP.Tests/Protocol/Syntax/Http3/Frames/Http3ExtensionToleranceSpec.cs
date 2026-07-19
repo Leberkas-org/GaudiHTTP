@@ -25,10 +25,9 @@ public sealed class Http3ExtensionToleranceSpec
         offset += payload.Length;
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame); // Unknown type → skipped (null sentinel)
+        Assert.Empty(frames); // Unknown type → skipped
         Assert.Equal(offset, consumed);
     }
 
@@ -52,10 +51,9 @@ public sealed class Http3ExtensionToleranceSpec
         offset += payload.Length;
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame);
+        Assert.Empty(frames);
         Assert.Equal(offset, consumed);
     }
 
@@ -69,10 +67,9 @@ public sealed class Http3ExtensionToleranceSpec
         offset += QuicVarInt.Encode(0, buf.AsSpan(offset)); // Zero-length payload
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame);
+        Assert.Empty(frames);
         Assert.Equal(offset, consumed);
     }
 
@@ -129,7 +126,7 @@ public sealed class Http3ExtensionToleranceSpec
         }
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsSpan(0, offset), out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
         Assert.Empty(frames); // All unknown → all filtered
         Assert.Equal(offset, consumed);
@@ -225,18 +222,17 @@ public sealed class Http3ExtensionToleranceSpec
 
         // Split at midpoint
         var mid = offset / 2;
-        var part1 = buf.AsSpan(0, mid);
-        var part2 = buf.AsSpan(mid, offset - mid);
+        var part1 = buf.AsMemory(0, mid);
+        var part2 = buf.AsMemory(mid, offset - mid);
 
         var decoder = new FrameDecoder();
 
-        var status = decoder.TryDecode(part1, out var frame, out _);
-        Assert.Equal(DecodeStatus.NeedMoreData, status);
+        var frames1 = decoder.DecodeAll(part1, out _);
+        Assert.Empty(frames1);
         Assert.True(decoder.HasRemainder);
 
-        status = decoder.TryDecode(part2, out frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame); // Still unknown → null
+        var frames2 = decoder.DecodeAll(part2, out _);
+        Assert.Empty(frames2); // Still unknown → filtered
         Assert.False(decoder.HasRemainder);
     }
 
@@ -261,16 +257,9 @@ public sealed class Http3ExtensionToleranceSpec
 
         var decoder = new FrameDecoder();
 
-        // First decode: unknown frame → null
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame);
-
-        // Second decode: DATA frame → valid
-        status = decoder.TryDecode(buf.AsSpan(consumed, offset - consumed), out frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.NotNull(frame);
-        var data = Assert.IsType<DataFrame>(frame);
+        // First decode: unknown frame is skipped, DATA frame decodes → single frame
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out _);
+        var data = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(new byte[] { 0xCA, 0xFE }, data.Data.ToArray());
     }
 
@@ -289,10 +278,9 @@ public sealed class Http3ExtensionToleranceSpec
         offset += largePayload.Length;
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame);
+        Assert.Empty(frames);
         Assert.Equal(offset, consumed);
     }
 }

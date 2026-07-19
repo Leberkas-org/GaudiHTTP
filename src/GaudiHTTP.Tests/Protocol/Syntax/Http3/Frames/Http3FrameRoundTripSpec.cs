@@ -265,9 +265,8 @@ public sealed class Http3FrameRoundTripSpec
     private static Http3Frame Decode(byte[] wire)
     {
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.NotNull(frame);
+        var frames = decoder.DecodeAll(wire, out _);
+        var frame = Assert.Single(frames);
         return frame;
     }
 }

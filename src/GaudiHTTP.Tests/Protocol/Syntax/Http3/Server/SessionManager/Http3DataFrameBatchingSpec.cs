@@ -19,7 +19,7 @@ public sealed class Http3DataFrameBatchingSpec
         {
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
-                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory.Span, out _).ToList());
+                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory, out _).ToList());
                 md.Buffer.Dispose();
             }
         }

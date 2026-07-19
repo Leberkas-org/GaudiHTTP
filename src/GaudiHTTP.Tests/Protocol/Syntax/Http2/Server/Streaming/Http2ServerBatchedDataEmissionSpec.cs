@@ -130,7 +130,7 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         {
             if (outbound[i] is TransportData td)
             {
-                var decoded = decoder.Decode(td.Buffer);
+                var decoded = decoder.DecodeAll(td.Buffer.Memory, out _);
                 var hasData = false;
                 foreach (var frame in decoded)
                 {

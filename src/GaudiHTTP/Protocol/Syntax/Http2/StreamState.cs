@@ -42,9 +42,25 @@ internal sealed class StreamState : Poolable<StreamState>
 
     public void SetTimerKeys(int streamId)
     {
-        var idStr = streamId.ToString();
-        BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
-        HeadersTimeoutTimerKey = string.Concat("headers-timeout:", idStr);
+        (BodyConsumptionTimerKey, HeadersTimeoutTimerKey) = TimerKeyCache.GetOrCreate(streamId);
+    }
+
+    internal static class TimerKeyCache
+    {
+        private static readonly Dictionary<int, (string Body, string Headers)> Cache = new();
+
+        public static (string Body, string Headers) GetOrCreate(int streamId)
+        {
+            if (Cache.TryGetValue(streamId, out var keys))
+            {
+                return keys;
+            }
+
+            var idStr = streamId.ToString();
+            keys = (string.Concat("body-consumption:", idStr), string.Concat("headers-timeout:", idStr));
+            Cache[streamId] = keys;
+            return keys;
+        }
     }
 
     public bool HasResponse => _response is not null;
@@ -366,9 +382,8 @@ internal sealed class StreamState : Poolable<StreamState>
         IsBodyDrainComplete = false;
         ExpectedBodyLength = null;
         IsRemoteClosed = false;
-        // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
-        // pool reuse. SetTimerKeys() overwrites them for the next stream ID, avoiding a redundant
-        // allocation + re-allocation cycle on every pool return/checkout.
+        // Timer keys intentionally NOT cleared — they come from TimerKeyCache (static, never freed)
+        // and are overwritten by SetTimerKeys() for the next stream ID.
     }
 
     public void AppendHeader(ReadOnlySpan<byte> data)

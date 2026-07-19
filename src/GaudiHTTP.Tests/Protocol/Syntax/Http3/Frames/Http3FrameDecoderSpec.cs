@@ -12,11 +12,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out var consumed);
+        var frames = decoder.DecodeAll(wire, out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.NotNull(frame);
-        var data = Assert.IsType<DataFrame>(frame);
+        Assert.Single(frames);
+        var data = Assert.IsType<DataFrame>(frames[0]);
         Assert.Equal(original.Data.ToArray(), data.Data.ToArray());
         Assert.Equal(wire.Length, consumed);
     }
@@ -30,10 +29,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var headers = Assert.IsType<HeadersFrame>(frame);
+        Assert.Single(frames);
+        var headers = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.Equal(headerBlock, headers.HeaderBlock.ToArray());
     }
 
@@ -45,10 +44,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var cp = Assert.IsType<CancelPushFrame>(frame);
+        Assert.Single(frames);
+        var cp = Assert.IsType<CancelPushFrame>(frames[0]);
         Assert.Equal(16383, cp.PushId);
     }
 
@@ -66,10 +65,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var settings = Assert.IsType<SettingsFrame>(frame);
+        Assert.Single(frames);
+        var settings = Assert.IsType<SettingsFrame>(frames[0]);
         Assert.Equal(3, settings.Parameters.Count);
         Assert.Equal((0x06L, 4096L), settings.Parameters[0]);
         Assert.Equal((0x01L, 100L), settings.Parameters[1]);
@@ -85,10 +84,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var pp = Assert.IsType<PushPromiseFrame>(frame);
+        Assert.Single(frames);
+        var pp = Assert.IsType<PushPromiseFrame>(frames[0]);
         Assert.Equal(42, pp.PushId);
         Assert.Equal(headerBlock, pp.HeaderBlock.ToArray());
     }
@@ -101,10 +100,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var goaway = Assert.IsType<GoAwayFrame>(frame);
+        Assert.Single(frames);
+        var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(1_000_000, goaway.StreamId);
     }
 
@@ -116,10 +115,10 @@ public sealed class Http3FrameDecoderSpec
         var wire = original.Serialize();
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(wire, out var frame, out _);
+        var frames = decoder.DecodeAll(wire, out _);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        var mp = Assert.IsType<MaxPushIdFrame>(frame);
+        Assert.Single(frames);
+        var mp = Assert.IsType<MaxPushIdFrame>(frames[0]);
         Assert.Equal(63, mp.PushId);
     }
 
@@ -128,10 +127,9 @@ public sealed class Http3FrameDecoderSpec
     public void FrameDecoder_should_return_need_more_data_when_partial_type_varint()
     {
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(ReadOnlySpan<byte>.Empty, out var frame, out _);
+        var frames = decoder.DecodeAll(ReadOnlyMemory<byte>.Empty, out _);
 
-        Assert.Equal(DecodeStatus.NeedMoreData, status);
-        Assert.Null(frame);
+        Assert.Empty(frames);
     }
 
     [Fact(Timeout = 5000)]
@@ -144,20 +142,20 @@ public sealed class Http3FrameDecoderSpec
 
         // Split at midpoint
         var mid = wire.Length / 2;
-        var part1 = wire.AsSpan(0, mid);
-        var part2 = wire.AsSpan(mid);
+        var part1 = wire.AsMemory(0, mid);
+        var part2 = wire.AsMemory(mid);
 
         var decoder = new FrameDecoder();
 
         // First call — partial data
-        var status = decoder.TryDecode(part1, out var frame, out _);
-        Assert.Equal(DecodeStatus.NeedMoreData, status);
+        var frames1 = decoder.DecodeAll(part1, out _);
+        Assert.Empty(frames1);
         Assert.True(decoder.HasRemainder);
 
         // Second call — complete the frame
-        status = decoder.TryDecode(part2, out frame, out _);
-        Assert.Equal(DecodeStatus.Success, status);
-        var data = Assert.IsType<DataFrame>(frame);
+        var frames2 = decoder.DecodeAll(part2, out _);
+        Assert.Single(frames2);
+        var data = Assert.IsType<DataFrame>(frames2[0]);
         Assert.Equal(payload, data.Data.ToArray());
         Assert.False(decoder.HasRemainder);
     }
@@ -174,9 +172,17 @@ public sealed class Http3FrameDecoderSpec
 
         for (var i = 0; i < wire.Length; i++)
         {
-            var status = decoder.TryDecode(new ReadOnlySpan<byte>(wire, i, 1), out frame, out _);
+            var frames = decoder.DecodeAll(new ReadOnlyMemory<byte>(wire, i, 1), out _);
 
-            Assert.Equal(i < wire.Length - 1 ? DecodeStatus.NeedMoreData : DecodeStatus.Success, status);
+            if (i < wire.Length - 1)
+            {
+                Assert.Empty(frames);
+            }
+            else
+            {
+                Assert.Single(frames);
+                frame = frames[0];
+            }
         }
 
         var goaway = Assert.IsType<GoAwayFrame>(frame);
@@ -197,10 +203,9 @@ public sealed class Http3FrameDecoderSpec
         buf[offset++] = 0xCC;
 
         var decoder = new FrameDecoder();
-        var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
+        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
 
-        Assert.Equal(DecodeStatus.Success, status);
-        Assert.Null(frame); // Unknown type → null frame, but bytes consumed
+        Assert.Empty(frames); // Unknown type → skipped, no frame emitted, but bytes consumed
         Assert.Equal(offset, consumed);
     }
 

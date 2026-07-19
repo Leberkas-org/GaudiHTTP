@@ -71,7 +71,8 @@ internal sealed class Http2ClientStateMachine(
         int frameCount;
         try
         {
-            var frames = _clientSession.DecodeFrames(buffer);
+            using var inputBuffer = buffer;
+            var frames = _clientSession.DecodeFrames(inputBuffer);
             frameCount = frames.Count;
             for (var i = 0; i < frames.Count; i++)
             {

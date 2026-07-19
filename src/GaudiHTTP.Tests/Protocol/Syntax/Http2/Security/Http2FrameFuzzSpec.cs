@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
-using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Security;
 
@@ -13,7 +12,7 @@ public sealed class Http2FrameFuzzSpec
     {
         try
         {
-            decoder.Decode(data.ToWireBuffer());
+            decoder.DecodeAll(data, out _);
         }
         catch (HttpProtocolException)
         {
@@ -153,7 +152,7 @@ public sealed class Http2FrameFuzzSpec
             header.CopyTo(data, 0);
             actualPayload.CopyTo(data, header.Length);
 
-            var frames = decoder.Decode(data.ToWireBuffer());
+            var frames = decoder.DecodeAll(data, out _);
             Assert.Empty(frames);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;
@@ -235,7 +234,7 @@ public sealed class Http2FrameFuzzSpec
 
             var frame = BuildRawFrame(unknownType, 0x00, streamId, payload);
 
-            var frames = decoder.Decode(frame.ToWireBuffer());
+            var frames = decoder.DecodeAll(frame, out _);
             Assert.Empty(frames);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;

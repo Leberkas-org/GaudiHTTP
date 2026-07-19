@@ -1,5 +1,3 @@
-using System.Buffers;
-
 namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 // HTTP/3 Frame Types  -  RFC 9114 §7
@@ -70,10 +68,8 @@ internal abstract class Http3Frame
 /// DATA frame (RFC 9114 §7.2.1).
 /// Carries request or response body data on a request stream.
 /// </summary>
-internal sealed class DataFrame : Http3Frame, IDisposable
+internal sealed class DataFrame : Http3Frame
 {
-    private readonly IMemoryOwner<byte>? _owner;
-
     public override FrameType Type => FrameType.Data;
     public ReadOnlyMemory<byte> Data { get; }
 
@@ -81,14 +77,6 @@ internal sealed class DataFrame : Http3Frame, IDisposable
     {
         Data = data;
     }
-
-    internal DataFrame(IMemoryOwner<byte> owner, int length)
-    {
-        _owner = owner;
-        Data = owner.Memory[..length];
-    }
-
-    public void Dispose() => _owner?.Dispose();
 
     protected override int PayloadSize => Data.Length;
     public override int SerializedSize => PrefixSize + Data.Length;
@@ -107,10 +95,8 @@ internal sealed class DataFrame : Http3Frame, IDisposable
 /// HEADERS frame (RFC 9114 §7.2.2).
 /// Carries a compressed QPACK header block on a request stream.
 /// </summary>
-internal sealed class HeadersFrame : Http3Frame, IDisposable
+internal sealed class HeadersFrame : Http3Frame
 {
-    private readonly IMemoryOwner<byte>? _owner;
-
     public override FrameType Type => FrameType.Headers;
     public ReadOnlyMemory<byte> HeaderBlock { get; }
 
@@ -118,14 +104,6 @@ internal sealed class HeadersFrame : Http3Frame, IDisposable
     {
         HeaderBlock = headerBlock;
     }
-
-    internal HeadersFrame(IMemoryOwner<byte> owner, int length)
-    {
-        _owner = owner;
-        HeaderBlock = owner.Memory[..length];
-    }
-
-    public void Dispose() => _owner?.Dispose();
 
     protected override int PayloadSize => HeaderBlock.Length;
     public override int SerializedSize => PrefixSize + HeaderBlock.Length;
@@ -221,10 +199,8 @@ internal sealed class SettingsFrame(IReadOnlyList<(long Identifier, long Value)>
 /// PUSH_PROMISE frame (RFC 9114 §7.2.5).
 /// Carries a push ID followed by a compressed QPACK header block on a request stream.
 /// </summary>
-internal sealed class PushPromiseFrame : Http3Frame, IDisposable
+internal sealed class PushPromiseFrame : Http3Frame
 {
-    private readonly IMemoryOwner<byte>? _owner;
-
     public override FrameType Type => FrameType.PushPromise;
     public long PushId { get; }
     public ReadOnlyMemory<byte> HeaderBlock { get; }
@@ -239,20 +215,6 @@ internal sealed class PushPromiseFrame : Http3Frame, IDisposable
         PushId = pushId;
         HeaderBlock = headerBlock;
     }
-
-    internal PushPromiseFrame(long pushId, IMemoryOwner<byte> owner, int length)
-    {
-        if (pushId < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(pushId), pushId, "Push ID must be non-negative.");
-        }
-
-        PushId = pushId;
-        _owner = owner;
-        HeaderBlock = owner.Memory[..length];
-    }
-
-    public void Dispose() => _owner?.Dispose();
 
     protected override int PayloadSize => QuicVarInt.EncodedLength(PushId) + HeaderBlock.Length;
     public override int SerializedSize => PrefixSize + PayloadSize;

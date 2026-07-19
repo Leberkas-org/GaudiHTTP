@@ -1,4 +1,3 @@
-using System.Buffers;
 using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3;
@@ -6,196 +5,148 @@ namespace GaudiHTTP.Protocol.Syntax.Http3;
 /// <summary>
 /// Stateful HTTP/3 frame decoder per RFC 9114 §7.
 /// Handles partial frames across QUIC stream boundaries by buffering
-/// incomplete data between calls to <see cref="TryDecode"/>.
+/// incomplete data between calls to <see cref="DecodeAll"/>.
 /// Unknown frame types are skipped gracefully per RFC 9114 §7.2.8.
 ///
-/// Remainder bytes and combined working buffers are rented from <see cref="MemoryPool{T}"/>
-/// to eliminate per-frame GC allocations. Frame payloads use <see cref="MemoryPool{T}"/>
-/// and are returned via <see cref="IDisposable"/> on the frame objects.
-/// Call <see cref="Dispose"/> when the decoder is no longer needed.
+/// Remainder bytes use a field-level byte[] (grow-on-demand, never-shrink)
+/// to avoid per-frame MemoryPool allocations. Frame payloads from complete
+/// frames in the input are zero-copy slices of the caller's buffer; payloads
+/// assembled from a buffered remainder are slices of the remainder buffer
+/// (valid until the next DecodeAll call).
 /// </summary>
 internal sealed class FrameDecoder : Poolable<FrameDecoder>
 {
-    // MemoryPool-rented buffer holding the partial frame from the previous call.
-    // _remainderOwner is null when not rented; _remainderLength tracks actual content.
-    private IMemoryOwner<byte>? _remainderOwner;
+    private byte[]? _remainderBuffer;
+    private int _remainderOffset;
     private int _remainderLength;
 
-    // Reused per-DecodeAll-call frame list. Cleared at the start of each call.
-    // Safe to reuse: Akka back-pressure guarantees all frames are consumed by downstream
-    // before the next DecodeAll call.
     private readonly List<Http3Frame> _frames = [];
 
     /// <summary>
-    /// Attempts to decode one HTTP/3 frame from <paramref name="input"/>.
-    /// On <see cref="DecodeStatus.Success"/>, <paramref name="frame"/> is set and
-    /// <paramref name="bytesConsumed"/> reflects the total bytes consumed from the
-    /// combined remainder + input buffer.
-    /// On <see cref="DecodeStatus.NeedMoreData"/>, the unconsumed data is buffered
-    /// internally for the next call.
-    /// </summary>
-    public DecodeStatus TryDecode(ReadOnlySpan<byte> input, out Http3Frame? frame, out int bytesConsumed)
-        => TryDecodeCore(input, default, sliceInput: false, out frame, out bytesConsumed);
-
-    private DecodeStatus TryDecodeCore(ReadOnlySpan<byte> input, ReadOnlyMemory<byte> inputMemory, bool sliceInput,
-        out Http3Frame? frame, out int bytesConsumed)
-    {
-        frame = null;
-        bytesConsumed = 0;
-
-        // Combine remainder with new input into a pooled working buffer
-        ReadOnlySpan<byte> data;
-        ReadOnlyMemory<byte> dataMemory = default;
-        IMemoryOwner<byte>? rentedCombined = null;
-        var combinedLength = 0;
-
-        if (_remainderLength > 0)
-        {
-            combinedLength = _remainderLength + input.Length;
-            rentedCombined = MemoryPool<byte>.Shared.Rent(combinedLength);
-            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
-            input.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
-            data = rentedCombined.Memory.Span[..combinedLength];
-            sliceInput = false;
-
-            // Dispose old remainder buffer now that its content has been copied out
-            _remainderOwner?.Dispose();
-            _remainderOwner = null;
-            _remainderLength = 0;
-        }
-        else
-        {
-            data = input;
-            dataMemory = inputMemory;
-        }
-
-        try
-        {
-            var result = TryDecodeFrame(data, dataMemory, sliceInput, out frame, out var totalConsumed);
-
-            if (result == DecodeStatus.NeedMoreData)
-            {
-                // Buffer unconsumed data for next call
-                if (data.Length > 0)
-                {
-                    _remainderOwner = MemoryPool<byte>.Shared.Rent(data.Length);
-                    data.CopyTo(_remainderOwner.Memory.Span);
-                    _remainderLength = data.Length;
-                }
-
-                bytesConsumed = input.Length; // All input consumed (buffered)
-                return DecodeStatus.NeedMoreData;
-            }
-
-            // Calculate how many bytes of the original input were consumed
-            if (rentedCombined != null)
-            {
-                // All input bytes are accounted for: some went into the decoded frame
-                // (together with the old remainder), the rest is buffered as the new remainder.
-                // Returning input.Length prevents DecodeAll from re-passing bytes that are
-                // already captured in the remainder - avoiding double-counting corruption.
-                bytesConsumed = input.Length;
-
-                // Buffer any leftover from combined
-                var leftover = combinedLength - totalConsumed;
-                if (leftover > 0)
-                {
-                    _remainderOwner = MemoryPool<byte>.Shared.Rent(leftover);
-                    rentedCombined.Memory.Span.Slice(totalConsumed, leftover).CopyTo(_remainderOwner.Memory.Span);
-                    _remainderLength = leftover;
-                }
-            }
-            else
-            {
-                bytesConsumed = totalConsumed;
-            }
-
-            return DecodeStatus.Success;
-        }
-        finally
-        {
-            rentedCombined?.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// Attempts to decode all available frames from <paramref name="input"/>.
-    /// Returns the list of decoded frames and the total bytes consumed from the input.
-    /// Any trailing partial frame is buffered for the next call.
-    /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeAll(ReadOnlySpan<byte> input, out int bytesConsumed)
-        => DecodeAllCore(input, default, sliceInput: false, out bytesConsumed);
-
-    /// <summary>
-    /// Zero-copy variant: DATA/HEADERS/PUSH_PROMISE payloads of frames fully contained in
-    /// <paramref name="input"/> are returned as slices of it — the caller must keep the
-    /// backing buffer alive until all returned frames have been handled. Frames assembled
-    /// from a buffered remainder still own a pooled copy.
+    /// Decodes all available frames from <paramref name="input"/>.
+    /// The returned list is reused on every call — callers MUST fully consume it
+    /// before the next DecodeAll and MUST NOT retain it.
     /// </summary>
     public IReadOnlyList<Http3Frame> DecodeAll(ReadOnlyMemory<byte> input, out int bytesConsumed)
-        => DecodeAllCore(input.Span, input, sliceInput: true, out bytesConsumed);
-
-    private IReadOnlyList<Http3Frame> DecodeAllCore(ReadOnlySpan<byte> input, ReadOnlyMemory<byte> inputMemory,
-        bool sliceInput, out int bytesConsumed)
     {
         _frames.Clear();
         bytesConsumed = 0;
 
-        while (true)
+        if (_remainderLength > 0)
         {
-            var remainingMemory = sliceInput ? inputMemory[bytesConsumed..] : default;
-            var status = TryDecodeCore(input[bytesConsumed..], remainingMemory, sliceInput,
-                out var frame, out var consumed);
-
-            if (status == DecodeStatus.NeedMoreData)
+            // Compact deferred remainder from previous call before any new frame
+            // slices reference the buffer.
+            if (_remainderOffset > 0)
             {
+                Buffer.BlockCopy(_remainderBuffer!, _remainderOffset, _remainderBuffer!, 0, _remainderLength);
+                _remainderOffset = 0;
+            }
+
+            DecodeWithRemainder(input);
+        }
+        else
+        {
+            DecodeFromInput(input);
+        }
+
+        bytesConsumed = input.Length;
+        return _frames;
+    }
+
+    private void DecodeFromInput(ReadOnlyMemory<byte> input)
+    {
+        var offset = 0;
+
+        while (offset < input.Length)
+        {
+            var slice = input[offset..];
+            var result = TryDecodeFrame(slice.Span, slice, out var frame, out var consumed);
+
+            if (result == DecodeStatus.NeedMoreData)
+            {
+                var leftover = input.Length - offset;
+                _remainderOffset = 0;
+                _remainderLength = 0;
+                EnsureRemainderCapacity(leftover);
+                input.Span[offset..].CopyTo(_remainderBuffer);
+                _remainderLength = leftover;
                 break;
             }
 
-            bytesConsumed += consumed;
+            offset += consumed;
 
-            // Skip null frames (unknown frame types silently ignored per RFC 9114 §7.2.8)
             if (frame is not null)
             {
                 _frames.Add(frame);
             }
         }
-
-        return _frames;
     }
 
-    /// <summary>
-    /// Resets the decoder state, discarding any buffered partial frame data.
-    /// </summary>
+    private void DecodeWithRemainder(ReadOnlyMemory<byte> input)
+    {
+        var needed = _remainderLength + input.Length;
+        EnsureRemainderCapacity(needed);
+        input.Span.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
+        _remainderLength = needed;
+
+        while (_remainderLength > 0)
+        {
+            var dataMemory = _remainderBuffer.AsMemory(_remainderOffset, _remainderLength);
+            var result = TryDecodeFrame(dataMemory.Span, dataMemory, out var frame, out var consumed);
+
+            if (result == DecodeStatus.NeedMoreData)
+            {
+                break;
+            }
+
+            _remainderOffset += consumed;
+            _remainderLength -= consumed;
+
+            if (frame is not null)
+            {
+                _frames.Add(frame);
+            }
+        }
+    }
+
+    private void EnsureRemainderCapacity(int needed)
+    {
+        if (_remainderBuffer is null || _remainderBuffer.Length < needed + _remainderOffset)
+        {
+            var newBuffer = new byte[Math.Max(needed, 256)];
+            if (_remainderBuffer is not null && _remainderLength > 0)
+            {
+                _remainderBuffer.AsSpan(_remainderOffset, _remainderLength).CopyTo(newBuffer);
+                _remainderOffset = 0;
+            }
+
+            _remainderBuffer = newBuffer;
+        }
+    }
+
     protected override void OnReset()
     {
-        _remainderOwner?.Dispose();
-        _remainderOwner = null;
+        _remainderBuffer = null;
+        _remainderOffset = 0;
         _remainderLength = 0;
     }
 
-    /// <summary>
-    /// Returns <c>true</c> if the decoder has buffered partial frame data.
-    /// </summary>
     public bool HasRemainder => _remainderLength > 0;
 
     private static DecodeStatus TryDecodeFrame(
         ReadOnlySpan<byte> data,
         ReadOnlyMemory<byte> dataMemory,
-        bool sliceInput,
         out Http3Frame? frame,
         out int totalConsumed)
     {
         frame = null;
         totalConsumed = 0;
 
-        // Decode frame type (QUIC varint)
         if (!QuicVarInt.TryDecode(data, out var rawType, out var typeBytes))
         {
             return DecodeStatus.NeedMoreData;
         }
 
-        // Decode frame length (QUIC varint)
         if (!QuicVarInt.TryDecode(data[typeBytes..], out var payloadLength, out var lengthBytes))
         {
             return DecodeStatus.NeedMoreData;
@@ -211,88 +162,35 @@ internal sealed class FrameDecoder : Poolable<FrameDecoder>
 
         var frameSize = headerSize + (int)payloadLength;
 
-        // Need more data for the payload
         if (data.Length < frameSize)
         {
             return DecodeStatus.NeedMoreData;
         }
 
-        var payload = data.Slice(headerSize, (int)payloadLength);
-        var payloadMemory = sliceInput ? dataMemory.Slice(headerSize, (int)payloadLength) : default;
+        var payloadMemory = dataMemory.Slice(headerSize, (int)payloadLength);
         totalConsumed = frameSize;
 
-        // Parse frame by type
         if (!Enum.IsDefined((FrameType)rawType))
         {
-            // Unknown frame type - skip gracefully per RFC 9114 §7.2.8
-            // Return a success with null frame to indicate skipped unknown frame
             frame = null;
-
-            // We still consumed the bytes, but we need to signal this differently.
-            // Use a sentinel: return Success but with frame = null means "skipped unknown type".
-            // The caller can check frame == null to detect this.
             return DecodeStatus.Success;
         }
 
-        var frameType = (FrameType)rawType;
-
-        frame = frameType switch
+        frame = (FrameType)rawType switch
         {
-            FrameType.Data => DecodeDataFrame(payload, payloadMemory, sliceInput),
-            FrameType.Headers => DecodeHeadersFrame(payload, payloadMemory, sliceInput),
-            FrameType.CancelPush => DecodeCancelPushFrame(payload),
-            FrameType.Settings => DecodeSettingsFrame(payload),
-            FrameType.PushPromise => DecodePushPromiseFrame(payload, payloadMemory, sliceInput),
-            FrameType.GoAway => DecodeGoAwayFrame(payload),
-            FrameType.MaxPushId => DecodeMaxPushIdFrame(payload),
-            _ => null // Should not happen given IsDefined check above
+            FrameType.Data => new DataFrame(payloadMemory),
+            FrameType.Headers => new HeadersFrame(payloadMemory),
+            FrameType.CancelPush => DecodeCancelPushFrame(payloadMemory.Span),
+            FrameType.Settings => DecodeSettingsFrame(payloadMemory.Span),
+            FrameType.PushPromise => DecodePushPromiseFrame(payloadMemory),
+            FrameType.GoAway => DecodeGoAwayFrame(payloadMemory.Span),
+            FrameType.MaxPushId => DecodeMaxPushIdFrame(payloadMemory.Span),
+            _ => null
         };
 
         return DecodeStatus.Success;
     }
 
-    private static DataFrame DecodeDataFrame(ReadOnlySpan<byte> payload, ReadOnlyMemory<byte> payloadMemory,
-        bool sliceInput)
-    {
-        if (payload.Length == 0)
-        {
-            return new DataFrame(ReadOnlyMemory<byte>.Empty);
-        }
-
-        if (sliceInput)
-        {
-            return new DataFrame(payloadMemory);
-        }
-
-        var owner = MemoryPool<byte>.Shared.Rent(payload.Length);
-        payload.CopyTo(owner.Memory.Span);
-        return new DataFrame(owner, payload.Length);
-    }
-
-    private static HeadersFrame DecodeHeadersFrame(ReadOnlySpan<byte> payload, ReadOnlyMemory<byte> payloadMemory,
-        bool sliceInput)
-    {
-        if (payload.Length == 0)
-        {
-            return new HeadersFrame(ReadOnlyMemory<byte>.Empty);
-        }
-
-        if (sliceInput)
-        {
-            return new HeadersFrame(payloadMemory);
-        }
-
-        var owner = MemoryPool<byte>.Shared.Rent(payload.Length);
-        payload.CopyTo(owner.Memory.Span);
-        return new HeadersFrame(owner, payload.Length);
-    }
-
-    /// <summary>
-    /// Decodes a QUIC varint from a frame body, translating a too-short payload into a clean
-    /// <see cref="HttpProtocolException"/> (RFC 9114 §7.1 frame error) instead of the raw
-    /// <see cref="ArgumentException"/> that <see cref="QuicVarInt.Decode"/> throws — the latter
-    /// escapes the protocol-error catch filters and is silently swallowed by the stage.
-    /// </summary>
     private static long DecodeVarIntOrThrow(ReadOnlySpan<byte> span, out int bytesRead, string frameName)
     {
         if (!QuicVarInt.TryDecode(span, out var value, out bytesRead))
@@ -329,25 +227,10 @@ internal sealed class FrameDecoder : Poolable<FrameDecoder>
         return new SettingsFrame(parameters);
     }
 
-    private static PushPromiseFrame DecodePushPromiseFrame(ReadOnlySpan<byte> payload,
-        ReadOnlyMemory<byte> payloadMemory, bool sliceInput)
+    private static PushPromiseFrame DecodePushPromiseFrame(ReadOnlyMemory<byte> payloadMemory)
     {
-        var pushId = DecodeVarIntOrThrow(payload, out var pushIdBytes, "PUSH_PROMISE");
-        var headerBlockSpan = payload[pushIdBytes..];
-
-        if (headerBlockSpan.Length == 0)
-        {
-            return new PushPromiseFrame(pushId, ReadOnlyMemory<byte>.Empty);
-        }
-
-        if (sliceInput)
-        {
-            return new PushPromiseFrame(pushId, payloadMemory[pushIdBytes..]);
-        }
-
-        var owner = MemoryPool<byte>.Shared.Rent(headerBlockSpan.Length);
-        headerBlockSpan.CopyTo(owner.Memory.Span);
-        return new PushPromiseFrame(pushId, owner, headerBlockSpan.Length);
+        var pushId = DecodeVarIntOrThrow(payloadMemory.Span, out var pushIdBytes, "PUSH_PROMISE");
+        return new PushPromiseFrame(pushId, payloadMemory[pushIdBytes..]);
     }
 
     private static GoAwayFrame DecodeGoAwayFrame(ReadOnlySpan<byte> payload)

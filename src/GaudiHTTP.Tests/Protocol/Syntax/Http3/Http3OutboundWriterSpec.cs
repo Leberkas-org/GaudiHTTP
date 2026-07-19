@@ -109,7 +109,7 @@ public sealed class Http3OutboundWriterSpec
             Assert.Equal((long)StreamType.Control, streamType);
 
             var decoder = new FrameDecoder();
-            var frames = decoder.DecodeAll(span[read..], out _);
+            var frames = decoder.DecodeAll(preface.Buffer.Memory[read..], out _);
             var settingsFrame = Assert.Single(frames.OfType<SettingsFrame>());
 
             var parsed = settingsFrame.Parameters.ToDictionary(p => p.Identifier, p => p.Value);
@@ -136,7 +136,7 @@ public sealed class Http3OutboundWriterSpec
         Assert.Equal(4, item.StreamId);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(item.Buffer.Memory.Span, out _);
+        var frames = decoder.DecodeAll(item.Buffer.Memory, out _);
         var dataFrame = Assert.Single(frames.OfType<DataFrame>());
         Assert.Equal(body, dataFrame.Data.ToArray());
 

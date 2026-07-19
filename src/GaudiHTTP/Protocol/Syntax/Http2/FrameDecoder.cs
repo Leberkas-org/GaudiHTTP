@@ -1,168 +1,85 @@
-using System.Buffers;
 using System.Buffers.Binary;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2;
 
+/// <summary>
+/// Stateful HTTP/2 frame decoder per RFC 9113 §4.1.
+/// Caller-owned buffer pattern: callers pass <see cref="ReadOnlyMemory{T}"/> and retain
+/// buffer ownership. Frame payloads are zero-copy slices of the caller's memory when no
+/// remainder is involved; frames assembled from a buffered remainder reference the
+/// remainder buffer (valid until the next <see cref="DecodeAll"/> call).
+/// The returned list is reused on every call — callers MUST fully consume it
+/// before the next DecodeAll and MUST NOT retain it.
+/// </summary>
 internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFrameSize) : IDisposable
 {
-    // RFC 9113 §4.1: all frames begin with a fixed 9-octet header.
     private const int FrameHeaderSize = 9;
-
-    // RFC 9113 §4.1: the reserved R bit must be ignored; mask it out of the stream identifier.
     private const uint StreamIdMask = 0x7FFFFFFFu;
-
-    // RFC 9113 §6.3 / §6.4: PRIORITY and RST_STREAM payloads are exactly 4 bytes.
-    private const int PriorityFieldSize = 5; // stream dependency (4) + weight (1)
+    private const int PriorityFieldSize = 5;
     private const int RstStreamPayloadSize = 4;
-
-    // RFC 9113 §6.5: each SETTINGS parameter is a 6-byte identifier+value pair.
     private const int SettingsEntrySize = 6;
-    private const int SettingsValueOffset = 2; // value is at bytes [2..6) within the entry
-
-    // RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE must be in [2^14, 2^24−1].
+    private const int SettingsValueOffset = 2;
     private const uint MinMaxFrameSize = 16 * 1024;
     private const uint MaxMaxFrameSize = 16 * 1024 * 1024 - 1;
-
-    // RFC 9113 §6.7: PING payload is exactly 8 bytes.
     private const int PingPayloadSize = 8;
-
-    // RFC 9113 §6.8: GOAWAY has a fixed 8-byte header (last-stream-id + error-code).
     private const int GoAwayMinPayloadSize = 8;
     private const int GoAwayErrorCodeOffset = 4;
-
-    // RFC 9113 §6.6: PUSH_PROMISE promised stream ID is 4 bytes; header block follows.
     private const int PushPromiseHeaderBlockOffset = 4;
-
-    // RFC 9113 §6.9: WINDOW_UPDATE payload is exactly 4 bytes.
     private const int WindowUpdatePayloadSize = 4;
-
-    // RFC 9113 §6.1 / §6.2: one-byte Pad Length field precedes padded data.
     private const int PadLengthFieldSize = 1;
 
-    // RFC 9113 §4.2: the largest inbound frame payload we accept — the SETTINGS_MAX_FRAME_SIZE we
-    // advertise to the peer. Frames larger than this are a FRAME_SIZE_ERROR and are rejected before
-    // their payload is buffered, bounding per-connection memory. Defaults to the 24-bit ceiling so a
-    // decoder constructed without an explicit limit performs no enforcement beyond the wire maximum.
-
-    // Owned working buffer. Kept alive between Decode() calls so that returned frame slices
-    // remain valid until the next call (Akka back-pressure guarantees frames are consumed first).
-    private WireBuffer? _workingBuffer;
-
-    // Slice within _workingBuffer that was not yet consumed as a complete frame.
+    private byte[]? _remainderBuffer;
     private int _remainderOffset;
     private int _remainderLength;
 
-    // Reused per-decode-cycle frame list. Cleared at the start of each Decode() call.
-    // Safe to reuse: Akka back-pressure guarantees all frames from call N are fully consumed
-    // by downstream stages before call N+1 fires.
     private readonly List<Http2Frame> _frames = new(10);
 
-    // RFC 9113 §6.10: tracks whether we are awaiting a CONTINUATION frame.
-    // When non-zero, only CONTINUATION on this stream ID is allowed.
     private int _awaitingContinuationStreamId;
 
-    /// <summary>
-    /// Feeds bytes and returns the decoder's reused list of all complete frames decoded so far.
-    /// Transfers ownership of <paramref name="buffer"/>: the caller must not use it after this call.
-    /// Incomplete trailing bytes are retained inside the decoder for the next call.
-    /// The returned list is reused and repopulated on every call, so callers MUST fully consume it
-    /// before the next Decode and MUST NOT retain it. The client/server state machines iterate it
-    /// synchronously within the same actor message under Akka back-pressure; a caller that needs to
-    /// hold a result across calls must snapshot it (e.g. ToArray()).
-    /// </summary>
-    public IReadOnlyList<Http2Frame> Decode(WireBuffer buffer)
+    public IReadOnlyList<Http2Frame> DecodeAll(ReadOnlyMemory<byte> input, out int bytesConsumed)
     {
-        // Cleared first so the early-return (nothing-new) path cannot surface a prior call's frames.
         _frames.Clear();
+        bytesConsumed = 0;
 
-        // Fast path: nothing new and nothing buffered.
-        if (buffer.Length == 0 && _remainderLength == 0)
+        if (input.Length == 0 && _remainderLength == 0)
         {
-            buffer.Dispose();
             return _frames;
         }
 
-        int workingLength;
-        var startOffset = 0;
-
         if (_remainderLength > 0)
         {
-            var appendOffset = _remainderOffset + _remainderLength;
+            if (_remainderOffset > 0)
+            {
+                Buffer.BlockCopy(_remainderBuffer!, _remainderOffset, _remainderBuffer!, 0, _remainderLength);
+                _remainderOffset = 0;
+            }
 
-            if (_workingBuffer!.Capacity >= appendOffset + buffer.Length)
-            {
-                // Append new data directly after remainder — no rent, single copy.
-                // Capture the incoming length BEFORE Dispose: WireBuffer.Dispose resets Length to 0.
-                var incomingLength = buffer.Length;
-                buffer.Memory.Span.CopyTo(_workingBuffer.FullMemory.Span[appendOffset..]);
-                buffer.Dispose();
-                workingLength = appendOffset + incomingLength;
-                _workingBuffer.Length = workingLength;
-                startOffset = _remainderOffset;
-            }
-            else
-            {
-                // Buffer too small: rent a new combined buffer.
-                workingLength = _remainderLength + buffer.Length;
-                var combined = WireBuffer.Rent(workingLength);
-                _workingBuffer.FullMemory.Span.Slice(_remainderOffset, _remainderLength)
-                    .CopyTo(combined.FullMemory.Span);
-                buffer.Memory.Span
-                    .CopyTo(combined.FullMemory.Span[_remainderLength..]);
-                buffer.Dispose();
-                _workingBuffer.Dispose();
-                combined.Length = workingLength;
-                _workingBuffer = combined;
-            }
-        }
-        else if (buffer.Offset == 0)
-        {
-            // Common fast path: no buffered remainder — take ownership directly (zero copy).
-            _workingBuffer?.Dispose();
-            _workingBuffer = buffer;
-            workingLength = buffer.Length;
+            DecodeWithRemainder(input);
         }
         else
         {
-            // Offset-wrapped buffer (data does not start at FullMemory[0]): adopting it directly
-            // would make the parse below read the headroom bytes before the payload — stale pool
-            // content that shows up as garbage frame headers. Copy into an owned buffer instead;
-            // receive-path buffers are never offset-wrapped today, so this path is cold.
-            workingLength = buffer.Length;
-            _workingBuffer?.Dispose();
-            _workingBuffer = WireBuffer.Rent(workingLength);
-            buffer.Memory.Span.CopyTo(_workingBuffer.FullMemory.Span);
-            _workingBuffer.Length = workingLength;
-            buffer.Dispose();
+            DecodeFromInput(input);
         }
 
-        var offset = startOffset;
-        var working = _workingBuffer.FullMemory;
+        bytesConsumed = input.Length;
+        return _frames;
+    }
 
-        while (workingLength - offset >= FrameHeaderSize)
+    private void DecodeFromInput(ReadOnlyMemory<byte> input)
+    {
+        var offset = 0;
+
+        while (input.Length - offset >= FrameHeaderSize)
         {
-            var span = working.Span[offset..];
+            var span = input.Span[offset..];
             var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
 
-            // RFC 9113 §4.2: reject oversized frames before buffering their payload, so a peer cannot
-            // force us to accumulate an arbitrarily large frame.
             if (payloadLen > maxFrameSize)
             {
-                // An oversized length from a well-behaved peer is almost always decoder desync or
-                // buffer corruption, not a real frame. Dump the surrounding bytes and parser state:
-                // a shifted-but-valid H2 frame in the context points to a skip/offset bug, foreign
-                // plaintext points to cross-connection pool contamination.
-                var contextStart = Math.Max(0, offset - 16);
-                var contextLength = Math.Min(48, workingLength - contextStart);
-                var context = Convert.ToHexString(working.Span.Slice(contextStart, contextLength));
-                throw new HttpProtocolException(
-                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}. "
-                    + $"Decoder state: offset={offset}, workingLength={workingLength}, remainderOffset={_remainderOffset}, "
-                    + $"remainderLength={_remainderLength}, bytes[{contextStart}..{contextStart + contextLength}]={context}.");
+                ThrowOversizedFrame(payloadLen, offset, input.Length, input.Span);
             }
 
-            if (workingLength - offset < FrameHeaderSize + payloadLen)
+            if (input.Length - offset < FrameHeaderSize + payloadLen)
             {
                 break;
             }
@@ -170,10 +87,9 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             var type = (FrameType)span[3];
             var flags = span[4];
             var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & StreamIdMask);
-            var payload = working.Slice(offset + FrameHeaderSize, payloadLen);
+            var payload = input.Slice(offset + FrameHeaderSize, payloadLen);
 
             var frame = CreateFrame(type, flags, streamId, payload);
-            // RFC 9113 §5.5: Unknown frame types MUST be ignored.
             if (frame != null)
             {
                 ValidateContinuationState(type, streamId);
@@ -184,30 +100,98 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             offset += FrameHeaderSize + payloadLen;
         }
 
-        _remainderOffset = offset;
-        _remainderLength = workingLength - offset;
-
-        return _frames;
+        var leftover = input.Length - offset;
+        if (leftover > 0)
+        {
+            _remainderOffset = 0;
+            _remainderLength = 0;
+            EnsureRemainderCapacity(leftover);
+            input.Span[offset..].CopyTo(_remainderBuffer);
+            _remainderLength = leftover;
+        }
     }
 
-    /// <summary>
-    /// Resets parser state (e.g. after connection teardown / reconnect).
-    /// Disposes any buffered working memory.
-    /// </summary>
+    private void DecodeWithRemainder(ReadOnlyMemory<byte> input)
+    {
+        var needed = _remainderLength + input.Length;
+        EnsureRemainderCapacity(needed);
+        input.Span.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
+        _remainderLength = needed;
+
+        while (_remainderLength - _remainderOffset >= FrameHeaderSize)
+        {
+            var span = _remainderBuffer.AsSpan(_remainderOffset, _remainderLength - _remainderOffset);
+            var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
+
+            if (payloadLen > maxFrameSize)
+            {
+                ThrowOversizedFrame(payloadLen, _remainderOffset, _remainderLength, span);
+            }
+
+            var totalLength = _remainderLength - _remainderOffset;
+            if (totalLength < FrameHeaderSize + payloadLen)
+            {
+                break;
+            }
+
+            var type = (FrameType)span[3];
+            var flags = span[4];
+            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & StreamIdMask);
+            var payload = _remainderBuffer.AsMemory(_remainderOffset + FrameHeaderSize, payloadLen);
+
+            var frame = CreateFrame(type, flags, streamId, payload);
+            if (frame != null)
+            {
+                ValidateContinuationState(type, streamId);
+                UpdateContinuationState(frame);
+                _frames.Add(frame);
+            }
+
+            _remainderOffset += FrameHeaderSize + payloadLen;
+        }
+
+        _remainderLength -= _remainderOffset;
+    }
+
+    private void EnsureRemainderCapacity(int needed)
+    {
+        if (_remainderBuffer is null || _remainderBuffer.Length < needed + _remainderOffset)
+        {
+            var newBuffer = new byte[Math.Max(needed, 256)];
+            if (_remainderBuffer is not null && _remainderLength > 0)
+            {
+                _remainderBuffer.AsSpan(_remainderOffset, _remainderLength).CopyTo(newBuffer);
+                _remainderOffset = 0;
+            }
+
+            _remainderBuffer = newBuffer;
+        }
+    }
+
+    private void ThrowOversizedFrame(int payloadLen, int offset, int workingLength, ReadOnlySpan<byte> working)
+    {
+        var contextStart = Math.Max(0, offset - 16);
+        var contextLength = Math.Min(48, workingLength - contextStart);
+        var context = Convert.ToHexString(working.Slice(contextStart - (working.Length < workingLength ? 0 : offset - contextStart), Math.Min(contextLength, working.Length)));
+        throw new HttpProtocolException(
+            $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}. "
+            + $"Decoder state: offset={offset}, workingLength={workingLength}, remainderOffset={_remainderOffset}, "
+            + $"remainderLength={_remainderLength}.");
+    }
+
     public void Reset()
     {
-        _workingBuffer?.Dispose();
-        _workingBuffer = null;
+        _remainderBuffer = null;
         _remainderOffset = 0;
         _remainderLength = 0;
         _awaitingContinuationStreamId = 0;
     }
 
-    /// <inheritdoc />
     public void Dispose()
     {
-        _workingBuffer?.Dispose();
-        _workingBuffer = null;
+        _remainderBuffer = null;
+        _remainderOffset = 0;
+        _remainderLength = 0;
     }
 
     private static Http2Frame? CreateFrame(FrameType type, byte flags, int streamId, ReadOnlyMemory<byte> payload)
@@ -215,9 +199,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
         return type switch
         {
             FrameType.Data => ParseDataFrame(flags, streamId, payload),
-
             FrameType.Headers => ParseHeadersFrame(flags, streamId, payload),
-
             FrameType.Continuation => streamId == 0
                 ? throw new HttpProtocolException(
                     "RFC 9113 §6.10: CONTINUATION frame MUST be associated with a stream; stream 0 is invalid.")
@@ -225,30 +207,22 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
                     streamId,
                     payload,
                     (flags & (byte)Continuations.EndHeaders) != 0),
-
             FrameType.Ping => streamId != 0
                 ? throw new HttpProtocolException("RFC 9113 §6.7: PING frame MUST be sent on stream 0.")
                 : CreatePing(flags, payload),
-
             FrameType.Settings => streamId != 0
                 ? throw new HttpProtocolException("RFC 9113 §6.5: SETTINGS frame MUST be sent on stream 0.")
                 : ParseSettings(payload, flags),
-
             FrameType.WindowUpdate => CreateWindowUpdateFrame(streamId, payload),
-
             FrameType.RstStream => payload.Length == RstStreamPayloadSize
                 ? new RstStreamFrame(streamId, (Http2ErrorCode)BinaryPrimitives.ReadUInt32BigEndian(payload.Span))
                 : throw new HttpProtocolException(
                     $"RFC 9113 §6.4: RST_STREAM frame must be exactly {RstStreamPayloadSize} bytes; got {payload.Length}."),
-
             FrameType.GoAway => streamId != 0
                 ? throw new HttpProtocolException(
                     "RFC 9113 §6.8: GOAWAY frame MUST be sent on stream 0.")
                 : ParseGoAway(payload),
-
             FrameType.PushPromise => ParsePushPromise(streamId, flags, payload),
-
-            // RFC 9113 §5.5: Unknown frame types MUST be ignored.
             _ => null
         };
     }
@@ -263,9 +237,6 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
 
         var endStream = (flags & (byte)Datas.EndStream) != 0;
         var data = payload;
-
-        // RFC 9113 §6.1: the entire payload — including the Pad Length octet and padding — is
-        // counted against flow control, even though only the application data is delivered.
         var flowControlledLength = payload.Length;
 
         if ((flags & (byte)Datas.Padded) != 0)
@@ -309,7 +280,7 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             data = data.Slice(PadLengthFieldSize, data.Length - PadLengthFieldSize - padLen);
         }
 
-        if ((flags & (byte)Headers.Priority) != 0) // PRIORITY — consume 4-byte stream dep + 1-byte weight
+        if ((flags & (byte)Headers.Priority) != 0)
         {
             data = data.Length >= PriorityFieldSize ? data[PriorityFieldSize..] : ReadOnlyMemory<byte>.Empty;
         }
@@ -332,14 +303,12 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
     {
         var isAck = (flags & (byte)Settings.Ack) != 0;
 
-        // RFC 9113 §6.5: A SETTINGS frame with ACK flag MUST have an empty payload.
         if (isAck && payload.Length > 0)
         {
             throw new HttpProtocolException(
                 "RFC 9113 §6.5: SETTINGS frame with ACK flag MUST have empty payload.");
         }
 
-        // RFC 9113 §6.5: A SETTINGS payload length not a multiple of 6 octets is a FRAME_SIZE_ERROR.
         if (!isAck && payload.Length % SettingsEntrySize != 0)
         {
             throw new HttpProtocolException(
@@ -347,9 +316,8 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
         }
 
         var entryCount = payload.Length / SettingsEntrySize;
-        var array = ArrayPool<(SettingsParameter, uint)>.Shared.Rent(Math.Max(entryCount, 1));
         var span = payload.Span;
-        var count = 0;
+        var list = new List<(SettingsParameter, uint)>(entryCount);
 
         for (var i = 0; i + SettingsEntrySize <= span.Length; i += SettingsEntrySize)
         {
@@ -358,28 +326,19 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
 
             if (key == SettingsParameter.MaxFrameSize && value is < MinMaxFrameSize or > MaxMaxFrameSize)
             {
-                ArrayPool<(SettingsParameter, uint)>.Shared.Return(array);
                 throw new HttpProtocolException(
                     $"RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [{MinMaxFrameSize}, {MaxMaxFrameSize}].");
             }
 
             if (key == SettingsParameter.InitialWindowSize && value > int.MaxValue)
             {
-                ArrayPool<(SettingsParameter, uint)>.Shared.Return(array);
                 throw new HttpProtocolException(
                     $"RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE {value} exceeds the maximum 2^31-1 (FLOW_CONTROL_ERROR).");
             }
 
-            array[count++] = (key, value);
+            list.Add((key, value));
         }
 
-        var list = new List<(SettingsParameter, uint)>(count);
-        for (var i = 0; i < count; i++)
-        {
-            list.Add(array[i]);
-        }
-
-        ArrayPool<(SettingsParameter, uint)>.Shared.Return(array);
         return new SettingsFrame(list, isAck);
     }
 
@@ -432,11 +391,6 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
         return new WindowUpdateFrame(streamId, increment);
     }
 
-    /// <summary>
-    /// RFC 9113 §6.10: validates that CONTINUATION state constraints are met.
-    /// When awaiting CONTINUATION, only CONTINUATION on the same stream is allowed.
-    /// When not awaiting CONTINUATION, a bare CONTINUATION is invalid.
-    /// </summary>
     private void ValidateContinuationState(FrameType type, int streamId)
     {
         if (_awaitingContinuationStreamId != 0)
@@ -460,11 +414,6 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
         }
     }
 
-    /// <summary>
-    /// Tracks whether the decoder is awaiting a CONTINUATION frame.
-    /// HEADERS/PUSH_PROMISE without END_HEADERS sets the expectation;
-    /// CONTINUATION with END_HEADERS clears it.
-    /// </summary>
     private void UpdateContinuationState(Http2Frame frame)
     {
         _awaitingContinuationStreamId = frame switch

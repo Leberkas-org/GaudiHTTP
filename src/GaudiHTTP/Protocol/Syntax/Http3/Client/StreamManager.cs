@@ -99,38 +99,6 @@ internal sealed class StreamManager(
     }
 
     /// <summary>
-    /// Fails an in-flight request on the given stream due to a transport error.
-    /// Removes the correlation and stream state, and completes the <see cref="PendingRequest"/>
-    /// with an exception so the caller's <c>SendAsync</c> or <c>ReadAsStringAsync</c> throws.
-    /// Returns true if a correlated request was found and failed.
-    /// </summary>
-    public void FailInflightRequest(long streamId, Exception exception)
-    {
-        Tracing.For("Protocol").Info(this, "HTTP/3: failing in-flight request (stream={0}): {1}",
-            streamId, exception.Message);
-        if (_streams.TryGetValue(streamId, out var state))
-        {
-            AbortAndReturnBodyReader(state);
-            state.Dispose();
-            _streams.Remove(streamId);
-        }
-
-        if (!_correlationMap.Remove(streamId, out var request))
-        {
-            return;
-        }
-
-        OnStreamClosedCallback?.Invoke(streamId);
-        ReturnDecoder(streamId);
-
-        if (request.Options.TryGetValue(OptionsKey.Key, out var pending)
-            && request.Options.TryGetValue(OptionsKey.VersionKey, out var ver))
-        {
-            pending.TrySetException(exception, ver);
-        }
-    }
-
-    /// <summary>
     /// Completes all in-progress response assemblies (upstream finish / connection close).
     /// </summary>
     public void FlushAllPendingResponses()
@@ -570,7 +538,7 @@ internal sealed class StreamManager(
 
     /// <summary>
     /// Callback invoked when a stream is closed (response emitted).
-    /// The SessionManager sets and uses this to update <see cref="StreamTracker"/> and <see cref="ConnectionState"/>.
+    /// The SessionManager sets and uses this to update <see cref="QuicStreamTracker"/> and <see cref="ConnectionState"/>.
     /// </summary>
     internal Action<long>? OnStreamClosedCallback { get; init; }
 }

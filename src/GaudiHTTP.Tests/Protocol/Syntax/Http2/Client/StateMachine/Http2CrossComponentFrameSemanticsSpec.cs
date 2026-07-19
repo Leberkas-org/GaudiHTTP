@@ -125,8 +125,8 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
 
         // Open 2 streams. Decode returns the decoder's reused list, so snapshot each result
         // before the next Decode call repopulates it.
-        var h1 = decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer()).ToArray();
-        var h3 = decoder.Decode(BuildHeadersFrame(3, ValidStatusHeaderBlock()).ToWireBuffer()).ToArray();
+        var h1 = decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _).ToArray();
+        var h3 = decoder.DecodeAll(BuildHeadersFrame(3, ValidStatusHeaderBlock()), out _).ToArray();
 
         var frame1 = Assert.IsType<HeadersFrame>(h1[0]);
         var frame3 = Assert.IsType<HeadersFrame>(h3[0]);
@@ -136,7 +136,7 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         Assert.Equal(2, openStreams.Count);
 
         // RST_STREAM on stream 1
-        var rst = decoder.Decode(BuildRstStreamFrame(1, Http2ErrorCode.Cancel).ToWireBuffer());
+        var rst = decoder.DecodeAll(BuildRstStreamFrame(1, Http2ErrorCode.Cancel), out _);
         var rstFrame = Assert.IsType<RstStreamFrame>(rst[0]);
         openStreams.Remove(rstFrame.StreamId);
         closedStreams.Add(rstFrame.StreamId);
@@ -152,10 +152,10 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var decoder = new FrameDecoder();
 
         // Open stream 1
-        decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
 
         // RST_STREAM with InternalError
-        var rst = decoder.Decode(BuildRstStreamFrame(1, Http2ErrorCode.InternalError).ToWireBuffer());
+        var rst = decoder.DecodeAll(BuildRstStreamFrame(1, Http2ErrorCode.InternalError), out _);
         var frame = Assert.IsType<RstStreamFrame>(rst[0]);
 
         Assert.Equal(1, frame.StreamId);
@@ -170,15 +170,15 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var closedStreams = new HashSet<int>();
 
         // Open stream 1
-        decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
 
         // RST_STREAM on stream 1
-        var rst = decoder.Decode(BuildRstStreamFrame(1, Http2ErrorCode.Cancel).ToWireBuffer());
+        var rst = decoder.DecodeAll(BuildRstStreamFrame(1, Http2ErrorCode.Cancel), out _);
         var rstFrame = Assert.IsType<RstStreamFrame>(rst[0]);
         closedStreams.Add(rstFrame.StreamId);
 
         // DATA on reset stream → STREAM_CLOSED
-        var data = decoder.Decode(BuildDataFrame(1, new byte[10]).ToWireBuffer());
+        var data = decoder.DecodeAll(BuildDataFrame(1, new byte[10]), out _);
         var dataFrame = Assert.IsType<DataFrame>(data[0]);
 
         Assert.Throws<HttpProtocolException>(() => EnforceStreamNotClosed(dataFrame.StreamId, closedStreams));
@@ -191,10 +191,10 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var decoder = new FrameDecoder();
 
         // Open stream 1
-        decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
 
         // RST_STREAM with Cancel error
-        var rst = decoder.Decode(BuildRstStreamFrame(1, Http2ErrorCode.Cancel).ToWireBuffer());
+        var rst = decoder.DecodeAll(BuildRstStreamFrame(1, Http2ErrorCode.Cancel), out _);
         var frame = Assert.IsType<RstStreamFrame>(rst[0]);
 
         Assert.Equal(Http2ErrorCode.Cancel, frame.ErrorCode);
@@ -207,10 +207,10 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var decoder = new FrameDecoder();
 
         // Open stream 1 first
-        decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
 
         // GOAWAY with lastStreamId = 1
-        var goAway = decoder.Decode(BuildGoAwayFrame(1).ToWireBuffer());
+        var goAway = decoder.DecodeAll(BuildGoAwayFrame(1), out _);
         var frame = Assert.IsType<GoAwayFrame>(goAway[0]);
 
         Assert.Equal(1, frame.LastStreamId);
@@ -224,11 +224,11 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var decoder = new FrameDecoder();
 
         // GOAWAY with lastStreamId = 0
-        var goAway = decoder.Decode(BuildGoAwayFrame(0).ToWireBuffer());
+        var goAway = decoder.DecodeAll(BuildGoAwayFrame(0), out _);
         var goAwayFrame = Assert.IsType<GoAwayFrame>(goAway[0]);
 
         // Stream 1 is > lastStreamId → should be rejected
-        var headers = decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
+        var headers = decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
         var headersFrame = Assert.IsType<HeadersFrame>(headers[0]);
 
         Assert.Throws<HttpProtocolException>(() =>
@@ -242,12 +242,12 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var decoder = new FrameDecoder();
 
         // Open streams 1, 3, 5
-        decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()).ToWireBuffer());
-        decoder.Decode(BuildHeadersFrame(3, ValidStatusHeaderBlock()).ToWireBuffer());
-        decoder.Decode(BuildHeadersFrame(5, ValidStatusHeaderBlock()).ToWireBuffer());
+        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
+        decoder.DecodeAll(BuildHeadersFrame(3, ValidStatusHeaderBlock()), out _);
+        decoder.DecodeAll(BuildHeadersFrame(5, ValidStatusHeaderBlock()), out _);
 
         // GOAWAY with lastStreamId = 3
-        var goAway = decoder.Decode(BuildGoAwayFrame(3).ToWireBuffer());
+        var goAway = decoder.DecodeAll(BuildGoAwayFrame(3), out _);
         var frame = Assert.IsType<GoAwayFrame>(goAway[0]);
 
         Assert.Equal(3, frame.LastStreamId);
@@ -259,7 +259,7 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
     {
         var decoder = new FrameDecoder();
 
-        var goAway = decoder.Decode(BuildGoAwayFrame(0, Http2ErrorCode.FlowControlError).ToWireBuffer());
+        var goAway = decoder.DecodeAll(BuildGoAwayFrame(0, Http2ErrorCode.FlowControlError), out _);
         var frame = Assert.IsType<GoAwayFrame>(goAway[0]);
 
         Assert.Equal(Http2ErrorCode.FlowControlError, frame.ErrorCode);
@@ -274,7 +274,7 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var headersFrame = BuildHeadersFrame(1, corruptHpack);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(headersFrame.ToWireBuffer());
+        var frames = decoder.DecodeAll(headersFrame, out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -309,7 +309,7 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var headersFrame = BuildHeadersFrame(1, combined.ToArray());
 
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(headersFrame.ToWireBuffer());
+        var frames = decoder.DecodeAll(headersFrame, out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();

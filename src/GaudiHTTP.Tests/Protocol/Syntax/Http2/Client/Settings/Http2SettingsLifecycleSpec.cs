@@ -101,7 +101,7 @@ public sealed class Http2SettingsLifecycleSpec
         var decoder = new FrameDecoder();
         var bytes = new SettingsFrame([(SettingsParameter.EnablePush, 3u)]).Serialize();
 
-        var frames = decoder.Decode(bytes.ToWireBuffer());
+        var frames = decoder.DecodeAll(bytes, out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<SettingsFrame>(frames[0]);

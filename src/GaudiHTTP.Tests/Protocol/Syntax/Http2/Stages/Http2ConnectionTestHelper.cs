@@ -49,7 +49,7 @@ internal static class Http2ConnectionTestHelper
                     continue;
                 }
 
-                var frames = decoder.Decode(buffer);
+                var frames = decoder.DecodeAll(buffer.Memory, out _);
                 result.AddRange(frames);
             }
         }

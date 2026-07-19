@@ -48,22 +48,6 @@ public sealed class GaudiHttpResponseBodyFeatureSpec() : TestKit(CiQuietConfig.I
     }
 
     [Fact(Timeout = 5000)]
-    public async Task BodySink_should_receive_data_from_akka_source()
-    {
-        var feature = new GaudiHttpResponseBodyFeature();
-        var chunk = new ReadOnlyMemory<byte>("akka-data"u8.ToArray());
-
-        await Source.Single(chunk).RunWith(feature.BodySink, Sys.Materializer());
-        await feature.CompleteAsync();
-
-        var result = await feature.GetResponseSource()
-            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
-
-        var combined = result.SelectMany(m => m.ToArray()).ToArray();
-        Assert.Equal("akka-data", Encoding.UTF8.GetString(combined));
-    }
-
-    [Fact(Timeout = 5000)]
     public async Task GetResponseSource_should_return_empty_when_nothing_written()
     {
         var feature = new GaudiHttpResponseBodyFeature();
@@ -142,22 +126,6 @@ public sealed class GaudiHttpResponseBodyFeatureSpec() : TestKit(CiQuietConfig.I
 
         Assert.True(feature.WhenHeadersReady.IsCompleted);
         Assert.True(feature.HasStarted);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task WhenHeadersReady_should_complete_on_first_BodySink_write()
-    {
-        var feature = new GaudiHttpResponseBodyFeature();
-        var chunk = new ReadOnlyMemory<byte>("data"u8.ToArray());
-
-        Assert.False(feature.WhenHeadersReady.IsCompleted);
-
-        await Source.Single(chunk).RunWith(feature.BodySink, Sys.Materializer());
-
-        Assert.True(feature.WhenHeadersReady.IsCompleted);
-        Assert.True(feature.HasStarted);
-
-        await feature.CompleteAsync();
     }
 
     [Fact(Timeout = 5000)]

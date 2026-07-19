@@ -57,9 +57,25 @@ internal sealed class StreamState : Poolable<StreamState>
         }
 
         StreamId = streamId;
-        var idStr = streamId.ToString();
-        BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
-        HeadersTimeoutTimerKey = string.Concat("headers-timeout:", idStr);
+        (BodyConsumptionTimerKey, HeadersTimeoutTimerKey) = TimerKeyCache.GetOrCreate(streamId);
+    }
+
+    internal static class TimerKeyCache
+    {
+        private static readonly Dictionary<long, (string Body, string Headers)> Cache = new();
+
+        public static (string Body, string Headers) GetOrCreate(long streamId)
+        {
+            if (Cache.TryGetValue(streamId, out var keys))
+            {
+                return keys;
+            }
+
+            var idStr = streamId.ToString();
+            keys = (string.Concat("body-consumption:", idStr), string.Concat("headers-timeout:", idStr));
+            Cache[streamId] = keys;
+            return keys;
+        }
     }
 
     public HttpResponseMessage InitResponse()

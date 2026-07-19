@@ -1,6 +1,5 @@
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
-using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -14,7 +13,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 8;
         var frame = BuildPaddedDataFrame(1, dataPayload, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<DataFrame>(frames[0]);
     }
@@ -27,7 +26,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 0;
         var frame = BuildPaddedDataFrame(1, dataPayload, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<DataFrame>(frames[0]);
     }
@@ -40,7 +39,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 255;
         var frame = BuildPaddedDataFrame(1, dataPayload, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<DataFrame>(frames[0]);
     }
@@ -54,7 +53,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 10;
         var frame = BuildPaddedHeadersFrame(1, headerBlock, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
     }
@@ -68,7 +67,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 0;
         var frame = BuildPaddedHeadersFrame(1, headerBlock, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
     }
@@ -82,7 +81,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 255;
         var frame = BuildPaddedHeadersFrame(1, headerBlock, paddingLength);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
     }
@@ -95,7 +94,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 5;
         var frame = BuildPaddedDataFrame(1, dataPayload, paddingLength, endStream: true);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         var dataFrame = Assert.IsType<DataFrame>(frames[0]);
         Assert.True(dataFrame.EndStream);
@@ -110,7 +109,7 @@ public sealed class Http2DecoderPaddingSpec
         const int paddingLength = 5;
         var frame = BuildPaddedHeadersFrame(1, headerBlock, paddingLength, endHeaders: true);
 
-        var frames = new FrameDecoder().Decode(frame.ToWireBuffer());
+        var frames = new FrameDecoder().DecodeAll(frame, out _);
         Assert.NotEmpty(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.True(headersFrame.EndHeaders);

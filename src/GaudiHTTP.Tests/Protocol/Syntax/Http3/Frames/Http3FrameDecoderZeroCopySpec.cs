@@ -3,7 +3,7 @@ using GaudiHTTP.Protocol.Syntax.Http3;
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
 
 /// <summary>
-/// Contract of the zero-copy <c>DecodeAll(ReadOnlyMemory&lt;byte&gt;)</c> overload: payloads of
+/// Contract of the zero-copy <c>DecodeAll(ReadOnlyMemory&lt;byte&gt;)</c> API: payloads of
 /// frames fully contained in the input alias the input buffer (no pooled copy); frames
 /// assembled from a buffered remainder own their payload and survive input reuse.
 /// </summary>
@@ -64,22 +64,5 @@ public sealed class Http3FrameDecoderZeroCopySpec
         Assert.Equal(256, data.Data.Length);
         Assert.True(data.Data.Span.IndexOfAnyExcept((byte)0x42) < 0,
             "Split-frame payload aliases a reused input buffer.");
-        (data as IDisposable).Dispose();
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.1")]
-    public void Span_overload_should_keep_copy_semantics()
-    {
-        var decoder = new FrameDecoder();
-        var wire = SerializeDataFrame(0x33, 64);
-
-        var frames = decoder.DecodeAll(wire.AsSpan(), out _);
-        var data = Assert.IsType<DataFrame>(Assert.Single(frames));
-
-        Array.Fill(wire, (byte)0xEE);
-        Assert.True(data.Data.Span.IndexOfAnyExcept((byte)0x33) < 0,
-            "Span-based DecodeAll no longer copies — existing callers rely on copy semantics.");
-        (data as IDisposable).Dispose();
     }
 }

@@ -25,7 +25,6 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
     private readonly ArrayBufferWriter<byte> _bufferWriter = FeatureCollectionFactory.RentBuffer();
     private readonly ResponsePipeWriter _writer;
     private Stream? _stream;
-    private Sink<ReadOnlyMemory<byte>, Task>? _bodySink;
 
     public GaudiHttpResponseBodyFeature()
     {
@@ -45,7 +44,6 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
     internal void Reset()
     {
         _stream = null;
-        _bodySink = null;
 
         if (_pipe is not null)
         {
@@ -151,26 +149,6 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
         }
     }
 
-    public Sink<ReadOnlyMemory<byte>, Task> BodySink
-    {
-        get
-        {
-            if (_bodySink == null)
-            {
-                UpgradeToPipe();
-                var pipeSink = PipeSink.To(_pipe!.Writer);
-                _bodySink = Flow.Create<ReadOnlyMemory<byte>>()
-                    .SelectAsync(1, chunk =>
-                    {
-                        _writer.CommitHeaders();
-                        return Task.FromResult(chunk);
-                    })
-                    .ToMaterialized(pipeSink, Keep.Right);
-            }
-
-            return _bodySink;
-        }
-    }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -234,12 +212,6 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
     {
         UpgradeToPipe();
         return PipeSource.From(_pipe!.Reader);
-    }
-
-    internal PipeReader GetResponsePipeReader()
-    {
-        UpgradeToPipe();
-        return _pipe!.Reader;
     }
 
     internal Stream GetResponseStream()
@@ -311,7 +283,7 @@ internal sealed class GaudiHttpResponseBodyFeature : IHttpResponseBodyFeature
                 HasStarted = true;
                 // Committing headers does not require a Pipe: a response that never reaches a
                 // streaming consumer stays buffered (the dominant Plaintext/Json case). The Pipe is
-                // created lazily by the genuine streaming entry points (BodySink, GetResponse*,
+                // created lazily by the genuine streaming entry points (GetResponse*,
                 // SendFile, DisableBuffering) and by the bridge for not-synchronously-completing
                 // handlers — never per response just to flush headers.
                 SignalHeadersReady();

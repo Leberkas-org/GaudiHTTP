@@ -65,7 +65,7 @@ public sealed class Http2ServerHeadResponseSpec
         {
             if (o is TransportData td)
             {
-                frames.AddRange(decoder.Decode(td.Buffer));
+                frames.AddRange(decoder.DecodeAll(td.Buffer.Memory, out _));
             }
         }
 
