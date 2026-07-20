@@ -1,0 +1,58 @@
+schema: spec-driven
+
+context: |
+  Project: GaudiHTTP — high-performance HTTP client & server for .NET on Akka.Streams.
+  Protocols: HTTP/1.0, 1.1, 2 (RFC 9113), 3/QUIC (RFC 9114). Full RFC compliance.
+
+  Tech stack: C# 14, .NET 10, Akka.NET 1.5.68 (Akka.Streams), xUnit v3, BenchmarkDotNet 0.15.8.
+  Build: `dotnet build --configuration Release` from `src/`.
+  Tests: `dotnet run --project GaudiHTTP.Tests/GaudiHTTP.Tests.csproj` (~5930 unit+stage).
+
+  Architecture layers:
+    Client Surface  → IGaudiHttpClient, factory, builder, DI, options
+    Server Surface  → GaudiServer (IServer), GaudiServerOptions, Hosting
+    Streams Layer   → Engines, Stages/{Client,Server,Features}, Lifecycle, Pooling
+    Protocol Layer  → Http10/, Http11/, Http2/, Http3/, Semantics/
+    Features        → Cookies, Caching, AltSvc
+
+  Threading: Akka actor-thread confinement — fields in actor-owned types don't need
+  volatile/Interlocked. Only add barriers at true system boundaries.
+
+  Code style: Allman braces, 4 spaces, `_fieldName`, `var` when obvious, `sealed` by default.
+  No `#nullable enable`, no `async void`, no `.Result`/`.Wait()`.
+  Size literals: `N * 1024`, never raw numbers.
+  Performance: reuse lists (Clear+Repopulate), ArrayPool for temp arrays, Span over loops.
+
+  Test conventions: `Spec` suffix, sealed, BDD names (`Subject_should_behavior()`),
+  `[Fact(Timeout = 5000)]` required, max 500 lines, component-based folders.
+
+  Language: all artifacts in English.
+
+rules:
+  proposal:
+    - Start with "## Why" — concrete problem statement with measurable impact (alloc counts, latency, RFC violation)
+    - "## What Changes" — list affected components and the pattern/approach
+    - "## Capabilities" — New/Modified capabilities with one-line descriptions
+    - "## Impact" — affected files, expected improvement, risk level
+    - Reference existing code patterns when porting (e.g. "wie H2 FrameDecoder bereits macht")
+    - Keep under 400 words — this is a decision document, not documentation
+
+  design:
+    - Show the concrete code pattern being introduced or modified
+    - Include before/after for non-trivial refactors
+    - Reference RFC sections with `[RFC XXXX §X.Y]` when relevant
+    - Call out actor-confinement assumptions explicitly
+    - Note cross-thread boundaries that need special handling
+
+  spec:
+    - One spec per independently shippable unit of work
+    - Include acceptance criteria as testable assertions
+    - Reference the production class and test class paths
+    - Note wire-format compatibility constraints where applicable
+
+  tasks:
+    - Each task ≤ 2 hours of focused work
+    - Tasks must be independently verifiable (compile + tests green after each)
+    - Include the test class/method that proves completion
+    - Order tasks so protocol-layer changes come before stage-layer changes
+    - Final task is always "run full test suite + verify no regressions"
