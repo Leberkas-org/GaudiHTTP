@@ -1,4 +1,5 @@
 using System.Text;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Client;
@@ -57,13 +58,29 @@ public sealed class Http11StateMachineSpec
         return (req, pending);
     }
 
-    private static WireBuffer CreateResponseBuffer(string response)
+    private static TestPipeTransport ConnectWithResponse(
+        Http11ClientStateMachine sm, string response)
     {
+        var transport = new TestPipeTransport();
         var bytes = Encoding.ASCII.GetBytes(response);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
+        var span = transport.InputWriter.GetSpan(bytes.Length);
+        bytes.CopyTo(span);
+        transport.InputWriter.Advance(bytes.Length);
+        var flush = transport.InputWriter.FlushAsync();
+        if (!flush.IsCompletedSuccessfully)
+        {
+            throw new InvalidOperationException("Pipe flush did not complete synchronously");
+        }
+
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
+        return transport;
+    }
+
+    private static TestPipeTransport Connect(Http11ClientStateMachine sm)
+    {
+        var transport = new TestPipeTransport();
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
+        return transport;
     }
 
     [Fact(Timeout = 5000)]
@@ -80,17 +97,17 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6")]
-    public void OnRequest_should_emit_network_buffer_with_encoded_data()
+    public void OnRequest_should_encode_after_transport_connected()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
+        var transport = new TestPipeTransport();
 
         sm.OnRequest(MakeRequest());
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
-        var buffer = ops.Outbound.OfType<TransportData>().Select(d => d.Buffer).FirstOrDefault();
-        Assert.NotNull(buffer);
-        Assert.True(buffer.Length > 0);
-        buffer.Dispose();
+        var output = transport.CapturedOutputBytes;
+        Assert.True(output.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -124,16 +141,14 @@ public sealed class Http11StateMachineSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
+        var transport = new TestPipeTransport();
         var content = new StringContent("test body", Encoding.UTF8);
 
         sm.OnRequest(MakeRequest("/", "POST", content));
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
         Assert.True(sm.HasInFlightRequests);
-        Assert.NotEmpty(ops.Outbound.OfType<TransportData>().Select(d => d.Buffer));
-        foreach (var buf in ops.Outbound.OfType<TransportData>().Select(d => d.Buffer))
-        {
-            buf.Dispose();
-        }
+        Assert.True(transport.CapturedOutputBytes.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -142,18 +157,15 @@ public sealed class Http11StateMachineSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
+        var transport = new TestPipeTransport();
 
         sm.OnRequest(MakeRequest("/1"));
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
 
         Assert.Equal(3, sm.PendingRequestCount);
-        var buffers = ops.Outbound.OfType<TransportData>().Select(d => d.Buffer).ToList();
-        Assert.Equal(3, buffers.Count);
-        foreach (var buf in buffers)
-        {
-            buf.Dispose();
-        }
+        Assert.True(transport.CapturedOutputBytes.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -162,29 +174,28 @@ public sealed class Http11StateMachineSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
+        var transport = new TestPipeTransport();
 
         sm.OnRequest(MakeRequest("/", "GET"));
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
         Assert.True(sm.HasInFlightRequests);
-        var buffer = ops.Outbound.OfType<TransportData>().Select(d => d.Buffer).FirstOrDefault();
-        Assert.NotNull(buffer);
-        buffer.Dispose();
+        Assert.True(transport.CapturedOutputBytes.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6")]
-    public void OnRequest_should_respect_max_buffer_size()
+    public void OnRequest_should_encode_post_headers_via_transport()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
+        var transport = new TestPipeTransport();
         var content = new StringContent("test", Encoding.UTF8);
 
         sm.OnRequest(MakeRequest("/", "POST", content));
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
-        var buffer = ops.Outbound.OfType<TransportData>().Select(d => d.Buffer).FirstOrDefault();
-        Assert.NotNull(buffer);
-        Assert.True(buffer.Capacity <= 2048);
-        buffer.Dispose();
+        Assert.True(transport.CapturedOutputBytes.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -195,8 +206,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
         Assert.Single(ops.Responses);
         Assert.Equal((int)System.Net.HttpStatusCode.OK, (int)ops.Responses[0].StatusCode);
@@ -210,8 +220,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
     }
 
     [Fact(Timeout = 5000)]
@@ -223,10 +232,9 @@ public sealed class Http11StateMachineSpec
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
-        var buffer = CreateResponseBuffer(
+        ConnectWithResponse(sm,
             "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK" +
             "HTTP/1.1 201 Created\r\nContent-Length: 7\r\n\r\nCreated");
-        sm.DecodeServerData(TransportData.Rent(buffer));
 
         Assert.Equal(2, ops.Responses.Count);
         Assert.Equal((int)System.Net.HttpStatusCode.OK, (int)ops.Responses[0].StatusCode);
@@ -241,8 +249,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\n");
 
         Assert.Single(ops.Responses);
         Assert.Equal(200, (int)ops.Responses[0].StatusCode);
@@ -256,8 +263,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer1));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\n");
 
         Assert.Single(ops.Responses);
     }
@@ -271,8 +277,7 @@ public sealed class Http11StateMachineSpec
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
 
         Assert.Single(ops.Responses);
         Assert.False(sm.CanAcceptRequest);
@@ -285,8 +290,7 @@ public sealed class Http11StateMachineSpec
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
@@ -303,8 +307,7 @@ public sealed class Http11StateMachineSpec
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK");
 
         Assert.False(sm.CanAcceptRequest);
     }
@@ -318,8 +321,7 @@ public sealed class Http11StateMachineSpec
         var req = MakeRequest();
         sm.OnRequest(req);
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
 
         Assert.NotNull(ops.Responses[0].RequestMessage);
     }
@@ -332,10 +334,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer1));
-        var buffer2 = CreateResponseBuffer("body content");
-        sm.DecodeServerData(TransportData.Rent(buffer2));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\nbody content");
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
@@ -352,8 +351,7 @@ public sealed class Http11StateMachineSpec
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\n");
 
         Assert.Single(ops.Responses);
 
@@ -368,8 +366,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
@@ -385,8 +382,7 @@ public sealed class Http11StateMachineSpec
         var (request, _) = MakeTrackedRequest();
         sm.OnRequest(request);
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
@@ -401,8 +397,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer1));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\n");
 
         Assert.Single(ops.Responses);
 
@@ -531,10 +526,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer1));
-        var buffer2 = CreateResponseBuffer("body");
-        sm.DecodeServerData(TransportData.Rent(buffer2));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\nbody");
 
         sm.Cleanup();
 
@@ -551,11 +543,10 @@ public sealed class Http11StateMachineSpec
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
 
-        var buffer = CreateResponseBuffer(
+        ConnectWithResponse(sm,
             "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK" +
             "HTTP/1.1 201 Created\r\nContent-Length: 7\r\n\r\nCreated" +
             "HTTP/1.1 202 Accepted\r\nContent-Length: 8\r\n\r\nAccepted");
-        sm.DecodeServerData(TransportData.Rent(buffer));
 
         Assert.Equal(3, ops.Responses.Count);
         Assert.NotNull(ops.Responses[0].RequestMessage);
@@ -571,8 +562,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\nstart");
-        sm.DecodeServerData(TransportData.Rent(buffer1));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\n\r\nstart");
 
         Assert.False(sm.ShouldPauseNetwork);
 
@@ -590,8 +580,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 204 No Content\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 204 No Content\r\n\r\n");
 
         Assert.Single(ops.Responses);
         Assert.Equal((int)System.Net.HttpStatusCode.NoContent, (int)ops.Responses[0].StatusCode);
@@ -605,8 +594,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 304 Not Modified\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 304 Not Modified\r\n\r\n");
 
         Assert.Single(ops.Responses);
         Assert.Equal((int)System.Net.HttpStatusCode.NotModified, (int)ops.Responses[0].StatusCode);
@@ -620,8 +608,7 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(TestClientOptions.Create(maxPipelineDepth: 8), ops);
         sm.OnRequest(MakeRequest());
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
         Assert.Single(ops.Responses);
         Assert.Equal(200, (int)ops.Responses[0].StatusCode);
@@ -637,8 +624,7 @@ public sealed class Http11StateMachineSpec
         sm.OnRequest(MakeRequest("/2"));
         sm.OnRequest(MakeRequest("/3"));
 
-        var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        ConnectWithResponse(sm, "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
 
         Assert.Single(ops.Responses);
         var response = ops.Responses[0];
@@ -651,15 +637,14 @@ public sealed class Http11StateMachineSpec
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(new GaudiClientOptions(), ops);
         sm.PreStart();
+        var transport = new TestPipeTransport();
 
-        // A body larger than the pump's unflushed high-water mark: with no flush signalled the inline
-        // pump drains a bounded prefix and then pauses, leaving the request mid-body so the connection
-        // cannot accept another request.
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
             Content = new ByteArrayContent(new byte[1024 * 1024])
         };
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
         Assert.False(sm.CanAcceptRequest);
     }
@@ -670,14 +655,15 @@ public sealed class Http11StateMachineSpec
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(new GaudiClientOptions(), ops);
         sm.PreStart();
+        var transport = new TestPipeTransport();
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
             Content = new ByteArrayContent(new byte[1000])
         };
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
 
-        // Force-async: body read results are dispatched to StageActor — drain them now.
         while (ops.BodyMessages.Count > 0)
         {
             var msg = ops.BodyMessages[0];
@@ -685,7 +671,6 @@ public sealed class Http11StateMachineSpec
             sm.OnBodyMessage(msg);
         }
 
-        // After draining, the 1000-byte body has completed and the connection is dispatchable again.
         Assert.True(sm.CanAcceptRequest);
     }
 }

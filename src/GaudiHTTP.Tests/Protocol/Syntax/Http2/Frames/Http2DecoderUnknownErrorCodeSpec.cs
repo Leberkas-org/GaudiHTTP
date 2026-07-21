@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -16,7 +17,7 @@ public sealed class Http2DecoderUnknownErrorCodeSpec
         BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(13), 0xFFu);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
         var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal((Http2ErrorCode)0xFF, goaway.ErrorCode);
@@ -33,7 +34,7 @@ public sealed class Http2DecoderUnknownErrorCodeSpec
         BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(9), 0xFEu);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(1, rst.StreamId);
@@ -51,7 +52,7 @@ public sealed class Http2DecoderUnknownErrorCodeSpec
         BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(13), 0xFFFFFFFFu);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
         var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal((Http2ErrorCode)0xFFFFFFFF, goaway.ErrorCode);
@@ -71,7 +72,7 @@ public sealed class Http2DecoderUnknownErrorCodeSpec
         foreach (var code in definedCodes)
         {
             var frame = new GoAwayFrame(0, (Http2ErrorCode)code).Serialize();
-            var frames = decoder.DecodeAll(frame, out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
             var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
             Assert.Equal((Http2ErrorCode)code, goaway.ErrorCode);
         }

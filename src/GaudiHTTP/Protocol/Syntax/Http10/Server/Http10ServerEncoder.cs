@@ -1,5 +1,5 @@
+using System.Buffers;
 using System.Net;
-using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using GaudiHTTP.Protocol.LineBased;
 using GaudiHTTP.Protocol.Semantics;
@@ -11,19 +11,16 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
 {
     private readonly HeaderCollection _reusableHeaders = new();
 
-    public int Encode(Span<byte> _, IFeatureCollection features, IActorRef stageActor)
+    public int Encode(IBufferWriter<byte> _, IFeatureCollection features)
     {
-        // HTTP/1.0 always defers — body sink will be handled by caller
         return 0;
     }
 
-    public int EncodeDeferred(Span<byte> destination, IFeatureCollection features, ReadOnlySpan<byte> body,
+    public int EncodeDeferred(IBufferWriter<byte> writer, IFeatureCollection features, ReadOnlySpan<byte> body,
         bool suppressContentLength = false)
     {
-        var writer = SpanWriter.Create(destination);
         var responseFeature = features.Get<IHttpResponseFeature>();
         var statusCode = responseFeature?.StatusCode ?? 500;
-        StatusLineWriter.Write(ref writer, HttpVersion.Version10, statusCode);
 
         _reusableHeaders.Clear();
         var responseHeaders = responseFeature?.Headers;
@@ -56,13 +53,19 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
             _reusableHeaders.Add(WellKnownHeaders.Date, DateHeaderCache.GetValue());
         }
 
-        HeaderBlockWriter.Write(ref writer, _reusableHeaders);
+        var statusLineSize = MessageVersionCodec.ToWireFormat(HttpVersion.Version10).Length + 1 + 3 + 2;
+        var headerSize = statusLineSize + _reusableHeaders.WireSize() + body.Length;
+        var span = writer.GetSpan(headerSize);
+        var sw = SpanWriter.Create(span);
+        StatusLineWriter.Write(ref sw, HttpVersion.Version10, statusCode);
+        HeaderBlockWriter.Write(ref sw, _reusableHeaders);
 
         if (body.Length > 0)
         {
-            writer.WriteBytes(body);
+            sw.WriteBytes(body);
         }
 
-        return writer.BytesWritten;
+        writer.Advance(sw.BytesWritten);
+        return sw.BytesWritten;
     }
 }

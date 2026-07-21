@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -19,15 +18,6 @@ public sealed class Http11ServerHeadResponseSpec
     {
         var options = new GaudiServerOptions();
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
-    }
-
-    private static TransportData Make(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return TransportData.Rent(buffer);
     }
 
     private static IFeatureCollection BuildResponse(string method, string body)
@@ -49,31 +39,20 @@ public sealed class Http11ServerHeadResponseSpec
         return fc;
     }
 
-    private static string Outbound(FakeServerOps ops)
-    {
-        var sb = new StringBuilder();
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                sb.Append(Encoding.ASCII.GetString(td.Buffer.Span));
-            }
-        }
-
-        return sb.ToString();
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-9.3.2")]
     public void OnResponse_should_suppress_body_for_HEAD_request()
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("HEAD / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        var transport = sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("HEAD / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         sm.OnResponse(BuildResponse("HEAD", "hello"));
 
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 200", wire);
         Assert.DoesNotContain("hello", wire);
     }
@@ -83,11 +62,14 @@ public sealed class Http11ServerHeadResponseSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        var transport = sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         sm.OnResponse(BuildResponse("GET", "hello"));
 
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 200", wire);
         Assert.Contains("hello", wire);
     }

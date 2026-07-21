@@ -15,6 +15,7 @@ internal interface IServerStageOperations
     void OnCancelTimer(string name);
     ILoggingAdapter Log { get; }
     IActorRef StageActor { get; }
+    IActorRef Self => StageActor;
     IMaterializer Materializer { get; }
     IServiceProvider? Services => null;
     GaudiHttpConnectionFeature? ConnectionFeature => null;

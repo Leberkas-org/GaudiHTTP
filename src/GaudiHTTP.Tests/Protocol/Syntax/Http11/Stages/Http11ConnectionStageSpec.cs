@@ -29,6 +29,15 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         return buf;
     }
 
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
+    // manually, so they must inject this after ConnectTransport before expecting encoded data.
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 80),
+            TransportProtocol.Tcp));
+
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11ConnectionStage_should_encode_request_and_emit_on_network_outlet()
@@ -58,10 +67,10 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         if (appProbe != null)
         {
             var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-            await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
             netSubscription.Request(10);
             resSubscription.Request(10);
@@ -71,6 +80,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // ConnectTransport emitted first when endpoint is known from the first request
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
 
         // TransportData with encoded request
         var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -121,6 +131,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // Consume outbound (ConnectTransport + TransportData)
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
@@ -171,6 +182,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(MakeRequest("/first"));
         // ConnectTransport + WireBuffer for first request
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         appSubscription.SendNext(MakeRequest("/second"));
@@ -232,9 +244,13 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(MakeRequest("/req2"));
         appSubscription.SendNext(MakeRequest("/req3"));
 
-        // Consume all 4 items: ConnectTransport + WireBuffer for req1,
-        // WireBuffer for req2 and req3
-        for (var i = 0; i < 4; i++)
+        // First item is ConnectTransport — reply with TransportConnected before the SM will
+        // encode and emit the (now deferred) request data.
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
+
+        // Consume remaining 3 items: WireBuffer for req1, req2 and req3
+        for (var i = 0; i < 3; i++)
         {
             await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         }
@@ -302,6 +318,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send response with Connection: close header
@@ -367,6 +384,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
@@ -415,6 +433,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send 100 Continue (informational, not final)
@@ -470,6 +489,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // Consume ConnectTransport + WireBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Server sends Connection: close header

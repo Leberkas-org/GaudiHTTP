@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -60,7 +61,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_decode_as_headers_frame_when_headers_has_no_end_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeHeadersBytes(streamId: 1, endStream: false), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeHeadersBytes(streamId: 1, endStream: false)), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -74,7 +75,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_decode_with_end_stream_flag_when_headers_has_end_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeHeadersBytes(streamId: 1, endStream: true), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeHeadersBytes(streamId: 1, endStream: true)), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -88,7 +89,7 @@ public sealed class Http2DecoderStreamStateSpec
     {
         var decoder = new FrameDecoder();
         var payload = "response body"u8.ToArray();
-        var frames = decoder.DecodeAll(MakeDataBytes(streamId: 1, endStream: true, body: payload), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeDataBytes(streamId: 1, endStream: true, body: payload)), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -102,7 +103,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_decode_with_end_stream_false_when_data_frame_has_no_end_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeDataBytes(streamId: 1, endStream: false), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeDataBytes(streamId: 1, endStream: false)), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -115,7 +116,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_decode_with_correct_fields_when_rst_stream_frame()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize(), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize()), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<RstStreamFrame>(frames[0]);
@@ -132,7 +133,7 @@ public sealed class Http2DecoderStreamStateSpec
             MakeHeadersBytes(streamId: 1, endStream: false),
             MakeDataBytes(streamId: 1, endStream: true));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(2, frames.Count);
         var headers = Assert.IsType<HeadersFrame>(frames[0]);
@@ -152,7 +153,7 @@ public sealed class Http2DecoderStreamStateSpec
             MakeHeadersBytes(streamId: 1, endStream: false),
             MakeHeadersBytes(streamId: 3, endStream: true));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(2, frames.Count);
         Assert.Equal(1, frames[0].StreamId);
@@ -168,7 +169,7 @@ public sealed class Http2DecoderStreamStateSpec
         var bytes = new HeadersFrame(1, block, endStream: true, endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
 
@@ -185,7 +186,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_be_protocol_error_when_headers_on_stream_0()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeHeadersBytes(streamId: 0, endStream: false), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeHeadersBytes(streamId: 0, endStream: false)), out _);
 
         // Decoder produces the frame; stream-0 validation is the caller's responsibility.
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -210,7 +211,7 @@ public sealed class Http2DecoderStreamStateSpec
         };
         // RFC 9113 §6.1: Http2FrameDecoder rejects DATA on stream 0 at the frame level.
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(rawFrame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(rawFrame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -218,7 +219,7 @@ public sealed class Http2DecoderStreamStateSpec
     public void Http2FrameDecoder_should_be_protocol_error_when_data_on_idle_stream()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeDataBytes(streamId: 1, endStream: false), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeDataBytes(streamId: 1, endStream: false)), out _);
 
         var frame = Assert.IsType<DataFrame>(frames[0]);
         Assert.Equal(1, frame.StreamId);
@@ -237,12 +238,12 @@ public sealed class Http2DecoderStreamStateSpec
 
         // Step 1: decode HEADERS+END_STREAM → stream 1 is now Closed.
         var headersBytes = MakeHeadersBytes(streamId: 1, endStream: true);
-        decoder.DecodeAll(headersBytes, out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
         var closedStreams = new HashSet<int> { 1 }; // stream 1 closed by END_STREAM on HEADERS
 
         // Step 2: decode DATA on the (now-closed) stream 1.
         var dataBytes = MakeDataBytes(streamId: 1, endStream: false);
-        var dataFrames = decoder.DecodeAll(dataBytes, out _);
+        var dataFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(dataBytes), out _);
         var frame = Assert.IsType<DataFrame>(dataFrames[0]);
         Assert.Equal(1, frame.StreamId);
 

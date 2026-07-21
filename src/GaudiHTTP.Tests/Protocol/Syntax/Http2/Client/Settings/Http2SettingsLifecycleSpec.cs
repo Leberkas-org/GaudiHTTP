@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.TestSupport;
@@ -101,7 +102,7 @@ public sealed class Http2SettingsLifecycleSpec
         var decoder = new FrameDecoder();
         var bytes = new SettingsFrame([(SettingsParameter.EnablePush, 3u)]).Serialize();
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<SettingsFrame>(frames[0]);

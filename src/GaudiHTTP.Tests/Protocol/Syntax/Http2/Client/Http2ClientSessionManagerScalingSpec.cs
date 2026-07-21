@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Akka.Actor;
 using Akka.Event;
 using Microsoft.Extensions.Time.Testing;
@@ -23,7 +24,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
             if (item is TransportData { Buffer: var buf })
             {
                 var decoder = new FrameDecoder();
-                var frames = decoder.DecodeAll(buf.Memory, out _);
+                var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
                 EmittedFrames.AddRange(frames);
             }
         }

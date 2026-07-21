@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol;
 using GaudiHTTP.Protocol.Syntax.Http3;
 
@@ -22,7 +23,7 @@ public sealed class Http3FrameDecoderMalformedSpec
         var bytes = new byte[] { frameType, 0x00 };
         using var decoder = new FrameDecoder();
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(bytes, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -34,7 +35,7 @@ public sealed class Http3FrameDecoderMalformedSpec
         var bytes = new byte[] { (byte)FrameType.Settings, 0x02, 0x00, 0x40 };
         using var decoder = new FrameDecoder();
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(bytes, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -46,6 +47,6 @@ public sealed class Http3FrameDecoderMalformedSpec
         var bytes = new byte[] { (byte)FrameType.PushPromise, 0x01, 0x40 };
         using var decoder = new FrameDecoder();
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(bytes, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _));
     }
 }

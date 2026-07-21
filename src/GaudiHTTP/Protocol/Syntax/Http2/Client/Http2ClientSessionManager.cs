@@ -37,6 +37,26 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private bool _prefaceSent;
     private bool _awaitingPingAck;
     private long _pingSentTimestamp;
+    private HttpRequestMessage? _pendingInitialRequest;
+
+    internal EmitBytesDelegate? EmitData { get; set; }
+
+    private byte[] _scratch = new byte[64 * 1024];
+
+    private void EmitBytes(ReadOnlySpan<byte> data)
+    {
+        EmitData!(data);
+    }
+
+    private Span<byte> EnsureScratch(int size)
+    {
+        if (_scratch.Length < size)
+        {
+            _scratch = new byte[size];
+        }
+
+        return _scratch.AsSpan();
+    }
 
     private static readonly byte[] RttPingPayload = "RTTPROBE"u8.ToArray();
 
@@ -95,11 +115,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         _pump = new FlowControlledBodyPump(this, _flow, _connectionCts, _requestEncoder.MaxFrameSize, 256);
     }
 
-    public TransportData? TryBuildPreface()
+    public bool TryEmitPreface()
     {
         if (_decoderOptions.InitialConnectionWindowSize <= 0 || _prefaceSent)
         {
-            return null;
+            return false;
         }
 
         _prefaceSent = true;
@@ -109,11 +129,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             _encoderOptions.HeaderTableSize,
             _encoderOptions.MaxFrameSize,
             _decoderOptions.MaxHeaderListSize);
-        var prefaceBuf = WireBuffer.Rent(prefaceLength);
-        prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
+        EmitBytes(prefaceOwner.Memory.Span[..prefaceLength]);
         prefaceOwner.Dispose();
-        prefaceBuf.Length = prefaceLength;
-        return TransportData.Rent(prefaceBuf);
+        return true;
     }
 
     public void EncodeRequest(HttpRequestMessage request)
@@ -135,7 +153,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
-        EnsureConnected(request);
+        if (EnsureConnected(request))
+        {
+            _pendingInitialRequest = request;
+            return;
+        }
 
         _correlationMap.TryAdd(streamId, request);
 
@@ -164,15 +186,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             totalSize += frames[i].SerializedSize;
         }
 
-        var buf = WireBuffer.Rent(totalSize);
-        var span = buf.FullMemory.Span;
+        var span = EnsureScratch(totalSize);
+        var writeSpan = span;
         for (var i = 0; i < frames.Count; i++)
         {
-            frames[i].WriteTo(ref span);
+            frames[i].WriteTo(ref writeSpan);
         }
 
-        buf.Length = totalSize;
-        _ops.OnOutbound(TransportData.Rent(buf));
+        EmitBytes(span[..totalSize]);
 
         if (request.Content is null)
         {
@@ -194,7 +215,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     /// immediately after. A no-op once <see cref="Endpoint"/> has already been set for this
     /// connection.
     /// </summary>
-    private void EnsureConnected(HttpRequestMessage request)
+    private bool EnsureConnected(HttpRequestMessage request)
     {
         var endpoint = request.RequestUri is not null
             ? RequestEndpoint.FromRequest(request)
@@ -202,18 +223,24 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
         if (Endpoint != default || endpoint == default)
         {
-            return;
+            return false;
         }
 
         Endpoint = endpoint;
         var transportOptions = OptionsFactory.Build(Endpoint, _options);
         _ops.OnOutbound(new ConnectTransport(transportOptions));
+        return true;
+    }
 
-        var preface = TryBuildPreface();
-        if (preface is not null)
+    internal void FlushPendingInitialRequest()
+    {
+        if (_pendingInitialRequest is not { } req)
         {
-            _ops.OnOutbound(preface);
+            return;
         }
+
+        _pendingInitialRequest = null;
+        EncodeRequest(req);
     }
 
     /// <summary>
@@ -348,7 +375,13 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
 
     public IReadOnlyList<Http2Frame> DecodeFrames(WireBuffer buffer)
     {
-        return _frameDecoder.DecodeAll(buffer.Memory, out _);
+        var seq = new ReadOnlySequence<byte>(buffer.Memory);
+        return _frameDecoder.DecodeAll(in seq, out _);
+    }
+
+    public IReadOnlyList<Http2Frame> DecodeFrames(in ReadOnlySequence<byte> data, out SequencePosition consumed)
+    {
+        return _frameDecoder.DecodeAll(in data, out consumed);
     }
 
     public void ProcessFrame(Http2Frame frame)
@@ -551,12 +584,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 return;
             }
 
-            var emptyBuf = WireBuffer.Rent(headerSize);
-            DataFrame.WriteHeaderInPlace(emptyBuf.FullMemory.Span, 0, streamId, 0, endStream: true);
-            emptyBuf.Length = headerSize;
+            var emptySpan = EnsureScratch(headerSize);
+            DataFrame.WriteHeaderInPlace(emptySpan, 0, streamId, 0, endStream: true);
             Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
                 streamId, 0, true);
-            _ops.OnOutbound(TransportData.Rent(emptyBuf));
+            EmitBytes(emptySpan[..headerSize]);
             return;
         }
 
@@ -566,8 +598,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         var frameCount = (data.Length + maxFrame - 1) / maxFrame;
         var totalWireSize = data.Length + frameCount * headerSize;
 
-        var buf = WireBuffer.Rent(totalWireSize);
-        var dest = buf.FullMemory.Span;
+        var dest = EnsureScratch(totalWireSize);
         var offset = 0;
         var remaining = data;
 
@@ -588,8 +619,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
             streamId, lastLen, endStream);
 
-        buf.Length = offset;
-        _ops.OnOutbound(TransportData.Rent(buf));
+        EmitBytes(dest[..offset]);
     }
 
     void IBodyDrainTarget.OnDrainComplete(int streamId)
@@ -632,11 +662,11 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
                 w.StreamId, w.Increment, _flow.RecvConnectionWindow);
         }
 
-        var buf = WireBuffer.Rent(frame.SerializedSize);
-        var span = buf.FullMemory.Span;
-        frame.WriteTo(ref span);
-        buf.Length = frame.SerializedSize;
-        _ops.OnOutbound(TransportData.Rent(buf));
+        var size = frame.SerializedSize;
+        var span = EnsureScratch(size);
+        var writeSpan = span;
+        frame.WriteTo(ref writeSpan);
+        EmitBytes(span[..size]);
     }
 
     private void HandleSettings(SettingsFrame frame)

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -135,7 +136,7 @@ public sealed class Http3ClientBodyBackpressureSpec
         {
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
-                foreach (var frame in decoder.DecodeAll(md.Buffer.Memory, out _).ToList())
+                foreach (var frame in decoder.DecodeAll(new ReadOnlySequence<byte>(md.Buffer.Memory), out _).ToList())
                 {
                     if (frame is DataFrame df)
                     {

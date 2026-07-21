@@ -1,5 +1,6 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
+using System.Net;
 using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -28,6 +29,15 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         buf.Length = bytes.Length;
         return buf;
     }
+
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
+    // manually, so they must inject this after ConnectTransport before expecting encoded data.
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 443),
+            TransportProtocol.Tcp));
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-3.2")]
@@ -60,7 +70,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-        await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(5);
         resSubscription.Request(5);
@@ -69,6 +79,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
 
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
+        serverSubscription.SendNext(MakeTransportConnected());
 
         var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var prefaceData = Assert.IsType<TransportData>(preface);
@@ -108,7 +119,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-        await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(10);
         resSubscription.Request(10);
@@ -119,6 +130,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         // First request: ConnectTransport → preface → HEADERS frame
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
+        serverSubscription.SendNext(MakeTransportConnected());
 
         var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var prefaceData = Assert.IsType<TransportData>(preface);
@@ -160,7 +172,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-        await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(20);
         resSubscription.Request(10);
@@ -172,6 +184,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         // First request: ConnectTransport + preface + HEADERS, second request: HEADERS
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
+        serverSubscription.SendNext(MakeTransportConnected());
 
         var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<TransportData>(preface);

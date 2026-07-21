@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using GaudiHTTP.Protocol.Syntax.Http11.Options;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
@@ -22,12 +23,12 @@ public sealed class Http11ServerEncoderSpec
     public void Encode_should_write_status_line()
     {
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
         Assert.True(written > 0);
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("HTTP/1.1 200", result);
     }
 
@@ -36,11 +37,11 @@ public sealed class Http11ServerEncoderSpec
     {
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["Content-Length"] = "9";
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("Content-Length: 9", result);
     }
 
@@ -48,11 +49,11 @@ public sealed class Http11ServerEncoderSpec
     public void Encode_should_handle_chunked_response()
     {
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: true);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("HTTP/1.1 200", result);
         Assert.DoesNotContain("Content-Length", result);
     }
@@ -61,11 +62,11 @@ public sealed class Http11ServerEncoderSpec
     public void Encode_should_include_date_header()
     {
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("Date:", result);
     }
 
@@ -75,11 +76,11 @@ public sealed class Http11ServerEncoderSpec
     {
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["X-Test"] = "value\rwith\rcr";
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         for (var i = 0; i < result.Length; i++)
         {
             if (result[i] == '\r' && (i + 1 >= result.Length || result[i + 1] != '\n'))
@@ -95,11 +96,11 @@ public sealed class Http11ServerEncoderSpec
     {
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["X-Long"] = new string('a', 200);
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.DoesNotContain("\r\n ", result.Replace("\r\n\r\n", "<<END>>"));
         Assert.DoesNotContain("\r\n\t", result.Replace("\r\n\r\n", "<<END>>"));
     }
@@ -109,11 +110,11 @@ public sealed class Http11ServerEncoderSpec
     public void Encode_should_not_double_apply_chunked_transfer_encoding()
     {
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: true);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         var teCount = result.Split("chunked").Length - 1;
         Assert.True(teCount <= 1, $"chunked appeared {teCount} times");
     }
@@ -124,11 +125,11 @@ public sealed class Http11ServerEncoderSpec
     {
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["Content-Length"] = "15";
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = _encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("Content-Length: 15", result);
     }
 }

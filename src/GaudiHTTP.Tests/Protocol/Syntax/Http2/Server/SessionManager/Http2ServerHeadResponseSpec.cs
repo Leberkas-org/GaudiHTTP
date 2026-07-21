@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -65,7 +66,7 @@ public sealed class Http2ServerHeadResponseSpec
         {
             if (o is TransportData td)
             {
-                frames.AddRange(decoder.DecodeAll(td.Buffer.Memory, out _));
+                frames.AddRange(decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _));
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http3;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
@@ -199,9 +200,10 @@ public sealed class Http3FrameRoundTripSpec
 
         // Decode all frames
         var decoder = new FrameDecoder();
-        var decoded = decoder.DecodeAll(wire, out var consumed);
+        var sequence = new ReadOnlySequence<byte>(wire);
+        var decoded = decoder.DecodeAll(sequence, out var consumed);
 
-        Assert.Equal(totalSize, consumed);
+        Assert.Equal(totalSize, sequence.GetOffset(consumed));
         Assert.Equal(7, decoded.Count);
 
         // Verify each frame type and key fields
@@ -265,7 +267,7 @@ public sealed class Http3FrameRoundTripSpec
     private static Http3Frame Decode(byte[] wire)
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(wire, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(wire), out _);
         var frame = Assert.Single(frames);
         return frame;
     }

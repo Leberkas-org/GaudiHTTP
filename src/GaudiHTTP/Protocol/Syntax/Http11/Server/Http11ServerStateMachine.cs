@@ -16,13 +16,13 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget
+internal sealed class Http11ServerStateMachine :
+    TcpStateMachineBase<IServerStageOperations>, IServerStateMachine, IBodyDrainTarget
 {
     private const string KeepAliveTimer = "keep-alive";
     private const string RequestHeadersTimer = "request-headers";
     private const string BodyConsumptionTimer = "body-consumption";
     private const string BodyReadTimer = "body-read";
-    private readonly IServerStageOperations _ops;
     private readonly Http11ServerDecoder _decoder;
     private readonly Http11ServerEncoder _encoder;
     private readonly TimeSpan _keepAliveTimeout;
@@ -61,9 +61,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     public int MaxConcurrentRequests => 1;
 
     public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions,
-        IServerStageOperations ops, TimeProvider? timeProvider = null, bool allowH2cUpgrade = true)
+        IServerStageOperations ops, TimeProvider? timeProvider = null, bool allowH2cUpgrade = true) : base(ops)
     {
-        _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+        ArgumentNullException.ThrowIfNull(ops);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(h2UpgradeOptions);
         _h2UpgradeOptions = h2UpgradeOptions;
@@ -89,6 +89,26 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         MaxQueuedRequests = decOpts.MaxPipelinedRequests;
     }
 
+    protected override IActorRef Self => Ops.Self;
+    protected override bool ShouldPauseReads => ShouldPauseNetwork;
+    protected override void OnFlushCompleted() => _serialPump?.OnCapacityAvailable(int.MaxValue);
+    protected override void OnFlushDeferred() => _serialPump?.ParkForFlush();
+    protected override void OnTransportLost(Exception? ex) => ShouldComplete = true;
+    protected override void OnTransportConnected(Servus.Akka.Transport.ConnectionInfo info)
+    {
+        _serialPump?.OnCapacityAvailable(int.MaxValue);
+    }
+    protected override void OnTransportDisconnected(DisconnectReason reason) => ShouldComplete = true;
+
+    private void EmitToTransport(ReadOnlySpan<byte> data)
+    {
+        var transport = Transport!;
+        var mem = transport.GetMemory(data.Length);
+        data.CopyTo(mem.Span);
+        transport.Advance(data.Length);
+        RequestFlush();
+    }
+
     public void PreStart()
     {
     }
@@ -98,29 +118,31 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget.StageActor => Ops.StageActor;
 
     void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
+            var transport = Transport!;
+
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
-                var buf = WireBuffer.Rent(framedSize);
-                ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
-                buf.Length = framedSize;
+                var mem = transport.GetMemory(framedSize);
+                ChunkedFramingHelper.WriteChunk(data.Span, mem.Span);
+                transport.Advance(framedSize);
                 _rateGuard.ObserveResponse(0, framedSize);
-                _ops.OnOutbound(TransportData.Rent(buf));
             }
             else
             {
-                var buf = WireBuffer.Rent(data.Length);
-                data.CopyTo(buf.FullMemory);
-                buf.Length = data.Length;
+                var mem = transport.GetMemory(data.Length);
+                data.CopyTo(mem);
+                transport.Advance(data.Length);
                 _rateGuard.ObserveResponse(0, data.Length);
-                _ops.OnOutbound(TransportData.Rent(buf));
             }
+
+            RequestFlush();
 
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
         }
@@ -132,21 +154,26 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (bytesWritten > 0)
         {
+            var transport = Transport!;
+
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
-                var buf = WireBuffer.Rent(framedSize);
-                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
-                buf.Length = framedSize;
+                var mem = transport.GetMemory(framedSize);
+                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], mem.Span);
+                transport.Advance(framedSize);
                 _rateGuard.ObserveResponse(0, framedSize);
-                _ops.OnOutbound(TransportData.Rent(buf));
-                owner.Dispose();
             }
             else
             {
+                var mem = transport.GetMemory(bytesWritten);
+                owner.Memory.Span[..bytesWritten].CopyTo(mem.Span);
+                transport.Advance(bytesWritten);
                 _rateGuard.ObserveResponse(0, bytesWritten);
-                _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
             }
+
+            owner.Dispose();
+            RequestFlush();
 
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesWritten);
         }
@@ -193,27 +220,60 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void DecodeClientData(ITransportInbound data)
     {
-        if (data is TransportDataFlushed flushed)
-        {
-            // Real wire flush: credit the response-body pump by the bytes the transport actually
-            // drained. Replaces the emit-time OnCapacityAvailable "lie" with true byte back-pressure.
-            _serialPump?.OnCapacityAvailable(flushed.Bytes);
-            return;
-        }
-
-        if (data is not TransportData { Buffer: var buffer })
+        if (DispatchLifecycleEvent(data))
         {
             return;
         }
 
-        if (buffer.Length == 0)
+        if (data is TransportData)
         {
-            return;
+            throw new InvalidOperationException("TransportData is not supported on TCP state machines; use pipe transport.");
+        }
+    }
+
+    /// <summary>
+    /// Feeds buffered request bytes to the decoder while a request body is being streamed to the
+    /// handler, advancing <paramref name="pos"/> by however much was consumed. Used both by the
+    /// standalone streaming-resume preamble and by the inline body-feed right after headers are
+    /// parsed — both reset the same streaming state once the decoder reports completion.
+    /// </summary>
+    /// <returns><see langword="true"/> if the body finished decoding on this feed.</returns>
+    private bool ResumeStreamingBody(ReadOnlyMemory<byte> buffer, ref int pos)
+    {
+        var outcome = _decoder.Feed(buffer[pos..], out var bodyConsumed);
+        pos += bodyConsumed;
+        _rateGuard.ObserveRequest(0, bodyConsumed);
+
+        if (outcome != DecodeOutcome.Complete)
+        {
+            return false;
+        }
+
+        _bodyStreaming = false;
+        _activeStreamingReader = null;
+        _rateGuard.RemoveRequest(0);
+        _decoder.Reset();
+        return true;
+    }
+
+    protected override (SequencePosition Consumed, SequencePosition Examined) DecodeData(ReadOnlySequence<byte> data)
+    {
+        ReadOnlyMemory<byte> memory;
+        byte[]? rented = null;
+        if (data.IsSingleSegment)
+        {
+            memory = data.First;
+        }
+        else
+        {
+            rented = ArrayPool<byte>.Shared.Rent((int)data.Length);
+            data.CopyTo(rented);
+            memory = rented.AsMemory(0, (int)data.Length);
         }
 
         try
         {
-            var span = buffer.Memory.Span;
+            var span = memory.Span;
             var pos = 0;
 
             if (_draining && _decoder.CurrentFramingDecoder is { } drainingDecoder)
@@ -225,21 +285,21 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 if (drainingDecoder.IsComplete)
                 {
                     _draining = false;
-                    _ops.OnCancelTimer(BodyConsumptionTimer);
+                    Ops.OnCancelTimer(BodyConsumptionTimer);
                     _rateGuard.RemoveRequest(0);
                     _decoder.Reset();
                 }
             }
             else if (_bodyStreaming && _decoder.StreamingReader is not null)
             {
-                ResumeStreamingBody(buffer.Memory, ref pos);
+                ResumeStreamingBody(memory, ref pos);
             }
 
             if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && !_bodyStreaming
                 && !_outboundBodyPending
                 && _requestHeadersTimeout > TimeSpan.Zero)
             {
-                _ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
+                Ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
                 _requestHeadersTimerActive = true;
                 Tracing.For("Protocol").Debug(this, "request headers timer scheduled ({0}ms)",
                     _requestHeadersTimeout.TotalMilliseconds);
@@ -247,7 +307,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
             while (pos < span.Length && !_bodyStreaming)
             {
-                var outcome = _decoder.Feed(buffer.Memory[pos..], out var consumed);
+                var outcome = _decoder.Feed(memory[pos..], out var consumed);
                 pos += consumed;
 
                 if (outcome == DecodeOutcome.NeedMore)
@@ -257,7 +317,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
                 if (_requestHeadersTimerActive)
                 {
-                    _ops.OnCancelTimer(RequestHeadersTimer);
+                    Ops.OnCancelTimer(RequestHeadersTimer);
                     _requestHeadersTimerActive = false;
                     Tracing.For("Protocol").Debug(this, "request headers timer cancelled (headers complete)");
                 }
@@ -287,10 +347,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     {
                         _activeStreamingReader = sr;
                         sr.SlotFreed += () =>
-                            _ops.StageActor.Tell(new BodyResumed(), ActorRefs.NoSender);
+                            Ops.StageActor.Tell(new BodyResumed(), ActorRefs.NoSender);
                     }
 
-                    if (pos < buffer.Memory.Length && ResumeStreamingBody(buffer.Memory, ref pos))
+                    if (pos < memory.Length && ResumeStreamingBody(memory, ref pos))
                     {
                         continue;
                     }
@@ -305,38 +365,18 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
         catch (Exception ex)
         {
-            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.1 request: {0}", ex.Message);
+            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.1 request (pipe): {0}", ex.Message);
             ShouldComplete = true;
         }
         finally
         {
-            buffer.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// Feeds buffered request bytes to the decoder while a request body is being streamed to the
-    /// handler, advancing <paramref name="pos"/> by however much was consumed. Used both by the
-    /// standalone streaming-resume preamble and by the inline body-feed right after headers are
-    /// parsed — both reset the same streaming state once the decoder reports completion.
-    /// </summary>
-    /// <returns><see langword="true"/> if the body finished decoding on this feed.</returns>
-    private bool ResumeStreamingBody(ReadOnlyMemory<byte> buffer, ref int pos)
-    {
-        var outcome = _decoder.Feed(buffer[pos..], out var bodyConsumed);
-        pos += bodyConsumed;
-        _rateGuard.ObserveRequest(0, bodyConsumed);
-
-        if (outcome != DecodeOutcome.Complete)
-        {
-            return false;
+            if (rented is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
         }
 
-        _bodyStreaming = false;
-        _activeStreamingReader = null;
-        _rateGuard.RemoveRequest(0);
-        _decoder.Reset();
-        return true;
+        return (data.End, data.End);
     }
 
     /// <summary>
@@ -352,8 +392,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
         var features = FeatureCollectionFactory.Create(hasBody,
-            out var feature, _ops.ConnectionFeature,
-            _ops.TlsHandshakeFeature, _maxRequestBodySize);
+            out var feature, Ops.ConnectionFeature,
+            Ops.TlsHandshakeFeature, _maxRequestBodySize);
         _decoder.PopulateRequestFeature(feature);
         features.Set(new GaudiInformationalResponseFeature((statusCode, headers) =>
             SendInformational(statusCode, headers)));
@@ -371,7 +411,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         _pendingResponseCount++;
         Tracing.For("Protocol").Debug(this, "request dispatched (pending={0})", _pendingResponseCount);
-        _ops.OnRequest(features);
+        Ops.OnRequest(features);
 
         if (string.Equals(feature.Headers[WellKnownHeaders.Expect], "100-continue",
                 StringComparison.OrdinalIgnoreCase))
@@ -386,12 +426,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         if (_bodyStreaming && _bodyReadTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer(BodyReadTimer, _bodyReadTimeout);
+            Ops.OnScheduleTimer(BodyReadTimer, _bodyReadTimeout);
             _bodyReadTimerActive = true;
         }
         else if (_bodyReadTimerActive)
         {
-            _ops.OnCancelTimer(BodyReadTimer);
+            Ops.OnCancelTimer(BodyReadTimer);
             _bodyReadTimerActive = false;
         }
     }
@@ -429,12 +469,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         // Resolve a fully-buffered response body once (the dominant Content-Length case). A non-
-        // chunked buffered body is coalesced into the SAME buffer as the status line + headers,
-        // emitting one outbound item instead of two: it removes a WireBuffer/TransportData
-        // rent, a GraphInterpreter push, and (transport permitting) a socket write per response.
-        // The body is already materialized and copied synchronously on the existing path too, so
-        // buffer ownership is unchanged. Streamed bodies report false here; chunked bodies keep the
-        // framed EmitBufferedBody path below.
+        // chunked buffered body is coalesced into the same pipe write as the status line + headers.
+        // Streamed bodies report false here; chunked bodies keep the framed EmitBufferedBody path.
         var gaudiBody = responseBody as GaudiHttpResponseBodyFeature;
         ReadOnlyMemory<byte> bufferedBody = default;
         var hasBufferedBody = !suppressBody
@@ -442,20 +478,18 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             && gaudiBody.TryGetBufferedBody(out bufferedBody);
         var coalesceBody = hasBufferedBody && !isChunked;
 
-        var estimatedSize = headerScan.EstimatedSize;
-        var responseBuffer = WireBuffer.Rent(
-            coalesceBody ? estimatedSize + bufferedBody.Length : estimatedSize);
-        var span = responseBuffer.FullMemory.Span;
-        var written = _encoder.Encode(span, features, isChunked, connectionClose: ShouldComplete);
+        var transport = Transport!;
+        var writer = new TransportBufferWriter(transport);
+        _encoder.Encode(writer, features, isChunked, connectionClose: ShouldComplete);
 
         if (coalesceBody && !bufferedBody.IsEmpty)
         {
-            bufferedBody.Span.CopyTo(span[written..]);
-            written += bufferedBody.Length;
+            var mem = transport.GetMemory(bufferedBody.Length);
+            bufferedBody.Span.CopyTo(mem.Span);
+            transport.Advance(bufferedBody.Length);
         }
 
-        responseBuffer.Length = written;
-        _ops.OnOutbound(TransportData.Rent(responseBuffer));
+        RequestFlush();
 
         if (suppressBody)
         {
@@ -523,7 +557,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             _activeStreamingReader = null;
             if (_bodyReadTimerActive)
             {
-                _ops.OnCancelTimer(BodyReadTimer);
+                Ops.OnCancelTimer(BodyReadTimer);
                 _bodyReadTimerActive = false;
             }
         }
@@ -533,7 +567,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         if (_bodyConsumptionTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer(BodyConsumptionTimer, _bodyConsumptionTimeout);
+            Ops.OnScheduleTimer(BodyConsumptionTimer, _bodyConsumptionTimeout);
         }
     }
 
@@ -549,7 +583,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
         {
-            _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+            Ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
         }
     }
 
@@ -564,7 +598,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         _rateGuard.RemoveResponse(0);
         if (features is not null)
         {
-            _ops.OnResponseBodyComplete(features);
+            Ops.OnResponseBodyComplete(features);
         }
     }
 
@@ -581,20 +615,20 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 if (isChunked)
                 {
                     var framedSize = ChunkedFramingHelper.GetFramedSize(take);
-                    var buf = WireBuffer.Rent(framedSize);
-                    ChunkedFramingHelper.WriteChunk(chunk.Span, buf.FullMemory.Span);
-                    buf.Length = framedSize;
+                    var mem = Transport!.GetMemory(framedSize);
+                    ChunkedFramingHelper.WriteChunk(chunk.Span, mem.Span);
+                    Transport!.Advance(framedSize);
                     _rateGuard.ObserveResponse(0, framedSize);
-                    _ops.OnOutbound(TransportData.Rent(buf));
                 }
                 else
                 {
-                    var buf = WireBuffer.Rent(take);
-                    chunk.CopyTo(buf.FullMemory);
-                    buf.Length = take;
+                    var mem = Transport!.GetMemory(take);
+                    chunk.CopyTo(mem);
+                    Transport!.Advance(take);
                     _rateGuard.ObserveResponse(0, take);
-                    _ops.OnOutbound(TransportData.Rent(buf));
                 }
+
+                RequestFlush();
 
                 remaining = remaining[take..];
             }
@@ -620,21 +654,21 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
 
             var trailerSize = ChunkedFramingHelper.GetTrailerSectionSize(trailers);
-            var buf = WireBuffer.Rent(3 + trailerSize);
-            var span = buf.FullMemory.Span;
-            var written = ChunkedFramingHelper.WriteLastChunk(span);
-            written += ChunkedFramingHelper.WriteTrailerSection(span[written..], trailers);
-            buf.Length = written;
-            _ops.OnOutbound(TransportData.Rent(buf));
+            var totalSize = 3 + trailerSize;
+            var mem = Transport!.GetMemory(totalSize);
+            var written = ChunkedFramingHelper.WriteLastChunk(mem.Span);
+            written += ChunkedFramingHelper.WriteTrailerSection(mem.Span[written..], trailers);
+            Transport!.Advance(written);
+            RequestFlush();
 
             Tracing.For("Protocol").Debug(this, "response trailers emitted ({0} bytes)", trailerSize);
         }
         else
         {
-            var buf = WireBuffer.Rent(5);
-            ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
-            buf.Length = 5;
-            _ops.OnOutbound(TransportData.Rent(buf));
+            var mem = Transport!.GetMemory(5);
+            ChunkedFramingHelper.WriteTerminator(mem.Span);
+            Transport!.Advance(5);
+            RequestFlush();
         }
     }
 
@@ -650,8 +684,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
         }
 
-        var buffer = WireBuffer.Rent(estimatedSize);
-        var writer = SpanWriter.Create(buffer.FullMemory.Span);
+        var mem = Transport!.GetMemory(estimatedSize);
+        var writer = SpanWriter.Create(mem.Span);
         StatusLineWriter.Write(ref writer, HttpVersion.Version11, statusCode);
 
         var headerCollection = new HeaderCollection();
@@ -667,8 +701,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
 
         HeaderBlockWriter.Write(ref writer, headerCollection);
-        buffer.Length = writer.BytesWritten;
-        _ops.OnOutbound(TransportData.Rent(buffer));
+        Transport!.Advance(writer.BytesWritten);
+        RequestFlush();
     }
 
     public void OnDownstreamFinished()
@@ -716,6 +750,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void OnBodyMessage(object msg)
     {
+        if (TryHandleAsyncResult(msg))
+        {
+            return;
+        }
+
         switch (msg)
         {
             case BodyReadComplete<int> read:
@@ -793,7 +832,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
     private bool TryHandleH2cUpgrade(IFeatureCollection features)
     {
-        if (_ops is not IProtocolSwitchCapable switchable)
+        if (Ops is not IProtocolSwitchCapable switchable)
         {
             return false;
         }
@@ -820,14 +859,16 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
 
         var responseBytes = "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"u8;
-        var responseBuffer = WireBuffer.Rent(responseBytes.Length);
-        responseBytes.CopyTo(responseBuffer.FullMemory.Span);
-        responseBuffer.Length = responseBytes.Length;
-        _ops.OnOutbound(TransportData.Rent(responseBuffer));
+        EmitToTransport(responseBytes);
 
         switchable.RequestProtocolSwitch(ops => new Http2ServerStateMachine(_h2UpgradeOptions, ops));
 
         return true;
+    }
+
+    public void ResumeBody()
+    {
+        RequestRead();
     }
 
     public void Cleanup()
@@ -842,18 +883,19 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         _activeStreamingReader = null;
         if (_requestHeadersTimerActive)
         {
-            _ops.OnCancelTimer(RequestHeadersTimer);
+            Ops.OnCancelTimer(RequestHeadersTimer);
             _requestHeadersTimerActive = false;
         }
 
         if (_bodyReadTimerActive)
         {
-            _ops.OnCancelTimer(BodyReadTimer);
+            Ops.OnCancelTimer(BodyReadTimer);
             _bodyReadTimerActive = false;
         }
 
-        _ops.OnCancelTimer(KeepAliveTimer);
-        _ops.OnCancelTimer(BodyConsumptionTimer);
+        Ops.OnCancelTimer(KeepAliveTimer);
+        Ops.OnCancelTimer(BodyConsumptionTimer);
+        CleanupTransportIo();
         _rateGuard.Cleanup();
     }
 }

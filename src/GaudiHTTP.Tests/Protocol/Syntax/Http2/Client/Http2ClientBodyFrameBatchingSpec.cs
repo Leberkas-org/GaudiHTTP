@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Akka.Actor;
 using Akka.Event;
 using Microsoft.Extensions.Time.Testing;
@@ -27,7 +28,7 @@ public sealed class Http2ClientBodyFrameBatchingSpec
                 return;
             }
 
-            var frames = new FrameDecoder().DecodeAll(buf.Memory, out _);
+            var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
             var sawData = false;
             foreach (var frame in frames)
             {

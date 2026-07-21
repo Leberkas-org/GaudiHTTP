@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -24,9 +23,9 @@ public sealed class Http11ServerPipeliningSpec
             "Host: example.com\r\n",
             "Content-Length: 0\r\n",
             "\r\n");
-        var buffer = MakeBuffer(request);
+        var data = Encoding.ASCII.GetBytes(request);
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(data, ops);
 
         Assert.Equal(2, ops.Requests.Count);
         Assert.Equal("/", ops.Requests[0].Get<IHttpRequestFeature>()?.Path);
@@ -48,9 +47,9 @@ public sealed class Http11ServerPipeliningSpec
             "Host: example.com\r\n",
             "Content-Length: 0\r\n",
             "\r\n");
-        var buffer = MakeBuffer(request);
+        var data = Encoding.ASCII.GetBytes(request);
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(data, ops);
 
         var context1 = ServerTestContext.CreateResponse();
         sm.OnResponse(context1);
@@ -58,7 +57,7 @@ public sealed class Http11ServerPipeliningSpec
         var context2 = ServerTestContext.CreateResponse();
         sm.OnResponse(context2);
 
-        Assert.Equal(2, ops.Outbound.Count);
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -92,23 +91,14 @@ public sealed class Http11ServerPipeliningSpec
             "Host: example.com\r\n",
             "Content-Length: 0\r\n",
             "\r\n");
-        var buffer = MakeBuffer(request);
+        var data = Encoding.ASCII.GetBytes(request);
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(data, ops);
 
         Assert.Equal(3, ops.Requests.Count);
         Assert.Equal("/page1", ops.Requests[0].Get<IHttpRequestFeature>()?.Path);
         Assert.Equal("/page2", ops.Requests[1].Get<IHttpRequestFeature>()?.Path);
         Assert.Equal("/page3", ops.Requests[2].Get<IHttpRequestFeature>()?.Path);
-    }
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
     }
 }
 

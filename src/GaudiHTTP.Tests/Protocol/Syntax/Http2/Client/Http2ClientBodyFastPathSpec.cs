@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -62,7 +63,7 @@ public sealed class Http2ClientBodyFastPathSpec
                 // Use a fresh decoder per buffer: the H2 preface magic ("PRI *...") would
                 // otherwise leave bytes as remainder and corrupt the next frame parse.
                 var decoder = new FrameDecoder();
-                var decoded = decoder.DecodeAll(buf.Memory, out _);
+                var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
                 foreach (var frame in decoded)
                 {
                     // Copy the frame's memory slices so they remain valid after Dispose.
@@ -98,6 +99,7 @@ public sealed class Http2ClientBodyFastPathSpec
         var request = BuildPost(body);
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var frames = DecodeOutbound(ops);
         var dataFrames = frames.OfType<DataFrame>().ToList();
@@ -120,6 +122,7 @@ public sealed class Http2ClientBodyFastPathSpec
         var request = BuildPost(body);
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var frames = DecodeOutbound(ops);
         var dataFrames = frames.OfType<DataFrame>().ToList();
@@ -155,9 +158,10 @@ public sealed class Http2ClientBodyFastPathSpec
         var request = BuildPost(body);
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var frames = DecodeOutbound(ops);
-        var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 1).ToList();
+        var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 3).ToList();
 
         // Only the windowed portion (256 bytes) should have been emitted immediately
         var emittedBytes = dataFrames.Sum(f => f.Data.Length);
@@ -181,10 +185,11 @@ public sealed class Http2ClientBodyFastPathSpec
         var request = BuildPost(body);
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         // Grant more window so the remainder can drain
         sm.ProcessFrame(new WindowUpdateFrame(streamId: 0, increment: 1024 * 1024));
-        sm.ProcessFrame(new WindowUpdateFrame(streamId: 1, increment: 1024 * 1024));
+        sm.ProcessFrame(new WindowUpdateFrame(streamId: 3, increment: 1024 * 1024));
 
         for (var guard = 0; guard < 1000 && ops.BodyMessages.Count > 0; guard++)
         {
@@ -194,7 +199,7 @@ public sealed class Http2ClientBodyFastPathSpec
         }
 
         var frames = DecodeOutbound(ops);
-        var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 1).ToList();
+        var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 3).ToList();
         var assembled = dataFrames.SelectMany(f => f.Data.ToArray()).ToArray();
         Assert.Equal(body, assembled);
     }
@@ -260,6 +265,7 @@ public sealed class Http2ClientBodyFastPathSpec
         };
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var frames = DecodeOutbound(ops);
         var dataFrames = frames.OfType<DataFrame>().ToList();
@@ -287,6 +293,7 @@ public sealed class Http2ClientBodyFastPathSpec
         };
 
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var frames = DecodeOutbound(ops);
         var dataFrames = frames.OfType<DataFrame>().ToList();

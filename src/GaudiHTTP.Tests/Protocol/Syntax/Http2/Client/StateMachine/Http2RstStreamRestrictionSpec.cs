@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Tests.TestSupport;
 
@@ -29,7 +30,7 @@ public sealed class Http2RstStreamRestrictionSpec
     public void FrameDecoder_should_decode_rst_stream_with_correct_error_code()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeRstStreamBytes(1, Http2ErrorCode.Cancel), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeRstStreamBytes(1, Http2ErrorCode.Cancel)), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(1, rst.StreamId);
@@ -45,7 +46,7 @@ public sealed class Http2RstStreamRestrictionSpec
             MakeRstStreamBytes(1, Http2ErrorCode.Cancel),
             MakeWindowUpdateBytes(1, 1024));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(2, frames.Count);
         Assert.IsType<RstStreamFrame>(frames[0]);
@@ -61,7 +62,7 @@ public sealed class Http2RstStreamRestrictionSpec
             MakeRstStreamBytes(1, Http2ErrorCode.Cancel),
             MakeRstStreamBytes(1, Http2ErrorCode.NoError));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(2, frames.Count);
         Assert.IsType<RstStreamFrame>(frames[0]);
@@ -75,7 +76,7 @@ public sealed class Http2RstStreamRestrictionSpec
         // RFC 9113 §6.4: RST_STREAM on stream 0 MUST trigger a connection PROTOCOL_ERROR.
         // FrameDecoder produces the frame; stream-0 validation is the caller's responsibility.
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeRstStreamBytes(0, Http2ErrorCode.Cancel), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeRstStreamBytes(0, Http2ErrorCode.Cancel)), out _);
 
         var frame = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(0, frame.StreamId);

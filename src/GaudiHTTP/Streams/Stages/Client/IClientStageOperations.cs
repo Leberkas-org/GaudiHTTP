@@ -10,5 +10,6 @@ internal interface IClientStageOperations
     void OnScheduleTimer(string name, TimeSpan duration);
     void OnCancelTimer(string name);
     IActorRef StageActor { get; }
+    IActorRef Self => StageActor;
     bool HasPendingDemand => false;
 }

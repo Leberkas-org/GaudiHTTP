@@ -1,17 +1,29 @@
 ## Requirements
 
 ### Requirement: Construction requires stage operations callback
-Every state machine (client and server) MUST accept its protocol-specific options and an `IClientStageOperations` or `IServerStageOperations` instance at construction. The operations callback is the sole channel through which the state machine communicates outward (emitting responses/requests, scheduling timers, writing to the transport). A state machine MUST NOT capture or use any Akka infrastructure directly; all side-effects flow through the operations interface.
+State machines that operate over TCP MUST extend `TcpStateMachineBase<TOps>`, which owns transport
+lifecycle dispatch, the read loop, flush tracking, and async result routing. The concrete SM
+provides protocol-specific callbacks (decode, connect/disconnect handling, flush completion) and
+implements `IClientStateMachine` or `IServerStateMachine`. The operations interface MUST
+expose `IActorRef Self` for `PipeTo` bridging, in addition to its existing members. The operations callback
+is the sole channel through which the state machine communicates outward. A state machine MUST NOT capture
+or use any Akka infrastructure directly beyond `ops.Self` for `PipeTo`.
 
-#### Scenario: Client state machine construction
-- **WHEN** an `IClientStateMachine` is constructed
-- **THEN** it MUST accept an `IClientStageOperations` instance
-- **THEN** it MUST NOT call any operations methods during construction (defer to `PreStart`)
+#### Scenario: Client state machine construction (updated)
+- **WHEN** an `IClientStateMachine` for a TCP protocol is constructed
+- **THEN** it MUST extend `TcpStateMachineBase<IClientStageOperations>`
+- **AND** it MUST pass the `IClientStageOperations` instance to the base constructor
+- **AND** it MUST NOT create a standalone `TransportIo` instance
 
-#### Scenario: Server state machine construction
-- **WHEN** an `IServerStateMachine` is constructed
-- **THEN** it MUST accept an `IServerStageOperations` instance
-- **THEN** it MUST NOT call any operations methods during construction (defer to `PreStart`)
+#### Scenario: Server state machine construction (updated)
+- **WHEN** an `IServerStateMachine` for a TCP protocol is constructed
+- **THEN** it MUST extend `TcpStateMachineBase<IServerStageOperations>`
+- **AND** it MUST pass the `IServerStageOperations` instance to the base constructor
+
+#### Scenario: Operations interface exposes Self
+- **WHEN** the SM (in pipe mode) needs to bridge an async result to the actor thread
+- **THEN** `_ops.Self` MUST return the StageActor's `IActorRef`
+- **AND** the SM calls `PipeTo(_ops.Self, ...)` directly
 
 ---
 
@@ -38,53 +50,88 @@ The state machine lifecycle is: construction (inert) -> `PreStart()` (initialize
 ---
 
 ### Requirement: Inbound data arrives via DecodeServerData / DecodeClientData
-All data from the transport layer arrives through a single method: `DecodeServerData(ITransportInbound)` on client state machines, `DecodeClientData(ITransportInbound)` on server state machines. The `ITransportInbound` discriminated union carries three message types that the state machine MUST handle:
+For TCP protocols (H1.0, H1.1, H2), inbound byte data continues to arrive through
+`DecodeServerData`/`DecodeClientData` as `TransportConnected`, `TransportData`, `TransportDisconnected` when
+`_transport` is null (legacy path). When `TransportConnected` carries a non-null `Transport`, the SM stores
+it and switches to pipe mode: byte data is instead delivered by `RequestRead()`/`OnReadCompleted` and
+processed via a new `DecodeData(ReadOnlySequence<byte>)` method (see `sm-transport-io` spec);
+`TransportData` items MUST NOT appear on the port for a connection that has switched to pipe mode.
 
-- `TransportConnected` -- signals that the transport connection is established (or re-established), carrying connection metadata (TLS info, transport options).
-- `TransportData` -- carries a `WireBuffer` of raw bytes from the peer.
-- `TransportDisconnected` -- signals that the transport connection has been lost.
+For QUIC/H3 protocols, `DecodeClientData`/`DecodeServerData` is unchanged (still receives `MultiplexedData`
+via port; H3 is out of scope for pipe transport).
 
-#### Scenario: TransportConnected initializes the wire session
-- **WHEN** `TransportConnected` is received
-- **THEN** the state machine MUST initialize (or re-initialize) its session state
-- **THEN** the state machine MAY extract transport options (e.g., TLS negotiation result, ALPN)
+#### Scenario: TransportConnected routed through base class
+- **WHEN** `TransportConnected` is received in `DecodeServerData` / `DecodeClientData`
+- **THEN** the SM MUST call the base class lifecycle dispatch
+- **THEN** the base class MUST initialize the transport, start the read loop, and call
+  `OnTransportConnected`
 
-#### Scenario: TransportData is decoded synchronously
-- **WHEN** `TransportData` is received with a `WireBuffer`
-- **THEN** the state machine MUST decode the buffer synchronously within the same actor message
-- **THEN** the state machine MUST dispose (or adopt) the `WireBuffer` -- it MUST NOT let it leak
-- **THEN** decoded messages (responses on client, requests on server) MUST be emitted via the operations callback
+#### Scenario: TransportData fallback for pre-connect
+- **WHEN** `TransportData` is received and `Transport` is null
+- **THEN** the SM MAY decode the buffer directly (pre-connect data buffered before `TransportConnected`)
+- **WHEN** `TransportData` is received and `Transport` is not null
+- **THEN** this MUST NOT happen in normal operation (all data arrives via the read loop)
 
 #### Scenario: TransportDisconnected triggers teardown or reconnect
-- **WHEN** `TransportDisconnected` is received on a client state machine
-- **THEN** if in-flight requests exist and reconnect policy allows, the state machine MAY enter reconnecting state
+- **WHEN** `TransportDisconnected` is received via the port dispatch
+- **THEN** the state machine MUST set `_transport = null`
+- **THEN** the state machine MUST increment `_transportGen` to invalidate stale PipeTo messages, whether or
+  not a transport was active
+- **THEN** if in-flight requests exist and reconnect policy allows, the state machine MAY enter reconnecting
+  state
 - **THEN** if no reconnect is possible, the state machine MUST fail all in-flight requests
-- **WHEN** `TransportDisconnected` is received on a server state machine
-- **THEN** the state machine MUST mark itself for completion (`ShouldComplete` becomes true or the stage tears down)
+
+#### Scenario: Byte data is decoded via DecodeData (pipe mode)
+- **WHEN** the SM's read loop delivers a `ReadResult` (via sync fast-path or PipeTo dispatch) with
+  `_transport != null`
+- **THEN** the SM MUST call `DecodeData(ReadOnlySequence<byte>)` to process the bytes synchronously
+- **THEN** the SM MUST call `_transport.AdvanceTo(consumed, examined)` after decode
+- **THEN** the returned `consumed` position indicates how many bytes were fully processed
 
 ---
 
 ### Requirement: Outbound messages are submitted via OnRequest / OnResponse
-Client state machines receive outbound work via `OnRequest(HttpRequestMessage)`. Server state machines receive outbound work via `OnResponse(IFeatureCollection)`. The state machine encodes the message and emits transport data via `ops.OnOutbound(ITransportOutbound)`.
+Client state machines receive outbound work via `OnRequest(HttpRequestMessage)`. Server state machines
+receive outbound work via `OnResponse(IFeatureCollection)`. When `_transport` is null, the state machine
+encodes the message and emits transport data via `ops.OnOutbound(TransportData)`, unchanged from prior
+behavior. When `_transport != null`, the state machine encodes directly into `_transport` via
+`GetMemory`/`Advance` (see `sm-transport-io` spec) and calls `RequestFlush()`; it MUST NOT call
+`ops.OnOutbound(TransportData)` for byte data in this mode.
 
-#### Scenario: Client encodes a request onto the wire
-- **WHEN** `OnRequest(HttpRequestMessage)` is called
-- **THEN** the state machine MUST encode the request headers and emit them via `ops.OnOutbound`
-- **THEN** if the request has a body, the state machine MUST arrange for body data to be pumped to the transport
+#### Scenario: Client encodes a request onto the wire (legacy)
+- **WHEN** `OnRequest(HttpRequestMessage)` is called with `_transport == null`
+- **THEN** the state machine MUST encode the request headers and emit them via `ops.OnOutbound`, unchanged
+  from prior behavior
+- **THEN** if the request has a body, the state machine MUST arrange for body data to be pumped to the
+  transport via the same legacy mechanism
 
-#### Scenario: Server encodes a response onto the wire
-- **WHEN** `OnResponse(IFeatureCollection)` is called
-- **THEN** the state machine MUST encode the response headers and emit them via `ops.OnOutbound`
-- **THEN** if the response has a body, the state machine MUST arrange for body data to be pumped to the transport
+#### Scenario: Client encodes a request onto the wire (pipe mode)
+- **WHEN** `OnRequest(HttpRequestMessage)` is called with `_transport != null`
+- **THEN** the state machine MUST encode the request headers directly into `_transport` via
+  `GetMemory`/`Advance`
+- **THEN** the state machine MUST call `RequestFlush()` to trigger `FlushAsync`
+- **THEN** if the request has a body, the state machine MUST arrange for body data to be pumped to
+  `_transport`
+
+#### Scenario: Server encodes a response onto the wire (legacy)
+- **WHEN** `OnResponse(IFeatureCollection)` is called with `_transport == null`
+- **THEN** the state machine MUST encode the response headers and emit them via `ops.OnOutbound`, unchanged
+  from prior behavior
+
+#### Scenario: Server encodes a response onto the wire (pipe mode)
+- **WHEN** `OnResponse(IFeatureCollection)` is called with `_transport != null`
+- **THEN** the state machine MUST encode the response headers directly into `_transport` via
+  `GetMemory`/`Advance` and call `RequestFlush()`
 
 #### Scenario: OnRequest is only called when CanAcceptRequest is true
 - **WHEN** `CanAcceptRequest` is false on a client state machine
 - **THEN** the connection stage MUST NOT call `OnRequest`
-- **THEN** if called regardless, the state machine behavior is undefined (this is a caller contract violation)
+- **THEN** if called regardless, the state machine behavior is undefined (this is a caller contract
+  violation) -- unchanged by transport mode
 
 #### Scenario: OnResponse is only called when CanAcceptResponse is true
 - **WHEN** `CanAcceptResponse` is false on a server state machine
-- **THEN** the connection stage MUST NOT call `OnResponse`
+- **THEN** the connection stage MUST NOT call `OnResponse` -- unchanged by transport mode
 
 ---
 
@@ -135,31 +182,53 @@ State machines use timers for protocol timeouts (keep-alive, request-headers, bo
 ---
 
 ### Requirement: Body message coordination via OnBodyMessage
-Body data (from outbound body pumps) arrives as typed messages via `OnBodyMessage(object msg)`. The state machine uses this to receive body chunks, completion signals, and flow-control notifications from the body pump infrastructure. The specific message types are internal to the body pump system.
+Body data (from outbound body pumps) arrives as typed messages via `OnBodyMessage(object msg)`.
+`OnBodyMessage(object msg)` MUST call the base class's `OnAsyncResult(msg)` first. If the base
+class handles the message (returns true), the SM MUST NOT process it further. Only unhandled
+messages (body pump events, SM-specific messages) are processed by the SM. When `_transport != null`,
+the state machine MUST encode the chunk directly into `_transport` via `GetMemory`/`Advance` and MUST call
+`RequestFlush()`.
 
-#### Scenario: Body pump delivers chunks to the state machine
-- **WHEN** the body pump produces a data chunk
+#### Scenario: ReadCompleted/FlushCompleted handled by base
+- **WHEN** `OnBodyMessage` receives a `ReadCompleted` or `FlushCompleted` message
+- **THEN** the base class `OnAsyncResult` MUST handle it and return true
+- **AND** the SM MUST NOT process it further
+
+#### Scenario: Body pump delivers chunks to the state machine (pipe mode)
+- **WHEN** the body pump produces a data chunk and `_transport != null`
 - **THEN** it is delivered to the state machine via `OnBodyMessage`
-- **THEN** the state machine MUST encode and emit the chunk via `ops.OnOutbound`
+- **THEN** the state machine MUST encode and write the chunk directly into `_transport`
+- **THEN** the state machine MUST call `RequestFlush()`
 
 #### Scenario: Body pump signals completion
 - **WHEN** the body pump signals that all body data has been sent
-- **THEN** the state machine MUST emit the end-of-body marker on the wire (e.g., zero-length chunk for chunked encoding, END_STREAM flag for H2/H3)
+- **THEN** the state machine MUST emit the end-of-body marker on the wire (e.g., zero-length chunk for
+  chunked encoding, END_STREAM flag for H2/H3) via `_transport`
+- **THEN** the state machine MUST call `RequestFlush()` after emitting the marker
 
 ---
 
 ### Requirement: ShouldPauseNetwork controls transport back-pressure
-Both client and server state machines expose `bool ShouldPauseNetwork` (defaulting to false). When true, the connection stage MUST stop pulling data from the transport inlet. This is the state machine's mechanism for applying back-pressure when internal buffers (e.g., streaming body reader) are full.
+Both client and server state machines expose `bool ShouldPauseNetwork` (defaulting to false). When
+`_transport == null`, and this is true, the connection stage MUST stop pulling data from the transport
+inlet, unchanged from prior behavior. When `_transport != null`, and this is true, the SM's
+`RequestRead()` method MUST NOT call `ReadAsync()`.
 
-#### Scenario: Body reader is full, network is paused
-- **WHEN** the inbound body reader's buffer is full
+#### Scenario: Body reader is full, network is paused (legacy)
+- **WHEN** the inbound body reader's buffer is full and `_transport == null`
 - **THEN** `ShouldPauseNetwork` MUST return true
 - **THEN** the connection stage MUST NOT pull from the transport until the flag clears
 
-#### Scenario: Body reader drains, network resumes
+#### Scenario: Body reader is full, reads are paused (pipe mode)
+- **WHEN** the inbound body reader's buffer is full and `_transport != null`
+- **THEN** `ShouldPauseNetwork` MUST return true
+- **THEN** the SM's `RequestRead()` MUST be a no-op until the flag clears
+
+#### Scenario: Body reader drains, reading resumes
 - **WHEN** the application consumes body data and the reader has capacity again
 - **THEN** `ShouldPauseNetwork` MUST return false
-- **THEN** the connection stage MUST resume pulling from the transport
+- **THEN** the connection stage resumes pulling (legacy) or the SM calls `RequestRead()` to re-arm (pipe
+  mode), depending on which mode is active for this connection
 
 ---
 

@@ -1,5 +1,6 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
+using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -13,6 +14,14 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
 public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
 {
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake).
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 443),
+            TransportProtocol.Tcp));
+
     private Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)> RunAsync(
         params Http2Frame[] serverFrames)
         => RunFlowAsync(new Http20ClientConnectionStage(new GaudiClientOptions()), serverFrames);
@@ -300,16 +309,25 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
 
-                    // Server sends WINDOW_UPDATEs immediately, then a harmless SETTINGS ACK
-                    // after a delay to keep InServer alive until the request has been processed.
+                    // Server sends WINDOW_UPDATEs immediately, then (after the request has triggered
+                    // ConnectTransport at the 200ms mark) a TransportConnected handshake reply —
+                    // request encoding is deferred until this arrives — then a harmless SETTINGS ACK
+                    // after a further delay to keep InServer alive until the request has been processed.
                     var serverSource = b.Add(
                         Source.From(FramesToInputs([connWindowUpdate, streamWindowUpdate]))
+                            .Concat(Source.Single<ITransportInbound>(MakeTransportConnected())
+                                .InitialDelay(TimeSpan.FromMilliseconds(300)))
                             .Concat(Source.From(FramesToInputs([new SettingsFrame([], isAck: true)]))
-                                .InitialDelay(TimeSpan.FromMilliseconds(500))));
+                                .InitialDelay(TimeSpan.FromMilliseconds(200))));
 
+                    // Keep the app-request source open past emission: HasInFlightRequests only
+                    // counts once the request is actually encoded onto a stream, but here it sits
+                    // buffered as the pending initial request until TransportConnected arrives —
+                    // an upstream-finish in that window would tear the stage down prematurely.
                     var requestSource = b.Add(
                         Source.Single(request)
-                            .InitialDelay(TimeSpan.FromMilliseconds(200)));
+                            .InitialDelay(TimeSpan.FromMilliseconds(200))
+                            .Concat(Source.Never<HttpRequestMessage>()));
 
                     var ignoreSink =
                         b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));

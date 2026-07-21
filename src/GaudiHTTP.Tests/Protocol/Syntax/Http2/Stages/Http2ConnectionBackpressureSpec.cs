@@ -1,5 +1,6 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
+using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
@@ -62,8 +63,18 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         }
     }
 
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
+    // manually, so they must inject this after ConnectTransport before expecting encoded data.
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 443),
+            TransportProtocol.Tcp));
+
     private static async Task FillStreamsAsync(ISourceQueueWithComplete<HttpRequestMessage> queue,
         TestSubscriber.ManualProbe<ITransportOutbound> networkProbe,
+        Action sendTransportConnected,
         int count)
     {
         for (var i = 0; i < count; i++)
@@ -73,6 +84,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
             {
                 // First request emits ConnectTransport + preface TransportData + HEADERS TransportData
                 await networkProbe.ExpectNextAsync(TestContext.Current.CancellationToken);
+                sendTransportConnected();
                 ExpectRequestOutput(networkProbe);
             }
 
@@ -85,16 +97,17 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
     [Trait("RFC", "RFC9113-5.1.2")]
     public async Task Http2ConnectionBackpressure_should_stop_pulling_when_at_max_concurrent_streams_limit()
     {
-        var (requestQueue, _, networkProbe, appOutProbe) = CreateProbes(3);
+        var (requestQueue, serverProbe, networkProbe, appOutProbe) = CreateProbes(3);
 
         var appOutSub = await appOutProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var networkSub = await networkProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         networkSub.Request(100);
 
 
-        await FillStreamsAsync(requestQueue, networkProbe, 3);
+        await FillStreamsAsync(requestQueue, networkProbe, () => srvSub.SendNext(MakeTransportConnected()), 3);
 
         await OfferAsync(requestQueue, new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
 
@@ -116,7 +129,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
-        await FillStreamsAsync(requestQueue, networkProbe, 3);
+        await FillStreamsAsync(requestQueue, networkProbe, () => srvSub.SendNext(MakeTransportConnected()), 3);
 
         await OfferAsync(requestQueue, new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
 
@@ -145,7 +158,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
-        await FillStreamsAsync(requestQueue, networkProbe, 3);
+        await FillStreamsAsync(requestQueue, networkProbe, () => srvSub.SendNext(MakeTransportConnected()), 3);
 
         await OfferAsync(requestQueue, new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
         networkProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
@@ -172,7 +185,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
-        await FillStreamsAsync(requestQueue, networkProbe, 2);
+        await FillStreamsAsync(requestQueue, networkProbe, () => srvSub.SendNext(MakeTransportConnected()), 2);
 
         srvSub.SendNext(FramesToInput(new SettingsFrame(
             [(SettingsParameter.MaxConcurrentStreams, 2u)])));

@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
@@ -19,7 +20,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(4, frames.Count);
 
@@ -56,7 +57,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var settings = Assert.IsType<SettingsFrame>(frames[0]);
@@ -73,7 +74,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(2, frames.Count);
 
@@ -94,7 +95,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var headers = Assert.IsType<HeadersFrame>(frames[0]);
@@ -117,7 +118,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
@@ -133,7 +134,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
@@ -154,7 +155,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(5, frames.Count);
         Assert.IsType<SettingsFrame>(frames[0]);

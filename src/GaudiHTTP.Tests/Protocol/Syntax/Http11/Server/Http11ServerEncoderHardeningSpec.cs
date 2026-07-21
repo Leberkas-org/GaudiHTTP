@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using GaudiHTTP.Protocol.Syntax.Http11.Options;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
@@ -35,10 +36,10 @@ public sealed class Http11ServerEncoderHardeningSpec
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers[headerName] = "test-value";
 
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
         var written = encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.DoesNotContain($"{headerName}:", result);
     }
 
@@ -48,11 +49,11 @@ public sealed class Http11ServerEncoderHardeningSpec
     {
         var encoder = MakeEncoder();
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = encoder.Encode(buffer, ctx, isChunked: false, connectionClose: true);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.Contains("Connection: close", result);
     }
 
@@ -62,11 +63,11 @@ public sealed class Http11ServerEncoderHardeningSpec
     {
         var encoder = MakeEncoder();
         var ctx = ServerTestContext.CreateResponse();
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = encoder.Encode(buffer, ctx, isChunked: true);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         Assert.DoesNotContain("Content-Length:", result);
     }
 
@@ -78,11 +79,11 @@ public sealed class Http11ServerEncoderHardeningSpec
         const string existingDate = "Mon, 17 May 2021 12:00:00 GMT";
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["Date"] = existingDate;
-        var buffer = new byte[4096];
+        var buffer = new ArrayBufferWriter<byte>(4096);
 
         var written = encoder.Encode(buffer, ctx, isChunked: false);
 
-        var result = Encoding.ASCII.GetString(buffer, 0, written);
+        var result = Encoding.ASCII.GetString(buffer.WrittenSpan[..written]);
         var dateCount = result.Split("Date:").Length - 1;
         Assert.Equal(1, dateCount);
     }

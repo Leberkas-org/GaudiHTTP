@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.IO.Pipelines;
 using System.Net.Security;
 using Akka.Actor;
 using Akka.Event;
@@ -32,6 +34,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     private long _bufferedBytes;
     private bool _sniffAborted;
     private bool _negotiationTimerActive;
+    private IConnectionTransport? _sniffTransport;
 
     public bool CanAcceptResponse => _phase == Phase.Running && _inner!.CanAcceptResponse;
     public bool ShouldComplete => _sniffAborted || (_phase == Phase.Running && _inner!.ShouldComplete);
@@ -78,7 +81,24 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     public void OnResponse(IFeatureCollection features) => _inner!.OnResponse(features);
     public void OnDownstreamFinished() => _inner?.OnDownstreamFinished();
-    public void OnBodyMessage(object msg) => _inner?.OnBodyMessage(msg);
+
+    public void OnBodyMessage(object msg)
+    {
+        if (_phase == Phase.Sniffing && msg is SniffReadCompleted src)
+        {
+            OnSniffReadCompleted(src.Result);
+            return;
+        }
+
+        if (_phase == Phase.Sniffing && msg is SniffReadFailed srf)
+        {
+            _sniffAborted = true;
+            CancelNegotiationTimer();
+            return;
+        }
+
+        _inner?.OnBodyMessage(msg);
+    }
 
     public void OnTimerFired(string name)
     {
@@ -126,16 +146,19 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     private void OnWaitingForConnect(ITransportInbound data)
     {
-        if (data is not TransportConnected { Info.Security: var security })
+        if (data is not TransportConnected tc)
         {
             return;
         }
+
+        var security = tc.Info.Security;
 
         if (security?.ApplicationProtocol == SslApplicationProtocol.Http2)
         {
             var h2Options = _options.ToHttp2Options();
             Activate(ops => new Http2ServerStateMachine(h2Options, ops));
             _inner!.DecodeClientData(data);
+            _inner!.PreStart();
             return;
         }
 
@@ -145,12 +168,19 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
             var h2UpgradeOptions = _options.ToHttp2Options();
             Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
             _inner!.DecodeClientData(data);
+            _inner!.PreStart();
             return;
         }
 
         _buffered.Add(data);
         _phase = Phase.Sniffing;
         ScheduleNegotiationTimer();
+
+        if (tc.Transport is { } transport)
+        {
+            _sniffTransport = transport;
+            StartSniffRead();
+        }
     }
 
     private static ReadOnlySpan<byte> Http2PrefixMagic => "PRI "u8;
@@ -158,6 +188,11 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     private void OnSniffing(ITransportInbound data)
     {
+        if (_sniffTransport is not null)
+        {
+            return;
+        }
+
         _buffered.Add(data);
 
         if (data is not TransportData { Buffer: var buffer })
@@ -172,8 +207,6 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         {
             if (span.StartsWith(Http2PrefixMagic))
             {
-                // Per-endpoint Protocols restriction: a cleartext endpoint that does not allow HTTP/2
-                // must reject a prior-knowledge h2c preface rather than silently upgrading.
                 if (!_http2Allowed)
                 {
                     _sniffAborted = true;
@@ -183,7 +216,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
                 var h2Options = _options.ToHttp2Options();
                 Activate(ops => new Http2ServerStateMachine(h2Options, ops));
-                ReplayBuffered();
+                ActivateAndReplay();
                 return;
             }
 
@@ -198,7 +231,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
                 var h1Options = _options.ToHttp1Options();
                 Activate(ops => new Http10ServerStateMachine(h1Options, ops));
-                ReplayBuffered();
+                ActivateAndReplay();
                 return;
             }
 
@@ -214,17 +247,11 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
                 var h1Options = _options.ToHttp1Options();
                 var h2UpgradeOptions = _options.ToHttp2Options();
                 Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
-                ReplayBuffered();
+                ActivateAndReplay();
                 return;
             }
         }
 
-        // No protocol identified from the buffered bytes yet. Bound how much we buffer while
-        // waiting so an unidentifiable cleartext peer can't grow the sniff buffer without bound
-        // (memory-exhaustion DoS). A real request line / HTTP/2 preface is tiny, so exceeding the
-        // cap without identification means garbage/abuse — abort before any state machine exists.
-        // The cap is checked AFTER identification so a large first segment carrying a valid preface
-        // plus request data (common for concurrent / large HTTP/2) is recognized rather than aborted.
         if (_bufferedBytes > _maxSniffBytes)
         {
             _sniffAborted = true;
@@ -258,12 +285,121 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         return false;
     }
 
+    private void StartSniffRead()
+    {
+        if (_sniffTransport is null)
+        {
+            return;
+        }
+
+        var vt = _sniffTransport.ReadAsync();
+        if (vt.IsCompletedSuccessfully)
+        {
+            OnSniffReadCompleted(vt.Result);
+            return;
+        }
+
+        vt.PipeTo(_wrappedOps.StageActor,
+            success: result => new SniffReadCompleted(result),
+            failure: ex => new SniffReadFailed(ex));
+    }
+
+    private void OnSniffReadCompleted(ReadResult result)
+    {
+        if (_phase != Phase.Sniffing || _sniffTransport is null)
+        {
+            return;
+        }
+
+        if (result.IsCompleted && result.Buffer.IsEmpty)
+        {
+            _sniffAborted = true;
+            CancelNegotiationTimer();
+            return;
+        }
+
+        var buffer = result.Buffer;
+        var firstSpan = buffer.FirstSpan;
+
+        if (firstSpan.Length >= 4)
+        {
+            if (firstSpan.StartsWith(Http2PrefixMagic))
+            {
+                if (!_http2Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    _sniffTransport.AdvanceTo(buffer.Start, buffer.End);
+                    return;
+                }
+
+                _sniffTransport.AdvanceTo(buffer.Start);
+                var h2Options = _options.ToHttp2Options();
+                Activate(ops => new Http2ServerStateMachine(h2Options, ops));
+                ActivateAndReplay();
+                return;
+            }
+
+            if (firstSpan.IndexOf(Http10VersionTag) >= 0)
+            {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    _sniffTransport.AdvanceTo(buffer.Start, buffer.End);
+                    return;
+                }
+
+                _sniffTransport.AdvanceTo(buffer.Start);
+                var h1Options = _options.ToHttp1Options();
+                Activate(ops => new Http10ServerStateMachine(h1Options, ops));
+                ActivateAndReplay();
+                return;
+            }
+
+            if (firstSpan.IndexOf((byte)'\n') >= 0)
+            {
+                if (!_http1Allowed)
+                {
+                    _sniffAborted = true;
+                    CancelNegotiationTimer();
+                    _sniffTransport.AdvanceTo(buffer.Start, buffer.End);
+                    return;
+                }
+
+                _sniffTransport.AdvanceTo(buffer.Start);
+                var h1Options = _options.ToHttp1Options();
+                var h2UpgradeOptions = _options.ToHttp2Options();
+                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops, allowH2cUpgrade: _http2Allowed));
+                ActivateAndReplay();
+                return;
+            }
+        }
+
+        _bufferedBytes += buffer.Length;
+        if (_bufferedBytes > _maxSniffBytes)
+        {
+            _sniffAborted = true;
+            CancelNegotiationTimer();
+            _sniffTransport.AdvanceTo(buffer.Start, buffer.End);
+            return;
+        }
+
+        _sniffTransport.AdvanceTo(buffer.Start, buffer.End);
+        StartSniffRead();
+    }
+
     private void Activate(Func<IServerStageOperations, IServerStateMachine> factory)
     {
         CancelNegotiationTimer();
         _inner = factory(_wrappedOps);
         _phase = Phase.Running;
-        _inner.PreStart();
+    }
+
+    private void ActivateAndReplay()
+    {
+        ReplayBuffered();
+        _inner!.PreStart();
     }
 
     private void ReplayBuffered()
@@ -288,6 +424,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         }
 
         _buffered.Clear();
+        _sniffTransport = null;
     }
 
     internal void HandleUpgrade(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
@@ -316,4 +453,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
             parent.HandleUpgrade(newSmFactory);
         }
     }
+
+    private sealed record SniffReadCompleted(ReadResult Result);
+    private sealed record SniffReadFailed(Exception Ex);
 }

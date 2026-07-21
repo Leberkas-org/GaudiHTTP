@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -92,7 +93,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -114,7 +115,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var bytes = new HeadersFrame(1, partial.AsMemory(), endStream: true, endHeaders: false).Serialize();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -133,7 +134,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
 
         var decoder = new FrameDecoder();
         var frames = ConcatArrays(headersBytes, contBytes);
-        var decoded = decoder.DecodeAll(frames, out _);
+        var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(frames), out _);
 
         Assert.Equal(2, decoded.Count);
         var hf = Assert.IsType<HeadersFrame>(decoded[0]);
@@ -159,7 +160,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
                 .Serialize();
 
         var decoder = new FrameDecoder();
-        var decoded = decoder.DecodeAll(ConcatArrays(headersBytes, cont1Bytes), out _);
+        var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(ConcatArrays(headersBytes, cont1Bytes)), out _);
 
         Assert.Equal(2, decoded.Count);
         var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
@@ -180,7 +181,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var c3 = new ContinuationFrame(1, block.AsMemory()[(3 * quarter)..], endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var decoded = decoder.DecodeAll(ConcatArrays(h, c1, c2, c3), out _);
+        var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(ConcatArrays(h, c1, c2, c3)), out _);
         Assert.Equal(4, decoded.Count);
 
         var fullBlock = AssembleHeaderBlock(decoded);
@@ -202,7 +203,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var contBytes = new ContinuationFrame(1, block.AsMemory()[half..], endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        var decoded = decoder.DecodeAll(ConcatArrays(headersBytes, contBytes), out _);
+        var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(ConcatArrays(headersBytes, contBytes)), out _);
         Assert.Equal(2, decoded.Count);
 
         var fullBlock = AssembleHeaderBlock(decoded);
@@ -229,8 +230,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         };
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(dataFrame, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(dataFrame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -242,8 +243,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var pingBytes = new PingFrame(new byte[8]).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(pingBytes, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(pingBytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -255,8 +256,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var settingsBytes = new SettingsFrame([]).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(settingsBytes, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(settingsBytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -268,8 +269,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var rstBytes = new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(rstBytes, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(rstBytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -281,8 +282,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var windowUpdateBytes = new WindowUpdateFrame(0, 65535).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(windowUpdateBytes, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(windowUpdateBytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -294,8 +295,8 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var goAwayBytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(goAwayBytes, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(goAwayBytes), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -307,7 +308,7 @@ public sealed class Http2ContinuationFrameAssemblySpec
         var headersBytes3 = new HeadersFrame(3, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        decoder.DecodeAll(headersBytes1, out _);
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(headersBytes3, out _));
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes1), out _);
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(headersBytes3), out _));
     }
 }

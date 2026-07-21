@@ -1,6 +1,6 @@
+using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
@@ -45,7 +45,7 @@ public sealed class Http11DataRateSpec
         // Chunked request body forces streaming (small Content-Length bodies are buffered, not observed).
         // One small chunk arrives, then the upload stalls without the terminating chunk.
         var headersAndPartialChunk = "POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nAAAAA\r\n";
-        sm.DecodeClientData(TransportData.Rent(headersAndPartialChunk.ToWireBuffer()));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(headersAndPartialChunk), ops);
 
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
@@ -65,8 +65,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(defaultOptions, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -87,8 +86,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -109,8 +107,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -130,8 +127,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -151,8 +147,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -178,7 +173,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -212,7 +207,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         // Buffered response body: written into the feature before OnResponse, emitted
         // synchronously via EmitBufferedBody (the standard path for normal responses).
@@ -244,8 +239,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
@@ -275,8 +269,7 @@ public sealed class Http11DataRateSpec
         var sm = new Http11ServerStateMachine(options, new GaudiServerOptions().ToHttp2Options(), ops, clock);
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);

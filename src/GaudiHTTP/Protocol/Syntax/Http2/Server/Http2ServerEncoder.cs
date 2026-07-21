@@ -2,6 +2,7 @@ using System.Buffers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using GaudiHTTP.Protocol.Semantics;
+using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Options;
 
@@ -212,6 +213,18 @@ internal sealed class Http2ServerEncoder
                 headers.Add(new HpackHeader("date", DateHeaderCache.GetValue()));
             }
         }
+    }
+
+    public int EncodeAndWriteHeaders(IBufferWriter<byte> writer, IFeatureCollection features, int streamId, bool hasBody)
+    {
+        var frames = EncodeHeaders(features, streamId, hasBody);
+        return Http2ClientEncoder.WriteFramesTo(writer, frames);
+    }
+
+    public int EncodeAndWriteTrailers(IBufferWriter<byte> writer, int streamId, IHeaderDictionary trailers)
+    {
+        var frames = EncodeTrailers(streamId, trailers);
+        return Http2ClientEncoder.WriteFramesTo(writer, frames);
     }
 
     /// <summary>

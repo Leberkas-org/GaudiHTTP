@@ -1,5 +1,5 @@
+using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -45,9 +45,8 @@ public sealed class Http11ServerStateMachineTimerSpec
         // Feed partial request data (no final \r\n\r\n) to trigger NeedMore state
         // This keeps the decoder in incomplete state, allowing timer scheduling
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
-        var buffer = partialRequest.ToWireBuffer();
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(partialRequest), ops);
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "request-headers");
     }
@@ -59,15 +58,13 @@ public sealed class Http11ServerStateMachineTimerSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        // First, feed partial request to schedule timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
-        var buffer1 = partialRequest.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(buffer1));
+        var transport = sm.ConnectTransport(Encoding.ASCII.GetBytes(partialRequest), ops);
 
-        // Then feed completion to cancel timer
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "request-headers");
+
         var completion = "\r\n";
-        var buffer2 = completion.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(buffer2));
+        transport.FeedMore(sm, ops, Encoding.ASCII.GetBytes(completion));
 
         Assert.Contains(ops.CancelledTimers, t => t == "request-headers");
     }
@@ -82,8 +79,7 @@ public sealed class Http11ServerStateMachineTimerSpec
 
         // Decode a complete request first
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         // Verify we have a pending request
         Assert.Single(ops.Requests);
@@ -114,8 +110,7 @@ public sealed class Http11ServerStateMachineTimerSpec
 
         // Decode a request
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var buffer = requestData.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         // Send response with body
         var context = ServerTestContext.CreateResponse();
@@ -146,7 +141,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         var sm = new Http11ServerStateMachine(opts.ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         var req = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(req.ToWireBuffer()));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(req), ops);
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read" && t.Delay == TimeSpan.FromSeconds(5));
     }
@@ -171,11 +166,11 @@ public sealed class Http11ServerStateMachineTimerSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         var head = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(head.ToWireBuffer()));
+        var transport = sm.ConnectTransport(Encoding.ASCII.GetBytes(head), ops);
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read");
 
         var body = "5\r\nhello\r\n0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(body.ToWireBuffer()));
+        transport.FeedMore(sm, ops, Encoding.ASCII.GetBytes(body));
 
         Assert.Contains(ops.CancelledTimers, t => t == "body-read");
     }
@@ -189,8 +184,7 @@ public sealed class Http11ServerStateMachineTimerSpec
 
         // Decode a partial request to activate request-headers timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
-        var buffer = partialRequest.ToWireBuffer();
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(partialRequest), ops);
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "request-headers");
 
@@ -227,7 +221,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(requestData.ToWireBuffer()));
+        _ = sm.ConnectTransport(Encoding.ASCII.GetBytes(requestData), ops);
 
         // Writer left incomplete: the pump goes async, so a subsequent read failure hits the
         // non-orphaned OnDrainFailed path rather than a normal completion.

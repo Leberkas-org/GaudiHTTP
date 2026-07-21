@@ -1,3 +1,4 @@
+using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -481,7 +482,8 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         IReadOnlyList<Http3Frame> frames;
         try
         {
-            frames = decoder.DecodeAll(inputBuffer.Memory, out _);
+            var seq = new ReadOnlySequence<byte>(inputBuffer.Memory);
+            frames = decoder.DecodeAll(in seq, out _);
         }
         catch (Exception ex) when (ex is HttpProtocolException or QpackException or HuffmanException)
         {

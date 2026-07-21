@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -103,7 +104,7 @@ public sealed class Http2ServerResponseBufferSpec
         {
             if (outbound[i] is TransportData td)
             {
-                var decodedFrames = decoder.DecodeAll(td.Buffer.Memory, out _);
+                var decodedFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _);
                 frames.AddRange(decodedFrames);
             }
         }

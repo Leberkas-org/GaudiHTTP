@@ -1,4 +1,6 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.Protocol.Syntax;
 using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.FlowControl;
@@ -11,7 +13,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0, 1000).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -24,7 +26,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0, 32768).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -37,7 +39,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0, 1).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -53,7 +55,7 @@ public sealed class Http2FlowControlSpec
         var combined = wu1.Concat(wu2).ToArray();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(combined, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(combined), out _);
 
         Assert.Equal(2, frames.Count);
         var frame1 = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -70,7 +72,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0, 1).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -83,7 +85,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0, 0x7FFFFFFF).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -96,7 +98,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(1, 2000).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -109,7 +111,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(3, 65535).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -127,7 +129,7 @@ public sealed class Http2FlowControlSpec
         var combined = wu0.Concat(wu1).Concat(wu3).ToArray();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(combined, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(combined), out _);
 
         Assert.Equal(3, frames.Count);
         var f0 = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -147,7 +149,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(0x7FFFFFFE, 1024).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -161,7 +163,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(5, 1).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -175,7 +177,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new WindowUpdateFrame(7, 0x7FFFFFFF).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -197,7 +199,7 @@ public sealed class Http2FlowControlSpec
             0x80, 0x00, 0x00, 0x01, // increment with high bit set → stripped to 1
         };
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(rawFrame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(rawFrame), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -211,7 +213,7 @@ public sealed class Http2FlowControlSpec
         var original = new WindowUpdateFrame(0, 131072);
         var bytes = original.Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var decoded = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -226,7 +228,7 @@ public sealed class Http2FlowControlSpec
         var original = new WindowUpdateFrame(9, 4096);
         var bytes = original.Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var decoded = Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -236,21 +238,19 @@ public sealed class Http2FlowControlSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.9")]
-    public void Http2FrameDecoder_should_decode_across_two_calls_when_window_update_tcp_fragmented()
+    public void Http2FrameDecoder_should_decode_window_update_spanning_multi_segment_sequence()
     {
-        var bytes = new WindowUpdateFrame(0, 8192).Serialize(); // 13 bytes total
+        var bytes = new WindowUpdateFrame(0, 8192).Serialize();
         var part1 = bytes[..7];
         var part2 = bytes[7..];
 
         var decoder = new FrameDecoder();
-        // Decode returns the decoder's reused list, so snapshot the first result before the second
-        // Decode call repopulates it (frames1 is asserted after frames2 is decoded).
-        var frames1 = decoder.DecodeAll(part1, out _).ToArray();
-        var frames2 = decoder.DecodeAll(part2, out _);
+        var seq = SequenceHelper.CreateMultiSegment(part1, part2);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Empty(frames1); // incomplete
-        Assert.Single(frames2);
-        var frame = Assert.IsType<WindowUpdateFrame>(frames2[0]);
+        Assert.Single(frames);
+        Assert.True(consumed.Equals(seq.End));
+        var frame = Assert.IsType<WindowUpdateFrame>(frames[0]);
         Assert.Equal(0, frame.StreamId);
         Assert.Equal(8192, frame.Increment);
     }
@@ -270,7 +270,7 @@ public sealed class Http2FlowControlSpec
             0x00, 0x00, 0x00, 0x00, // increment = 0 — MUST be > 0
         };
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(rawFrame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(rawFrame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -286,7 +286,7 @@ public sealed class Http2FlowControlSpec
             0x00, 0x00, 0x00, 0x00, // increment = 0 — MUST be > 0
         };
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(rawFrame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(rawFrame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -302,7 +302,7 @@ public sealed class Http2FlowControlSpec
             0x00, 0x00, 0x01, // only 3 payload bytes
         };
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(rawFrame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(rawFrame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -312,7 +312,7 @@ public sealed class Http2FlowControlSpec
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var bytes = new DataFrame(1, data).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -327,7 +327,7 @@ public sealed class Http2FlowControlSpec
         var data = new byte[10];
         var bytes = new DataFrame(3, data, endStream: true).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -342,7 +342,7 @@ public sealed class Http2FlowControlSpec
         var data = new byte[10];
         var bytes = new DataFrame(5, data, endStream: false).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -355,7 +355,7 @@ public sealed class Http2FlowControlSpec
     {
         var bytes = new DataFrame(1, ReadOnlyMemory<byte>.Empty, endStream: true).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);
@@ -371,7 +371,7 @@ public sealed class Http2FlowControlSpec
         var original = new DataFrame(7, data, endStream: true);
         var bytes = original.Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var decoded = Assert.IsType<DataFrame>(frames[0]);
@@ -389,7 +389,7 @@ public sealed class Http2FlowControlSpec
         var combined = wu.Concat(df).ToArray();
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(combined, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(combined), out _);
 
         Assert.Equal(2, frames.Count);
         Assert.IsType<WindowUpdateFrame>(frames[0]);
@@ -408,7 +408,7 @@ public sealed class Http2FlowControlSpec
 
         var bytes = new DataFrame(1, data).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<DataFrame>(frames[0]);

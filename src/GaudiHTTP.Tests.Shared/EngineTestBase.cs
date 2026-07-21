@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
@@ -308,7 +309,7 @@ public abstract class EngineTestBase : StreamTestBase
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().DecodeAll(outboundBytes.ToArray(), out _)
+            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes.ToArray()), out _)
             : [];
 
         return (response, frames);
@@ -336,7 +337,7 @@ public abstract class EngineTestBase : StreamTestBase
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().DecodeAll(outboundBytes.ToArray(), out _)
+            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes.ToArray()), out _)
             : [];
 
         return (results.ToList(), frames);
@@ -394,7 +395,7 @@ public abstract class EngineTestBase : StreamTestBase
 
         if (requestBytes.Count > 0)
         {
-            frames.AddRange(new Protocol.Syntax.Http3.FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
+            frames.AddRange(new Protocol.Syntax.Http3.FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(requestBytes.ToArray()), out _));
         }
 
         if (controlBytes.Count > 0)
@@ -407,7 +408,7 @@ public abstract class EngineTestBase : StreamTestBase
 
             if (controlSpan.Length > 0)
             {
-                frames.AddRange(new Protocol.Syntax.Http3.FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
+                frames.AddRange(new Protocol.Syntax.Http3.FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(controlSpan.ToArray()), out _));
             }
         }
 

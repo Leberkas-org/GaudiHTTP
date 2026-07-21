@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 using GaudiHTTP.Tests.Shared;
@@ -18,9 +19,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Equal(3, frames.Count);
 
         var settings = Assert.IsType<SettingsFrame>(frames[0]);
@@ -48,9 +50,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Single(frames);
         var settings = Assert.IsType<SettingsFrame>(frames[0]);
         Assert.Empty(settings.Parameters);
@@ -64,9 +67,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Single(frames);
         var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(4L, goaway.StreamId);
@@ -80,9 +84,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Single(frames);
         var headers = Assert.IsType<HeadersFrame>(frames[0]);
 
@@ -101,9 +106,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Single(frames);
         var maxPush = Assert.IsType<MaxPushIdFrame>(frames[0]);
         Assert.Equal(7L, maxPush.PushId);
@@ -121,9 +127,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Equal(4, frames.Count);
         Assert.IsType<SettingsFrame>(frames[0]);
         Assert.IsType<HeadersFrame>(frames[1]);
@@ -139,9 +146,10 @@ public sealed class H3ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out var bytesConsumed);
+        var seq = new ReadOnlySequence<byte>(bytes);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        Assert.Equal(bytes.Length, bytesConsumed);
+        Assert.True(consumed.Equals(seq.End));
         Assert.Single(frames);
         var cancel = Assert.IsType<CancelPushFrame>(frames[0]);
         Assert.Equal(3L, cancel.PushId);

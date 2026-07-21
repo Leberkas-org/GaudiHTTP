@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -12,7 +13,7 @@ public sealed class Http2FrameFuzzOversizedSpec
     {
         try
         {
-            decoder.DecodeAll(data, out _);
+            decoder.DecodeAll(new ReadOnlySequence<byte>(data), out _);
         }
         catch (HttpProtocolException)
         {
@@ -138,7 +139,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
                 try
                 {
-                    decoder.DecodeAll(frame, out _);
+                    decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
                 }
                 catch (HttpProtocolException)
                 {
@@ -155,7 +156,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
             decoder.Reset();
             var probe = BuildRawFrame(0x04, 0x01, 0, []);
-            var probeFrames = decoder.DecodeAll(probe, out _);
+            var probeFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(probe), out _);
             Assert.Single(probeFrames);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;
@@ -195,7 +196,7 @@ public sealed class Http2FrameFuzzOversizedSpec
 
             var frame = BuildSettingsFrame(parameters);
 
-            var frames = decoder.DecodeAll(frame, out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
             Assert.Single(frames);
             Assert.IsType<SettingsFrame>(frames[0]);
 
@@ -230,7 +231,7 @@ public sealed class Http2FrameFuzzOversizedSpec
             var streamId = rng.Next(0, 100);
             var frame = BuildWindowUpdateFrame(streamId, 0);
 
-            var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
+            var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _));
             Assert.Contains("0", ex.Message);
 
             var allocated = GC.GetAllocatedBytesForCurrentThread() - allocBefore;

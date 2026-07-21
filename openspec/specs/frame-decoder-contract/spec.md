@@ -6,66 +6,68 @@ Specifies the shared contract for `FrameDecoder` in HTTP/2 (`Protocol.Syntax.Htt
 
 ### Requirement: Caller-owned buffer input
 
-Both decoders accept `ReadOnlyMemory<byte>` via `DecodeAll(ReadOnlyMemory<byte> input, out int bytesConsumed)`. The caller retains ownership of the input buffer. The decoder never disposes, returns, or otherwise manages the caller's memory.
+Both decoders SHALL accept `ReadOnlySequence<byte>` via `DecodeAll(in ReadOnlySequence<byte> input, out SequencePosition consumed)`. The caller retains ownership of the input buffer. The decoder SHALL NOT dispose, return, or otherwise manage the caller's memory.
 
 #### Scenario: Caller disposes buffer after frame consumption
-- **WHEN** a caller passes `ReadOnlyMemory<byte>` from a pooled buffer to `DecodeAll`
-- **AND** the caller disposes the underlying buffer after iterating the returned frames
+- **WHEN** a caller wraps a `WireBuffer.Memory` in `new ReadOnlySequence<byte>(memory)` and passes it to `DecodeAll`
+- **AND** the caller disposes the underlying `WireBuffer` after iterating the returned frames
 - **THEN** no use-after-free or data corruption SHALL occur
 
-#### Scenario: bytesConsumed equals input length
-- **WHEN** `DecodeAll` returns
-- **THEN** `bytesConsumed` SHALL equal `input.Length` regardless of how many frames were decoded
-- **THEN** unconsumed trailing bytes SHALL be stored internally as remainder, not left to the caller
+#### Scenario: consumed equals input end when all data is processed
+- **WHEN** `DecodeAll` processes all bytes in the input sequence (no trailing partial frame)
+- **THEN** `consumed` SHALL equal `input.End`
+
+#### Scenario: consumed is less than input end when a partial frame remains
+- **WHEN** the input sequence ends mid-frame (incomplete frame header or body)
+- **THEN** `consumed` SHALL equal the position after the last fully decoded frame
+- **THEN** the decoder SHALL NOT copy or otherwise retain the unconsumed trailing bytes internally
 
 ---
 
 ### Requirement: Zero-copy frame payloads for complete frames
 
-Frame payloads fully contained in a single `DecodeAll` input (no remainder involved) SHALL be zero-copy slices of the caller's `ReadOnlyMemory<byte>`. No copy is made.
+Frame payloads fully contained within a single segment of the input `ReadOnlySequence<byte>` SHALL be zero-copy slices of that segment. No copy is made. Frame payloads spanning multiple segments are decoded via `SequenceReader<byte>` and MAY require a copy to assemble contiguous data.
 
-#### Scenario: Payload aliases the input buffer
-- **WHEN** a complete frame is decoded from input with no prior remainder
+#### Scenario: Payload aliases the input buffer (single segment)
+- **WHEN** a complete frame is decoded from a single-segment input sequence with no remainder involved
 - **THEN** the frame's payload memory SHALL alias the input buffer
 - **THEN** mutating the input buffer SHALL be visible through the frame's payload
 
-#### Scenario: Multiple complete frames in one input
-- **WHEN** multiple complete frames are present in a single input
+#### Scenario: Multiple complete frames in one single-segment input
+- **WHEN** multiple complete frames are present in a single-segment input sequence
 - **THEN** each frame's payload SHALL be a distinct slice of the input buffer
 - **THEN** no intermediate copies SHALL be made
 
+#### Scenario: Multi-segment frame header parsing
+- **WHEN** a frame's fixed header (9 bytes for H2; QUIC varint type+length for H3) spans two or more segments of the input sequence
+- **THEN** the decoder SHALL use `SequenceReader<byte>` to read the header correctly across the segment boundary
+- **THEN** the frame's payload SHALL remain zero-copy when it is itself contained in a single segment
+
+#### Scenario: Multi-segment frame payload parsing
+- **WHEN** a frame's payload spans two or more segments of the input sequence
+- **THEN** the decoder SHALL assemble the payload correctly (copy permitted) using `SequenceReader<byte>` / `ReadOnlySequence<byte>.Slice`
+- **THEN** the assembled payload SHALL contain the same bytes as an equivalent single-segment decode of the same logical byte stream
+
 ---
 
-### Requirement: Remainder handling with field-based byte[]
+### Requirement: Remainder handling -- no internal buffering
 
-Incomplete trailing bytes from a `DecodeAll` call SHALL be stored in a field-level `byte[]` buffer. This buffer grows on demand but never shrinks. No `MemoryPool.Rent` or other external allocation mechanism is used for remainder storage.
+The decoder MUST NOT maintain internal remainder buffers (`_remainderBuffer`, `_remainder`, or equivalent field-level byte[] storage). When input ends mid-frame, the decoder reports the truncation point via `consumed` and performs no internal copy of the unconsumed bytes. Retention of unconsumed bytes across `DecodeAll` calls, if any, is the caller's responsibility.
 
-#### Scenario: Partial frame buffered across two calls
-- **WHEN** input ends mid-frame (fewer bytes than the frame header + payload require)
-- **AND** the next `DecodeAll` call provides the remaining bytes
-- **THEN** the complete frame SHALL be decoded from the combined data
-- **THEN** no `MemoryPool.Rent` SHALL be called for remainder storage
+#### Scenario: No internal remainder fields
+- **WHEN** a `FrameDecoder` instance (H2 or H3) is inspected
+- **THEN** it SHALL NOT have `_remainderBuffer`, `_remainder`, `_remainderOffset`, `_remainderLength`, or similar byte-buffering fields
 
-#### Scenario: Remainder buffer grows on demand
-- **WHEN** the remainder plus new input exceeds the current buffer capacity
-- **THEN** a new, larger `byte[]` SHALL be allocated and the existing remainder copied into it
-- **THEN** the old buffer is abandoned (no explicit return to any pool)
+#### Scenario: Partial frame is not silently retried from decoder state
+- **WHEN** `DecodeAll` is called with input ending mid-frame
+- **AND** the next `DecodeAll` call is made with an unrelated, independently-constructed `ReadOnlySequence<byte>`
+- **THEN** the decoder SHALL NOT attempt to complete the earlier partial frame from any retained bytes
+- **THEN** only cross-call *protocol* state (e.g. H2 `_awaitingContinuationStreamId`) SHALL carry over, not byte-level remainder
 
-#### Scenario: Remainder buffer never shrinks
-- **WHEN** a large remainder buffer was allocated for a previous decode cycle
-- **AND** subsequent calls require less remainder space
-- **THEN** the existing buffer SHALL be reused at its current size
-
-#### Scenario: Remainder compaction before new slices
-- **WHEN** remainder exists from a previous call (`_remainderOffset > 0`)
-- **THEN** compaction (BlockCopy to offset 0) SHALL occur at the start of the next `DecodeAll` call
-- **THEN** compaction completes before any new input is appended or frame slices reference the buffer
-
-#### Scenario: Frame assembled from remainder owns its data
-- **WHEN** a frame is assembled from remainder bytes + new input
-- **THEN** the frame's payload SHALL reference the remainder buffer (not the caller's input)
-- **THEN** mutating either original input SHALL NOT corrupt the frame's payload
-- **THEN** the payload is valid only until the next `DecodeAll` call (remainder buffer is reused)
+#### Scenario: Protocol state still carries across calls
+- **WHEN** a HEADERS frame without `END_HEADERS` is fully decoded in one `DecodeAll` call
+- **AND** the matching CONTINUATION frame arrives, fully contained, in a subsequent `DecodeAll` call
+- **THEN** the continuation state SHALL carry over correctly between calls (unaffected by remainder removal)
 
 ---
 
@@ -111,19 +113,16 @@ Both decoders support a reset path that releases all internal buffers and return
 
 #### Scenario: H2 Reset clears all state
 - **WHEN** `Reset()` is called on the H2 `FrameDecoder`
-- **THEN** `_remainderBuffer` SHALL be set to `null`
-- **THEN** `_remainderOffset` and `_remainderLength` SHALL be set to 0
 - **THEN** `_awaitingContinuationStreamId` SHALL be set to 0
+- **THEN** `_frames` SHALL be cleared
 
-#### Scenario: H2 Dispose clears buffers
+#### Scenario: H2 Dispose clears state
 - **WHEN** `Dispose()` is called on the H2 `FrameDecoder`
-- **THEN** `_remainderBuffer` SHALL be set to `null`
-- **THEN** `_remainderOffset` and `_remainderLength` SHALL be set to 0
+- **THEN** `_frames` SHALL be cleared
 
 #### Scenario: H3 OnReset clears all state for pooling
 - **WHEN** the H3 `FrameDecoder` is returned to the `ConnectionObjectPool` and `OnReset()` is called
-- **THEN** `_remainderBuffer` SHALL be set to `null`
-- **THEN** `_remainderOffset` and `_remainderLength` SHALL be set to 0
+- **THEN** `_frames` SHALL be cleared
 
 #### Scenario: Decoder is reusable after Reset
 - **WHEN** `Reset()` or `OnReset()` completes
@@ -209,10 +208,10 @@ The H3 `FrameDecoder` uses QUIC variable-length integer encoding (RFC 9000 secti
 - **WHEN** a frame's type and length fields use different varint sizes (1, 2, 4, or 8 bytes each)
 - **THEN** the decoder SHALL decode both fields correctly using `QuicVarInt.TryDecode`
 
-#### Scenario: Partial varint triggers remainder buffering
+#### Scenario: Partial varint reports consumed position
 - **WHEN** the input ends in the middle of a varint-encoded type or length field
-- **THEN** the decoder SHALL buffer the partial bytes as remainder
-- **THEN** the next `DecodeAll` call SHALL complete the varint decode
+- **THEN** `consumed` SHALL equal the position before the incomplete varint
+- **THEN** the decoder SHALL NOT buffer the partial bytes internally
 
 ---
 
@@ -237,11 +236,12 @@ H2 and H3 decoders differ in lifecycle management. H2 uses `IDisposable` directl
 
 | Aspect | H2 | H3 |
 |---|---|---|
-| Input format | `ReadOnlyMemory<byte>` | `ReadOnlyMemory<byte>` |
+| Input format | `ReadOnlySequence<byte>` | `ReadOnlySequence<byte>` |
 | Frame header | Fixed 9 bytes | Variable (QUIC varint type + length) |
 | `_frames` list reuse | Yes | Yes |
-| Remainder buffer | Field `byte[]`, grow-on-demand | Field `byte[]`, grow-on-demand |
-| Zero-copy payloads | Yes (complete frames) | Yes (complete frames) |
+| Remainder buffer | None (caller-managed via `consumed` position) | None (caller-managed via `consumed` position) |
+| Zero-copy payloads | Yes (single-segment frames) | Yes (single-segment frames) |
+| Multi-segment support | Via `SequenceReader<byte>` (copy permitted) | Via `SequenceReader<byte>` (copy permitted) |
 | CONTINUATION tracking | Yes (`_awaitingContinuationStreamId`) | N/A (H3 has no CONTINUATION) |
 | maxFrameSize validation | Yes (constructor param) | N/A (QUIC stream framing handles this) |
 | Unknown frame types | Returns `null`, not added to list | Skipped gracefully (RFC 9114 section 7.2.8) |

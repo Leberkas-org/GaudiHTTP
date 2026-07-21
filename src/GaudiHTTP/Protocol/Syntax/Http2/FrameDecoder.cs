@@ -1,13 +1,13 @@
+using System.Buffers;
 using System.Buffers.Binary;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2;
 
 /// <summary>
 /// Stateful HTTP/2 frame decoder per RFC 9113 §4.1.
-/// Caller-owned buffer pattern: callers pass <see cref="ReadOnlyMemory{T}"/> and retain
-/// buffer ownership. Frame payloads are zero-copy slices of the caller's memory when no
-/// remainder is involved; frames assembled from a buffered remainder reference the
-/// remainder buffer (valid until the next <see cref="DecodeAll"/> call).
+/// Accepts <see cref="ReadOnlySequence{T}"/> and returns a <see cref="SequencePosition"/>
+/// indicating how far into the input frames were fully decoded. Unconsumed trailing
+/// bytes are NOT buffered internally — the caller (or Pipe) retains them via AdvanceTo.
 /// The returned list is reused on every call — callers MUST fully consume it
 /// before the next DecodeAll and MUST NOT retain it.
 /// </summary>
@@ -28,66 +28,56 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
     private const int WindowUpdatePayloadSize = 4;
     private const int PadLengthFieldSize = 1;
 
-    private byte[]? _remainderBuffer;
-    private int _remainderOffset;
-    private int _remainderLength;
-
     private readonly List<Http2Frame> _frames = new(10);
 
     private int _awaitingContinuationStreamId;
 
-    public IReadOnlyList<Http2Frame> DecodeAll(ReadOnlyMemory<byte> input, out int bytesConsumed)
+    public IReadOnlyList<Http2Frame> DecodeAll(in ReadOnlySequence<byte> input, out SequencePosition consumed)
     {
         _frames.Clear();
-        bytesConsumed = 0;
 
-        if (input.Length == 0 && _remainderLength == 0)
+        if (input.IsEmpty)
         {
+            consumed = input.Start;
             return _frames;
         }
 
-        if (_remainderLength > 0)
+        if (input.IsSingleSegment)
         {
-            if (_remainderOffset > 0)
-            {
-                Buffer.BlockCopy(_remainderBuffer!, _remainderOffset, _remainderBuffer!, 0, _remainderLength);
-                _remainderOffset = 0;
-            }
-
-            DecodeWithRemainder(input);
+            consumed = DecodeFromSpan(input.First, input);
         }
         else
         {
-            DecodeFromInput(input);
+            consumed = DecodeFromSequence(input);
         }
 
-        bytesConsumed = input.Length;
         return _frames;
     }
 
-    private void DecodeFromInput(ReadOnlyMemory<byte> input)
+    private SequencePosition DecodeFromSpan(ReadOnlyMemory<byte> memory, in ReadOnlySequence<byte> sequence)
     {
+        var span = memory.Span;
         var offset = 0;
 
-        while (input.Length - offset >= FrameHeaderSize)
+        while (span.Length - offset >= FrameHeaderSize)
         {
-            var span = input.Span[offset..];
-            var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
+            var header = span[offset..];
+            var payloadLen = (header[0] << 16) | (header[1] << 8) | header[2];
 
             if (payloadLen > maxFrameSize)
             {
-                ThrowOversizedFrame(payloadLen, offset, input.Length, input.Span);
+                ThrowOversizedFrame(payloadLen);
             }
 
-            if (input.Length - offset < FrameHeaderSize + payloadLen)
+            if (span.Length - offset < FrameHeaderSize + payloadLen)
             {
                 break;
             }
 
-            var type = (FrameType)span[3];
-            var flags = span[4];
-            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & StreamIdMask);
-            var payload = input.Slice(offset + FrameHeaderSize, payloadLen);
+            var type = (FrameType)header[3];
+            var flags = header[4];
+            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(header[5..]) & StreamIdMask);
+            var payload = memory.Slice(offset + FrameHeaderSize, payloadLen);
 
             var frame = CreateFrame(type, flags, streamId, payload);
             if (frame != null)
@@ -100,44 +90,57 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
             offset += FrameHeaderSize + payloadLen;
         }
 
-        var leftover = input.Length - offset;
-        if (leftover > 0)
-        {
-            _remainderOffset = 0;
-            _remainderLength = 0;
-            EnsureRemainderCapacity(leftover);
-            input.Span[offset..].CopyTo(_remainderBuffer);
-            _remainderLength = leftover;
-        }
+        return sequence.GetPosition(offset);
     }
 
-    private void DecodeWithRemainder(ReadOnlyMemory<byte> input)
+    private SequencePosition DecodeFromSequence(in ReadOnlySequence<byte> input)
     {
-        var needed = _remainderLength + input.Length;
-        EnsureRemainderCapacity(needed);
-        input.Span.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
-        _remainderLength = needed;
+        var reader = new SequenceReader<byte>(input);
 
-        while (_remainderLength - _remainderOffset >= FrameHeaderSize)
+        while (reader.Remaining >= FrameHeaderSize)
         {
-            var span = _remainderBuffer.AsSpan(_remainderOffset, _remainderLength - _remainderOffset);
-            var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
+            var checkpoint = reader.Position;
 
-            if (payloadLen > maxFrameSize)
+            Span<byte> headerBuf = stackalloc byte[FrameHeaderSize];
+            if (!reader.TryCopyTo(headerBuf))
             {
-                ThrowOversizedFrame(payloadLen, _remainderOffset, _remainderLength, span);
-            }
-
-            var totalLength = _remainderLength - _remainderOffset;
-            if (totalLength < FrameHeaderSize + payloadLen)
-            {
+                reader.Rewind(reader.Consumed - input.GetOffset(checkpoint));
                 break;
             }
 
-            var type = (FrameType)span[3];
-            var flags = span[4];
-            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & StreamIdMask);
-            var payload = _remainderBuffer.AsMemory(_remainderOffset + FrameHeaderSize, payloadLen);
+            var payloadLen = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2];
+
+            if (payloadLen > maxFrameSize)
+            {
+                ThrowOversizedFrame(payloadLen);
+            }
+
+            if (reader.Remaining - FrameHeaderSize < payloadLen)
+            {
+                reader = new SequenceReader<byte>(input.Slice(checkpoint));
+                return checkpoint;
+            }
+
+            reader.Advance(FrameHeaderSize);
+
+            var type = (FrameType)headerBuf[3];
+            var flags = headerBuf[4];
+            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(headerBuf[5..]) & StreamIdMask);
+
+            var payloadSeq = input.Slice(reader.Position, payloadLen);
+            ReadOnlyMemory<byte> payload;
+            if (payloadSeq.IsSingleSegment)
+            {
+                payload = payloadSeq.First;
+            }
+            else
+            {
+                var buf = new byte[payloadLen];
+                payloadSeq.CopyTo(buf);
+                payload = buf;
+            }
+
+            reader.Advance(payloadLen);
 
             var frame = CreateFrame(type, flags, streamId, payload);
             if (frame != null)
@@ -146,52 +149,24 @@ internal sealed class FrameDecoder(int maxFrameSize = (int)FrameDecoder.MaxMaxFr
                 UpdateContinuationState(frame);
                 _frames.Add(frame);
             }
-
-            _remainderOffset += FrameHeaderSize + payloadLen;
         }
 
-        _remainderLength -= _remainderOffset;
+        return reader.Position;
     }
 
-    private void EnsureRemainderCapacity(int needed)
+    private void ThrowOversizedFrame(int payloadLen)
     {
-        if (_remainderBuffer is null || _remainderBuffer.Length < needed + _remainderOffset)
-        {
-            var newBuffer = new byte[Math.Max(needed, 256)];
-            if (_remainderBuffer is not null && _remainderLength > 0)
-            {
-                _remainderBuffer.AsSpan(_remainderOffset, _remainderLength).CopyTo(newBuffer);
-                _remainderOffset = 0;
-            }
-
-            _remainderBuffer = newBuffer;
-        }
-    }
-
-    private void ThrowOversizedFrame(int payloadLen, int offset, int workingLength, ReadOnlySpan<byte> working)
-    {
-        var contextStart = Math.Max(0, offset - 16);
-        var contextLength = Math.Min(48, workingLength - contextStart);
-        var context = Convert.ToHexString(working.Slice(contextStart - (working.Length < workingLength ? 0 : offset - contextStart), Math.Min(contextLength, working.Length)));
         throw new HttpProtocolException(
-            $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}. "
-            + $"Decoder state: offset={offset}, workingLength={workingLength}, remainderOffset={_remainderOffset}, "
-            + $"remainderLength={_remainderLength}.");
+            $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {maxFrameSize}.");
     }
 
     public void Reset()
     {
-        _remainderBuffer = null;
-        _remainderOffset = 0;
-        _remainderLength = 0;
         _awaitingContinuationStreamId = 0;
     }
 
     public void Dispose()
     {
-        _remainderBuffer = null;
-        _remainderOffset = 0;
-        _remainderLength = 0;
     }
 
     private static Http2Frame? CreateFrame(FrameType type, byte flags, int streamId, ReadOnlyMemory<byte> payload)

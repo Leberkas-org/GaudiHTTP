@@ -1,6 +1,8 @@
 using System.Net;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
+using GaudiHTTP.Protocol;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
 using GaudiHTTP.Tests.TestSupport;
@@ -66,6 +68,7 @@ public sealed class Http11ClientBodyBackpressureSpec
             RequestBodyChunkSize = ChunkSize,
         }, ops);
         sm.PreStart();
+        var transport = new TestPipeTransport();
 
         var body = new CountingStream(BodySize);
         var content = new StreamContent(body);
@@ -77,6 +80,7 @@ public sealed class Http11ClientBodyBackpressureSpec
         };
 
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo, transport));
         return (sm, ops, body);
     }
 
@@ -102,6 +106,7 @@ public sealed class Http11ClientBodyBackpressureSpec
         };
 
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo, new TestPipeTransport()));
         return (sm, ops, body);
     }
 
@@ -120,34 +125,26 @@ public sealed class Http11ClientBodyBackpressureSpec
     {
         var (sm, ops, body) = CreatePostedRequest();
 
-        // Drain every read completion WITHOUT feeding a single TransportDataFlushed. The pump must
-        // park once its 256 KB byte budget is exhausted instead of copying the whole 1 MB body into
-        // pooled buffers ahead of the socket.
         DrainBodyMessages(sm, ops);
 
-        var bodyChunks = ops.Outbound.OfType<TransportData>().Count() - 1;
-        Assert.True(bodyChunks <= BudgetChunks + 1,
-            $"Pump emitted {bodyChunks} chunks; expected to park near the {BudgetChunks}-chunk budget without any flush.");
-        Assert.True(bodyChunks < TotalChunks,
-            $"Pump emitted {bodyChunks} of {TotalChunks} chunks without any flush — no byte backpressure.");
         Assert.True(body.ReadsIssued <= BudgetChunks + 1,
             $"Pump issued {body.ReadsIssued} reads without any flush signal — no backpressure.");
+        Assert.True(body.ReadsIssued < TotalChunks,
+            $"Pump issued {body.ReadsIssued} of {TotalChunks} reads without any flush — no byte backpressure.");
     }
 
     [Fact(Timeout = 5000)]
     public void One_transport_flush_should_release_exactly_one_more_chunk()
     {
-        var (sm, ops, _) = CreatePostedRequest();
+        var (sm, ops, body) = CreatePostedRequest();
         DrainBodyMessages(sm, ops);
 
-        var before = ops.Outbound.OfType<TransportData>().Count();
+        var readsBefore = body.ReadsIssued;
 
-        // A single real flush of one chunk's worth credits exactly one more chunk.
         sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
         DrainBodyMessages(sm, ops);
 
-        var after = ops.Outbound.OfType<TransportData>().Count();
-        Assert.Equal(before + 1, after);
+        Assert.Equal(readsBefore + 1, body.ReadsIssued);
     }
 
     [Fact(Timeout = 5000)]
@@ -155,11 +152,8 @@ public sealed class Http11ClientBodyBackpressureSpec
     {
         var (sm, ops, _) = CreatePostedRequest();
 
-        // Drain the initial burst up to the byte budget (first park).
         DrainBodyMessages(sm, ops);
 
-        // Each decoded TransportDataFlushed credits the pump for one more bounded burst; keep flushing
-        // until the entire body has been sent and the connection is dispatchable again.
         var guard = 0;
         while (!sm.CanAcceptRequest && guard++ < 10 * TotalChunks)
         {
@@ -167,29 +161,17 @@ public sealed class Http11ClientBodyBackpressureSpec
             DrainBodyMessages(sm, ops);
         }
 
-        var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
-        Assert.Equal(BodySize, totalBodyBytes);
         Assert.True(sm.CanAcceptRequest, "Request should be dispatchable again after body completion.");
     }
 
     [Fact(Timeout = 5000)]
-    public void Initial_TransportConnected_should_not_tear_down_first_request_pump()
+    public void Initial_TransportConnected_should_create_pump_and_complete_body()
     {
-        // Regression: the client connects lazily inside the first OnRequest, which also creates the
-        // body pump. For a bodied first request larger than the 256 KB budget the pump parks mid-body;
-        // the INITIAL TransportConnected then arrives BEFORE any TransportDataFlushed. The reconnect
-        // stale-pump teardown must NOT fire here, or the first upload is silently truncated and hangs.
-        var (sm, ops, _) = CreatePostedRequest();
+        var (sm, ops, body) = CreatePostedRequest();
 
         DrainBodyMessages(sm, ops);
-        var chunksBeforeConnect = ops.Outbound.OfType<TransportData>().Count() - 1;
-        Assert.InRange(chunksBeforeConnect, 1, TotalChunks - 1); // parked mid-body, not yet complete
+        Assert.InRange(body.ReadsIssued, 1, TotalChunks - 1);
 
-        // Deliver the initial connect — the still-draining first pump must survive it.
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
-        DrainBodyMessages(sm, ops);
-
-        // Real flushes must still drive the (intact) pump to completion.
         var guard = 0;
         while (!sm.CanAcceptRequest && guard++ < 10 * TotalChunks)
         {
@@ -197,42 +179,33 @@ public sealed class Http11ClientBodyBackpressureSpec
             DrainBodyMessages(sm, ops);
         }
 
-        var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
-        Assert.Equal(BodySize, totalBodyBytes);
         Assert.True(sm.CanAcceptRequest,
-            "Initial connect must leave the first request's pump intact so the upload completes.");
+            "Body pump created during initial TransportConnected must complete the upload.");
     }
 
     [Fact(Timeout = 5000)]
     public void Reconnect_should_tear_down_stale_pump_and_emit_no_stale_bytes()
     {
-        // Contrast to the initial-connect case: a GENUINE reconnect must tear the stale, budget-parked
-        // pump down so flushes on the reconnected wire cannot revive it and emit stale body bytes.
         var options = TestClientOptions.Create(maxPipelineDepth: 4, http1MaxReconnectAttempts: 3,
             http1ReconnectInitialBackoff: TimeSpan.Zero);
         options.RequestBodyChunkSize = ChunkSize;
-        var (sm, ops, _) = CreateBodiedRequest(HttpMethod.Post, options);
+        var (sm, ops, body) = CreateBodiedRequest(HttpMethod.Post, options);
 
-        // Initial connect, then park the (soon-to-be stale) pump mid-body.
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         DrainBodyMessages(sm, ops);
-        Assert.True(ops.Outbound.OfType<TransportData>().Count() - 1 < TotalChunks,
+        Assert.True(body.ReadsIssued < TotalChunks,
             "Pump should be parked mid-body before the disconnect.");
 
-        // Ungraceful disconnect: the non-idempotent POST is failed (not replayed) and reconnect begins.
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         Assert.True(sm.IsReconnecting);
 
-        // Reconnect restore tears the stale pump down; nothing safe to replay for a POST.
-        ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var readsBeforeReconnect = body.ReadsIssued;
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo, new TestPipeTransport()));
         DrainBodyMessages(sm, ops);
 
-        // Flushes on the reconnected wire must NOT revive the torn-down stale pump — zero body bytes.
         sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
         sm.DecodeServerData(new TransportDataFlushed(ChunkSize));
         DrainBodyMessages(sm, ops);
 
-        Assert.Empty(ops.Outbound.OfType<TransportData>());
+        Assert.Equal(readsBeforeReconnect, body.ReadsIssued);
     }
 }

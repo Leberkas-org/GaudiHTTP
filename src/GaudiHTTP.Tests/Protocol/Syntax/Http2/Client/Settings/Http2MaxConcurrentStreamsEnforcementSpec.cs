@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.TestSupport;
@@ -96,7 +97,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
     public void Http2FrameDecoder_should_succeed_when_single_stream_under_default_limit()
     {
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(MakeResponseHeadersBytes(streamId: 1, endStream: true), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeResponseHeadersBytes(streamId: 1, endStream: true)), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -116,7 +117,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
             MakeResponseHeadersBytes(streamId: 3, endStream: false),
             MakeResponseHeadersBytes(streamId: 5, endStream: false));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
         foreach (var frame in frames)
         {
             TrackStreamState(frame, openStreams, closedStreams);
@@ -149,7 +150,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
             MakeResponseHeadersBytes(streamId: 1, endStream: false),
             MakeResponseHeadersBytes(streamId: 3, endStream: false));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
         foreach (var frame in frames)
         {
             TrackStreamState(frame, openStreams, closedStreams);
@@ -159,7 +160,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
 
         // Now set limit to 1 (below current active count)
         // Existing streams should still be processable (DATA should work)
-        var dataFrames = decoder.DecodeAll(MakeDataBytes(streamId: 1, endStream: true), out _);
+        var dataFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeDataBytes(streamId: 1, endStream: true)), out _);
         TrackStreamState(dataFrames[0], openStreams, closedStreams);
         Assert.Single(openStreams); // Stream 1 closed, stream 3 still open
     }
@@ -174,12 +175,12 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
         const int maxConcurrent = 1;
 
         // Open stream 1
-        var h1 = decoder.DecodeAll(MakeResponseHeadersBytes(streamId: 1, endStream: false), out _);
+        var h1 = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeResponseHeadersBytes(streamId: 1, endStream: false)), out _);
         TrackStreamState(h1[0], openStreams, closedStreams);
         Assert.Single(openStreams);
 
         // Close stream 1 via END_STREAM DATA
-        var d1 = decoder.DecodeAll(MakeDataBytes(streamId: 1, endStream: true), out _);
+        var d1 = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeDataBytes(streamId: 1, endStream: true)), out _);
         TrackStreamState(d1[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
 
@@ -197,7 +198,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
         var currentLimit = int.MaxValue;
 
         // Process SETTINGS with MaxConcurrentStreams=5
-        var frames = decoder.DecodeAll(MakeMaxConcurrentStreamsSettingsBytes(5), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeMaxConcurrentStreamsSettingsBytes(5)), out _);
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
         currentLimit = ExtractMaxConcurrentStreams(frame, currentLimit);
 
@@ -212,12 +213,12 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
         var currentLimit = int.MaxValue;
 
         // First SETTINGS
-        var frames1 = decoder.DecodeAll(MakeMaxConcurrentStreamsSettingsBytes(5), out _);
+        var frames1 = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeMaxConcurrentStreamsSettingsBytes(5)), out _);
         currentLimit = ExtractMaxConcurrentStreams(Assert.IsType<SettingsFrame>(frames1[0]), currentLimit);
         Assert.Equal(5, currentLimit);
 
         // Second SETTINGS
-        var frames2 = decoder.DecodeAll(MakeMaxConcurrentStreamsSettingsBytes(20), out _);
+        var frames2 = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeMaxConcurrentStreamsSettingsBytes(20)), out _);
         currentLimit = ExtractMaxConcurrentStreams(Assert.IsType<SettingsFrame>(frames2[0]), currentLimit);
         Assert.Equal(20, currentLimit);
     }
@@ -235,7 +236,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
             MakeResponseHeadersBytes(streamId: 1, endStream: false),
             MakeResponseHeadersBytes(streamId: 3, endStream: false));
 
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
         foreach (var frame in frames)
         {
             TrackStreamState(frame, openStreams, closedStreams);
@@ -244,12 +245,12 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
         Assert.Equal(2, openStreams.Count);
 
         // RST_STREAM on stream 1
-        var rstFrames = decoder.DecodeAll(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize(), out _);
+        var rstFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize()), out _);
         TrackStreamState(rstFrames[0], openStreams, closedStreams);
         Assert.Single(openStreams);
 
         // RST_STREAM on stream 3
-        var rstFrames2 = decoder.DecodeAll(new RstStreamFrame(3, Http2ErrorCode.Cancel).Serialize(), out _);
+        var rstFrames2 = decoder.DecodeAll(new ReadOnlySequence<byte>(new RstStreamFrame(3, Http2ErrorCode.Cancel).Serialize()), out _);
         TrackStreamState(rstFrames2[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
     }
@@ -263,7 +264,7 @@ public sealed class Http2MaxConcurrentStreamsEnforcementSpec
         var closedStreams = new HashSet<int>();
 
         // First stream closes immediately
-        var h1 = decoder.DecodeAll(MakeResponseHeadersBytes(streamId: 1, endStream: true), out _);
+        var h1 = decoder.DecodeAll(new ReadOnlySequence<byte>(MakeResponseHeadersBytes(streamId: 1, endStream: true)), out _);
         TrackStreamState(h1[0], openStreams, closedStreams);
         Assert.Empty(openStreams);
 

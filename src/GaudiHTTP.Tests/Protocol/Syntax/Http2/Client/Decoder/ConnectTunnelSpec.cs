@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -30,7 +31,7 @@ public sealed class ConnectTunnelSpec
     {
         var decoder = new FrameDecoder();
         var frames = decoder.DecodeAll(
-            new RstStreamFrame(1, Http2ErrorCode.ConnectError).Serialize(), out _);
+            new ReadOnlySequence<byte>(new RstStreamFrame(1, Http2ErrorCode.ConnectError).Serialize()), out _);
 
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.ConnectError, rst.ErrorCode);
@@ -42,7 +43,7 @@ public sealed class ConnectTunnelSpec
     {
         var decoder = new FrameDecoder();
         var frames = decoder.DecodeAll(
-            new DataFrame(1, "tunnel data"u8.ToArray(), endStream: false).Serialize(), out _);
+            new ReadOnlySequence<byte>(new DataFrame(1, "tunnel data"u8.ToArray(), endStream: false).Serialize()), out _);
 
         var data = Assert.IsType<DataFrame>(frames[0]);
         Assert.Equal(1, data.StreamId);

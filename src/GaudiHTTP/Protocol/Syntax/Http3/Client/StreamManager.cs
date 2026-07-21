@@ -46,7 +46,8 @@ internal sealed class StreamManager(
             _streamDecoders[streamId] = decoder;
         }
 
-        return decoder.DecodeAll(buffer.Memory, out _);
+        var seq = new ReadOnlySequence<byte>(buffer.Memory);
+        return decoder.DecodeAll(in seq, out _);
     }
 
     /// <summary>

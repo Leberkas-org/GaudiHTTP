@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -14,13 +13,10 @@ public sealed class Http11ServerTrailerSpec
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
         => new(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-    private static void SendRequest(Http11ServerStateMachine sm)
+    private static InMemoryTransport SendRequest(Http11ServerStateMachine sm, FakeServerOps ops)
     {
         var data = Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        return sm.ConnectTransport(data, ops);
     }
 
     private static IFeatureCollection ChunkedResponseWithTrailers(
@@ -47,18 +43,14 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
 
-        var wireBytes = ops.Outbound
-            .OfType<TransportData>()
-            .SelectMany(td => td.Buffer.Span.ToArray())
-            .ToArray();
-        var wireText = Encoding.ASCII.GetString(wireBytes);
+        var wireText = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         Assert.DoesNotContain("0\r\n\r\n", wireText);
         Assert.Contains("0\r\n", wireText);
@@ -71,18 +63,14 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         // No trailers added
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
 
-        var wireBytes = ops.Outbound
-            .OfType<TransportData>()
-            .SelectMany(td => td.Buffer.Span.ToArray())
-            .ToArray();
-        var wireText = Encoding.ASCII.GetString(wireBytes);
+        var wireText = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         Assert.Contains("0\r\n\r\n", wireText);
     }
@@ -93,7 +81,7 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
@@ -102,11 +90,7 @@ public sealed class Http11ServerTrailerSpec
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
 
-        var wireBytes = ops.Outbound
-            .OfType<TransportData>()
-            .SelectMany(td => td.Buffer.Span.ToArray())
-            .ToArray();
-        var wireText = Encoding.ASCII.GetString(wireBytes);
+        var wireText = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         Assert.Contains("x-checksum: abc123\r\n", wireText);
         Assert.DoesNotContain("transfer-encoding: chunked", wireText);
@@ -119,7 +103,7 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        _ = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
@@ -135,7 +119,7 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         trailerFeature.Trailers["x-checksum"] = new StringValues("abc123");
@@ -143,11 +127,7 @@ public sealed class Http11ServerTrailerSpec
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
 
-        var wireBytes = ops.Outbound
-            .OfType<TransportData>()
-            .SelectMany(td => td.Buffer.Span.ToArray())
-            .ToArray();
-        var wireText = Encoding.ASCII.GetString(wireBytes);
+        var wireText = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         // The Trailer response header should announce the trailer field names
         // Split headers and body to avoid matching trailer names in the trailer section
@@ -164,15 +144,14 @@ public sealed class Http11ServerTrailerSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var trailerFeature = new GaudiHttpResponseTrailersFeature();
         // No trailers
 
         sm.OnResponse(ChunkedResponseWithTrailers("hello"u8.ToArray(), trailerFeature));
 
-        var headerData = ops.Outbound.OfType<TransportData>().First();
-        var headerText = Encoding.ASCII.GetString(headerData.Buffer.Span);
+        var headerText = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         Assert.DoesNotContain("Trailer:", headerText);
     }

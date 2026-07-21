@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Net;
 using System.Runtime.CompilerServices;
 using Akka.Actor;
@@ -29,11 +30,6 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
     private bool _completeAfterFlush;
 
-    // Requests pushed to the handler (_outRequest) minus responses received on _inResponse. The
-    // stage refuses to dispatch more than the state machine's MaxConcurrentRequests concurrently;
-    // HTTP/1.x reports 1, which serializes pipelined dispatch so the shared, completion-ordered
-    // ApplicationBridgeStage can never reorder responses (RFC 9112 §9.3.2). Multiplexed protocols
-    // leave the limit unbounded, so this counter never gates them.
     private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
@@ -197,6 +193,11 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
             return;
         }
 
+        if (_requestQueue.Count > 0)
+        {
+            TryPushRequest();
+        }
+
         TryPullResponse();
     }
 
@@ -237,7 +238,6 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
                 }
             }
         }
-
         try
         {
             _sm.DecodeClientData(item);
@@ -379,8 +379,6 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
             return;
         }
 
-        // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
-        // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
         TryPushOutbound();
     }
 
@@ -552,14 +550,7 @@ internal sealed class HttpServerConnectionStageLogic<TSM> : TimerGraphStageLogic
             OnConnectionClosed();
         }
 
-        while (_outboundQueue.Count > 0)
-        {
-            if (_outboundQueue.Dequeue() is TransportData td)
-            {
-                td.Buffer.Dispose();
-                td.Return();
-            }
-        }
+        _outboundQueue.Clear();
 
         while (_requestQueue.Count > 0)
         {

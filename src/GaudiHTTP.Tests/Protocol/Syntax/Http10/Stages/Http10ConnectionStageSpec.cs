@@ -29,6 +29,15 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         return buf;
     }
 
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
+    // manually, so they must inject this after ConnectTransport before expecting encoded data.
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 80),
+            TransportProtocol.Tcp));
+
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10ConnectionStage_should_encode_request_and_emit_on_network_outlet()
@@ -59,7 +68,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-        await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         // Pull on network outlet to signal demand
         netSubscription.Request(10);
@@ -70,6 +79,9 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
 
         // ConnectItem emitted first when endpoint is known from the first request
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+
+        // Simulate transport connect handshake completing — request encoding is deferred until this
+        serverSubscription.SendNext(MakeTransportConnected());
 
         // Should get TransportBuffer on network outlet
         var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -119,6 +131,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
 
         // Consume outbound items (ConnectTransport + TransportData)
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send response from server
@@ -172,6 +185,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
 
         // ConnectTransport + TransportBuffer
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         serverSubscription.SendNext(

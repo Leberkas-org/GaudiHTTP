@@ -1,5 +1,6 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
+using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
@@ -16,6 +17,15 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
         {
             Version = new Version(2, 0)
         };
+
+    // The client SM defers request encoding until it observes TransportConnected on the network
+    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
+    // manually, so they must inject this after ConnectTransport before expecting encoded data.
+    private static TransportConnected MakeTransportConnected()
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 0),
+            new IPEndPoint(IPAddress.Loopback, 443),
+            TransportProtocol.Tcp));
 
     [Fact(Timeout = 10000)]
     [Trait("RFC", "RFC9113-6.8")]
@@ -50,6 +60,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
         appSub.SendNext(MakeRequest());
         var connectItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connectItem);
+        serverSub.SendNext(MakeTransportConnected());
         var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<TransportData>(preface);
         var headers = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -95,6 +106,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
 
         appSub.SendNext(MakeRequest());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // ConnectTransport
+        serverSub.SendNext(MakeTransportConnected());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // preface
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // HEADERS frame
 

@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -15,9 +14,11 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
 
         Assert.False(sm.ShouldComplete);
     }
@@ -28,9 +29,11 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer = MakeBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
 
         Assert.True(sm.ShouldComplete);
     }
@@ -41,10 +44,11 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer =
-            MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
 
         Assert.True(sm.ShouldComplete);
     }
@@ -55,9 +59,11 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -68,16 +74,15 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer = MakeBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
 
         var context = ServerTestContext.CreateResponse();
         sm.OnResponse(context);
 
-        Assert.Single(ops.Outbound);
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -86,24 +91,16 @@ public sealed class Http11ServerConnectionPersistenceSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
-        var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"),
+            ops
+        );
         Assert.True(sm.CanAcceptResponse);
 
         sm.Cleanup();
 
         Assert.False(sm.CanAcceptResponse);
-    }
-
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
     }
 }
 

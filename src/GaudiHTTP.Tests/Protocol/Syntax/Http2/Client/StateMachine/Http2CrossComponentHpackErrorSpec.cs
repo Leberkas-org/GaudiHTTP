@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -80,7 +81,7 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var headersFrame = BuildHeadersFrame(1, corruptHpack);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(headersFrame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -98,7 +99,7 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var headersFrame = BuildHeadersFrame(1, corruptHpack);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(headersFrame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -114,7 +115,7 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var headersFrame = BuildHeadersFrame(3, corruptHpack);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(headersFrame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -134,7 +135,7 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var headersFrame = BuildHeadersFrame(1, corruptHpack);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(headersFrame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -150,14 +151,14 @@ public sealed class Http2CrossComponentHpackErrorSpec
 
         // Open stream 1 successfully first
         var goodHeaders = BuildHeadersFrame(1, ValidStatusHeaderBlock(), endHeaders: true);
-        var frames1 = decoder.DecodeAll(goodHeaders, out _);
+        var frames1 = decoder.DecodeAll(new ReadOnlySequence<byte>(goodHeaders), out _);
         Assert.Single(frames1);
 
         // Now trigger HPACK failure on stream 5
         var corruptHpack = new byte[] { 0x80 };
         var badHeadersFrame = BuildHeadersFrame(5, corruptHpack);
 
-        var frames2 = decoder.DecodeAll(badHeadersFrame, out _);
+        var frames2 = decoder.DecodeAll(new ReadOnlySequence<byte>(badHeadersFrame), out _);
         var frame = Assert.IsType<HeadersFrame>(frames2[0]);
 
         var hpackDecoder = new HpackDecoder();
@@ -175,12 +176,12 @@ public sealed class Http2CrossComponentHpackErrorSpec
 
         // Open stream 1
         var headers = BuildHeadersFrame(1, ValidStatusHeaderBlock());
-        var hFrames = decoder.DecodeAll(headers, out _);
+        var hFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(headers), out _);
         Assert.Single(hFrames);
 
         // Send 100 bytes of DATA
         var data = BuildDataFrame(1, new byte[100]);
-        var dFrames = decoder.DecodeAll(data, out _);
+        var dFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(data), out _);
         Assert.Single(dFrames);
 
         var dataFrame = Assert.IsType<DataFrame>(dFrames[0]);
@@ -194,14 +195,14 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var decoder = new FrameDecoder();
 
         // Open streams 1 and 3
-        var h1 = decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
-        var h3 = decoder.DecodeAll(BuildHeadersFrame(3, ValidStatusHeaderBlock()), out _);
+        var h1 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(1, ValidStatusHeaderBlock())), out _);
+        var h3 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(3, ValidStatusHeaderBlock())), out _);
 
         Assert.Single(h1);
         Assert.Single(h3);
 
         // DATA on stream 3 should be decodable independently
-        var d3 = decoder.DecodeAll(BuildDataFrame(3, new byte[50]), out _);
+        var d3 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildDataFrame(3, new byte[50])), out _);
         var dataFrame = Assert.IsType<DataFrame>(d3[0]);
         Assert.Equal(3, dataFrame.StreamId);
         Assert.Equal(50, dataFrame.Data.Length);
@@ -214,15 +215,15 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var decoder = new FrameDecoder();
 
         // Open both streams
-        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
-        decoder.DecodeAll(BuildHeadersFrame(3, ValidStatusHeaderBlock()), out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(1, ValidStatusHeaderBlock())), out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(3, ValidStatusHeaderBlock())), out _);
 
         // DATA on stream 1
-        var d1 = decoder.DecodeAll(BuildDataFrame(1, new byte[10]), out _);
+        var d1 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildDataFrame(1, new byte[10])), out _);
         Assert.Single(d1);
 
         // Stream 3 window should still allow data
-        var d3 = decoder.DecodeAll(BuildDataFrame(3, new byte[50]), out _);
+        var d3 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildDataFrame(3, new byte[50])), out _);
         Assert.Single(d3);
         var dataFrame = Assert.IsType<DataFrame>(d3[0]);
         Assert.Equal(3, dataFrame.StreamId);
@@ -235,17 +236,17 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var decoder = new FrameDecoder();
 
         // Open stream 1
-        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(1, ValidStatusHeaderBlock())), out _);
 
         // WINDOW_UPDATE on stream 1
-        var wu1 = decoder.DecodeAll(BuildWindowUpdateFrame(1, 1000), out _);
+        var wu1 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildWindowUpdateFrame(1, 1000)), out _);
         var frame1 = Assert.IsType<WindowUpdateFrame>(wu1[0]);
         Assert.Equal(1, frame1.StreamId);
         Assert.Equal(1000, frame1.Increment);
 
         // Stream 3 is unaffected (idle, no explicit window yet)
         // WINDOW_UPDATE on stream 0 (connection) should not affect stream 3's logical window
-        var wu0 = decoder.DecodeAll(BuildWindowUpdateFrame(0, 5000), out _);
+        var wu0 = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildWindowUpdateFrame(0, 5000)), out _);
         var frame0 = Assert.IsType<WindowUpdateFrame>(wu0[0]);
         Assert.Equal(0, frame0.StreamId);
     }
@@ -257,10 +258,10 @@ public sealed class Http2CrossComponentHpackErrorSpec
         var decoder = new FrameDecoder();
 
         // Open stream 1
-        decoder.DecodeAll(BuildHeadersFrame(1, ValidStatusHeaderBlock()), out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(1, ValidStatusHeaderBlock())), out _);
 
         // WINDOW_UPDATE on stream 0 (connection level)
-        var wu = decoder.DecodeAll(BuildWindowUpdateFrame(0, 5000), out _);
+        var wu = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildWindowUpdateFrame(0, 5000)), out _);
         var frame = Assert.IsType<WindowUpdateFrame>(wu[0]);
         Assert.Equal(0, frame.StreamId);
         Assert.Equal(5000, frame.Increment);

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -10,7 +11,7 @@ public sealed class Http2FuzzHpackBoundarySpec
     {
         try
         {
-            decoder.DecodeAll(frame, out _);
+            decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         }
         catch (HttpProtocolException)
         {
@@ -184,7 +185,7 @@ public sealed class Http2FuzzHpackBoundarySpec
         var frame = BuildRawFrame(0x8, 0, 0, payload);
 
         // Decoder decodes the frame successfully; caller must enforce window invariant.
-        var framesDecoded = decoder.DecodeAll(frame, out _);
+        var framesDecoded = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var wu = Assert.IsType<WindowUpdateFrame>(Assert.Single(framesDecoded));
         Assert.Equal(0x7FFFFFFF, wu.Increment);
 
@@ -202,7 +203,7 @@ public sealed class Http2FuzzHpackBoundarySpec
 
         // Open stream 1 first with HEADERS.
         var openFrame = BuildHeadersFrame(1, Status200HpackBlock);
-        decoder.DecodeAll(openFrame, out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(openFrame), out _);
 
         // Initial stream send window = 65535.
         // WINDOW_UPDATE of 0x7FFFFFFF overflows the stream window.
@@ -210,7 +211,7 @@ public sealed class Http2FuzzHpackBoundarySpec
         BinaryPrimitives.WriteUInt32BigEndian(payload, 0x7FFFFFFF);
         var frame = BuildRawFrame(0x8, 0, 1, payload);
 
-        var framesDecoded = decoder.DecodeAll(frame, out _);
+        var framesDecoded = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var wu = Assert.IsType<WindowUpdateFrame>(Assert.Single(framesDecoded));
 
         // Explicit enforcement: stream window overflow check.
@@ -228,7 +229,7 @@ public sealed class Http2FuzzHpackBoundarySpec
         var payload = new byte[4]; // all zeros → increment = 0
         var frame = BuildRawFrame(0x8, 0, 0, payload);
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -239,7 +240,7 @@ public sealed class Http2FuzzHpackBoundarySpec
 
         // RFC 9113 §6.5.2: INITIAL_WINDOW_SIZE max = 2^31-1 = 2,147,483,647.
         var frame = BuildSettingsFrame(false, [(0x4, 0x7FFFFFFF)]);
-        var framesDecoded = decoder.DecodeAll(frame, out _);
+        var framesDecoded = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var settings = Assert.Single(framesDecoded);
         Assert.IsType<SettingsFrame>(settings);
     }
@@ -254,7 +255,7 @@ public sealed class Http2FuzzHpackBoundarySpec
         // rejected at decode (FLOW_CONTROL_ERROR), not surfaced to the caller.
         var frame = BuildSettingsFrame(false, [(0x4, 0x80000000)]);
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -318,7 +319,7 @@ public sealed class Http2FuzzHpackBoundarySpec
 
         // Set HEADER_TABLE_SIZE=0 via SETTINGS — dynamic table must be disabled.
         var settingsFrame = BuildSettingsFrame(false, [(0x1, 0)]);
-        decoder.DecodeAll(settingsFrame, out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(settingsFrame), out _);
 
         // Send HEADERS with DTS=0 update (acknowledging the SETTINGS change) + :status 200.
         var block = new byte[] { 0x20, 0x88 }; // DTS=0 update, then indexed :status 200

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http;
@@ -62,6 +63,25 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private bool _awaitingPingAck;
     private long _pingSentTimestamp;
+
+    internal EmitBytesDelegate? EmitData { get; set; }
+
+    private byte[] _scratch = new byte[64 * 1024];
+
+    private void EmitBytes(ReadOnlySpan<byte> data)
+    {
+        EmitData!(data);
+    }
+
+    private Span<byte> EnsureScratch(int size)
+    {
+        if (_scratch.Length < size)
+        {
+            _scratch = new byte[size];
+        }
+
+        return _scratch.AsSpan();
+    }
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
@@ -149,7 +169,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                 memory = SkipConnectionPreface(memory);
             }
 
-            var frames = _frameDecoder.DecodeAll(memory, out _);
+            var seq = new ReadOnlySequence<byte>(memory);
+            var frames = _frameDecoder.DecodeAll(in seq, out _);
             for (var i = 0; i < frames.Count; i++)
             {
                 ProcessFrame(frames[i]);
@@ -179,6 +200,72 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             // RFC 9113 §5.4.1: any other framing/protocol violation is connection-fatal.
             TerminateConnection(Http2ErrorCode.ProtocolError, e.Message);
         }
+    }
+
+    public SequencePosition DecodeClientData(in ReadOnlySequence<byte> data)
+    {
+        try
+        {
+            var input = data;
+
+            if (!_prefaceConsumed)
+            {
+                input = SkipConnectionPreface(input);
+            }
+
+            var frames = _frameDecoder.DecodeAll(in input, out var consumed);
+            for (var i = 0; i < frames.Count; i++)
+            {
+                ProcessFrame(frames[i]);
+            }
+
+            return consumed;
+        }
+        catch (StreamProtocolException e)
+        {
+            // RFC 9113 §5.4.2: stream-scoped error - reset just that stream, keep the connection.
+            EmitRstStream(e.StreamId, (Http2ErrorCode)e.ErrorCode);
+            return data.End;
+        }
+        catch (ConnectionProtocolException e)
+        {
+            TerminateConnection((Http2ErrorCode)e.ErrorCode, e.Message);
+            return data.End;
+        }
+        catch (HpackException e)
+        {
+            TerminateConnection(Http2ErrorCode.CompressionError, e.Message);
+            return data.End;
+        }
+        catch (HuffmanException e)
+        {
+            TerminateConnection(Http2ErrorCode.CompressionError, e.Message);
+            return data.End;
+        }
+        catch (HttpProtocolException e)
+        {
+            TerminateConnection(Http2ErrorCode.ProtocolError, e.Message);
+            return data.End;
+        }
+    }
+
+    private ReadOnlySequence<byte> SkipConnectionPreface(in ReadOnlySequence<byte> data)
+    {
+        _prefaceConsumed = true;
+
+        if (data.Length >= ConnectionPrefaceMagic.Length)
+        {
+            var prefaceSlice = data.Slice(data.Start, ConnectionPrefaceMagic.Length);
+            Span<byte> buf = stackalloc byte[ConnectionPrefaceMagic.Length];
+            prefaceSlice.CopyTo(buf);
+
+            if (buf.SequenceEqual(ConnectionPrefaceMagic))
+            {
+                return data.Slice(ConnectionPrefaceMagic.Length);
+            }
+        }
+
+        return data;
     }
 
     private void TerminateConnection(Http2ErrorCode errorCode, string reason)
@@ -1102,8 +1189,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         var frameCount = (body.Length + maxFrame - 1) / maxFrame;
         var totalWireSize = body.Length + frameCount * headerSize;
 
-        var buf = WireBuffer.Rent(totalWireSize);
-        var dest = buf.FullMemory.Span;
+        var dest = EnsureScratch(totalWireSize);
         var offset = 0;
         var remaining = body;
         var rateActive = false;
@@ -1138,8 +1224,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             ObserveRate(_responseRate, streamId, body.Length);
         }
 
-        buf.Length = offset;
-        _ops.OnOutbound(TransportData.Rent(buf));
+        EmitBytes(dest[..offset]);
     }
 
     private void EmitFrame(Http2Frame frame)
@@ -1156,11 +1241,10 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
 
         var totalSize = frame.SerializedSize;
-        var buf = WireBuffer.Rent(totalSize);
-        var span = buf.FullMemory.Span;
-        frame.WriteTo(ref span);
-        buf.Length = totalSize;
-        _ops.OnOutbound(TransportData.Rent(buf));
+        var span = EnsureScratch(totalSize);
+        var writeSpan = span;
+        frame.WriteTo(ref writeSpan);
+        EmitBytes(span[..totalSize]);
     }
 
     /// <summary>

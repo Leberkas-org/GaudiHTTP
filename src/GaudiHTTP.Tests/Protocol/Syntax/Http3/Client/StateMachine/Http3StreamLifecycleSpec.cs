@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -72,7 +73,7 @@ public sealed class Http3StreamLifecycleSpec
     {
         var decoder = new FrameDecoder();
         var data = new DataFrame("test"u8.ToArray());
-        var result = decoder.DecodeAll(data.Serialize(), out _);
+        var result = decoder.DecodeAll(new ReadOnlySequence<byte>(data.Serialize()), out _);
         Assert.Single(result);
         var frame = Assert.IsType<DataFrame>(result[0]);
         Assert.Equal(4, frame.Data.Length);

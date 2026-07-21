@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
@@ -49,7 +50,7 @@ internal static class Http2ConnectionTestHelper
                     continue;
                 }
 
-                var frames = decoder.DecodeAll(buffer.Memory, out _);
+                var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(buffer.Memory), out _);
                 result.AddRange(frames);
             }
         }

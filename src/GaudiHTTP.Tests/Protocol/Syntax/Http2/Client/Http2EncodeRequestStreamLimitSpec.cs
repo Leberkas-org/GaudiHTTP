@@ -17,6 +17,7 @@ public sealed class Http2EncodeRequestStreamLimitSpec
         var mgr = new Http2ClientSessionManager(opts, ops);
 
         mgr.EncodeRequest(new HttpRequestMessage(HttpMethod.Get, "https://localhost/a"));
+        mgr.FlushPendingInitialRequest();
 
         Assert.False(mgr.CanOpenStream);
     }

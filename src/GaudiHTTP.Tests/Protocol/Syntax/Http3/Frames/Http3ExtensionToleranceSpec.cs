@@ -1,4 +1,6 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http3;
+using GaudiHTTP.Tests.Protocol.Syntax;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Frames;
 
@@ -25,10 +27,11 @@ public sealed class Http3ExtensionToleranceSpec
         offset += payload.Length;
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
+        var sequence = new ReadOnlySequence<byte>(buf.AsMemory(0, offset));
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(frames); // Unknown type → skipped
-        Assert.Equal(offset, consumed);
+        Assert.Equal(offset, sequence.GetOffset(consumed));
     }
 
     [Theory(Timeout = 5000)]
@@ -51,10 +54,11 @@ public sealed class Http3ExtensionToleranceSpec
         offset += payload.Length;
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
+        var sequence = new ReadOnlySequence<byte>(buf.AsMemory(0, offset));
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(frames);
-        Assert.Equal(offset, consumed);
+        Assert.Equal(offset, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -67,10 +71,11 @@ public sealed class Http3ExtensionToleranceSpec
         offset += QuicVarInt.Encode(0, buf.AsSpan(offset)); // Zero-length payload
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
+        var sequence = new ReadOnlySequence<byte>(buf.AsMemory(0, offset));
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(frames);
-        Assert.Equal(offset, consumed);
+        Assert.Equal(offset, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -102,12 +107,13 @@ public sealed class Http3ExtensionToleranceSpec
         goaway.WriteTo(ref span);
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(wire, out var consumed);
+        var sequence = new ReadOnlySequence<byte>(wire);
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Equal(2, frames.Count); // Unknown frame filtered out
         Assert.IsType<DataFrame>(frames[0]);
         Assert.IsType<GoAwayFrame>(frames[1]);
-        Assert.Equal(totalSize, consumed);
+        Assert.Equal(totalSize, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -126,10 +132,11 @@ public sealed class Http3ExtensionToleranceSpec
         }
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
+        var sequence = new ReadOnlySequence<byte>(buf.AsMemory(0, offset));
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(frames); // All unknown → all filtered
-        Assert.Equal(offset, consumed);
+        Assert.Equal(offset, sequence.GetOffset(consumed));
     }
 
     [Theory(Timeout = 5000)]
@@ -210,7 +217,7 @@ public sealed class Http3ExtensionToleranceSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-9")]
-    public void FrameDecoder_should_reassemble_partial_unknown_frame()
+    public void FrameDecoder_should_skip_unknown_frame_split_across_segments()
     {
         var payload = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
         var buf = new byte[32];
@@ -220,20 +227,17 @@ public sealed class Http3ExtensionToleranceSpec
         payload.CopyTo(buf.AsSpan(offset));
         offset += payload.Length;
 
-        // Split at midpoint
+        // Split at midpoint into multi-segment sequence
         var mid = offset / 2;
-        var part1 = buf.AsMemory(0, mid);
-        var part2 = buf.AsMemory(mid, offset - mid);
+        var part1 = buf[..mid];
+        var part2 = buf[mid..offset];
 
         var decoder = new FrameDecoder();
+        var sequence = SequenceHelper.CreateMultiSegment(part1, part2);
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
-        var frames1 = decoder.DecodeAll(part1, out _);
-        Assert.Empty(frames1);
-        Assert.True(decoder.HasRemainder);
-
-        var frames2 = decoder.DecodeAll(part2, out _);
-        Assert.Empty(frames2); // Still unknown → filtered
-        Assert.False(decoder.HasRemainder);
+        Assert.Empty(frames); // Unknown → filtered
+        Assert.Equal(sequence.Length, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -258,7 +262,7 @@ public sealed class Http3ExtensionToleranceSpec
         var decoder = new FrameDecoder();
 
         // First decode: unknown frame is skipped, DATA frame decodes → single frame
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(buf.AsMemory(0, offset)), out _);
         var data = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(new byte[] { 0xCA, 0xFE }, data.Data.ToArray());
     }
@@ -278,9 +282,10 @@ public sealed class Http3ExtensionToleranceSpec
         offset += largePayload.Length;
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(buf.AsMemory(0, offset), out var consumed);
+        var sequence = new ReadOnlySequence<byte>(buf.AsMemory(0, offset));
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(frames);
-        Assert.Equal(offset, consumed);
+        Assert.Equal(offset, sequence.GetOffset(consumed));
     }
 }

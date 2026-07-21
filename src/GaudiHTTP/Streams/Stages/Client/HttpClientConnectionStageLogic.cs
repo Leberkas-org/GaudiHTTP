@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -159,17 +160,13 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
     {
         Tracing.For(TraceCategory).Debug(this, "network push");
         var item = Grab(_inNetwork);
+
         try
         {
             _sm.DecodeServerData(item);
         }
         catch (Exception ex)
         {
-            // An exception escaping DecodeServerData (protocol errors are handled inside it) leaves
-            // the decoder mid-buffer and desynchronized: continuing would misparse every subsequent
-            // byte and wedge in-flight response bodies forever (observed as the 8 MB H2 download
-            // stall when a poisoned pool buffer threw ObjectDisposedException here). Fail the stage
-            // so in-flight requests and handed-out body streams fault instead of hanging.
             Tracing.For(TraceCategory).Error(this, "DecodeServerData threw — failing connection: {0}", ex);
             FailStage(ex);
             return;
@@ -282,10 +279,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         }
     }
 
-    /// <summary>
-    /// True once every driver of stage completion has quiesced: no more requests can arrive,
-    /// nothing is in flight or reconnecting, and both queues are empty.
-    /// </summary>
     private bool IsFullyDrained =>
         IsClosed(_inRequest)
         && !_sm.HasInFlightRequests
@@ -297,17 +290,6 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
     {
         if (IsFullyDrained && !IsTimerActive(DrainCompleteTimerKey))
         {
-            // Do not CompleteStage() synchronously here: pump reads for the last
-            // response's streaming body (FlowControlledBodyPump/MultiplexedBodyPump/
-            // SerialBodyPump) complete off the stage thread and post their result back
-            // via IClientStageOperations.StageActor.Tell(...) (see SerialBodyPump.cs,
-            // PumpSlotLifecycle.StartRead). Such a message can already be in the actor's
-            // mailbox — queued behind the event that made all five conditions true — even
-            // though HasInFlightRequests/queue counts read as fully drained right now. This
-            // settle window gives that in-flight StageActor message a chance to be
-            // processed (re-arming state, e.g. HasInFlightRequests) before we tear the
-            // stage down; hard-completing immediately would deliver that message to a
-            // stopped stage actor and silently drop it.
             ScheduleOnce(DrainCompleteTimerKey, TimeSpan.FromMilliseconds(100));
         }
     }
@@ -358,14 +340,7 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
 
         Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} responses",
             _outboundQueue.Count, _responseQueue.Count);
-        while (_outboundQueue.Count > 0)
-        {
-            if (_outboundQueue.Dequeue() is TransportData td)
-            {
-                td.Buffer.Dispose();
-                td.Return();
-            }
-        }
+        _outboundQueue.Clear();
 
         while (_responseQueue.Count > 0)
         {
@@ -375,3 +350,4 @@ internal sealed class HttpClientConnectionStageLogic<TSM> : TimerGraphStageLogic
         _sm.Cleanup();
     }
 }
+

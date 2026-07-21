@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -17,36 +16,16 @@ public sealed class Http11Server1xxSpec
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
     }
 
-    private static TransportData Make(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return TransportData.Rent(buffer);
-    }
-
-    private static string Outbound(FakeServerOps ops)
-    {
-        var sb = new StringBuilder();
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                sb.Append(Encoding.ASCII.GetString(td.Buffer.Span));
-            }
-        }
-
-        return sb.ToString();
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.2")]
     public void SendInformational_should_emit_1xx_status_line_and_headers()
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        var transport = sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         Assert.Single(ops.Requests);
         var features = ops.Requests[0];
@@ -58,7 +37,7 @@ public sealed class Http11Server1xxSpec
             ["Link"] = "</style.css>; rel=preload"
         });
 
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 103", wire);
         Assert.Contains("Link: </style.css>; rel=preload", wire);
     }
@@ -69,7 +48,10 @@ public sealed class Http11Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         var features = ops.Requests[0];
         features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
@@ -83,7 +65,10 @@ public sealed class Http11Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        var transport = sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         var features = ops.Requests[0];
         features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
@@ -92,7 +77,7 @@ public sealed class Http11Server1xxSpec
         responseFeature.StatusCode = 200;
         sm.OnResponse(features);
 
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 100", wire);
         Assert.Contains("HTTP/1.1 200", wire);
         Assert.True(wire.IndexOf("100") < wire.IndexOf("200"));
@@ -104,7 +89,10 @@ public sealed class Http11Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         var features = ops.Requests[0];
         features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());
@@ -118,7 +106,10 @@ public sealed class Http11Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        sm.ConnectTransport(
+            Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"),
+            ops
+        );
 
         var features = ops.Requests[0];
         features.Get<GaudiInformationalResponseFeature>()!.SendInformational(100, new HeaderDictionary());

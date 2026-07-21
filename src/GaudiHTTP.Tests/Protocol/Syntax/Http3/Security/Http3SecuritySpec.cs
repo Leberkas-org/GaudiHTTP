@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -173,7 +174,7 @@ public sealed class Http3SecuritySpec
         });
 
         var serialized = settings.Serialize();
-        var frames = decoder.DecodeAll(serialized, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(serialized), out _);
 
         var settingsFrame = Assert.IsType<SettingsFrame>(Assert.Single(frames));
         Assert.Equal(2, settingsFrame.Parameters.Count);
@@ -199,7 +200,7 @@ public sealed class Http3SecuritySpec
         Array.Copy(lenBuf, 0, frame, typeLen, lenLen);
         Array.Copy(payload, 0, frame, typeLen + lenLen, payload.Length);
 
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(65536, dataFrame.Data.Length);
     }
@@ -218,11 +219,12 @@ public sealed class Http3SecuritySpec
             singleFrame.CopyTo(all, i * singleFrame.Length);
         }
 
-        var frames = decoder.DecodeAll(all, out var consumed);
+        var sequence = new ReadOnlySequence<byte>(all);
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         // All frames should be skipped (null frame = unknown type)
         Assert.Empty(frames);
-        Assert.Equal(all.Length, consumed);
+        Assert.Equal(all.Length, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -255,7 +257,7 @@ public sealed class Http3SecuritySpec
         var goaway = new GoAwayFrame(42);
         var serialized = goaway.Serialize();
 
-        var frames = decoder.DecodeAll(serialized, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(serialized), out _);
         var decoded = Assert.IsType<GoAwayFrame>(Assert.Single(frames));
         Assert.Equal(42, decoded.StreamId);
     }

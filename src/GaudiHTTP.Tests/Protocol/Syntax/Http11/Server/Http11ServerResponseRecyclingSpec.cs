@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -18,14 +17,10 @@ public sealed class Http11ServerResponseRecyclingSpec
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
         => new(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-    private static void SendRequest(Http11ServerStateMachine sm, string method = "GET")
+    private static void SendRequest(Http11ServerStateMachine sm, FakeServerOps ops, string method = "GET")
     {
         var raw = $"{method} / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        sm.ConnectTransport(Encoding.ASCII.GetBytes(raw), ops);
     }
 
     private static IFeatureCollection ResponseFeatures(int statusCode, string requestMethod = "GET")
@@ -43,7 +38,7 @@ public sealed class Http11ServerResponseRecyclingSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        SendRequest(sm, ops);
 
         var features = ResponseFeatures(statusCode);
         sm.OnResponse(features);
@@ -57,7 +52,7 @@ public sealed class Http11ServerResponseRecyclingSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm, "HEAD");
+        SendRequest(sm, ops, "HEAD");
 
         var features = ResponseFeatures(statusCode: 200, requestMethod: "HEAD");
         sm.OnResponse(features);

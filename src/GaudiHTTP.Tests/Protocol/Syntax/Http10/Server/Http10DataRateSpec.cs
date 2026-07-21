@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
 using GaudiHTTP.Server;
@@ -23,23 +22,6 @@ public sealed class Http10DataRateSpec
         bodyFeature.UpgradeToPipe();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
-    }
-
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
-    private static WireBuffer MakeBuffer(byte[] data)
-    {
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
     }
 
     private static Http1ConnectionOptions CreateOptionsWithResponseRate(double minRate, TimeSpan grace)
@@ -71,9 +53,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(defaultOptions, ops);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         // Fire timer with monitoring disabled — should not schedule another timer
         sm.OnTimerFired("data-rate-check");
@@ -88,9 +69,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         // Simulate drain complete (body fully sent)
         sm.OnBodyMessage(new BodyReadComplete<int>(0, 0));
@@ -107,9 +87,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         sm.OnTimerFired("data-rate-check");
 
@@ -123,9 +102,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         sm.OnTimerFired("data-rate-check");
 
@@ -139,9 +117,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Thread.Sleep(150);
 
@@ -161,8 +138,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         var context = CreateStreamingResponseContext(1024);
         sm.OnResponse(context);
@@ -188,9 +165,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         var context = CreateStreamingResponseContext(1024);
         sm.OnResponse(context);
@@ -218,9 +194,8 @@ public sealed class Http10DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
-        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(TransportData.Rent(headerBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         // Check at time=600ms (first rate check, enters grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));
@@ -242,15 +217,12 @@ public sealed class Http10DataRateSpec
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
         // Send request headers + indicate body will come
-        var requestData = "POST / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 10\r\n\r\n";
-        var headerBytes = Encoding.ASCII.GetBytes(requestData);
-        var buffer = MakeBuffer(headerBytes);
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var requestHeaderData = Encoding.ASCII.GetBytes("POST / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 10\r\n\r\n");
+        var transport = sm.ConnectTransport(requestHeaderData, ops);
 
         // At time=0, send first chunk of body (5 bytes)
         var bodyChunk1 = new byte[5];
-        var buffer2 = MakeBuffer(bodyChunk1);
-        sm.DecodeClientData(TransportData.Rent(buffer2));
+        transport.FeedMore(sm, ops, bodyChunk1);
 
         // Advance clock to first check point (600ms)
         clock.Advance(TimeSpan.FromMilliseconds(600));

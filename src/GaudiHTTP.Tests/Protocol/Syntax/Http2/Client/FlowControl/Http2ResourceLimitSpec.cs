@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
@@ -115,7 +116,7 @@ public sealed class Http2ResourceLimitSpec
         {
             var streamId = 2 * i + 1; // odd stream IDs: 1, 3, ..., 20001
             var frame = BuildRawFrame(0x1, 0x5, streamId, [0x88]); // END_HEADERS | END_STREAM
-            var frames = decoder.DecodeAll(frame, out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
             foreach (var f in frames)
             {
@@ -138,7 +139,7 @@ public sealed class Http2ResourceLimitSpec
 
         // First, open stream 1 via HEADERS (END_HEADERS=0x4, no END_STREAM)
         var headersFrame = BuildRawFrame(0x1, 0x4, 1, [0x88]);
-        var headersFrames = decoder.DecodeAll(headersFrame, out _);
+        var headersFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
         Assert.Single(headersFrames);
 
         // Now decode 10001 zero-length DATA frames
@@ -148,7 +149,7 @@ public sealed class Http2ResourceLimitSpec
 
         for (var i = 0; i < count; i++)
         {
-            var frames = decoder.DecodeAll(emptyData, out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(emptyData), out _);
             foreach (var frame in frames)
             {
                 if (frame is DataFrame { Data.IsEmpty: true })
@@ -179,7 +180,7 @@ public sealed class Http2ResourceLimitSpec
 
         // Open stream 1 via HEADERS (END_HEADERS=0x4, no END_STREAM)
         var headersFrame = BuildRawFrame(0x1, 0x4, 1, [0x88]);
-        decoder.DecodeAll(headersFrame, out _);
+        decoder.DecodeAll(new ReadOnlySequence<byte>(headersFrame), out _);
 
         // Send exactly 10000 zero-length DATA frames — must not throw
         const int count = 10000;
@@ -188,7 +189,7 @@ public sealed class Http2ResourceLimitSpec
 
         for (var i = 0; i < count; i++)
         {
-            var frames = decoder.DecodeAll(emptyData, out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(emptyData), out _);
             foreach (var frame in frames)
             {
                 if (frame is DataFrame { Data.IsEmpty: true })

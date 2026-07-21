@@ -1,3 +1,4 @@
+using System.Buffers;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
@@ -8,20 +9,55 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed class Http2ClientStateMachine(
-    GaudiClientOptions options,
-    IClientStageOperations ops,
-    TimeProvider? timeProvider = null)
-    : IClientStateMachine
+internal sealed class Http2ClientStateMachine :
+    TcpStateMachineBase<IClientStageOperations>, IClientStateMachine
 {
-    private readonly Http2ClientSessionManager _clientSession = new(options, ops, timeProvider);
-    private readonly ReconnectionManager _reconnect = new(options.Http2.MaxReconnectAttempts, options.Http2.MaxReconnectBufferSize);
+    private readonly GaudiClientOptions _options;
+    private readonly Http2ClientSessionManager _clientSession;
+    private readonly ReconnectionManager _reconnect;
     private TransportOptions? _transportOptions;
 
     private const string KeepAlivePingTimerKey = "keep-alive-ping";
     private const string KeepAlivePingTimeoutKey = "keep-alive-ping-timeout";
 
-    private bool KeepAliveEnabled => options.Http2.KeepAlivePingDelay != Timeout.InfiniteTimeSpan;
+    private bool KeepAliveEnabled => _options.Http2.KeepAlivePingDelay != Timeout.InfiniteTimeSpan;
+
+    public Http2ClientStateMachine(
+        GaudiClientOptions options,
+        IClientStageOperations ops,
+        TimeProvider? timeProvider = null) : base(ops)
+    {
+        _options = options;
+        _clientSession = new Http2ClientSessionManager(options, ops, timeProvider);
+        _clientSession.EmitData = EmitToTransport;
+        _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts, options.Http2.MaxReconnectBufferSize);
+    }
+
+    private void EmitToTransport(ReadOnlySpan<byte> data)
+    {
+        var mem = Transport!.GetMemory(data.Length);
+        data.CopyTo(mem.Span);
+        Transport.Advance(data.Length);
+        RequestFlush();
+    }
+
+    protected override Akka.Actor.IActorRef Self => Ops.Self;
+    protected override bool ShouldPauseReads => false;
+    protected override void OnFlushCompleted() { }
+    protected override void OnFlushDeferred() { }
+    protected override void OnTransportLost(Exception? ex) => HandleTransportLost();
+    protected override void OnTransportConnected(ConnectionInfo info) => OnConnectionRestored();
+    protected override void OnTransportDisconnected(DisconnectReason reason)
+    {
+        if (_reconnect.IsReconnecting)
+        {
+            OnReconnectAttemptFailed();
+        }
+        else if (_clientSession.HasInFlightRequests)
+        {
+            OnConnectionLost(_clientSession.GoAwayReceived ? _clientSession.GoAwayLastStreamId : 0);
+        }
+    }
 
     public bool CanAcceptRequest =>
         !_clientSession.GoAwayReceived && !_reconnect.IsReconnecting && _clientSession.CanOpenStream;
@@ -42,82 +78,14 @@ internal sealed class Http2ClientStateMachine(
 
     public void DecodeServerData(ITransportInbound data)
     {
-        switch (data)
-        {
-            case TransportConnected:
-                OnConnectionRestored();
-                return;
-
-            case TransportDisconnected when _reconnect.IsReconnecting:
-                OnReconnectAttemptFailed();
-                return;
-
-            case TransportDisconnected when _clientSession.HasInFlightRequests:
-                // If we were draining a graceful GOAWAY, classify the still-open streams against that
-                // GOAWAY's last-stream-id: streams above it were provably not processed and can be
-                // replayed regardless of method, while streams at/below it follow the idempotent rule.
-                OnConnectionLost(_clientSession.GoAwayReceived ? _clientSession.GoAwayLastStreamId : 0);
-                return;
-
-            case TransportDisconnected:
-                return;
-        }
-
-        if (data is not TransportData { Buffer: var buffer })
+        if (DispatchLifecycleEvent(data))
         {
             return;
         }
 
-        int frameCount;
-        try
+        if (data is TransportData)
         {
-            using var inputBuffer = buffer;
-            var frames = _clientSession.DecodeFrames(inputBuffer);
-            frameCount = frames.Count;
-            for (var i = 0; i < frames.Count; i++)
-            {
-                _clientSession.ProcessFrame(frames[i]);
-            }
-        }
-        catch (HttpProtocolException ex)
-        {
-            // RFC 9113 §5.4.1: a connection-fatal protocol error leaves the decoder desynchronized.
-            // Drop the connection instead of swallowing and continuing; the resulting TransportDisconnected
-            // routes through OnConnectionLost, which replays idempotent in-flight requests and fails the rest.
-            // Warning, not Info: a connection-fatal decode failure is healed by the reconnect below,
-            // but it must stay visible in bridged logs — it is the only stdout trace of a receive-path
-            // desync once fail-fast + replay make the affected tests pass again.
-            Tracing.For("Protocol").Warning(this,
-                "HTTP/2: connection protocol error - disconnecting: {0}", ex.Message);
-            ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
-            return;
-        }
-
-        if (_clientSession is { GoAwayReceived: true, HasInFlightRequests: true })
-        {
-            // RFC 9113 §6.8: a graceful (NO_ERROR) GOAWAY keeps the connection open until in-progress
-            // streams complete. Don't tear it down — let ALL in-flight streams keep draining here
-            // (dropping an in-flight non-idempotent POST is exactly the failure seen under load when a
-            // server graceful-closes after a batch). New requests already route elsewhere because
-            // CanAcceptRequest is now false. Streams the server discarded (above LastStreamId) never get
-            // a response and stay in flight until the server closes the connection, at which point the
-            // TransportDisconnected path above replays them using the remembered LastStreamId. We only
-            // tear the connection down immediately when there is nothing to wait for: a non-graceful
-            // (error) GOAWAY, or a graceful GOAWAY whose LastStreamId is below every in-flight stream
-            // (the server committed to finish none of them — e.g. LastStreamId=0), in which case
-            // draining would just stall until the server closes.
-            if (!_clientSession.GoAwayWasGraceful
-                || !_clientSession.HasInFlightStreamsAtOrBelow(_clientSession.GoAwayLastStreamId))
-            {
-                OnConnectionLost(_clientSession.GoAwayLastStreamId);
-            }
-
-            return;
-        }
-
-        if (frameCount > 0)
-        {
-            ResetKeepAliveTimer();
+            throw new InvalidOperationException("TransportData is not supported on TCP state machines; use pipe transport.");
         }
     }
 
@@ -137,7 +105,7 @@ internal sealed class Http2ClientStateMachine(
         {
             case KeepAlivePingTimerKey:
                 {
-                    var policy = options.Http2.KeepAlivePingPolicy;
+                    var policy = _options.Http2.KeepAlivePingPolicy;
                     if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_clientSession.HasInFlightRequests)
                     {
                         return;
@@ -149,7 +117,7 @@ internal sealed class Http2ClientStateMachine(
                 }
             case KeepAlivePingTimeoutKey:
                 {
-                    if (_clientSession.IsKeepAliveTimedOut(options.Http2.KeepAlivePingTimeout))
+                    if (_clientSession.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
                     {
                         Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout - closing connection");
                         if (_clientSession.HasInFlightRequests)
@@ -164,7 +132,7 @@ internal sealed class Http2ClientStateMachine(
                 {
                     if (_reconnect.IsReconnecting && _transportOptions is not null)
                     {
-                        ops.OnOutbound(new ConnectTransport(_transportOptions));
+                        Ops.OnOutbound(new ConnectTransport(_transportOptions));
                     }
 
                     break;
@@ -187,7 +155,15 @@ internal sealed class Http2ClientStateMachine(
     }
 
 
-    public void OnBodyMessage(object msg) => _clientSession.OnBodyMessage(msg);
+    public void OnBodyMessage(object msg)
+    {
+        if (TryHandleAsyncResult(msg))
+        {
+            return;
+        }
+
+        _clientSession.OnBodyMessage(msg);
+    }
 
     public void Cleanup()
     {
@@ -205,7 +181,56 @@ internal sealed class Http2ClientStateMachine(
             request.Fail(new HttpRequestException("HTTP/2 connection was torn down before the request completed."));
         }
 
+        CleanupTransportIo();
         _clientSession.Cleanup();
+    }
+
+    protected override (SequencePosition Consumed, SequencePosition Examined) DecodeData(ReadOnlySequence<byte> data)
+    {
+        int frameCount;
+        SequencePosition consumed;
+        try
+        {
+            var frames = _clientSession.DecodeFrames(in data, out consumed);
+            frameCount = frames.Count;
+            for (var i = 0; i < frames.Count; i++)
+            {
+                _clientSession.ProcessFrame(frames[i]);
+            }
+        }
+        catch (HttpProtocolException ex)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/2: connection protocol error - disconnecting: {0}", ex.Message);
+            Ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
+            return (data.End, data.End);
+        }
+
+        if (_clientSession is { GoAwayReceived: true, HasInFlightRequests: true })
+        {
+            if (!_clientSession.GoAwayWasGraceful
+                || !_clientSession.HasInFlightStreamsAtOrBelow(_clientSession.GoAwayLastStreamId))
+            {
+                OnConnectionLost(_clientSession.GoAwayLastStreamId);
+            }
+
+            return (consumed, data.End);
+        }
+
+        if (frameCount > 0)
+        {
+            ResetKeepAliveTimer();
+        }
+
+        return (consumed, data.End);
+    }
+
+    private void HandleTransportLost()
+    {
+        if (_clientSession.HasInFlightRequests)
+        {
+            OnConnectionLost(_clientSession.GoAwayReceived ? _clientSession.GoAwayLastStreamId : 0);
+        }
     }
 
     private void OnConnectionLost(int lastStreamId)
@@ -217,8 +242,8 @@ internal sealed class Http2ClientStateMachine(
         _clientSession.ReleaseAllStreamState();
         _clientSession.ResetConnectionState();
 
-        _transportOptions ??= OptionsFactory.Build(_clientSession.Endpoint, options);
-        ops.OnOutbound(new ConnectTransport(_transportOptions));
+        _transportOptions ??= OptionsFactory.Build(_clientSession.Endpoint, _options);
+        Ops.OnOutbound(new ConnectTransport(_transportOptions));
     }
 
     private List<HttpRequestMessage> ClassifyStreamsForReplay(int lastStreamId)
@@ -266,11 +291,9 @@ internal sealed class Http2ClientStateMachine(
     private void OnConnectionRestored()
     {
         Tracing.For("Protocol").Info(this, "HTTP/2: connection restored");
-        var preface = _clientSession.TryBuildPreface();
-        if (preface is not null)
-        {
-            ops.OnOutbound(preface);
-        }
+        _clientSession.TryEmitPreface();
+
+        _clientSession.FlushPendingInitialRequest();
 
         var toReplay = _reconnect.OnConnectionRestored();
         for (var i = 0; i < toReplay.Count; i++)
@@ -303,19 +326,19 @@ internal sealed class Http2ClientStateMachine(
 
         // Defer the retry behind a backoff timer instead of reconnecting immediately, so a
         // connection-refused peer is not hammered in a tight loop (see OnTimerFired).
-        if (options.Http2.ReconnectInitialBackoff > TimeSpan.Zero)
+        if (_options.Http2.ReconnectInitialBackoff > TimeSpan.Zero)
         {
-            ops.OnScheduleTimer(ReconnectBackoff.TimerName, ReconnectBackoff.Compute(
+            Ops.OnScheduleTimer(ReconnectBackoff.TimerName, ReconnectBackoff.Compute(
                 _reconnect.Attempts - 1,
-                options.Http2.ReconnectInitialBackoff,
-                options.Http2.ReconnectMaxBackoff,
-                options.Http2.ReconnectBackoffMultiplier,
-                options.Http2.ReconnectBackoffJitter,
+                _options.Http2.ReconnectInitialBackoff,
+                _options.Http2.ReconnectMaxBackoff,
+                _options.Http2.ReconnectBackoffMultiplier,
+                _options.Http2.ReconnectBackoffJitter,
                 Random.Shared));
         }
         else
         {
-            ops.OnOutbound(new ConnectTransport(_transportOptions!));
+            Ops.OnOutbound(new ConnectTransport(_transportOptions!));
         }
     }
 
@@ -323,7 +346,7 @@ internal sealed class Http2ClientStateMachine(
     {
         if (KeepAliveEnabled)
         {
-            ops.OnScheduleTimer(KeepAlivePingTimerKey, options.Http2.KeepAlivePingDelay);
+            Ops.OnScheduleTimer(KeepAlivePingTimerKey, _options.Http2.KeepAlivePingDelay);
         }
     }
 
@@ -331,7 +354,7 @@ internal sealed class Http2ClientStateMachine(
     {
         if (KeepAliveEnabled)
         {
-            ops.OnScheduleTimer(KeepAlivePingTimeoutKey, options.Http2.KeepAlivePingTimeout);
+            Ops.OnScheduleTimer(KeepAlivePingTimeoutKey, _options.Http2.KeepAlivePingTimeout);
         }
     }
 
@@ -339,7 +362,7 @@ internal sealed class Http2ClientStateMachine(
     {
         if (KeepAliveEnabled)
         {
-            ops.OnCancelTimer(KeepAlivePingTimeoutKey);
+            Ops.OnCancelTimer(KeepAlivePingTimeoutKey);
             ScheduleKeepAlivePing();
         }
     }

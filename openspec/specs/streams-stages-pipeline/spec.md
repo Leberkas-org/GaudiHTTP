@@ -12,11 +12,18 @@ invokes the ASP.NET Core `IHttpApplication<TContext>`.
 ### Requirement: Client engine composition
 
 Each HTTP version has a dedicated `IClientProtocolEngine` implementation that creates a
-`BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage>`.
-The engine wraps a version-specific `GraphStage<ClientConnectionShape>` containing an
-`HttpClientConnectionStageLogic<TSM>` parameterized by the protocol's state machine type.
-The `Engine` class joins the protocol BidiFlow with a transport flow from `TransportRegistry`
-and wraps the result in the feature pipeline via `FeaturePipelineBuilder`.
+`BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage>`. The engine
+wraps a version-specific `GraphStage<ClientConnectionShape>` containing an
+`HttpClientConnectionStageLogic<TSM>` parameterized by the protocol's state machine type. The `Engine`
+class joins the protocol BidiFlow with a transport flow from `TransportRegistry` and wraps the result in
+the feature pipeline via `FeaturePipelineBuilder`.
+
+For TCP protocols (H1.0, H1.1, H2), the network port between protocol stage and transport stage carries
+ONLY lifecycle events (`TransportConnected(IConnectionTransport)`, `TransportDisconnected` inbound). Byte
+data flows through `IConnectionTransport` (Pipe) directly, bypassing the Akka Streams port entirely — the
+stage logic does not grab or push `TransportData` on the TCP path. For QUIC (H3), the network port
+continues to carry both lifecycle events and multiplexed data; this requirement's TCP-only scenarios do
+not apply to H3.
 
 #### Scenario: Engine creates a BidiFlow with the correct shape
 - **WHEN** an `IClientProtocolEngine.CreateFlow()` is called (Http10, Http11, Http20, Http30)
@@ -28,6 +35,19 @@ and wraps the result in the feature pipeline via `FeaturePipelineBuilder`.
 - **THEN** the engine BidiFlow is joined with the transport flow from `TransportRegistry.Get(version)`
 - **AND** the joined flow runs in its own async boundary (`.Async()`)
 
+#### Scenario: TCP client stage logic never handles TransportData on the port
+- **WHEN** the protocol is TCP-based (H1.0, H1.1, H2)
+- **THEN** `HttpClientConnectionStageLogic` MUST NOT `Grab(_inNetwork)` a `TransportData` item
+- **AND** MUST NOT `Push(_outNetwork, ...)` a `TransportData` item
+- **AND** all byte-level I/O happens through the SM's `IConnectionTransport` reference, not the port
+
+#### Scenario: Client stage routes lifecycle events and async results to the SM
+- **WHEN** `TransportConnected` or `TransportDisconnected` arrives on `_inNetwork`
+- **THEN** the stage logic calls `_sm.OnTransportEvent(item)` and re-pulls `_inNetwork`
+- **AND WHEN** the StageActor receives any other message (read/flush completion, pump status, body pump
+  messages)
+- **THEN** the stage logic calls `_sm.OnAsyncResult(msg)` without inspecting the message's contents
+
 #### Scenario: Version selection is per-endpoint
 - **WHEN** a request targets a `RequestEndpoint` with a specific HTTP version
 - **THEN** `ProtocolCoreBuilder` selects the matching `IClientProtocolEngine` (1.0, 1.1, 2.0, 3.0)
@@ -38,11 +58,15 @@ and wraps the result in the feature pipeline via `FeaturePipelineBuilder`.
 ### Requirement: Server engine composition
 
 Each HTTP version has a dedicated `IServerProtocolEngine` implementation that creates a
-`BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound>`.
-The engine wraps a version-specific `GraphStage<ServerConnectionShape>` containing an
-`HttpServerConnectionStageLogic<TSM>` parameterized by the server state machine type.
-A `NegotiatingServerEngine` delegates to a `ProtocolNegotiatorConnectionStage` that selects
-the protocol at runtime based on ALPN negotiation.
+`BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound>`. The engine
+wraps a version-specific `GraphStage<ServerConnectionShape>` containing an
+`HttpServerConnectionStageLogic<TSM>` parameterized by the server state machine type. A
+`NegotiatingServerEngine` delegates to a `ProtocolNegotiatorConnectionStage` that selects the protocol at
+runtime based on ALPN negotiation.
+
+For TCP protocols, the same thin-stage-logic pattern as the client side applies: the network port carries
+only lifecycle events, and connection completion after the last response is driven by
+`IConnectionTransport.CompleteOutput()` rather than draining an outbound queue through the port.
 
 #### Scenario: Server engine creates a BidiFlow with the correct shape
 - **WHEN** an `IServerProtocolEngine.CreateFlow()` is called
@@ -58,6 +82,28 @@ the protocol at runtime based on ALPN negotiation.
 - **WHEN** `ProtocolRouter.ResolveEngine` is called with a specific version
 - **THEN** it returns the matching `IServerProtocolEngine` (1.0, 1.1, 2.0, 3.0)
 - **AND** an unrecognized version falls back to HTTP/1.1
+
+#### Scenario: TCP server stage logic never handles TransportData on the port
+- **WHEN** the server protocol is TCP-based (H1.0, H1.1, H2)
+- **THEN** `HttpServerConnectionStageLogic` MUST NOT `Grab(_inNetwork)` or `Push(_outNetwork, ...)` a
+  `TransportData` item
+- **AND** the stage logic routes lifecycle events to `_sm.OnTransportEvent(item)` and StageActor messages
+  to `_sm.OnAsyncResult(msg)`, matching the client-side pattern
+
+#### Scenario: TransportConnected populates connection features from IConnectionTransport
+- **WHEN** `TransportConnected(IConnectionTransport)` arrives at the server stage
+- **THEN** the stage extracts remote/local IP endpoints from `IConnectionTransport.Info` and creates a
+  `GaudiHttpConnectionFeature`
+- **AND** if TLS info is present, creates a `TlsHandshakeFeature`
+- **AND** forwards the event to `_sm.OnTransportEvent(item)`
+
+#### Scenario: Connection completion drains via CompleteOutput, not a port-level queue
+- **WHEN** the server state machine signals completion after the last response (e.g., `Connection: close`,
+  GOAWAY, or client-initiated shutdown)
+- **THEN** the stage calls `_transport.CompleteOutput()` instead of draining an `_outboundQueue` through
+  `_outNetwork`
+- **AND** the stage completes only after observing the write pump's completion (routed through
+  `_sm.OnAsyncResult` as a pump-completion message), not by polling port availability
 
 ---
 
@@ -144,10 +190,11 @@ Streams port handlers to the protocol state machine via `IClientStageOperations`
 - **THEN** if `OutResponse` is available, the response is pushed immediately
 - **AND** otherwise it is enqueued in `_responseQueue`
 
-#### Scenario: Outbound data is pushed or queued
-- **WHEN** the state machine calls `IClientStageOperations.OnOutbound(item)`
-- **THEN** if `OutNetwork` is available, the item is pushed immediately
-- **AND** otherwise it is enqueued in `_outboundQueue`
+#### Scenario: OnOutbound pushes without type-checking (updated)
+- **WHEN** the SM calls `_ops.OnOutbound(item)` with any `ITransportOutbound`
+- **THEN** the stage logic MUST push (or queue) the item to the outbound network port
+- **AND** the stage logic MUST NOT check whether the item is `TransportData`
+- **AND** no `BridgeTransportData` method MUST exist
 
 #### Scenario: Network pull is gated by ShouldPauseNetwork
 - **WHEN** the stage attempts to pull `InNetwork`
@@ -155,7 +202,7 @@ Streams port handlers to the protocol state machine via `IClientStageOperations`
 - **AND** this enables body backpressure (the state machine pauses network reads when body buffers are full)
 
 #### Scenario: Stage actor receives body pump messages
-- **WHEN** a body pump sends a message to the stage actor (e.g., BodyReadComplete, TransportDataFlushed)
+- **WHEN** a body pump sends a message to the stage actor
 - **THEN** the stage calls `_sm.OnBodyMessage(msg)` on the actor thread
 - **AND** re-evaluates network pull and request pull afterwards
 
@@ -164,12 +211,18 @@ Streams port handlers to the protocol state machine via `IClientStageOperations`
 - **THEN** the stage schedules a 100ms `drain-complete` timer instead of completing synchronously
 - **AND** this prevents dropping a body pump completion message that is already in the stage actor mailbox
 
-#### Scenario: PostStop disposes queued resources
-- **WHEN** the stage stops
+#### Scenario: PostStop does not dispose TransportData from queue (updated)
+- **WHEN** the stage logic tears down in `PostStop`
 - **THEN** all `CancellationTokenRegistration`s are disposed
-- **AND** queued `TransportData` items have their buffers disposed and returned
+- **AND** the `_outboundQueue` drain loop MUST NOT check for `TransportData` items
+- **AND** no `WireBuffer` disposal MUST occur in the stage logic
 - **AND** queued responses are disposed
 - **AND** `_sm.Cleanup()` is called
+
+#### Scenario: Stage logic does not track flush state (updated)
+- **WHEN** outbound data is flushed to the pipe
+- **THEN** the stage logic MUST NOT maintain `_flushInProgress`, `_flushGen`, or `_transport` fields
+- **AND** no `BridgeFlushCompleted` / `BridgeFlushFailed` messages MUST exist
 
 ---
 
@@ -212,6 +265,19 @@ Streams port handlers to the server state machine via `IServerStageOperations`.
 - **WHEN** the stage actor receives a `BodyResumed` message
 - **THEN** the stage calls `_sm.ResumeBody()` and attempts to re-pull `InNetwork`
 - **AND** this resumes network reads that were paused due to body backpressure
+
+---
+
+### Requirement: Stage logic is pure plumbing for TCP connections
+
+`HttpClientConnectionStageLogic` and `HttpServerConnectionStageLogic` MUST NOT contain transport
+data bridging, flush tracking, or outbound data interception. Their responsibilities are:
+
+1. **Port handlers** -- grab lifecycle items from network port, route to SM.
+2. **StageActor message routing** -- route all messages to `_sm.OnBodyMessage(msg)`.
+3. **Timer delegation** -- route timer fires to `_sm.OnTimerFired(name)`.
+4. **OnOutbound** -- push/queue `ITransportOutbound` items to the network port (lifecycle commands
+   only for TCP; no `TransportData` interception).
 
 ---
 

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Tests.TestSupport;
@@ -12,7 +13,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(7, Http2ErrorCode.NoError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
@@ -25,7 +26,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(3, Http2ErrorCode.ProtocolError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Single(frames);
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
@@ -38,7 +39,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(FrameType.GoAway, frames[0].Type);
     }
@@ -49,7 +50,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(5, Http2ErrorCode.NoError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         Assert.Equal(0, frames[0].StreamId);
     }
@@ -60,7 +61,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.True(frame.DebugData.IsEmpty);
@@ -73,7 +74,7 @@ public sealed class Http2GoAwaySpec
         var debugData = "graceful shutdown"u8.ToArray();
         var bytes = new GoAwayFrame(3, Http2ErrorCode.NoError, debugData).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.True(frame.DebugData.Span.SequenceEqual(debugData));
@@ -85,7 +86,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(0, Http2ErrorCode.NoError).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(0, frame.LastStreamId);
@@ -106,7 +107,7 @@ public sealed class Http2GoAwaySpec
         // lastStreamId=0, errorCode=0
 
         var decoder = new FrameDecoder();
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(frame, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -117,7 +118,7 @@ public sealed class Http2GoAwaySpec
         var original = new GoAwayFrame(9, Http2ErrorCode.InternalError, debugData);
         var bytes = original.Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var decoded = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(original.LastStreamId, decoded.LastStreamId);
@@ -138,7 +139,7 @@ public sealed class Http2GoAwaySpec
     {
         var bytes = new GoAwayFrame(1, errorCode).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(bytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(bytes), out _);
 
         var frame = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(errorCode, frame.ErrorCode);
@@ -161,7 +162,7 @@ public sealed class Http2GoAwaySpec
         // errorCode = 0
 
         var decoder = new FrameDecoder();
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
         var decoded = Assert.IsType<GoAwayFrame>(frames[0]);
         Assert.Equal(5, decoded.LastStreamId);

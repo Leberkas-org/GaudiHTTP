@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using GaudiHTTP.Diagnostics;
 using GaudiHTTP.Server;
 
 namespace GaudiHTTP.IntegrationTests.Server;
@@ -19,7 +20,7 @@ public sealed class DynamicPortSpec : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole().SetMinimumLevel(LogLevel.Debug);
 
         builder.Host.UseGaudiHttp(options =>
         {
@@ -28,6 +29,12 @@ public sealed class DynamicPortSpec : IAsyncLifetime
         });
 
         _app = builder.Build();
+        _app.Services.GetRequiredService<ILoggerFactory>();
+        var loggerFactory = _app.Services.GetRequiredService<ILoggerFactory>();
+        Servus.Senf.Tracing.Configure(
+            new GaudiHTTP.Diagnostics.LoggerTraceListener(loggerFactory),
+            Servus.Diagnostics.TraceLevel.Debug);
+
         _app.MapGet("/ping", () => Results.Content("pong", "text/plain"));
         await _app.StartAsync();
         _client = new HttpClient();

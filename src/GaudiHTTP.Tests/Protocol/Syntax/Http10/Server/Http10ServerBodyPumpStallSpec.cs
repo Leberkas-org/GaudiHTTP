@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Body;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
 using GaudiHTTP.Server;
@@ -49,24 +48,16 @@ public sealed class Http10ServerBodyPumpStallSpec
         return (features, bodyFeature);
     }
 
-    private static WireBuffer MakeBuffer(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
     private static Http10ServerStateMachine CreateSm(FakeServerOps ops)
     {
         return new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
     }
 
-    private static void SendRequest(Http10ServerStateMachine sm)
+    private static InMemoryTransport SendRequest(Http10ServerStateMachine sm, FakeServerOps ops)
     {
         const string requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+        var data = Encoding.ASCII.GetBytes(requestData);
+        return sm.ConnectTransport(data, ops);
     }
 
     private static void DrainBodyMessages(Http10ServerStateMachine sm, FakeServerOps ops, int maxIterations = 10_000)
@@ -85,7 +76,7 @@ public sealed class Http10ServerBodyPumpStallSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         const int bodySize = 4 * ChunkSize;
         // Writer NOT completed → streaming path, but data is in the pipe
@@ -94,9 +85,9 @@ public sealed class Http10ServerBodyPumpStallSpec
         DrainBodyMessages(sm, ops);
 
         // Pump reads all available pipe data, producing body chunks
-        var bodyItems = ops.Outbound.Skip(1).OfType<TransportData>().ToList();
-        Assert.True(bodyItems.Count >= 4,
-            $"Expected at least 4 body chunks from {bodySize} bytes, got {bodyItems.Count}.");
+        // Should have written headers + body data; verify we got substantial output
+        Assert.True(transport.WrittenCount > bodySize,
+            $"Expected at least {bodySize} bytes from body + headers, got {transport.WrittenCount}.");
     }
 
     [Fact(Timeout = 5000)]
@@ -104,7 +95,7 @@ public sealed class Http10ServerBodyPumpStallSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         const int bodySize = 2 * ChunkSize;
         // Writer NOT completed + no Content-Length → streaming path with connection-close
@@ -112,8 +103,7 @@ public sealed class Http10ServerBodyPumpStallSpec
         sm.OnResponse(context);
 
         // Headers emitted without Content-Length (connection-close framing)
-        var headerData = ops.Outbound.OfType<TransportData>().First();
-        var headerText = Encoding.ASCII.GetString(headerData.Buffer.Span);
+        var headerText = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.DoesNotContain("Content-Length", headerText);
 
         // ShouldComplete deferred until body drain finishes
@@ -125,14 +115,13 @@ public sealed class Http10ServerBodyPumpStallSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         const int bodySize = 2 * ChunkSize;
         var (context, _) = CreateStreamingResponseContext(bodySize, setContentLength: true);
         sm.OnResponse(context);
 
-        var headerData = ops.Outbound.OfType<TransportData>().First();
-        var headerText = Encoding.ASCII.GetString(headerData.Buffer.Span);
+        var headerText = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("Content-Length", headerText);
         Assert.False(sm.ShouldComplete);
     }

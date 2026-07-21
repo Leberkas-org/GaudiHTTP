@@ -1,4 +1,5 @@
 ﻿using GaudiHTTP.Tests.TestSupport;
+using System.Buffers;
 using System.Net;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
@@ -60,6 +61,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.PreStart();
         var (req, pending) = MakeTrackedGet("/a");
         sm.OnRequest(req);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         // Stage teardown must FAIL a stream still awaiting its response, not silently drop it.
         sm.Cleanup();
@@ -75,6 +77,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.PreStart();
         var (req, pending) = MakeTrackedGet("/a");
         sm.OnRequest(req);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // buffers GET for replay
         sm.Cleanup();
@@ -90,6 +93,7 @@ public sealed class Http2StateMachineReconnectSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         sm.OnRequest(MakeGet("/b"));
         ops.Outbound.Clear();
 
@@ -107,13 +111,14 @@ public sealed class Http2StateMachineReconnectSpec
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
-        sm.OnRequest(MakeGet("/a")); // stream 1
-        sm.OnRequest(MakePost("/b")); // stream 3
+        sm.OnRequest(MakeGet("/a")); // stream 1 discarded while connecting, actual stream 3
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        sm.OnRequest(MakePost("/b")); // stream 5
         ops.Outbound.Clear();
 
         // A non-graceful (error) GOAWAY forces a reconnect; the idempotent GET is replayed but the
         // non-idempotent POST must NOT be (the server may have partially processed it).
-        var goaway = new GoAwayFrame(3, Http2ErrorCode.InternalError);
+        var goaway = new GoAwayFrame(5, Http2ErrorCode.InternalError);
         sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
 
         Assert.True(sm.IsReconnecting);
@@ -147,6 +152,7 @@ public sealed class Http2StateMachineReconnectSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
@@ -162,6 +168,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.PreStart();
         var (req, pending) = MakeTrackedGet();
         sm.OnRequest(req);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -178,6 +185,7 @@ public sealed class Http2StateMachineReconnectSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(http2MaxReconnectAttempts: 3), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         var countAfterFirst = ops.Outbound.OfType<ConnectTransport>().Count();
@@ -202,6 +210,7 @@ public sealed class Http2StateMachineReconnectSpec
             TestClientOptions.Create(http2MaxReconnectAttempts: 3, http2ReconnectInitialBackoff: TimeSpan.Zero), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         var countAfterFirst = ops.Outbound.OfType<ConnectTransport>().Count();
@@ -252,22 +261,23 @@ public sealed class Http2StateMachineReconnectSpec
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(), ops);
         sm.PreStart();
-        var (postLow, postLowPending) = MakeTrackedPost("/a"); // stream 1 (<= LastStreamId)
+        var (postLow, postLowPending) = MakeTrackedPost("/a"); // stream 1 discarded while connecting, actual stream 3 (<= LastStreamId)
         sm.OnRequest(postLow);
-        sm.OnRequest(MakePost("/b"));                          // stream 3 (> LastStreamId)
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        sm.OnRequest(MakePost("/b"));                          // stream 5 (> LastStreamId)
         ops.Outbound.Clear();
 
-        // Phase 1 — graceful GOAWAY(LastStreamId=1): drain, no reconnect, nothing dropped yet.
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(new GoAwayFrame(1, Http2ErrorCode.NoError))));
+        // Phase 1 — graceful GOAWAY(LastStreamId=3): drain, no reconnect, nothing dropped yet.
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(new GoAwayFrame(3, Http2ErrorCode.NoError))));
         Assert.False(sm.IsReconnecting);
         Assert.DoesNotContain(ops.Outbound, o => o is ConnectTransport);
         Assert.False(postLowPending.GetValueTask().IsCompleted);
 
-        // Phase 2 — server closes the drained connection: reconnect + replay. Stream 3 (> 1) is replayed
-        // even though it's a POST; stream 1 (<= 1, non-idempotent, never completed) is dropped.
+        // Phase 2 — server closes the drained connection: reconnect + replay. Stream 5 (> 3) is replayed
+        // even though it's a POST; stream 3 (<= 3, non-idempotent, never completed) is dropped.
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
         Assert.True(sm.IsReconnecting);
-        Assert.Equal(1, sm.ReconnectBufferCount); // only stream 3 buffered for replay
+        Assert.Equal(1, sm.ReconnectBufferCount); // only stream 5 buffered for replay
         Assert.Contains(ops.Outbound, o => o is ConnectTransport);
         Assert.True(postLowPending.GetValueTask().IsFaulted); // stream 1 dropped (may have been processed)
     }
@@ -347,6 +357,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.PreStart();
         var (req, pending) = MakeTrackedGet("/a");
         sm.OnRequest(req);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         ops.Outbound.Clear();
 
         // Corrupt frame header: 24-bit length 0xFFFFFF far exceeds the advertised
@@ -376,7 +387,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         Assert.False(sm.IsReconnecting);
         var replayed = ops.Outbound.OfType<TransportData>().Last();
-        Assert.Contains(new FrameDecoder().DecodeAll(replayed.Buffer.Memory, out _), f => f is HeadersFrame);
+        Assert.Contains(new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(replayed.Buffer.Memory), out _), f => f is HeadersFrame);
         Assert.False(pending.GetValueTask().IsFaulted);
     }
 
@@ -395,7 +406,7 @@ public sealed class Http2StateMachineReconnectSpec
         {
             if (item is TransportData { Buffer: var buffer })
             {
-                result.AddRange(decoder.DecodeAll(buffer.Memory, out _));
+                result.AddRange(decoder.DecodeAll(new ReadOnlySequence<byte>(buffer.Memory), out _));
             }
         }
 

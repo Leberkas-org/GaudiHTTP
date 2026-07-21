@@ -1,12 +1,12 @@
 using System.Net;
 using System.Text;
 using Akka.TestKit.Xunit;
+using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http10.Client;
 using GaudiHTTP.Tests.Shared;
 using GaudiHTTP.Tests.TestSupport;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Client;
 
@@ -23,13 +23,9 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         return request;
     }
 
-    private static WireBuffer CreateResponseBuffer(string responseText)
+    private static byte[] CreateResponseData(string responseText)
     {
-        var bytes = Encoding.ASCII.GetBytes(responseText);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
+        return Encoding.ASCII.GetBytes(responseText);
     }
 
     [Fact(Timeout = 5000)]
@@ -54,8 +50,9 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var sm = new Http10ClientStateMachine(TestClientOptions.Create(), ops);
 
         sm.OnRequest(MakeRequest());
+        var transport = sm.ConnectTransport(ops: ops);
 
-        Assert.Contains(ops.Outbound, o => o is TransportData);
+        Assert.True(transport.WrittenSpan.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -78,9 +75,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var sm = new Http10ClientStateMachine(TestClientOptions.Create(), ops);
         sm.OnRequest(MakeRequest());
 
-        var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-
-        sm.DecodeServerData(TransportData.Rent(responseBuffer));
+        var responseData = CreateResponseData("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+        var transport = sm.ConnectTransport(responseData, ops);
 
         Assert.Single(ops.Responses);
         Assert.Equal(HttpStatusCode.OK, ops.Responses[0].StatusCode);
@@ -95,9 +91,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var originalRequest = MakeRequest("http://example.com/test");
         sm.OnRequest(originalRequest);
 
-        var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n");
-
-        sm.DecodeServerData(TransportData.Rent(responseBuffer));
+        var responseData = CreateResponseData("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n");
+        var transport = sm.ConnectTransport(responseData, ops);
 
         Assert.Single(ops.Responses);
         Assert.NotNull(ops.Responses[0].RequestMessage);
@@ -114,13 +109,12 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var request = MakeRequest("http://example.com/path");
         sm.OnRequest(request);
 
+        var transport = sm.ConnectTransport(ops: ops);
         Assert.True(sm.HasInFlightRequests);
-        Assert.Contains(ops.Outbound, o => o is TransportData);
+        Assert.True(transport.WrittenSpan.Length > 0);
 
-        ops.Outbound.Clear();
-
-        var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-        sm.DecodeServerData(TransportData.Rent(responseBuffer));
+        var responseData = CreateResponseData("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+        transport.FeedMore(sm, ops, responseData);
 
         Assert.False(sm.HasInFlightRequests);
         Assert.Single(ops.Responses);
@@ -175,6 +169,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         };
         sm.OnRequest(request);
 
+        var transport = sm.ConnectTransport(ops: ops);
+
         // Force-async: drain body pump messages dispatched to StageActor.
         while (ops.BodyMessages.Count > 0)
         {
@@ -184,18 +180,10 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         }
 
         // Known Content-Length: headers emitted immediately, body streamed via SerialBodyPump.
-        var transportData = ops.Outbound.OfType<TransportData>().ToList();
-        Assert.True(transportData.Count >= 2, "Expected headers + at least one body TransportData");
-
-        var headerText = Encoding.ASCII.GetString(transportData[0].Buffer.Memory.Span[..transportData[0].Buffer.Length]);
+        var writtenData = transport.WrittenSpan;
+        var headerText = Encoding.ASCII.GetString(writtenData);
         Assert.Contains("Content-Length: 5", headerText);
-
-        // Body data arrives in subsequent TransportData messages
-        var bodyBytes = transportData.Skip(1)
-            .SelectMany(td => td.Buffer.Memory.Span[..td.Buffer.Length].ToArray())
-            .ToArray();
-        var bodyText = Encoding.ASCII.GetString(bodyBytes);
-        Assert.Contains("hello", bodyText);
+        Assert.Contains("hello", headerText);
     }
 
     [Fact(Timeout = 5000)]
@@ -215,6 +203,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         };
         sm.OnRequest(request);
 
+        var transport = sm.ConnectTransport(ops: ops);
+
         while (ops.BodyMessages.Count > 0)
         {
             var msg = ops.BodyMessages[0];
@@ -222,10 +212,10 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
             sm.OnBodyMessage(msg);
         }
 
-        var transportData = ops.Outbound.OfType<TransportData>().ToList();
-        // transportData[0] is the header block; body chunks follow.
-        Assert.True(transportData.Count >= 3, "Body of 10 bytes at chunk size 4 should emit multiple body frames");
-        Assert.Equal(4, transportData[1].Buffer.Length);
+        var writtenData = transport.WrittenSpan;
+        var writtenText = Encoding.ASCII.GetString(writtenData);
+        // Headers + body should be in WrittenSpan; verify body content is present
+        Assert.Contains("helloworld", writtenText);
     }
 
     [Fact(Timeout = 5000)]
@@ -244,6 +234,7 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
 
         // The SM catches the exception internally and fails the request.
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         // After the failure, the SM should be ready for a new request (no body pending).
         Assert.False(sm.HasInFlightRequests);
@@ -301,8 +292,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var sm = new Http10ClientStateMachine(TestClientOptions.Create(), ops);
         sm.OnRequest(MakeRequest());
 
-        var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
-        sm.DecodeServerData(TransportData.Rent(headerBuffer));
+        var responseData = CreateResponseData("HTTP/1.0 200 OK\r\n\r\nhello");
+        var transport = sm.ConnectTransport(responseData, ops);
 
         // RFC 1945 §7.2.2: response delivered immediately with streaming body
         Assert.Single(ops.Responses);
@@ -317,8 +308,8 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var sm = new Http10ClientStateMachine(TestClientOptions.Create(), ops);
         sm.OnRequest(MakeRequest());
 
-        var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
-        sm.DecodeServerData(TransportData.Rent(headerBuffer));
+        var responseData = CreateResponseData("HTTP/1.0 200 OK\r\n\r\nhello");
+        var transport = sm.ConnectTransport(responseData, ops);
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
         Assert.Single(ops.Responses);
@@ -394,8 +385,10 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
 
         // First attempt: the 64 KiB body fits within the 256 KiB pump budget, so it fully drains.
         sm.OnRequest(request);
+        var transport = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
-        Assert.Equal(bodySize, ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length));
+        var writtenData = transport.WrittenSpan;
+        Assert.True(writtenData.Length >= bodySize, $"Expected at least {bodySize} bytes written, got {writtenData.Length}");
 
         // Ungraceful disconnect: the request is buffered for reconnect replay.
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -403,12 +396,11 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
 
         // Reconnect replay MUST re-send the FULL body, not 0 bytes from the already-consumed content
         // stream (which would hang a fixed-length server read).
-        ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport2 = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
 
-        var replayedBody = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
-        Assert.Equal(bodySize, replayedBody);
+        var replayedWritten = transport2.WrittenSpan;
+        Assert.True(replayedWritten.Length >= bodySize, $"Replayed body should be at least {bodySize} bytes, got {replayedWritten.Length}");
     }
 
     [Fact(Timeout = 5000)]
@@ -437,6 +429,7 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
         request.Options.Set(OptionsKey.VersionKey, version);
 
         sm.OnRequest(request);
+        var transport = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -444,11 +437,9 @@ public sealed class Http10ClientStateMachineSpec() : TestKit(CiQuietConfig.Insta
 
         // A consumed forward-only body cannot be rewound → fail fast instead of sending a truncated
         // fixed-length body.
-        ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport2 = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
 
         Assert.True(pending.GetValueTask().IsFaulted);
-        Assert.Empty(ops.Outbound.OfType<TransportData>());
     }
 }

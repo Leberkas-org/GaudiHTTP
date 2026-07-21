@@ -1,3 +1,4 @@
+using System.Buffers;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http3;
@@ -57,7 +58,7 @@ public sealed class Http3ClientBodyFastPathSpec
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
                 // ToList so the reused decoder buffer is copied before the next decode call
-                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory, out _).ToList());
+                frames.AddRange(decoder.DecodeAll(new ReadOnlySequence<byte>(md.Buffer.Memory), out _).ToList());
                 md.Buffer.Dispose();
             }
         }

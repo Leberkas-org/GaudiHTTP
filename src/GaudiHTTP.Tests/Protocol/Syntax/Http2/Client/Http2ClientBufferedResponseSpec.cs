@@ -51,14 +51,15 @@ public sealed class Http2ClientBufferedResponseSpec
 
         var request = MakeGet();
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         var body = "hello"u8.ToArray();
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: body.Length));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: body.Length));
 
         // Headers arrived but the body has not — dispatch must be deferred (buffered path).
         Assert.Empty(ops.Responses);
 
-        sm.ProcessFrame(new DataFrame(1, body, endStream: true));
+        sm.ProcessFrame(new DataFrame(3, body, endStream: true));
 
         var response = Assert.Single(ops.Responses);
         Assert.Same(request, response.RequestMessage);
@@ -74,15 +75,16 @@ public sealed class Http2ClientBufferedResponseSpec
         var sm = CreateSession(ops);
 
         sm.EncodeRequest(MakeGet());
+        sm.FlushPendingInitialRequest();
 
         var body = "hello world"u8.ToArray();
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: body.Length));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: body.Length));
         Assert.Empty(ops.Responses);
 
-        sm.ProcessFrame(new DataFrame(1, body[..5], endStream: false));
+        sm.ProcessFrame(new DataFrame(3, body[..5], endStream: false));
         Assert.Empty(ops.Responses);
 
-        sm.ProcessFrame(new DataFrame(1, body[5..], endStream: true));
+        sm.ProcessFrame(new DataFrame(3, body[5..], endStream: true));
 
         var response = Assert.Single(ops.Responses);
         var received = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -98,9 +100,10 @@ public sealed class Http2ClientBufferedResponseSpec
 
         var request = MakeGet();
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
         // Content-Length exceeds the (deliberately tiny) threshold: must stream immediately.
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: 100));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: 100));
 
         var response = Assert.Single(ops.Responses);
         Assert.Same(request, response.RequestMessage);
@@ -115,8 +118,9 @@ public sealed class Http2ClientBufferedResponseSpec
 
         var request = MakeGet();
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: null));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: null));
 
         Assert.Single(ops.Responses);
     }
@@ -130,13 +134,14 @@ public sealed class Http2ClientBufferedResponseSpec
 
         var request = MakeGet();
         sm.EncodeRequest(request);
+        sm.FlushPendingInitialRequest();
 
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: 5));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: 5));
         Assert.Empty(ops.Responses);
 
         // Connection resets the stream before the buffered body completes — the caller's
         // Task must still be failed (correlation entry must not have been dropped early).
-        sm.ProcessFrame(new RstStreamFrame(1, Http2ErrorCode.Cancel));
+        sm.ProcessFrame(new RstStreamFrame(3, Http2ErrorCode.Cancel));
 
         Assert.Empty(ops.Responses);
     }
@@ -149,12 +154,13 @@ public sealed class Http2ClientBufferedResponseSpec
         var sm = CreateSession(ops);
 
         sm.EncodeRequest(MakeGet());
+        sm.FlushPendingInitialRequest();
 
-        sm.ProcessFrame(MakeResponseHeaders(1, contentLength: 10));
+        sm.ProcessFrame(MakeResponseHeaders(3, contentLength: 10));
         Assert.Empty(ops.Responses);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            sm.ProcessFrame(new DataFrame(1, "short"u8.ToArray(), endStream: true)));
+            sm.ProcessFrame(new DataFrame(3, "short"u8.ToArray(), endStream: true)));
 
         Assert.Contains("5", ex.Message);
         Assert.Contains("10", ex.Message);

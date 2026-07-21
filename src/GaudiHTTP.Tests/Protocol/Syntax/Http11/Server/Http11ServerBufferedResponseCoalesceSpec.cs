@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
@@ -14,13 +13,10 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     private static Http11ServerStateMachine CreateSm(FakeServerOps ops)
         => new(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-    private static void SendRequest(Http11ServerStateMachine sm)
+    private static InMemoryTransport SendRequest(Http11ServerStateMachine sm, FakeServerOps ops)
     {
         var data = Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n");
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        return sm.ConnectTransport(data, ops);
     }
 
     private static IFeatureCollection BufferedResponse(byte[] body, bool withContentLength)
@@ -48,14 +44,12 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
         var body = "hello world"u8.ToArray();
         sm.OnResponse(BufferedResponse(body, withContentLength: true));
 
-        var item = Assert.Single(ops.Outbound);
-        var data = Assert.IsType<TransportData>(item);
-        var text = Encoding.ASCII.GetString(data.Buffer.Span);
+        var text = Encoding.ASCII.GetString(transport.WrittenSpan);
 
         Assert.Contains("HTTP/1.1 200", text);
         Assert.Contains("Content-Length: 11", text);
@@ -67,7 +61,7 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        _ = SendRequest(sm, ops);
 
         var features = BufferedResponse("xyz"u8.ToArray(), withContentLength: true);
         sm.OnResponse(features);
@@ -80,13 +74,13 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        var transport = SendRequest(sm, ops);
 
-        // No Content-Length -> chunked framing: status/header buffer, framed chunk, and the
-        // zero-length terminator stay as separate outbound items.
         sm.OnResponse(BufferedResponse("hello world"u8.ToArray(), withContentLength: false));
 
-        Assert.True(ops.Outbound.Count > 1);
+        var text = Encoding.ASCII.GetString(transport.WrittenSpan);
+        Assert.Contains("Transfer-Encoding: chunked", text);
+        Assert.Contains("0\r\n\r\n", text);
     }
 
     [Fact(Timeout = 5000)]
@@ -94,7 +88,7 @@ public sealed class Http11ServerBufferedResponseCoalesceSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        SendRequest(sm);
+        _ = SendRequest(sm, ops);
 
         // Coalesced completion runs through the CompleteResponse epilogue synchronously —
         // no pump/body message round-trip is involved on this path.

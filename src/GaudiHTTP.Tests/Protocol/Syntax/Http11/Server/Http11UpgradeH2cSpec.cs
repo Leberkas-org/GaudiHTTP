@@ -17,6 +17,7 @@ public sealed class Http11UpgradeH2CSpec
     private sealed class SwitchCapableOps : IServerStageOperations, IProtocolSwitchCapable
     {
         private readonly FakeServerOps _inner = new();
+        public FakeServerOps Inner => _inner;
         public Func<IServerStageOperations, IServerStateMachine>? SwitchFactory { get; private set; }
 
         public List<IFeatureCollection> Requests => _inner.Requests;
@@ -48,15 +49,6 @@ public sealed class Http11UpgradeH2CSpec
         }
     }
 
-    private static TransportData MakeData(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return TransportData.Rent(buffer);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-3.2")]
     public void DecodeClientData_should_trigger_switch_when_upgrade_h2c_with_switchable_ops()
@@ -64,19 +56,18 @@ public sealed class Http11UpgradeH2CSpec
         var ops = new SwitchCapableOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        sm.DecodeClientData(MakeData(
+        var data = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
             "Host: localhost\r\n" +
             "Connection: Upgrade, HTTP2-Settings\r\n" +
             "Upgrade: h2c\r\n" +
             "HTTP2-Settings: AAMAAABkAAQBAAAAAAIAAAAA\r\n" +
             "Content-Length: 0\r\n" +
-            "\r\n"));
+            "\r\n");
+        var transport = sm.ConnectTransport(data, ops.Inner);
 
         Assert.NotNull(ops.SwitchFactory);
-        var outbound = ops.Outbound.OfType<TransportData>().ToList();
-        Assert.NotEmpty(outbound);
-        var responseText = Encoding.ASCII.GetString(outbound[0].Buffer.Span);
+        var responseText = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("101", responseText);
         Assert.Contains("Upgrade: h2c", responseText);
     }
@@ -88,14 +79,15 @@ public sealed class Http11UpgradeH2CSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        sm.DecodeClientData(MakeData(
+        var data = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
             "Host: localhost\r\n" +
             "Connection: Upgrade, HTTP2-Settings\r\n" +
             "Upgrade: h2c\r\n" +
             "HTTP2-Settings: AAMAAABkAAQBAAAAAAIAAAAA\r\n" +
             "Content-Length: 0\r\n" +
-            "\r\n"));
+            "\r\n");
+        _ = sm.ConnectTransport(data, ops);
 
         Assert.Single(ops.Requests);
         Assert.Equal("GET", ops.Requests[0].Get<IHttpRequestFeature>()?.Method);
@@ -108,13 +100,14 @@ public sealed class Http11UpgradeH2CSpec
         var ops = new SwitchCapableOps();
         var sm = new Http11ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), new GaudiServerOptions().ToHttp2Options(), ops);
 
-        sm.DecodeClientData(MakeData(
+        var data = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
             "Host: localhost\r\n" +
             "Connection: Upgrade\r\n" +
             "Upgrade: h2c\r\n" +
             "Content-Length: 0\r\n" +
-            "\r\n"));
+            "\r\n");
+        _ = sm.ConnectTransport(data, ops.Inner);
 
         Assert.Null(ops.SwitchFactory);
         Assert.Single(ops.Requests);

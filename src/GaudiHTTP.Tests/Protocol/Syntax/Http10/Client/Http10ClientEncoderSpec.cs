@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using GaudiHTTP.Protocol.Syntax.Http10.Client;
 
@@ -14,9 +15,9 @@ public sealed class Http10ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/foo");
         request.Headers.TryAddWithoutValidation("User-Agent", "test/1.0");
 
-        var buf = new byte[256];
+        var buf = new ArrayBufferWriter<byte>(256);
         var written = MakeEncoder().Encode(buf, request, out var bodyStream);
-        var text = Encoding.ASCII.GetString(buf, 0, written);
+        var text = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         Assert.Null(bodyStream);
         Assert.StartsWith("GET /foo HTTP/1.0\r\n", text);
@@ -30,9 +31,9 @@ public sealed class Http10ClientEncoderSpec
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
-        var buf = new byte[256];
+        var buf = new ArrayBufferWriter<byte>(256);
         var written = MakeEncoder().Encode(buf, request, out _);
-        var text = Encoding.ASCII.GetString(buf, 0, written);
+        var text = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         Assert.DoesNotContain("Host:", text, StringComparison.OrdinalIgnoreCase);
     }
@@ -45,7 +46,7 @@ public sealed class Http10ClientEncoderSpec
         {
             Content = new ByteArrayContent("hello"u8.ToArray())
         };
-        var buf = new byte[4096];
+        var buf = new ArrayBufferWriter<byte>(4096);
 
         var written = MakeEncoder().Encode(buf, request, out var bodyStream);
 
@@ -62,17 +63,17 @@ public sealed class Http10ClientEncoderSpec
         {
             Content = new ByteArrayContent("hello"u8.ToArray())
         };
-        var buf = new byte[4096];
+        var buf = new ArrayBufferWriter<byte>(4096);
         encoder.Encode(buf, request, out var bodyStream);
         Assert.NotNull(bodyStream);
 
         var bodyBytes = new byte[256];
         var bytesRead = await bodyStream!.ReadAsync(bodyBytes, TestContext.Current.CancellationToken);
 
-        var deferredBuf = new byte[4096];
+        var deferredBuf = new ArrayBufferWriter<byte>(4096);
         var written = encoder.EncodeDeferred(deferredBuf, request, bodyBytes.AsSpan(0, bytesRead));
 
-        var result = Encoding.ASCII.GetString(deferredBuf, 0, written);
+        var result = Encoding.ASCII.GetString(deferredBuf.WrittenSpan[..written]);
         Assert.StartsWith("POST /", result);
         Assert.Contains("Content-Length: 5", result);
         Assert.Contains("hello", result);
@@ -85,9 +86,9 @@ public sealed class Http10ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.TryAddWithoutValidation("User-Agent", "GaudiHTTP/1.0");
 
-        var buf = new byte[256];
+        var buf = new ArrayBufferWriter<byte>(256);
         var written = MakeEncoder().Encode(buf, request, out _);
-        var text = Encoding.ASCII.GetString(buf, 0, written);
+        var text = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         Assert.Contains("User-Agent: GaudiHTTP/1.0", text);
     }
@@ -99,9 +100,9 @@ public sealed class Http10ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.Referrer = new Uri("http://example.com/page#section");
 
-        var buf = new byte[512];
+        var buf = new ArrayBufferWriter<byte>(512);
         var written = MakeEncoder().Encode(buf, request, out _);
-        var text = Encoding.ASCII.GetString(buf, 0, written);
+        var text = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         if (text.Contains("Referer:"))
         {

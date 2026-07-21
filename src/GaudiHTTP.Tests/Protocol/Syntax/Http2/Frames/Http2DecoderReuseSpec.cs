@@ -1,4 +1,6 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
+using GaudiHTTP.Tests.Protocol.Syntax;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
 
@@ -20,7 +22,9 @@ public sealed class Http2DecoderReuseSpec
             new PingFrame(new byte[8], isAck: false).Serialize(),
             new WindowUpdateFrame(1, 65535).Serialize());
 
-        var frames = new FrameDecoder().DecodeAll(bytes, out var bytesConsumed);
+        var input = new ReadOnlySequence<byte>(bytes);
+        var frames = new FrameDecoder().DecodeAll(input, out var consumed);
+        var bytesConsumed = input.Slice(0, consumed).Length;
 
         Assert.Equal(bytes.Length, bytesConsumed);
         Assert.Equal(2, frames.Count);
@@ -33,11 +37,10 @@ public sealed class Http2DecoderReuseSpec
     [Trait("RFC", "RFC9113-4.1")]
     public void DecodeAll_should_return_an_empty_list_for_an_incomplete_frame()
     {
-        // Fewer than the 9-octet frame header: no complete frame is produced — the bytes are
-        // buffered into the decoder's remainder rather than reported as consumed downstream.
-        var frames = new FrameDecoder().DecodeAll(new byte[] { 0, 0, 5 }, out var bytesConsumed);
+        var input = new ReadOnlySequence<byte>(new byte[] { 0, 0, 5 });
+        var frames = new FrameDecoder().DecodeAll(input, out var consumed);
 
-        Assert.Equal(3, bytesConsumed);
+        Assert.True(consumed.Equals(input.Start));
         Assert.Empty(frames);
     }
 
@@ -47,11 +50,11 @@ public sealed class Http2DecoderReuseSpec
     {
         var decoder = new FrameDecoder();
 
-        var first = decoder.DecodeAll(new PingFrame(new byte[8], isAck: false).Serialize(), out _);
+        var first = decoder.DecodeAll(new ReadOnlySequence<byte>(new PingFrame(new byte[8], isAck: false).Serialize()), out _);
         Assert.Single(first);
 
         // An empty feed with no buffered remainder must not surface the previous call's frames.
-        var second = decoder.DecodeAll(Array.Empty<byte>(), out _);
+        var second = decoder.DecodeAll(ReadOnlySequence<byte>.Empty, out _);
         Assert.Empty(second);
     }
 
@@ -61,8 +64,8 @@ public sealed class Http2DecoderReuseSpec
     {
         var decoder = new FrameDecoder();
 
-        var first = decoder.DecodeAll(new PingFrame(new byte[8], isAck: false).Serialize(), out _);
-        var second = decoder.DecodeAll(new PingFrame(new byte[8], isAck: true).Serialize(), out _);
+        var first = decoder.DecodeAll(new ReadOnlySequence<byte>(new PingFrame(new byte[8], isAck: false).Serialize()), out _);
+        var second = decoder.DecodeAll(new ReadOnlySequence<byte>(new PingFrame(new byte[8], isAck: true).Serialize()), out _);
 
         // No fresh collection is allocated per call — the reused list is returned directly.
         Assert.Same(first, second);
@@ -70,30 +73,17 @@ public sealed class Http2DecoderReuseSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-4.1")]
-    public void DecodeAll_should_reuse_the_remainder_buffer_across_fragmented_calls()
+    public void DecodeAll_should_decode_fragmented_frame_from_multi_segment_sequence()
     {
-        // A frame split across two caller-owned buffers forces the decoder to buffer the first
-        // fragment into its internal remainder byte[]. Feeding several such fragmented frames in
-        // sequence must not grow the remainder buffer unboundedly — it is reused, not reallocated,
-        // once large enough to hold the largest fragment seen.
         var decoder = new FrameDecoder();
-        var ping1 = new PingFrame(new byte[8], isAck: false).Serialize();
-        var ping2 = new PingFrame(new byte[8], isAck: true).Serialize();
+        var ping = new PingFrame(new byte[8], isAck: false).Serialize();
 
-        var partial1 = decoder.DecodeAll(ping1[..5], out var consumed1);
-        Assert.Empty(partial1);
-        Assert.Equal(5, consumed1);
+        var seq = SequenceHelper.CreateMultiSegment(ping[..5], ping[5..]);
+        var frames = decoder.DecodeAll(in seq, out var consumed);
 
-        var completed1 = decoder.DecodeAll(ping1[5..], out _);
-        Assert.Single(completed1);
-        Assert.False(Assert.IsType<PingFrame>(completed1[0]).IsAck);
-
-        var partial2 = decoder.DecodeAll(ping2[..5], out _);
-        Assert.Empty(partial2);
-
-        var completed2 = decoder.DecodeAll(ping2[5..], out _);
-        Assert.Single(completed2);
-        Assert.True(Assert.IsType<PingFrame>(completed2[0]).IsAck);
+        Assert.Single(frames);
+        Assert.IsType<PingFrame>(frames[0]);
+        Assert.True(consumed.Equals(seq.End));
     }
 
     private static byte[] Concat(byte[] a, byte[] b)

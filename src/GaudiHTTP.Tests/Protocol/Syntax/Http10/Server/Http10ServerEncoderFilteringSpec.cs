@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using GaudiHTTP.Protocol.Syntax.Http10.Options;
 using GaudiHTTP.Protocol.Syntax.Http10.Server;
@@ -32,9 +33,9 @@ public sealed class Http10ServerEncoderFilteringSpec
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers[headerName] = "some-value";
 
-        var buf = new byte[512];
+        var buf = new ArrayBufferWriter<byte>(512);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         // Verify hop-by-hop header does NOT appear in output
         Assert.DoesNotContain($"{headerName}:", wireOutput, StringComparison.OrdinalIgnoreCase);
@@ -47,9 +48,9 @@ public sealed class Http10ServerEncoderFilteringSpec
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()?.Headers["Date"] = DateTimeOffset.UtcNow.ToString("R");
 
-        var buf = new byte[512];
+        var buf = new ArrayBufferWriter<byte>(512);
         var written = MakeEncoder(withDate: true).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         // Count occurrences of "Date:" header
         var dateHeaderCount = 0;
@@ -71,9 +72,9 @@ public sealed class Http10ServerEncoderFilteringSpec
         var ctx = ServerTestContext.CreateResponse();
         ctx.Get<IHttpResponseFeature>()!.Headers["Content-Length"] = "5";
 
-        var buf = new byte[512];
+        var buf = new ArrayBufferWriter<byte>(512);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, "hello"u8);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         var count = 0;
         var pos = 0;
@@ -92,9 +93,9 @@ public sealed class Http10ServerEncoderFilteringSpec
     {
         var ctx = ServerTestContext.CreateResponse();
 
-        var buf = new byte[256];
+        var buf = new ArrayBufferWriter<byte>(256);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         // Wire output must contain Content-Length: 0
         Assert.Contains("Content-Length: 0", wireOutput);
@@ -116,9 +117,9 @@ public sealed class Http10ServerEncoderFilteringSpec
             ctx.Get<IHttpResponseFeature>()?.Headers[headerName] = "some-value";
         }
 
-        var buf = new byte[512];
+        var buf = new ArrayBufferWriter<byte>(512);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         // Verify ALL hop-by-hop headers are NOT in output
         foreach (var headerName in hopByHopHeaders)
@@ -137,9 +138,9 @@ public sealed class Http10ServerEncoderFilteringSpec
     {
         var ctx = ServerTestContext.CreateResponse(statusCode);
 
-        var buf = new byte[4096];
+        var buf = new ArrayBufferWriter<byte>(4096);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         Assert.StartsWith($"HTTP/1.0 {statusCode}", wireOutput);
     }
@@ -150,9 +151,9 @@ public sealed class Http10ServerEncoderFilteringSpec
     {
         var ctx = ServerTestContext.CreateResponse();
 
-        var buf = new byte[4096];
+        var buf = new ArrayBufferWriter<byte>(4096);
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
-        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+        var wireOutput = Encoding.ASCII.GetString(buf.WrittenSpan[..written]);
 
         Assert.StartsWith("HTTP/1.0 200", wireOutput);
     }

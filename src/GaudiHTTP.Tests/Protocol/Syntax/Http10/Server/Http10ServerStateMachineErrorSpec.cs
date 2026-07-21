@@ -7,7 +7,6 @@ using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
@@ -26,24 +25,14 @@ public sealed class Http10ServerStateMachineErrorSpec() : TestKit(CiQuietConfig.
         return features;
     }
 
-    private static WireBuffer CreateRequestBuffer(string requestText)
-    {
-        var bytes = Encoding.ASCII.GetBytes(requestText);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
-    }
-
     [Fact(Timeout = 5000)]
     public void DecodeClientData_should_set_ShouldComplete_on_decode_error()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
-
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Assert.True(sm.ShouldComplete);
         Assert.Empty(ops.Requests);
@@ -55,11 +44,11 @@ public sealed class Http10ServerStateMachineErrorSpec() : TestKit(CiQuietConfig.
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var invalidBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
-        sm.DecodeClientData(TransportData.Rent(invalidBuffer));
+        var invalidData = Encoding.ASCII.GetBytes("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
+        var transport = sm.ConnectTransport(invalidData, ops);
 
-        var validBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        var ex = Record.Exception(() => sm.DecodeClientData(TransportData.Rent(validBuffer)));
+        var validData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
+        var ex = Record.Exception(() => transport.FeedMore(sm, ops, validData));
 
         Assert.Null(ex);
     }

@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Net;
+using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -11,6 +12,11 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineSpec
 {
+    private static readonly ConnectionInfo DummyConnectionInfo = new(
+        new IPEndPoint(IPAddress.Loopback, 5000),
+        new IPEndPoint(IPAddress.Loopback, 80),
+        TransportProtocol.Tcp);
+
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
@@ -79,6 +85,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         var transportItems = ops.Outbound.OfType<TransportData>().ToList();
         Assert.Equal(2, transportItems.Count);
@@ -126,6 +133,7 @@ public sealed class Http2StateMachineSpec
 
         var content = new ByteArrayContent([1, 2, 3]);
         sm.OnRequest(MakePost("/", content));
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         var frames = ops.Outbound.OfType<TransportData>().ToList();
         Assert.True(frames.Count > 0);
@@ -141,6 +149,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         sm.OnRequest(MakeGet("/a"));
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         sm.OnRequest(MakeGet("/b"));
         sm.OnRequest(MakeGet("/c"));
 
@@ -301,8 +310,9 @@ public sealed class Http2StateMachineSpec
         var valueTask = new ValueTask<HttpResponseMessage>(pending, version);
 
         sm.OnRequest(request);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
-        var rst = new RstStreamFrame(1, Http2ErrorCode.RefusedStream);
+        var rst = new RstStreamFrame(3, Http2ErrorCode.RefusedStream);
         sm.DecodeServerData(TransportData.Rent(SerializeFrame(rst)));
 
         Assert.True(valueTask.IsFaulted);
@@ -376,6 +386,7 @@ public sealed class Http2StateMachineSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         ops.Outbound.Clear();
 
         var goaway = new GoAwayFrame(0, Http2ErrorCode.NoError);
@@ -416,9 +427,10 @@ public sealed class Http2StateMachineSpec
 
         var req = MakeGet("/test");
         sm.OnRequest(req);
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         ops.Outbound.Clear();
 
-        var headers = MakeResponseHeaders(1);
+        var headers = MakeResponseHeaders(3);
         sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
 
         var response = Assert.Single(ops.Responses);
@@ -456,6 +468,7 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
 
         sm.OnRequest(MakeGet("/a"));
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
         sm.OnRequest(MakeGet("/b"));
 
         Assert.False(sm.CanAcceptRequest);
@@ -589,6 +602,7 @@ public sealed class Http2StateMachineSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
+        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
 
         Assert.True(sm.HasInFlightRequests);
     }

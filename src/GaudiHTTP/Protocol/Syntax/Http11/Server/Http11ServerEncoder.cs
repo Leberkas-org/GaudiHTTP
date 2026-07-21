@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -11,15 +12,13 @@ internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
 {
     private readonly HeaderCollection _reusableHeaders = new();
 
-    public int Encode(Span<byte> destination, IFeatureCollection features, bool isChunked = false, bool connectionClose = false)
+    public int Encode(IBufferWriter<byte> writer, IFeatureCollection features, bool isChunked = false, bool connectionClose = false)
     {
-        var writer = SpanWriter.Create(destination);
+        _reusableHeaders.Clear();
 
         var responseFeature = features.Get<IHttpResponseFeature>();
         var statusCode = responseFeature?.StatusCode ?? 500;
-        StatusLineWriter.Write(ref writer, HttpVersion.Version11, statusCode);
 
-        _reusableHeaders.Clear();
         var responseHeaders = responseFeature?.Headers;
         if (responseHeaders is not null)
         {
@@ -73,8 +72,15 @@ internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
             _reusableHeaders.Add(WellKnownHeaders.Connection, WellKnownHeaders.CloseValue);
         }
 
-        HeaderBlockWriter.Write(ref writer, _reusableHeaders);
-        return writer.BytesWritten;
+        var statusLineSize = MessageVersionCodec.ToWireFormat(HttpVersion.Version11).Length + 1 + 3 + 2;
+        var headerSize = statusLineSize + _reusableHeaders.WireSize();
+        var span = writer.GetSpan(headerSize);
+        var sw = SpanWriter.Create(span);
+        StatusLineWriter.Write(ref sw, HttpVersion.Version11, statusCode);
+        HeaderBlockWriter.Write(ref sw, _reusableHeaders);
+
+        writer.Advance(sw.BytesWritten);
+        return sw.BytesWritten;
     }
 
     private static string BuildTrailerNames(IHeaderDictionary trailers)

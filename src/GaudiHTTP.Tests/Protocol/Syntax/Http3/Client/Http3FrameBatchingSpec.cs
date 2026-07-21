@@ -1,3 +1,4 @@
+using System.Buffers;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Body;
@@ -28,7 +29,7 @@ public sealed class Http3FrameBatchingSpec
         {
             if (item is MultiplexedData md && md.StreamId == streamId)
             {
-                frames.AddRange(decoder.DecodeAll(md.Buffer.Memory, out _).ToList());
+                frames.AddRange(decoder.DecodeAll(new ReadOnlySequence<byte>(md.Buffer.Memory), out _).ToList());
                 md.Buffer.Dispose();
             }
         }

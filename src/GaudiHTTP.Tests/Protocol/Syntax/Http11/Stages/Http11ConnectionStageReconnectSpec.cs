@@ -68,7 +68,14 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
 
         // Consume ConnectTransport + TransportData
         var item0 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<ConnectTransport>(item0);
+        var connect0 = Assert.IsType<ConnectTransport>(item0);
+
+        // Simulate initial connect success — request encoding is deferred until TransportConnected
+        var initialRemote = new IPEndPoint(IPAddress.Loopback, connect0.Options.Port);
+        var initialLocal = new IPEndPoint(IPAddress.Loopback, 0);
+        serverSub.SendNext(
+            new TransportConnected(new ConnectionInfo(initialLocal, initialRemote, TransportProtocol.Tcp)));
+
         var item1 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var td = Assert.IsType<TransportData>(item1);
         td.Buffer.Dispose();
@@ -135,7 +142,14 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         resSub.Request(10);
 
         appSub.SendNext(MakeRequest());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // ConnectTransport
+        var connect0Raw = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // ConnectTransport
+        var connect0 = Assert.IsType<ConnectTransport>(connect0Raw);
+
+        var initialRemote = new IPEndPoint(IPAddress.Loopback, connect0.Options.Port);
+        var initialLocal = new IPEndPoint(IPAddress.Loopback, 0);
+        serverSub.SendNext(
+            new TransportConnected(new ConnectionInfo(initialLocal, initialRemote, TransportProtocol.Tcp)));
+
         var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // TransportData
         Assert.IsType<TransportData>(item);
 

@@ -1,3 +1,4 @@
+using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Server;
@@ -6,7 +7,8 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2.Server;
 
-internal sealed class Http2ServerStateMachine : IServerStateMachine
+internal sealed class Http2ServerStateMachine :
+    TcpStateMachineBase<IServerStageOperations>, IServerStateMachine
 {
     private const string DrainBodyPrefix = "drain-body:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
@@ -16,7 +18,6 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     private const string KeepAlivePingTimer = "keep-alive-ping";
     private const string KeepAlivePingTimeoutTimer = "keep-alive-ping-timeout";
 
-    private readonly IServerStageOperations _ops;
     private readonly Http2ServerSessionManager _sessionManager;
 
     private readonly TimeSpan _keepAliveTimeout;
@@ -30,52 +31,53 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     public bool ShouldComplete => _sessionManager.ShouldComplete;
     public int MaxQueuedRequests => _sessionManager.MaxConcurrentStreams;
 
-    public Http2ServerStateMachine(Http2ConnectionOptions options, IServerStageOperations ops)
+    public Http2ServerStateMachine(Http2ConnectionOptions options, IServerStageOperations ops) : base(ops)
     {
-        _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+        ArgumentNullException.ThrowIfNull(ops);
         ArgumentNullException.ThrowIfNull(options);
 
         _sessionManager = new Http2ServerSessionManager(options, ops);
+        _sessionManager.EmitData = EmitToTransport;
 
         _keepAliveTimeout = options.Limits.KeepAliveTimeout;
         _keepAlivePingDelay = options.KeepAlivePingDelay;
         _keepAlivePingTimeout = options.KeepAlivePingTimeout;
     }
 
+    protected override Akka.Actor.IActorRef Self => Ops.Self;
+    protected override bool ShouldPauseReads => false;
+    protected override void OnFlushCompleted() { }
+    protected override void OnFlushDeferred() { }
+    protected override void OnTransportLost(Exception? ex) => _sessionManager.ShouldComplete = true;
+    protected override void OnTransportConnected(Servus.Akka.Transport.ConnectionInfo info) { }
+    protected override void OnTransportDisconnected(DisconnectReason reason) =>
+        _sessionManager.ShouldComplete = true;
+
+    private void EmitToTransport(ReadOnlySpan<byte> data)
+    {
+        var mem = Transport!.GetMemory(data.Length);
+        data.CopyTo(mem.Span);
+        Transport.Advance(data.Length);
+        RequestFlush();
+    }
+
     public void PreStart()
     {
         _sessionManager.PreStart();
-        _ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
+        Ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
         ScheduleKeepAlivePing();
     }
 
     public void DecodeClientData(ITransportInbound data)
     {
-        if (data is not TransportData { Buffer: var buffer })
+        if (DispatchLifecycleEvent(data))
         {
             return;
         }
 
-        _sessionManager.DecodeClientData(buffer);
-
-        ResetKeepAlivePingTimer();
-
-        var streamCount = _sessionManager.ActiveStreamCount;
-        switch (streamCount)
+        if (data is TransportData)
         {
-            case > 0 when _activeStreamCount == 0:
-                _activeStreamCount = streamCount;
-                _ops.OnCancelTimer(KeepAliveTimeout);
-                Tracing.For("Protocol").Debug(this, "HTTP/2: first stream opened, keep-alive timer cancelled");
-                break;
-            case 0 when _activeStreamCount > 0:
-                _activeStreamCount = 0;
-                _ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
-                Tracing.For("Protocol").Debug(this, "HTTP/2: all streams closed, keep-alive timer scheduled");
-                break;
-            default:
-                _activeStreamCount = streamCount;
-                break;
+            throw new InvalidOperationException("TransportData is not supported on TCP state machines; use pipe transport.");
         }
     }
 
@@ -145,13 +147,46 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     }
 
 
-    public void OnBodyMessage(object msg) => _sessionManager.OnBodyMessage(msg);
+    public void OnBodyMessage(object msg)
+    {
+        if (TryHandleAsyncResult(msg))
+        {
+            return;
+        }
+
+        _sessionManager.OnBodyMessage(msg);
+    }
+
+    protected override (SequencePosition Consumed, SequencePosition Examined) DecodeData(ReadOnlySequence<byte> data)
+    {
+        var consumed = _sessionManager.DecodeClientData(in data);
+
+        ResetKeepAlivePingTimer();
+
+        var streamCount = _sessionManager.ActiveStreamCount;
+        switch (streamCount)
+        {
+            case > 0 when _activeStreamCount == 0:
+                _activeStreamCount = streamCount;
+                Ops.OnCancelTimer(KeepAliveTimeout);
+                break;
+            case 0 when _activeStreamCount > 0:
+                _activeStreamCount = 0;
+                Ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
+                break;
+            default:
+                _activeStreamCount = streamCount;
+                break;
+        }
+
+        return (consumed, data.End);
+    }
 
     private void ScheduleKeepAlivePing()
     {
         if (KeepAlivePingEnabled)
         {
-            _ops.OnScheduleTimer(KeepAlivePingTimer, _keepAlivePingDelay);
+            Ops.OnScheduleTimer(KeepAlivePingTimer, _keepAlivePingDelay);
         }
     }
 
@@ -159,7 +194,7 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     {
         if (KeepAlivePingEnabled)
         {
-            _ops.OnScheduleTimer(KeepAlivePingTimeoutTimer, _keepAlivePingTimeout);
+            Ops.OnScheduleTimer(KeepAlivePingTimeoutTimer, _keepAlivePingTimeout);
         }
     }
 
@@ -167,10 +202,14 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     {
         if (KeepAlivePingEnabled)
         {
-            _ops.OnCancelTimer(KeepAlivePingTimeoutTimer);
+            Ops.OnCancelTimer(KeepAlivePingTimeoutTimer);
             ScheduleKeepAlivePing();
         }
     }
 
-    public void Cleanup() => _sessionManager.Cleanup();
+    public void Cleanup()
+    {
+        CleanupTransportIo();
+        _sessionManager.Cleanup();
+    }
 }

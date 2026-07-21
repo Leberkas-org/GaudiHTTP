@@ -4,6 +4,7 @@ using GaudiHTTP.Protocol.Semantics;
 
 namespace GaudiHTTP.Protocol.Syntax.Http2.Client;
 
+
 /// <summary>
 /// Encodes HTTP request messages as HTTP/2 frame sequences.
 /// Stateful: maintains HPACK encoder and stream ID counter.
@@ -162,6 +163,30 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
             static h => h.Name,
             static h => h.Value,
             "RFC 9113 §8.3.1");
+
+    public int EncodeAndWrite(IBufferWriter<byte> writer, HttpRequestMessage request, int streamId)
+    {
+        var frames = Encode(request, streamId);
+        return WriteFramesTo(writer, frames);
+    }
+
+    internal static int WriteFramesTo(IBufferWriter<byte> writer, IReadOnlyList<Http2Frame> frames)
+    {
+        var totalSize = 0;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            totalSize += frames[i].SerializedSize;
+        }
+
+        var span = writer.GetSpan(totalSize);
+        for (var i = 0; i < frames.Count; i++)
+        {
+            frames[i].WriteTo(ref span);
+        }
+
+        writer.Advance(totalSize);
+        return totalSize;
+    }
 
     /// <summary>
     /// Applies server settings to the encoder (e.g., MAX_FRAME_SIZE).

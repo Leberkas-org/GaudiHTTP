@@ -5,7 +5,6 @@ using GaudiHTTP.Server;
 using GaudiHTTP.Server.Context.Features;
 using GaudiHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Server;
 
@@ -23,15 +22,6 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         return context;
     }
 
-    private static WireBuffer CreateRequestBuffer(string requestText)
-    {
-        var bytes = Encoding.ASCII.GetBytes(requestText);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
     public void DecodeClientData_should_decode_complete_request()
@@ -39,9 +29,8 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("GET /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Assert.Single(ops.Requests);
         var req = ops.Requests[0].Get<IHttpRequestFeature>()!;
@@ -56,9 +45,8 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Assert.False(sm.ShouldComplete);
         Assert.Single(ops.Requests);
@@ -70,14 +58,14 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
+        var transport = sm.ConnectTransport(null, ops);
 
         var context = ServerTestContext.CreateResponse();
 
         sm.OnResponse(context);
 
         // Headers emitted without Content-Length
-        var td = ops.Outbound.OfType<TransportData>().First();
-        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
+        var text = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.DoesNotContain("Content-Length", text);
 
         // Connection close deferred until body completes
@@ -90,13 +78,13 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
+        var transport = sm.ConnectTransport(null, ops);
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
-        Assert.Contains(ops.Outbound, o => o is TransportData);
-        var td = ops.Outbound.OfType<TransportData>().First();
-        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
+        Assert.True(transport.WrittenCount > 0);
+        var text = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("Content-Length: 5", text);
         Assert.Contains("hello", text);
     }
@@ -107,6 +95,7 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
+        sm.ConnectTransport(null, ops);
 
         var features = new GaudiFeatureCollection();
         features.Set<IHttpRequestFeature>(new GaudiHttpRequestFeature());
@@ -150,14 +139,13 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
+        var transport = sm.ConnectTransport(requestData, ops);
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
-        var td = ops.Outbound.OfType<TransportData>().First();
-        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
+        var text = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.StartsWith("HTTP/1.0 ", text);
     }
 
@@ -168,8 +156,8 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("PATCH /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("PATCH /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Assert.Single(ops.Requests);
         var req = ops.Requests[0].Get<IHttpRequestFeature>()!;
@@ -183,8 +171,8 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("GET /path\r\n");
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("GET /path\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         Assert.True(ops.Requests.Count <= 1);
     }
@@ -196,8 +184,8 @@ public sealed class Http10ServerStateMachineSpec() : TestKit(CiQuietConfig.Insta
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new GaudiServerOptions().ToHttp1Options(), ops);
 
-        var requestBuffer = CreateRequestBuffer("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
-        sm.DecodeClientData(TransportData.Rent(requestBuffer));
+        var requestData = Encoding.ASCII.GetBytes("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
+        sm.ConnectTransport(requestData, ops);
 
         if (ops.Requests.Count > 0)
         {

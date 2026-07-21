@@ -1,3 +1,4 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http2;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Frames;
@@ -15,7 +16,7 @@ public sealed class Http2ErrorHandlingSpec
     internal void Http2FrameDecoder_should_decode_rst_stream_error_code(Http2ErrorCode expectedCode)
     {
         var frame = new RstStreamFrame(1, expectedCode).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var rstFrame = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(expectedCode, rstFrame.ErrorCode);
@@ -40,7 +41,7 @@ public sealed class Http2ErrorHandlingSpec
         frame[11] = 0;
         frame[12] = 1; // ErrorCode = ProtocolError
 
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var rstFrame = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.ProtocolError, rstFrame.ErrorCode);
@@ -51,7 +52,7 @@ public sealed class Http2ErrorHandlingSpec
     public void Http2FrameDecoder_should_accept_rst_stream_on_any_stream()
     {
         var frame = new RstStreamFrame(5, Http2ErrorCode.Cancel).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var rstFrame = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(5, rstFrame.StreamId);
@@ -63,7 +64,7 @@ public sealed class Http2ErrorHandlingSpec
     {
         var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
         var frame = new PingFrame(data, isAck: false).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var pingFrame = Assert.IsType<PingFrame>(frames[0]);
         Assert.False(pingFrame.IsAck);
@@ -75,7 +76,7 @@ public sealed class Http2ErrorHandlingSpec
     {
         var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
         var frame = new PingFrame(data, isAck: true).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var pingFrame = Assert.IsType<PingFrame>(frames[0]);
         Assert.True(pingFrame.IsAck);
@@ -87,7 +88,7 @@ public sealed class Http2ErrorHandlingSpec
     {
         var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
         var frame = new PingFrame(data, isAck: false).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var pingFrame = Assert.IsType<PingFrame>(frames[0]);
         Assert.Equal(data, pingFrame.Data.ToArray());
@@ -105,7 +106,7 @@ public sealed class Http2ErrorHandlingSpec
         frame[7] = 0x00;
         frame[8] = 0x01;
 
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frame, out _));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -127,7 +128,7 @@ public sealed class Http2ErrorHandlingSpec
         frame[10] = 0;
         frame[11] = 0;
 
-        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(frame, out _));
+        Assert.Throws<HttpProtocolException>(() => new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -135,7 +136,7 @@ public sealed class Http2ErrorHandlingSpec
     public void Http2FrameDecoder_should_accept_rst_stream_with_no_error()
     {
         var frame = new RstStreamFrame(1, Http2ErrorCode.NoError).Serialize();
-        var frames = new FrameDecoder().DecodeAll(frame, out _);
+        var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         Assert.NotEmpty(frames);
         var rstFrame = Assert.IsType<RstStreamFrame>(frames[0]);
         Assert.Equal(Http2ErrorCode.NoError, rstFrame.ErrorCode);

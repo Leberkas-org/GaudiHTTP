@@ -11,9 +11,9 @@ using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget
+internal sealed class Http11ClientStateMachine :
+    TcpStateMachineBase<IClientStageOperations>, IClientStateMachine, IBodyDrainTarget
 {
-    private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
     private readonly GaudiClientOptions _options;
@@ -32,6 +32,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private ConnectionState _connectionState;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
+    private bool _pendingEncode;
 
     internal sealed record StreamingSlotFreed;
 
@@ -103,9 +104,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public Http11ClientStateMachine(
         GaudiClientOptions options,
-        IClientStageOperations ops)
+        IClientStageOperations ops) : base(ops)
     {
-        _ops = ops;
         _options = options;
         _reconnectPolicy = new ReconnectPolicy<Queue<HttpRequestMessage>>(
             ops,
@@ -124,6 +124,60 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _effectivePipelineDepth = options.Http1.MaxPipelineDepth;
     }
 
+    protected override IActorRef Self => Ops.Self;
+    protected override bool ShouldPauseReads => _heldBuffer is not null || (_activeStreamingReader?.IsFull ?? false);
+
+    protected override void OnFlushCompleted() => _serialPump?.OnCapacityAvailable(int.MaxValue);
+    protected override void OnFlushDeferred() => _serialPump?.ParkForFlush();
+    protected override void OnTransportLost(Exception? ex) => HandleTransportLostInternal();
+
+    protected override void OnTransportConnected(ConnectionInfo info)
+    {
+        OnConnectionRestored();
+    }
+
+    protected override void OnTransportDisconnected(DisconnectReason reason)
+    {
+        if (IsReconnecting)
+        {
+            OnReconnectAttemptFailed();
+        }
+        else
+        {
+            HandleDisconnect(new TransportDisconnected(reason));
+        }
+    }
+
+    protected override (SequencePosition Consumed, SequencePosition Examined) DecodeData(ReadOnlySequence<byte> data)
+    {
+        ReadOnlyMemory<byte> memory;
+        byte[]? rented = null;
+        if (data.IsSingleSegment)
+        {
+            memory = data.First;
+        }
+        else
+        {
+            rented = System.Buffers.ArrayPool<byte>.Shared.Rent((int)data.Length);
+            data.CopyTo(rented);
+            memory = rented.AsMemory(0, (int)data.Length);
+        }
+
+        try
+        {
+            var offset = DecodeResponseFromMemory(memory);
+            var consumed = data.GetPosition(offset);
+            return (consumed, data.End);
+        }
+        finally
+        {
+            if (rented is not null)
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+    }
+
     public void PreStart()
     {
     }
@@ -133,7 +187,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget.StageActor => Ops.StageActor;
 
     void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
@@ -142,28 +196,28 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
-                var buf = WireBuffer.Rent(framedSize);
-                ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
-                buf.Length = framedSize;
-                _ops.OnOutbound(TransportData.Rent(buf));
+                var mem = Transport!.GetMemory(framedSize);
+                ChunkedFramingHelper.WriteChunk(data.Span, mem.Span);
+                Transport.Advance(framedSize);
             }
             else
             {
-                var buf = WireBuffer.Rent(data.Length);
-                data.CopyTo(buf.FullMemory);
-                buf.Length = data.Length;
-                _ops.OnOutbound(TransportData.Rent(buf));
+                var mem = Transport!.GetMemory(data.Length);
+                data.CopyTo(mem);
+                Transport.Advance(data.Length);
             }
+
+            RequestFlush();
         }
 
         if (endStream)
         {
             if (_isChunked)
             {
-                var buf = WireBuffer.Rent(5);
-                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
-                buf.Length = 5;
-                _ops.OnOutbound(TransportData.Rent(buf));
+                var mem = Transport!.GetMemory(5);
+                ChunkedFramingHelper.WriteTerminator(mem.Span);
+                Transport.Advance(5);
+                RequestFlush();
             }
 
             _outboundBodyPending = false;
@@ -182,16 +236,19 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             if (_isChunked)
             {
                 var framedSize = ChunkedFramingHelper.GetFramedSize(bytesWritten);
-                var buf = WireBuffer.Rent(framedSize);
-                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], buf.FullMemory.Span);
-                buf.Length = framedSize;
-                _ops.OnOutbound(TransportData.Rent(buf));
-                owner.Dispose();
+                var mem = Transport!.GetMemory(framedSize);
+                ChunkedFramingHelper.WriteChunk(owner.Memory.Span[..bytesWritten], mem.Span);
+                Transport.Advance(framedSize);
             }
             else
             {
-                _ops.OnOutbound(TransportData.Rent(WireBuffer.Wrap(owner, 0, bytesWritten)));
+                var mem = Transport!.GetMemory(bytesWritten);
+                owner.Memory.Span[..bytesWritten].CopyTo(mem.Span);
+                Transport.Advance(bytesWritten);
             }
+
+            owner.Dispose();
+            RequestFlush();
         }
         else
         {
@@ -202,10 +259,10 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             if (_isChunked)
             {
-                var buf = WireBuffer.Rent(5);
-                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
-                buf.Length = 5;
-                _ops.OnOutbound(TransportData.Rent(buf));
+                var mem = Transport!.GetMemory(5);
+                ChunkedFramingHelper.WriteTerminator(mem.Span);
+                Transport.Advance(5);
+                RequestFlush();
             }
 
             _outboundBodyPending = false;
@@ -243,21 +300,28 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         {
             Endpoint = endpoint;
             _transportOptions = OptionsFactory.Build(Endpoint, _options);
-            _ops.OnOutbound(new ConnectTransport(_transportOptions));
+            Ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
-        WireBuffer? item = null;
+        if (Transport is null)
+        {
+            _pendingEncode = true;
+            return;
+        }
+
+        EncodeRequestHead(request);
+    }
+
+    private void EncodeRequestHead(HttpRequestMessage request)
+    {
         try
         {
-            // Build the request headers once and rent a buffer sized to exactly the request line +
-            // header block. The body is streamed separately via StartBodyDrain, so it is NOT part of
-            // this buffer — this avoids both the throwaway header build HttpMessageSize.Estimate did
-            // purely for sizing and the body-sized over-rent it added on top.
             var headerSize = _encoder.Prepare(request, out var bodyStream, out var bodyContentLength);
-            item = WireBuffer.Rent(headerSize);
 
-            item.Length = _encoder.WriteTo(item.FullMemory.Span, request);
-            _ops.OnOutbound(TransportData.Rent(item));
+            var mem = Transport!.GetMemory(headerSize);
+            var written = _encoder.WriteTo(mem.Span, request);
+            Transport.Advance(written);
+            RequestFlush();
 
             if (bodyStream is not null)
             {
@@ -267,7 +331,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         }
         catch (Exception ex)
         {
-            item?.Dispose();
             Tracing.For("Protocol").Error(this, "Failed to encode HTTP/1.1 request [{0}]: {1}", request.RequestUri,
                 ex.Message);
             request.Fail(ex);
@@ -300,41 +363,21 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public void DecodeServerData(ITransportInbound data)
     {
-        switch (data)
-        {
-            case TransportConnected:
-                OnConnectionRestored();
-                return;
-
-            case TransportDisconnected when IsReconnecting:
-                OnReconnectAttemptFailed();
-                return;
-
-            case TransportDisconnected disconnect when !IsReconnecting:
-                HandleDisconnect(disconnect);
-                return;
-
-            case TransportDataFlushed flushed:
-                // Real wire flush: credit the request-body pump by the bytes the transport actually
-                // drained. Replaces the push-time OnOutboundFlushed "lie" with true byte back-pressure.
-                _serialPump?.OnCapacityAvailable(flushed.Bytes);
-                return;
-        }
-
-        if (data is not TransportData { Buffer: var buffer })
+        if (DispatchLifecycleEvent(data))
         {
             return;
         }
 
-        // Prepend any unconsumed prefix retained from the previous read — an incomplete status line
-        // or header line split across the read boundary — so the decoder resumes from it instead of
-        // losing it (which would desync the connection and fault subsequent pipelined responses).
-        if (_partialResponse is not null)
+        if (data is TransportDataFlushed flushed)
         {
-            buffer = CombineWithPartial(buffer);
+            _serialPump?.OnCapacityAvailable(flushed.Bytes);
+            return;
         }
 
-        DecodeResponse(buffer);
+        if (data is TransportData)
+        {
+            throw new InvalidOperationException("TransportData is not supported on TCP state machines; use pipe transport.");
+        }
     }
 
     public void OnUpstreamFinished()
@@ -376,6 +419,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     public void OnBodyMessage(object msg)
     {
+        if (TryHandleAsyncResult(msg))
+        {
+            return;
+        }
+
         Tracing.For("Protocol").Debug(this, "OnBodyMessage: {0}", msg.GetType().Name);
         switch (msg)
         {
@@ -436,6 +484,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _connectionCts?.Dispose();
         _connectionCts = null;
         _decoder.Reset();
+        CleanupTransportIo();
     }
 
     private void DecodeResponse(WireBuffer buffer, int startOffset = 0)
@@ -461,13 +510,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                             _pendingBodyResponse.RequestMessage = _inFlightQueue.Peek();
                         }
 
-                        _ops.OnResponse(_pendingBodyResponse);
+                        Ops.OnResponse(_pendingBodyResponse);
 
                         if (_activeStreamingReader is null && _decoder.StreamingReader is { } sr)
                         {
                             _activeStreamingReader = sr;
                             sr.SlotFreed += () =>
-                                _ops.StageActor.Tell(new StreamingSlotFreed(), ActorRefs.NoSender);
+                                Ops.StageActor.Tell(new StreamingSlotFreed(), ActorRefs.NoSender);
                         }
                     }
 
@@ -509,7 +558,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                     {
                         if ((int)response.StatusCode is not 101)
                         {
-                            _ops.OnResponse(response);
+                            Ops.OnResponse(response);
                         }
 
                         _decoder.Reset();
@@ -586,6 +635,79 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _serialPump = new SerialBodyPump(this, EnsureConnectionCts(),
             _options.ResolveRequestBodyChunkSize(_options.Http1), maxBytes: 256 * 1024);
         _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
+    }
+
+    private void HandleTransportLostInternal()
+    {
+        HandleDisconnect(new TransportDisconnected(DisconnectReason.Error));
+    }
+
+    private int DecodeResponseFromMemory(ReadOnlyMemory<byte> memory)
+    {
+        var offset = 0;
+        while (offset < memory.Length)
+        {
+            var isHead = _inFlightQueue.Count > 0 && _inFlightQueue.Peek().Method == HttpMethod.Head;
+            var outcome = _decoder.Feed(memory[offset..], isHead, out var consumed);
+            offset += consumed;
+
+            if (outcome == DecodeOutcome.NeedMore)
+            {
+                if (_decoder.IsBodyStreaming && _pendingBodyResponse is null)
+                {
+                    _pendingBodyResponse = _decoder.GetResponse();
+                    if (_inFlightQueue.Count > 0)
+                    {
+                        _pendingBodyResponse.RequestMessage = _inFlightQueue.Peek();
+                    }
+
+                    Ops.OnResponse(_pendingBodyResponse);
+
+                    if (_activeStreamingReader is null && _decoder.StreamingReader is { } sr)
+                    {
+                        _activeStreamingReader = sr;
+                        sr.SlotFreed += () =>
+                            Ops.StageActor.Tell(new StreamingSlotFreed(), ActorRefs.NoSender);
+                    }
+                }
+
+                return offset;
+            }
+
+            if (outcome == DecodeOutcome.Complete)
+            {
+                if (_pendingBodyResponse is not null)
+                {
+                    _pendingBodyResponse = null;
+                    _activeStreamingReader = null;
+                    if (_inFlightQueue.Count > 0)
+                    {
+                        _inFlightQueue.Dequeue();
+                    }
+
+                    _decoder.Reset();
+                    continue;
+                }
+
+                var response = _decoder.GetResponse();
+
+                if ((int)response.StatusCode is >= 100 and < 200)
+                {
+                    if ((int)response.StatusCode is not 101)
+                    {
+                        Ops.OnResponse(response);
+                    }
+
+                    _decoder.Reset();
+                    continue;
+                }
+
+                CompleteResponse(response);
+                _decoder.Reset();
+            }
+        }
+
+        return offset;
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
@@ -723,32 +845,23 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void OnConnectionRestored()
     {
-        // Capture the reconnect state BEFORE it is overwritten below: TransportConnected fires on the
-        // INITIAL connect too (the client connects lazily inside the first OnRequest), not only on a
-        // genuine reconnect.
         var wasReconnecting = _connectionState == ConnectionState.Reconnecting;
         _connectionState = ConnectionState.Active;
         _decoder.Reset();
 
-        // Reset the request-body credit state ONLY on a genuine reconnect, before any buffered request
-        // is re-armed. A request whose upload was interrupted leaves a stale, budget-depleted pump in
-        // _serialPump; each replayed body-drain (StartBodyDrain) constructs a FRESH pump whose
-        // Register() already fills the budget to maxBytes, so the replay never deadlocks on stale
-        // credit. Tear the stale pump down here rather than ResetCredit()-ing it: reviving an
-        // orphaned pump would make it read the old, partially-consumed body stream and emit those
-        // stale bytes onto the freshly reconnected wire (out of order, ahead of the replayed
-        // headers) — corrupting the connection. Disposing it also frees its rented buffer and
-        // linked CTS.
-        //
-        // On the INITIAL connect this MUST NOT run: the first OnRequest already created and started
-        // _serialPump for a bodied request (parked at the 256 KB budget for a large/async body).
-        // TransportConnected necessarily precedes any TransportDataFlushed, so tearing the pump down
-        // here would strand the still-draining first upload — later flushes hit a null pump, end-stream
-        // never fires, and the request hangs (silent truncation).
         if (wasReconnecting)
         {
             _serialPump?.Cleanup();
             _serialPump = null;
+        }
+
+        if (_pendingEncode)
+        {
+            _pendingEncode = false;
+            if (_inFlightQueue.Count > 0)
+            {
+                EncodeRequestHead(_inFlightQueue.Peek());
+            }
         }
 
         if (_reconnectPolicy.TakeBuffered() is { Count: > 0 } queue)
@@ -756,12 +869,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             while (queue.Count > 0)
             {
                 var req = queue.Dequeue();
-
-                // The encoder re-reads the body via HttpContent.ReadAsStream(), which returns the
-                // SAME cached stream now sitting at EOF from the interrupted first attempt. Rewind a
-                // seekable body to the start so the replay re-sends it in full; fail fast on a
-                // consumed forward-only body instead of advertising the full Content-Length while
-                // emitting a truncated body (which would hang a fixed-length server read).
                 if (!RequestBodyReplay.TryRewindOrFail(req, "HTTP/1.1", this))
                 {
                     continue;
@@ -807,6 +914,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             response.RequestMessage = request;
         }
 
-        _ops.OnResponse(response);
+        Ops.OnResponse(response);
     }
 }

@@ -195,7 +195,29 @@ HTTP/3 does not have application-level flow control windows (QUIC handles transp
 
 ### Requirement: FlowControlledBodyPump (H2 outbound gating)
 
-`FlowControlledBodyPump` is the H2-specific body pump that integrates with `FlowController` to gate body reads on the available send window. It uses both connection-level and per-stream window availability to decide when to schedule reads and how many bytes to read.
+`FlowControlledBodyPump` MUST continue to gate body reads on `FlowController` send-window availability
+(connection- and stream-level RFC 9113 windows), unchanged by the pipe transport in either mode --
+WINDOW_UPDATE accounting is orthogonal to the wire-write mechanism. Only the write call site changes: when
+the owning SM's `_transport` is non-null, an approved chunk MUST be written into `_transport` via
+`GetMemory`/`Advance` followed by `RequestFlush()`, instead of `ops.OnOutbound(TransportData.Rent(...))`.
+
+#### Scenario: Window gating is unchanged regardless of transport mode
+- **WHEN** a stream's body is registered with the pump
+- **THEN** the stream is enqueued for reading only if both its stream send window and the connection send
+  window are positive, exactly as before, independent of whether `_transport` is null
+
+#### Scenario: Approved chunk is written to the transport (pipe mode)
+- **WHEN** a body read completes and the flow controller has approved the reserved window, with
+  `_transport != null`
+- **THEN** the chunk MUST be encoded directly into `_transport` via `GetMemory`/`Advance`
+- **AND** `RequestFlush()` MUST be called
+- **AND** `flowController.Reserve`/`Refund` bookkeeping is unaffected by this write-path change
+
+#### Scenario: Approved chunk is emitted via ops.OnOutbound (legacy)
+- **WHEN** a body read completes and the flow controller has approved the reserved window, with
+  `_transport == null`
+- **THEN** the chunk MUST be wrapped in `TransportData` and emitted via `ops.OnOutbound`, unchanged from
+  prior behavior
 
 #### Scenario: Registration checks window availability before enqueuing
 - **WHEN** a stream's body is registered with the pump
@@ -230,29 +252,23 @@ HTTP/3 does not have application-level flow control windows (QUIC handles transp
 
 ### Requirement: SerialBodyPump outbound byte budget
 
-`SerialBodyPump` (used by HTTP/1.1) applies a fixed outbound byte budget (`maxBytes`) to gate body reads, ensuring bounded memory even on serial connections. The credit model is the same principle as the multiplexed pump but applied to a single active stream.
+`SerialBodyPump` (used by HTTP/1.1) gates body chunk delivery on pipe-native `FlushAsync` backpressure.
+The pump MUST NOT deliver a new chunk while a `FlushAsync()` triggered by the previous chunk's
+`RequestFlush()` is still pending (`_flushInProgress = true`). The legacy `TransportDataFlushed`-based
+credit system (`_availableBytes`, `_bytesInFlight`, high/low watermarks) has been removed -- outbound
+backpressure for TCP connections is handled exclusively by `PipeWriter.FlushAsync` blocking at the pause
+threshold, with the serial body pump receiving credit via the `onFlushCompleted` callback from
+`TransportIo.ProcessFlushResult`.
 
-#### Scenario: Budget is seeded at registration
-- **WHEN** `Register` is called with a body stream
-- **THEN** `_availableBytes` is set to `maxBytes`
+#### Scenario: Body pump pauses when the pipe is full
+- **WHEN** the owning SM writes a body chunk into `_transport` and calls `RequestFlush()`
+- **AND** `FlushAsync()` goes async (pipe above threshold), setting `_flushInProgress = true`
+- **THEN** the pump MUST NOT deliver another chunk until `_flushInProgress` clears
 
-#### Scenario: Body reads debit the budget
-- **WHEN** a body chunk of `bytesRead` bytes is emitted
-- **THEN** `_availableBytes` is decremented by `bytesRead`
-
-#### Scenario: TransportDataFlushed credits the budget
-- **WHEN** `OnCapacityAvailable(bytes)` is called after a real transport flush
-- **THEN** `_availableBytes` is incremented by `bytes`, clamped to `maxBytes`
-- **AND** if the pump was parked (budget <= 0), a new read is attempted
-
-#### Scenario: ResetCredit restores full budget on reconnect
-- **WHEN** `ResetCredit()` is called after a connection is re-established
-- **THEN** `_availableBytes` is restored to `maxBytes`
-- **AND** if a body stream is active, a read is attempted immediately
-
-#### Scenario: Depleted budget prevents further reads
-- **WHEN** `_availableBytes <= 0`
-- **THEN** `TryStartRead` returns without scheduling a read, even if a body stream is active and no read is in flight
+#### Scenario: Body pump resumes when the pipe drains
+- **WHEN** a `FlushCompleted` message clears `_flushInProgress`
+- **THEN** the SM MUST signal the pump that outbound capacity is available
+- **AND** the pump MAY deliver the next chunk
 
 ### Requirement: Reconnection and flow control state
 

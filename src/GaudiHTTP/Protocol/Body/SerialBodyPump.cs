@@ -24,10 +24,10 @@ internal sealed class SerialBodyPump(
     private bool _teardownPending;
 
     // Credit is denominated in body bytes, not chunk count: the pump may read while the budget is
-    // positive and debits the actual bytes read at emit time (below). A real wire flush of N bytes
-    // (TransportDataFlushed) credits N bytes back via OnCapacityAvailable, clamped to maxBytes, so
-    // at most maxBytes of body is ever in flight ahead of the socket. A negative budget (a final
-    // read overshooting the remaining credit) is expected and self-heals on the next credit.
+    // positive and debits the actual bytes read at emit time (below). A pipe flush credits bytes
+    // back via OnCapacityAvailable, clamped to maxBytes, so at most maxBytes of body is ever in
+    // flight ahead of the socket. A negative budget (a final read overshooting the remaining
+    // credit) is expected and self-heals on the next credit.
     private long _availableBytes;
 
     // Serial stream id is always 0, so the read-completion transforms capture nothing and are
@@ -57,6 +57,11 @@ internal sealed class SerialBodyPump(
         _availableBytes = maxBytes;
         Tracing.For("Protocol").Debug(this, "serial body credit reset to {0}", maxBytes);
         TryStartRead();
+    }
+
+    public void ParkForFlush()
+    {
+        _availableBytes = 0;
     }
 
     public void HandleReadComplete(int bytesRead)

@@ -1,4 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
@@ -130,7 +131,7 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         {
             if (outbound[i] is TransportData td)
             {
-                var decoded = decoder.DecodeAll(td.Buffer.Memory, out _);
+                var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _);
                 var hasData = false;
                 foreach (var frame in decoded)
                 {

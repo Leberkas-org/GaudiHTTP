@@ -1,5 +1,7 @@
+using System.Buffers;
 using GaudiHTTP.Protocol.Syntax.Http3;
 using GaudiHTTP.Protocol.Syntax.Http3.Qpack;
+using GaudiHTTP.Tests.Protocol.Syntax;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http3.Security;
 
@@ -9,7 +11,7 @@ public sealed class Http3FrameFuzzSpec
     {
         try
         {
-            decoder.DecodeAll(data, out _);
+            decoder.DecodeAll(new ReadOnlySequence<byte>(data), out _);
         }
         catch (HttpProtocolException)
         {
@@ -69,7 +71,7 @@ public sealed class Http3FrameFuzzSpec
             rng.NextBytes(payload);
 
             var frame = BuildRawFrame(unknownType, payload);
-            var decoded = decoder.DecodeAll(frame, out _);
+            var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
             Assert.Empty(decoded); // Unknown frames are skipped
         }
@@ -77,7 +79,7 @@ public sealed class Http3FrameFuzzSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.1")]
-    public void FrameDecoder_should_buffer_truncated_frame_without_crashing()
+    public void FrameDecoder_should_not_consume_truncated_frame()
     {
         using var decoder = new FrameDecoder();
 
@@ -85,10 +87,11 @@ public sealed class Http3FrameFuzzSpec
         var frame = BuildRawFrameWithDeclaredLength(
             (long)FrameType.Data, 100, new byte[10]);
 
-        var decoded = decoder.DecodeAll(frame, out _);
+        var sequence = new ReadOnlySequence<byte>(frame);
+        var decoded = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Empty(decoded);
-        Assert.True(decoder.HasRemainder);
+        Assert.Equal(0L, sequence.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -97,10 +100,10 @@ public sealed class Http3FrameFuzzSpec
     {
         using var decoder = new FrameDecoder();
 
-        var frames = decoder.DecodeAll(ReadOnlyMemory<byte>.Empty, out var consumed);
+        var frames = decoder.DecodeAll(ReadOnlySequence<byte>.Empty, out var consumed);
 
         Assert.Empty(frames);
-        Assert.Equal(0, consumed);
+        Assert.Equal(0L, ReadOnlySequence<byte>.Empty.GetOffset(consumed));
     }
 
     [Fact(Timeout = 5000)]
@@ -126,7 +129,7 @@ public sealed class Http3FrameFuzzSpec
         var payload = "Hello"u8.ToArray(); // "Hello"
         var frame = BuildRawFrame((long)FrameType.Data, payload);
 
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
 
         var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(5, dataFrame.Data.Length);
@@ -220,14 +223,14 @@ public sealed class Http3FrameFuzzSpec
 
         // Valid DATA frame
         var validFrame = BuildRawFrame((long)FrameType.Data, [0x01, 0x02, 0x03]);
-        var frames1 = decoder.DecodeAll(validFrame, out _);
+        var frames1 = decoder.DecodeAll(new ReadOnlySequence<byte>(validFrame), out _);
         var frame = Assert.IsType<DataFrame>(Assert.Single(frames1));
 
         // Valid GOAWAY frame
         var goawayPayload = new byte[8];
         var goawayLen = QuicVarInt.Encode(4, goawayPayload);
         var goawayFrame = BuildRawFrame((long)FrameType.GoAway, goawayPayload[..goawayLen]);
-        var frames2 = decoder.DecodeAll(goawayFrame, out _);
+        var frames2 = decoder.DecodeAll(new ReadOnlySequence<byte>(goawayFrame), out _);
         Assert.IsType<GoAwayFrame>(Assert.Single(frames2));
     }
 
@@ -239,7 +242,7 @@ public sealed class Http3FrameFuzzSpec
 
         var frame = BuildRawFrame((long)FrameType.Data, []);
 
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(0, dataFrame.Data.Length);
     }
@@ -252,7 +255,7 @@ public sealed class Http3FrameFuzzSpec
 
         var frame = BuildRawFrame((long)FrameType.Headers, []);
 
-        var frames = decoder.DecodeAll(frame, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(frame), out _);
         var headersFrame = Assert.IsType<HeadersFrame>(Assert.Single(frames));
         Assert.Equal(0, headersFrame.HeaderBlock.Length);
     }
@@ -269,10 +272,11 @@ public sealed class Http3FrameFuzzSpec
         frame1.CopyTo(combined, 0);
         frame2.CopyTo(combined, frame1.Length);
 
-        var frames = decoder.DecodeAll(combined, out var consumed);
+        var sequence = new ReadOnlySequence<byte>(combined);
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
         Assert.Equal(2, frames.Count);
-        Assert.Equal(combined.Length, consumed);
+        Assert.Equal(combined.Length, sequence.GetOffset(consumed));
 
         foreach (var f in frames)
         {
@@ -284,40 +288,26 @@ public sealed class Http3FrameFuzzSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.1")]
-    public void FrameDecoder_should_handle_frame_split_across_two_calls()
+    public void FrameDecoder_should_decode_frame_split_across_segments()
     {
         using var decoder = new FrameDecoder();
 
         var payload = "Hello"u8.ToArray();
         var fullFrame = BuildRawFrame((long)FrameType.Data, payload);
 
-        // Split in the middle
+        // Split in the middle into a multi-segment sequence
         var half = fullFrame.Length / 2;
         var part1 = fullFrame[..half];
         var part2 = fullFrame[half..];
 
-        var frames1 = decoder.DecodeAll(part1, out _);
-        Assert.Empty(frames1);
+        var sequence = SequenceHelper.CreateMultiSegment(part1, part2);
+        var frames = decoder.DecodeAll(sequence, out var consumed);
 
-        var frames2 = decoder.DecodeAll(part2, out _);
-        var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames2));
+        var dataFrame = Assert.IsType<DataFrame>(Assert.Single(frames));
         Assert.Equal(5, dataFrame.Data.Length);
+        Assert.Equal(sequence.Length, sequence.GetOffset(consumed));
     }
 
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.1")]
-    public void FrameDecoder_should_reset_buffered_state_on_reset()
-    {
-        using var decoder = new FrameDecoder();
-
-        // Feed partial frame
-        var fullFrame = BuildRawFrame((long)FrameType.Data, new byte[100]);
-        decoder.DecodeAll(fullFrame[..5], out _);
-        Assert.True(decoder.HasRemainder);
-
-        decoder.Reset();
-        Assert.False(decoder.HasRemainder);
-    }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.2.4")]

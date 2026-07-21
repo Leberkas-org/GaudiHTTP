@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Server;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -15,40 +14,18 @@ public sealed class Http11ServerAutoContinueSpec
         return new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
     }
 
-    private static TransportData Make(string raw)
-    {
-        var data = Encoding.ASCII.GetBytes(raw);
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return TransportData.Rent(buffer);
-    }
-
-    private static string Outbound(FakeServerOps ops)
-    {
-        var sb = new StringBuilder();
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                sb.Append(Encoding.ASCII.GetString(td.Buffer.Span));
-            }
-        }
-
-        return sb.ToString();
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-10.1.1")]
     public void Server_should_auto_send_100_continue_when_expect_header_present()
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make(
-            "POST /upload HTTP/1.1\r\nHost: example.com\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\nhello"));
+        var data = Encoding.ASCII.GetBytes(
+            "POST /upload HTTP/1.1\r\nHost: example.com\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\nhello");
+        var transport = sm.ConnectTransport(data, ops);
 
         Assert.Single(ops.Requests);
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 100", wire);
     }
 
@@ -58,11 +35,12 @@ public sealed class Http11ServerAutoContinueSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make(
-            "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"));
+        var data = Encoding.ASCII.GetBytes(
+            "GET / HTTP/1.1\r\nHost: example.com\r\n\r\n");
+        var transport = sm.ConnectTransport(data, ops);
 
         Assert.Single(ops.Requests);
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.DoesNotContain("100", wire);
     }
 
@@ -72,15 +50,16 @@ public sealed class Http11ServerAutoContinueSpec
     {
         var ops = new FakeServerOps();
         var sm = CreateSm(ops);
-        sm.DecodeClientData(Make(
-            "POST /upload HTTP/1.1\r\nHost: example.com\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\nhello"));
+        var data = Encoding.ASCII.GetBytes(
+            "POST /upload HTTP/1.1\r\nHost: example.com\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\nhello");
+        var transport = sm.ConnectTransport(data, ops);
 
         var features = ops.Requests[0];
         var responseFeature = features.Get<IHttpResponseFeature>()!;
         responseFeature.StatusCode = 200;
         sm.OnResponse(features);
 
-        var wire = Outbound(ops);
+        var wire = Encoding.ASCII.GetString(transport.WrittenSpan);
         Assert.Contains("HTTP/1.1 100", wire);
         Assert.Contains("HTTP/1.1 200", wire);
     }

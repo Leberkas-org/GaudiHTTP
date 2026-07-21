@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Tests.TestSupport;
@@ -48,7 +49,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 1000; i++)
         {
             var streamId = 2 * i + 1; // odd IDs: 1, 3, 5, ..., 1999
-            var frames = decoder.DecodeAll(BuildHeadersFrame(streamId, endStream: true), out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(streamId, endStream: true)), out _);
 
             foreach (var frame in frames)
             {
@@ -78,7 +79,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 1000; i++)
         {
             var streamId = 2 * i + 1;
-            var frames = decoder.DecodeAll(BuildHeadersFrame(streamId, endStream: true), out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(streamId, endStream: true)), out _);
             decodedFrameCount += frames.Count;
         }
 
@@ -92,7 +93,7 @@ public sealed class Http2HighVolumeSequentialSpec
         var decoder = new FrameDecoder();
         // MAX_CONCURRENT_STREAMS = SettingsParameter id 3
         var settingsBytes = BuildSettingsFrame(false, (3, 500));
-        var frames = decoder.DecodeAll(settingsBytes, out _);
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(settingsBytes), out _);
 
         var settingsFrame = frames.OfType<SettingsFrame>().First();
         Assert.NotNull(settingsFrame);
@@ -111,7 +112,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 100; i++)
         {
             var streamId = 2 * i + 1;
-            var frames = decoder.DecodeAll(BuildHeadersFrame(streamId, endStream: false), out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(streamId, endStream: false)), out _);
             foreach (var frame in frames)
             {
                 if (frame is HeadersFrame)
@@ -127,7 +128,7 @@ public sealed class Http2HighVolumeSequentialSpec
         var oneByte = new byte[] { 0x42 };
         foreach (var streamId in openStreams.ToList())
         {
-            var frames = decoder.DecodeAll(BuildDataFrame(streamId, oneByte, endStream: true), out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildDataFrame(streamId, oneByte, endStream: true)), out _);
             foreach (var frame in frames)
             {
                 if (frame is DataFrame { EndStream: true } df)
@@ -152,7 +153,7 @@ public sealed class Http2HighVolumeSequentialSpec
         for (var i = 0; i < 10001; i++)
         {
             var streamId = 2 * i + 1; // 1, 3, ..., 20001
-            var frames = decoder.DecodeAll(BuildHeadersFrame(streamId, endStream: true), out _);
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(BuildHeadersFrame(streamId, endStream: true)), out _);
             foreach (var frame in frames)
             {
                 if (frame is HeadersFrame { EndStream: true } hf)

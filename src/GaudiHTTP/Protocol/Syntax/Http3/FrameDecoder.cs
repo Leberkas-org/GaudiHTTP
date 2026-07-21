@@ -1,137 +1,186 @@
+using System.Buffers;
 using GaudiHTTP.Pooling;
 
 namespace GaudiHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
 /// Stateful HTTP/3 frame decoder per RFC 9114 §7.
-/// Handles partial frames across QUIC stream boundaries by buffering
-/// incomplete data between calls to <see cref="DecodeAll"/>.
+/// Accepts <see cref="ReadOnlySequence{T}"/> and returns a <see cref="SequencePosition"/>
+/// indicating how far into the input frames were fully decoded. Unconsumed trailing
+/// bytes are NOT buffered internally — the caller (or Pipe) retains them via AdvanceTo.
 /// Unknown frame types are skipped gracefully per RFC 9114 §7.2.8.
-///
-/// Remainder bytes use a field-level byte[] (grow-on-demand, never-shrink)
-/// to avoid per-frame MemoryPool allocations. Frame payloads from complete
-/// frames in the input are zero-copy slices of the caller's buffer; payloads
-/// assembled from a buffered remainder are slices of the remainder buffer
-/// (valid until the next DecodeAll call).
+/// The returned list is reused on every call — callers MUST fully consume it
+/// before the next DecodeAll and MUST NOT retain it.
 /// </summary>
 internal sealed class FrameDecoder : Poolable<FrameDecoder>
 {
-    private byte[]? _remainderBuffer;
-    private int _remainderOffset;
-    private int _remainderLength;
-
     private readonly List<Http3Frame> _frames = [];
 
-    /// <summary>
-    /// Decodes all available frames from <paramref name="input"/>.
-    /// The returned list is reused on every call — callers MUST fully consume it
-    /// before the next DecodeAll and MUST NOT retain it.
-    /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeAll(ReadOnlyMemory<byte> input, out int bytesConsumed)
+    public IReadOnlyList<Http3Frame> DecodeAll(in ReadOnlySequence<byte> input, out SequencePosition consumed)
     {
         _frames.Clear();
-        bytesConsumed = 0;
 
-        if (_remainderLength > 0)
+        if (input.IsEmpty)
         {
-            // Compact deferred remainder from previous call before any new frame
-            // slices reference the buffer.
-            if (_remainderOffset > 0)
-            {
-                Buffer.BlockCopy(_remainderBuffer!, _remainderOffset, _remainderBuffer!, 0, _remainderLength);
-                _remainderOffset = 0;
-            }
+            consumed = input.Start;
+            return _frames;
+        }
 
-            DecodeWithRemainder(input);
+        if (input.IsSingleSegment)
+        {
+            consumed = DecodeFromSpan(input.First, input);
         }
         else
         {
-            DecodeFromInput(input);
+            consumed = DecodeFromSequence(input);
         }
 
-        bytesConsumed = input.Length;
         return _frames;
     }
 
-    private void DecodeFromInput(ReadOnlyMemory<byte> input)
+    private SequencePosition DecodeFromSpan(ReadOnlyMemory<byte> memory, in ReadOnlySequence<byte> sequence)
     {
+        var span = memory.Span;
         var offset = 0;
 
-        while (offset < input.Length)
+        while (offset < span.Length)
         {
-            var slice = input[offset..];
-            var result = TryDecodeFrame(slice.Span, slice, out var frame, out var consumed);
-
-            if (result == DecodeStatus.NeedMoreData)
-            {
-                var leftover = input.Length - offset;
-                _remainderOffset = 0;
-                _remainderLength = 0;
-                EnsureRemainderCapacity(leftover);
-                input.Span[offset..].CopyTo(_remainderBuffer);
-                _remainderLength = leftover;
-                break;
-            }
-
-            offset += consumed;
-
-            if (frame is not null)
-            {
-                _frames.Add(frame);
-            }
-        }
-    }
-
-    private void DecodeWithRemainder(ReadOnlyMemory<byte> input)
-    {
-        var needed = _remainderLength + input.Length;
-        EnsureRemainderCapacity(needed);
-        input.Span.CopyTo(_remainderBuffer.AsSpan(_remainderLength));
-        _remainderLength = needed;
-
-        while (_remainderLength > 0)
-        {
-            var dataMemory = _remainderBuffer.AsMemory(_remainderOffset, _remainderLength);
-            var result = TryDecodeFrame(dataMemory.Span, dataMemory, out var frame, out var consumed);
+            var slice = span[offset..];
+            var sliceMemory = memory[offset..];
+            var result = TryDecodeFrame(slice, sliceMemory, out var frame, out var frameConsumed);
 
             if (result == DecodeStatus.NeedMoreData)
             {
                 break;
             }
 
-            _remainderOffset += consumed;
-            _remainderLength -= consumed;
+            offset += frameConsumed;
 
             if (frame is not null)
             {
                 _frames.Add(frame);
             }
         }
+
+        return sequence.GetPosition(offset);
     }
 
-    private void EnsureRemainderCapacity(int needed)
+    private SequencePosition DecodeFromSequence(in ReadOnlySequence<byte> input)
     {
-        if (_remainderBuffer is null || _remainderBuffer.Length < needed + _remainderOffset)
+        var reader = new SequenceReader<byte>(input);
+
+        while (reader.Remaining > 0)
         {
-            var newBuffer = new byte[Math.Max(needed, 256)];
-            if (_remainderBuffer is not null && _remainderLength > 0)
+            var checkpoint = reader.Position;
+
+            if (!TryDecodeVarInt(ref reader, out var rawType, out var typeBytes))
             {
-                _remainderBuffer.AsSpan(_remainderOffset, _remainderLength).CopyTo(newBuffer);
-                _remainderOffset = 0;
+                return checkpoint;
             }
 
-            _remainderBuffer = newBuffer;
+            if (!TryDecodeVarInt(ref reader, out var payloadLength, out var lengthBytes))
+            {
+                return checkpoint;
+            }
+
+            if (payloadLength > int.MaxValue)
+            {
+                throw new HttpProtocolException(
+                    $"HTTP/3 frame payload length {payloadLength} exceeds maximum decodable size.");
+            }
+
+            var payloadLen = (int)payloadLength;
+
+            if (reader.Remaining < payloadLen)
+            {
+                return checkpoint;
+            }
+
+            ReadOnlyMemory<byte> payloadMemory;
+            var payloadSeq = input.Slice(reader.Position, payloadLen);
+            if (payloadSeq.IsSingleSegment)
+            {
+                payloadMemory = payloadSeq.First;
+            }
+            else
+            {
+                var buf = new byte[payloadLen];
+                payloadSeq.CopyTo(buf);
+                payloadMemory = buf;
+            }
+
+            reader.Advance(payloadLen);
+
+            if (Enum.IsDefined((FrameType)rawType))
+            {
+                var frame = (FrameType)rawType switch
+                {
+                    FrameType.Data => (Http3Frame)new DataFrame(payloadMemory),
+                    FrameType.Headers => new HeadersFrame(payloadMemory),
+                    FrameType.CancelPush => DecodeCancelPushFrame(payloadMemory.Span),
+                    FrameType.Settings => DecodeSettingsFrame(payloadMemory.Span),
+                    FrameType.PushPromise => DecodePushPromiseFrame(payloadMemory),
+                    FrameType.GoAway => DecodeGoAwayFrame(payloadMemory.Span),
+                    FrameType.MaxPushId => DecodeMaxPushIdFrame(payloadMemory.Span),
+                    _ => null
+                };
+
+                if (frame is not null)
+                {
+                    _frames.Add(frame);
+                }
+            }
         }
+
+        return reader.Position;
+    }
+
+    private static bool TryDecodeVarInt(ref SequenceReader<byte> reader, out long value, out int bytesRead)
+    {
+        value = 0;
+        bytesRead = 0;
+
+        if (!reader.TryPeek(out var firstByte))
+        {
+            return false;
+        }
+
+        var length = 1 << (firstByte >> 6);
+
+        if (reader.Remaining < length)
+        {
+            return false;
+        }
+
+        Span<byte> buf = stackalloc byte[8];
+        buf.Clear();
+
+        for (var i = 0; i < length; i++)
+        {
+            reader.TryRead(out buf[i]);
+        }
+
+        buf[0] &= 0x3F;
+
+        value = length switch
+        {
+            1 => buf[0],
+            2 => (buf[0] << 8) | buf[1],
+            4 => (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3],
+            8 => ((long)buf[0] << 56) | ((long)buf[1] << 48) | ((long)buf[2] << 40) | ((long)buf[3] << 32)
+                 | ((long)buf[4] << 24) | ((long)buf[5] << 16) | ((long)buf[6] << 8) | buf[7],
+            _ => 0
+        };
+
+        bytesRead = length;
+        return true;
     }
 
     protected override void OnReset()
     {
-        _remainderBuffer = null;
-        _remainderOffset = 0;
-        _remainderLength = 0;
     }
 
-    public bool HasRemainder => _remainderLength > 0;
+    public bool HasRemainder => false;
 
     private static DecodeStatus TryDecodeFrame(
         ReadOnlySpan<byte> data,

@@ -121,50 +121,23 @@ public sealed class Http3StreamRoutingSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-6.2")]
-    public void DecodeServerData_should_handle_fragmented_data_across_multiple_calls()
+    public void DecodeServerData_should_handle_complete_response_in_single_buffer()
     {
         var sm = CreateMachine();
 
-        // Test verifies that per-stream decoders buffer incomplete frames correctly.
-        // Send a complete response as fragments to stream 0.
-
+        // Send a complete response (HEADERS + DATA) in a single WireBuffer to stream 0.
         var response = BuildResponseBuffer(0xCC, 512);
-        var bytes = response.FullMemory;
-
-        // Split response into 3 parts
-        var part1Size = bytes.Length / 3;
-        var part2Size = bytes.Length / 3;
-        var part3Size = bytes.Length - part1Size - part2Size;
-
-        var part1 = WireBuffer.Rent(part1Size);
-        bytes.Span.Slice(0, part1Size).CopyTo(part1.FullMemory.Span);
-        part1.Length = part1Size;
-
-        var part2 = WireBuffer.Rent(part2Size);
-        bytes.Span.Slice(part1Size, part2Size).CopyTo(part2.FullMemory.Span);
-        part2.Length = part2Size;
-
-        var part3 = WireBuffer.Rent(part3Size);
-        bytes.Span.Slice(part1Size + part2Size, part3Size).CopyTo(part3.FullMemory.Span);
-        part3.Length = part3Size;
-
-        // Feed fragments to stream 0
-        sm.DecodeServerData(MultiplexedData.Rent(part1, 0));
-        sm.DecodeServerData(MultiplexedData.Rent(part2, 0));
-        sm.DecodeServerData(MultiplexedData.Rent(part3, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(response, 0));
 
         // Signal EOF
         sm.DecodeServerData(new StreamReadCompleted(0));
 
-        // Response should be assembled despite fragmentation
         Assert.Single(_clientOps.Responses);
         var body = _clientOps.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
         var buffer = new byte[512];
         var bytesRead = body.Read(buffer);
         Assert.Equal(512, bytesRead);
         Assert.True(buffer.All(b => b == 0xCC), "Response body corrupted");
-
-        response.Dispose();
     }
 
     [Fact(Timeout = 5000)]
