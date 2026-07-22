@@ -1,3 +1,4 @@
+using System.Text;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Internal;
@@ -20,15 +21,6 @@ public sealed class Http11StateMachineDisconnectSpec
         request.Options.Set(OptionsKey.Key, pending);
         request.Options.Set(OptionsKey.VersionKey, version);
         return (request, pending);
-    }
-
-    private static WireBuffer CreateResponseBuffer(string responseText)
-    {
-        var bytes = System.Text.Encoding.ASCII.GetBytes(responseText);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
     }
 
     [Fact(Timeout = 5000)]
@@ -58,7 +50,7 @@ public sealed class Http11StateMachineDisconnectSpec
         sm.OnRequest(MakeRequest());
 
         const string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello";
-        sm.DecodeServerData(TransportData.Rent(CreateResponseBuffer(response)));
+        sm.ConnectTransport(initialData: Encoding.ASCII.GetBytes(response), ops: ops);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
@@ -99,7 +91,7 @@ public sealed class Http11StateMachineDisconnectSpec
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         ops.Outbound.Clear();
 
-        sm.DecodeServerData(new TransportConnected(null!));
+        sm.ConnectTransport(ops: ops);
 
         Assert.False(sm.IsReconnecting);
         Assert.True(sm.HasInFlightRequests);

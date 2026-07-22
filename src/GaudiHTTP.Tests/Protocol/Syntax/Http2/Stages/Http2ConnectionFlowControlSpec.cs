@@ -1,6 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
-using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -14,14 +13,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
 public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
 {
-    // The client SM defers request encoding until it observes TransportConnected on the network
-    // inlet (mirrors the real TcpConnectionStage handshake).
-    private static TransportConnected MakeTransportConnected()
-        => new(new ConnectionInfo(
-            new IPEndPoint(IPAddress.Loopback, 0),
-            new IPEndPoint(IPAddress.Loopback, 443),
-            TransportProtocol.Tcp));
-
     private Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)> RunAsync(
         params Http2Frame[] serverFrames)
         => RunFlowAsync(new Http20ClientConnectionStage(new GaudiClientOptions()), serverFrames);
@@ -31,6 +22,8 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
             Http20ClientConnectionStage connectionStage,
             params Http2Frame[] serverFrames)
     {
+        var transport = CreateTransportWithFrames(serverFrames);
+
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
 
@@ -40,7 +33,8 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, dsSink, nwSink) =>
                 {
                     var stage = b.Add(connectionStage);
-                    var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -55,18 +49,15 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
         var (downstreamTask, networkTask) = (mat.m1, mat.m2);
 
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: false));
+        return (downstream, DecodeFrames(transport.WrittenMemory, skipPreface: false));
     }
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_decrement_connection_window_when_data_received_inbound()
     {
-        // Send two DATA frames totalling 65535 bytes (exactly filling the default 65535 window).
-        // DATA frames are assembled into HttpResponseMessage only when HEADERS precede them;
-        // these arrive on unknown streams and are dropped — OutResponse receives nothing.
         var data1 = new DataFrame(streamId: 1, data: new byte[32768], endStream: false);
         var data2 = new DataFrame(streamId: 1, data: new byte[32767], endStream: true);
 
@@ -79,7 +70,6 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_decrement_stream_window_when_data_received_inbound()
     {
-        // Send DATA filling the entire stream window (65535 bytes) — should succeed.
         var data = new DataFrame(streamId: 1, data: new byte[65535], endStream: true);
 
         var (downstream, _) = await RunAsync(data);
@@ -91,8 +81,6 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_send_connection_window_update_when_data_reaches_threshold()
     {
-        // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
-        // Sending exactly 40000 bytes crosses the threshold in a single DATA frame.
         var stage = new Http20ClientConnectionStage(new GaudiClientOptions
         { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
         var data = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
@@ -127,8 +115,6 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_send_both_window_updates_when_threshold_crossed()
     {
-        // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
-        // Sending 40000 bytes crosses both thresholds simultaneously.
         var stage = new Http20ClientConnectionStage(new GaudiClientOptions
         { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
         var data = new DataFrame(streamId: 3, data: new byte[40000], endStream: true);
@@ -147,6 +133,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     public async Task Http2ConnectionFlowControl_should_survive_and_log_when_connection_window_exceeded()
     {
         var data = new DataFrame(streamId: 1, data: new byte[65536], endStream: true);
+        var transport = CreateTransportWithFrames(data);
 
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
@@ -158,7 +145,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 {
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
-                    var serverSource = b.Add(Source.From(FramesToInputs([data])));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport))
+                            .Concat(Source.Never<ITransportInbound>()));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -185,6 +174,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     public async Task Http2ConnectionFlowControl_should_survive_and_log_when_stream_window_exceeded()
     {
         var data = new DataFrame(streamId: 1, data: new byte[65536], endStream: true);
+        var transport = CreateTransportWithFrames(data);
 
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
@@ -196,7 +186,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 {
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
-                    var serverSource = b.Add(Source.From(FramesToInputs([data])));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport))
+                            .Concat(Source.Never<ITransportInbound>()));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -287,8 +279,6 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
 
         var firstItem = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        // The first outbound message is ConnectTransport (connection setup), emitted when the
-        // first request triggers EncodeRequest. Sink.First captures this initial item.
         Assert.IsType<ConnectTransport>(firstItem);
     }
 
@@ -300,6 +290,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
         var streamWindowUpdate = new WindowUpdateFrame(streamId: 1, increment: 10000);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
+        // Transport carries inbound WINDOW_UPDATEs, and captures outbound frames (preface + HEADERS).
+        var transport = CreateTransportWithFrames(connWindowUpdate, streamWindowUpdate);
+
         var networkSink = Sink.Seq<ITransportOutbound>();
 
         var graph = RunnableGraph.FromGraph(
@@ -309,24 +302,18 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
 
-                    // Server sends WINDOW_UPDATEs immediately, then (after the request has triggered
-                    // ConnectTransport at the 200ms mark) a TransportConnected handshake reply —
-                    // request encoding is deferred until this arrives — then a harmless SETTINGS ACK
-                    // after a further delay to keep InServer alive until the request has been processed.
+                    // The request must arrive BEFORE TransportConnected so that EncodeRequest
+                    // triggers EnsureConnected -> ConnectTransport, and the request is buffered
+                    // as _pendingInitialRequest. TransportConnected then flushes it.
                     var serverSource = b.Add(
-                        Source.From(FramesToInputs([connWindowUpdate, streamWindowUpdate]))
-                            .Concat(Source.Single<ITransportInbound>(MakeTransportConnected())
-                                .InitialDelay(TimeSpan.FromMilliseconds(300)))
-                            .Concat(Source.From(FramesToInputs([new SettingsFrame([], isAck: true)]))
-                                .InitialDelay(TimeSpan.FromMilliseconds(200))));
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport))
+                            .InitialDelay(TimeSpan.FromMilliseconds(300))
+                            .Concat(Source.Never<ITransportInbound>()));
 
-                    // Keep the app-request source open past emission: HasInFlightRequests only
-                    // counts once the request is actually encoded onto a stream, but here it sits
-                    // buffered as the pending initial request until TransportConnected arrives —
-                    // an upstream-finish in that window would tear the stage down prematurely.
+                    // Request arrives at 100ms, well before TransportConnected at 300ms.
                     var requestSource = b.Add(
                         Source.Single(request)
-                            .InitialDelay(TimeSpan.FromMilliseconds(200))
+                            .InitialDelay(TimeSpan.FromMilliseconds(100))
                             .Concat(Source.Never<HttpRequestMessage>()));
 
                     var ignoreSink =
@@ -340,11 +327,13 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     return ClosedShape.Instance;
                 }));
 
-        var networkTask = graph.Run(Materializer);
+        graph.Run(Materializer);
 
-        var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        // Wait for the request to be encoded via the transport after TransportConnected.
+        await Task.Delay(TimeSpan.FromMilliseconds(600), TestContext.Current.CancellationToken);
 
-        var frames = DecodeFrames(networkItems, skipPreface: true);
+        // Outbound frames (preface + SETTINGS + HEADERS) are written to the transport.
+        var frames = DecodeFrames(transport.WrittenMemory, skipPreface: true);
         Assert.Contains(frames, f => f is HeadersFrame);
     }
 

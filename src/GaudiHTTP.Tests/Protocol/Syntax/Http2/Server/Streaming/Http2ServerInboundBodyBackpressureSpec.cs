@@ -1,6 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
-using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -83,7 +82,7 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
         return new Memory<byte>(buffer, 0, written);
     }
 
-    private static (Http2ServerStateMachine Sm, FakeServerOps Ops) CreateSm(
+    private static (Http2ServerStateMachine Sm, FakeServerOps Ops, InMemoryTransport Transport) CreateSm(
         int streamWindowSize = 16384,
         int connectionWindowSize = 65535)
     {
@@ -99,21 +98,19 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
         };
         var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
         ops.Outbound.Clear();
-        return (sm, ops);
+        return (sm, ops, transport);
     }
 
-    private static void SendHeaders(Http2ServerStateMachine sm, int streamId)
+    private static void SendHeaders(Http2ServerStateMachine sm, FakeServerOps ops, InMemoryTransport transport, int streamId)
     {
         var headerBlock = EncodeHeaders("POST", "/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: false, endHeaders: true);
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        transport.FeedMore(sm, ops, headersFrameData);
     }
 
-    private static void SendData(Http2ServerStateMachine sm, int streamId, int bytes, bool endStream = false)
+    private static void SendData(Http2ServerStateMachine sm, FakeServerOps ops, InMemoryTransport transport, int streamId, int bytes, bool endStream = false)
     {
         const int maxFramePayload = 16 * 1024;
         var remaining = bytes;
@@ -124,32 +121,15 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
             var isLast = remaining == 0;
             var payload = new byte[chunk];
             var frame = BuildDataFrame(streamId, payload, endStream && isLast);
-            var buffer = WireBuffer.Rent(frame.Length);
-            frame.CopyTo(buffer.FullMemory.Span);
-            buffer.Length = frame.Length;
-            sm.DecodeClientData(TransportData.Rent(buffer));
+            transport.FeedMore(sm, ops, frame);
         }
     }
 
-    private static bool HasWindowUpdateForStream(IEnumerable<ITransportOutbound> outbound, int streamId)
+    private static bool HasWindowUpdateForStream(InMemoryTransport transport, int streamId)
     {
-        foreach (var item in outbound)
-        {
-            if (item is TransportData td)
-            {
-                var s = td.Buffer.Span;
-                if (s.Length >= 13 && s[3] == (byte)FrameType.WindowUpdate)
-                {
-                    var sid = (s[5] << 24) | (s[6] << 16) | (s[7] << 8) | s[8];
-                    if (sid == streamId)
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return false;
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _);
+        return frames.OfType<WindowUpdateFrame>().Any(wf => wf.StreamId == streamId);
     }
 
     [Fact(Timeout = 5000)]
@@ -157,16 +137,16 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
     public void HandleDataFrame_should_not_emit_stream_window_update_before_app_reads()
     {
         // Arrange: small stream window so threshold is crossed with ~9 KB
-        var (sm, ops) = CreateSm(streamWindowSize: 16384);
-        SendHeaders(sm, streamId: 1);
-        ops.Outbound.Clear();
+        var (sm, ops, transport) = CreateSm(streamWindowSize: 16384);
+        SendHeaders(sm, ops, transport, streamId: 1);
+        transport.TakeWrittenBytes();
 
         // Act: send 9000 bytes — crosses the 8192-byte (half-window) threshold
-        SendData(sm, streamId: 1, bytes: 9000);
+        SendData(sm, ops, transport, streamId: 1, bytes: 9000);
 
         // Assert: stream-level WU for stream 1 must NOT appear before app reads
         Assert.False(
-            HasWindowUpdateForStream(ops.Outbound, streamId: 1),
+            HasWindowUpdateForStream(transport, streamId: 1),
             "Stream-level WINDOW_UPDATE must not be emitted before the application reads body data");
     }
 
@@ -175,21 +155,21 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
     public void HandleDataFrame_should_emit_deferred_stream_window_update_after_app_reads()
     {
         // Arrange
-        var (sm, ops) = CreateSm(streamWindowSize: 16384);
-        SendHeaders(sm, streamId: 1);
+        var (sm, ops, transport) = CreateSm(streamWindowSize: 16384);
+        SendHeaders(sm, ops, transport, streamId: 1);
         ops.Outbound.Clear();
 
         // Send enough data to accumulate a deferred stream increment
-        SendData(sm, streamId: 1, bytes: 9000);
-        Assert.False(HasWindowUpdateForStream(ops.Outbound, streamId: 1));
-        ops.Outbound.Clear();
+        SendData(sm, ops, transport, streamId: 1, bytes: 9000);
+        Assert.False(HasWindowUpdateForStream(transport, streamId: 1));
+        transport.TakeWrittenBytes();
 
         // Act: simulate app consuming a body slot — fires SlotFreed -> OnBodyMessage(StreamBodyConsumed)
         sm.OnBodyMessage(new Http2ServerSessionManager.StreamBodyConsumed(1));
 
         // Assert: deferred stream WU now emitted for stream 1
         Assert.True(
-            HasWindowUpdateForStream(ops.Outbound, streamId: 1),
+            HasWindowUpdateForStream(transport, streamId: 1),
             "Stream-level WINDOW_UPDATE must be emitted after app consumes body data");
     }
 
@@ -198,16 +178,16 @@ public sealed class Http2ServerInboundBodyBackpressureSpec
     public void HandleDataFrame_should_always_emit_connection_window_update_immediately()
     {
         // Arrange: large stream window, small connection window so connection threshold is crossed
-        var (sm, ops) = CreateSm(streamWindowSize: 65535, connectionWindowSize: 65535);
-        SendHeaders(sm, streamId: 1);
-        ops.Outbound.Clear();
+        var (sm, ops, transport) = CreateSm(streamWindowSize: 65535, connectionWindowSize: 65535);
+        SendHeaders(sm, ops, transport, streamId: 1);
+        transport.TakeWrittenBytes();
 
         // Act: 33000 bytes crosses the ~32767 (half of 65535) connection-level threshold
-        SendData(sm, streamId: 1, bytes: 33000);
+        SendData(sm, ops, transport, streamId: 1, bytes: 33000);
 
         // Assert: connection-level WU (stream 0) must appear immediately — no deferral
         Assert.True(
-            HasWindowUpdateForStream(ops.Outbound, streamId: 0),
+            HasWindowUpdateForStream(transport, streamId: 0),
             "Connection-level WINDOW_UPDATE must always be emitted immediately regardless of app reads");
     }
 }

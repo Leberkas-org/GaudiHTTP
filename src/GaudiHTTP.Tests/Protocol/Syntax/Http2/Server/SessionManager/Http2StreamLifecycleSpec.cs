@@ -130,6 +130,13 @@ public sealed class Http2StreamLifecycleSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http2ServerSessionManager(new GaudiServerOptions().ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         sm.DecodeClientData(WrapFrame(BuildHeadersFrame(streamId: 1, endStream: true)));
         ops.Outbound.Clear();
@@ -171,6 +178,13 @@ public sealed class Http2StreamLifecycleSpec
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -202,6 +216,13 @@ public sealed class Http2StreamLifecycleSpec
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -254,6 +275,13 @@ public sealed class Http2StreamLifecycleSpec
         var options = baseOptions.ToHttp2Options();
 
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -283,6 +311,13 @@ public sealed class Http2StreamLifecycleSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -307,6 +342,13 @@ public sealed class Http2StreamLifecycleSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -333,6 +375,13 @@ public sealed class Http2StreamLifecycleSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -361,6 +410,13 @@ public sealed class Http2StreamLifecycleSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();

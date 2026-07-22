@@ -63,6 +63,13 @@ public sealed class Http2Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http2ServerSessionManager(DefaultOptions(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -79,6 +86,13 @@ public sealed class Http2Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http2ServerSessionManager(DefaultOptions(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -102,6 +116,13 @@ public sealed class Http2Server1xxSpec
     {
         var ops = new FakeServerOps();
         var sm = new Http2ServerSessionManager(DefaultOptions(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 

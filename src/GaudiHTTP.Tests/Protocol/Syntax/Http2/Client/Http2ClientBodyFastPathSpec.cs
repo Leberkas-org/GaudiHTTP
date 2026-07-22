@@ -1,6 +1,5 @@
 ﻿using System.Buffers;
 using GaudiHTTP.Tests.TestSupport;
-using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
@@ -41,7 +40,7 @@ public sealed class Http2ClientBodyFastPathSpec
         }
     }
 
-    private static Http2ClientSessionManager CreateSession(FakeClientOps ops, int initialSendWindow = 1 * 1024 * 1024)
+    private static (Http2ClientSessionManager Sm, InMemoryTransport Transport) CreateSession(FakeClientOps ops, int initialSendWindow = 1 * 1024 * 1024)
     {
         var options = new GaudiClientOptions
         {
@@ -50,32 +49,31 @@ public sealed class Http2ClientBodyFastPathSpec
                 InitialStreamWindowSize = initialSendWindow
             }
         };
-        return new Http2ClientSessionManager(options, ops);
+        var sm = new Http2ClientSessionManager(options, ops);
+        var transport = new InMemoryTransport();
+        sm.EmitData = data =>
+        {
+            var mem = transport.GetMemory(data.Length);
+            data.CopyTo(mem.Span);
+            transport.Advance(data.Length);
+        };
+        return (sm, transport);
     }
 
-    private static List<Http2Frame> DecodeOutbound(FakeClientOps ops)
+    private static List<Http2Frame> DecodeOutbound(InMemoryTransport transport)
     {
         var frames = new List<Http2Frame>();
-        foreach (var item in ops.Outbound)
+        var decoder = new FrameDecoder();
+        var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _);
+        foreach (var frame in decoded)
         {
-            if (item is TransportData { Buffer: var buf })
-            {
-                // Use a fresh decoder per buffer: the H2 preface magic ("PRI *...") would
-                // otherwise leave bytes as remainder and corrupt the next frame parse.
-                var decoder = new FrameDecoder();
-                var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
-                foreach (var frame in decoded)
-                {
-                    // Copy the frame's memory slices so they remain valid after Dispose.
-                    frames.Add(frame is DataFrame df
-                        ? new DataFrame(df.StreamId, df.Data.ToArray(), df.EndStream)
-                        : frame);
-                }
-
-                decoder.Dispose();
-            }
+            // Copy the frame's memory slices so they remain valid after Dispose.
+            frames.Add(frame is DataFrame df
+                ? new DataFrame(df.StreamId, df.Data.ToArray(), df.EndStream)
+                : frame);
         }
 
+        decoder.Dispose();
         return frames;
     }
 
@@ -92,7 +90,7 @@ public sealed class Http2ClientBodyFastPathSpec
     public void Visible_MemoryStream_body_should_emit_DATA_frames_inline()
     {
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         var body = new byte[100];
         new Random(42).NextBytes(body);
@@ -101,7 +99,7 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.EncodeRequest(request);
         sm.FlushPendingInitialRequest();
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
         Assert.NotEmpty(dataFrames);
 
@@ -114,7 +112,7 @@ public sealed class Http2ClientBodyFastPathSpec
     public void Fast_path_should_split_body_by_MaxFrameSize()
     {
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         // Body larger than the RFC default MaxFrameSize of 16 KiB
         var body = new byte[40 * 1024];
@@ -124,7 +122,7 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.EncodeRequest(request);
         sm.FlushPendingInitialRequest();
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
 
         // Each frame payload must not exceed 16 KiB (server default MAX_FRAME_SIZE)
@@ -146,7 +144,7 @@ public sealed class Http2ClientBodyFastPathSpec
         // INITIAL_WINDOW_SIZE = 256. The send window defaults to 65535 (RFC default)
         // and only shrinks when the server sends SETTINGS.
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         // Server sends SETTINGS with a tiny INITIAL_WINDOW_SIZE to constrain our send window.
         sm.ProcessFrame(new SettingsFrame(
@@ -160,7 +158,7 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.EncodeRequest(request);
         sm.FlushPendingInitialRequest();
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 3).ToList();
 
         // Only the windowed portion (256 bytes) should have been emitted immediately
@@ -174,7 +172,7 @@ public sealed class Http2ClientBodyFastPathSpec
     {
         // Server starts with a tiny INITIAL_WINDOW_SIZE, then opens the window.
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         sm.ProcessFrame(new SettingsFrame(
             [(SettingsParameter.InitialWindowSize, 256u)],
@@ -198,7 +196,7 @@ public sealed class Http2ClientBodyFastPathSpec
             sm.OnBodyMessage(msg);
         }
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().Where(f => f.StreamId == 3).ToList();
         var assembled = dataFrames.SelectMany(f => f.Data.ToArray()).ToArray();
         Assert.Equal(body, assembled);
@@ -211,7 +209,7 @@ public sealed class Http2ClientBodyFastPathSpec
         // ByteArrayContent.ReadAsStream() returns MemoryStream with TryGetBuffer=false.
         // Verify EncodeRequest does not throw and falls back to the encoder.
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, _) = CreateSession(ops);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/upload")
         {
@@ -254,7 +252,7 @@ public sealed class Http2ClientBodyFastPathSpec
     public void SerializeToStream_fast_path_should_emit_DATA_frames_for_sync_content()
     {
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         var body = new byte[200];
         new Random(77).NextBytes(body);
@@ -267,7 +265,7 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.EncodeRequest(request);
         sm.FlushPendingInitialRequest();
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
 
         Assert.NotEmpty(dataFrames);
@@ -281,7 +279,7 @@ public sealed class Http2ClientBodyFastPathSpec
     public void SerializeToStream_fast_path_should_split_body_by_MaxFrameSize()
     {
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, transport) = CreateSession(ops);
 
         // Body larger than the RFC default MaxFrameSize of 16 KiB but within the 64 KiB threshold
         var body = new byte[40 * 1024];
@@ -295,7 +293,7 @@ public sealed class Http2ClientBodyFastPathSpec
         sm.EncodeRequest(request);
         sm.FlushPendingInitialRequest();
 
-        var frames = DecodeOutbound(ops);
+        var frames = DecodeOutbound(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
 
         foreach (var frame in dataFrames)
@@ -315,7 +313,7 @@ public sealed class Http2ClientBodyFastPathSpec
         // Body above MaxBufferedRequestBodySize (default 64 KiB) must bypass the fast path
         // and be handed off to the async encoder without throwing.
         var ops = new FakeClientOps();
-        var sm = CreateSession(ops);
+        var (sm, _) = CreateSession(ops);
 
         var body = new byte[128 * 1024];
         new Random(5).NextBytes(body);

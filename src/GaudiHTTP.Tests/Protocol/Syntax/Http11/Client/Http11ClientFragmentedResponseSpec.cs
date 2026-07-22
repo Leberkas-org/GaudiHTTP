@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
@@ -14,19 +15,69 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 /// resume from it on the next read — otherwise the partial bytes are lost and the continuation is
 /// parsed as garbage ("Malformed header field"), desyncing the connection. This was the trigger for
 /// the intermittent single-connection pipelining deadlock.
+///
+/// Uses <see cref="TestPipeTransport"/> (real pipes) rather than <see cref="InMemoryTransport"/>
+/// because pipe transport preserves unconsumed bytes across reads via AdvanceTo, matching real TCP
+/// semantics where a partial header survives until the continuation arrives.
 /// </summary>
 public sealed class Http11ClientFragmentedResponseSpec
 {
     private static HttpRequestMessage MakeRequest(string path = "/")
         => new(HttpMethod.Get, $"http://example.com{path}") { Version = new Version(1, 1) };
 
-    private static WireBuffer Buf(string s)
+    private static TestPipeTransport ConnectWithFragment(
+        Http11ClientStateMachine sm, FakeClientOps ops, string fragment)
     {
-        var bytes = Encoding.ASCII.GetBytes(s);
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return buffer;
+        var transport = new TestPipeTransport();
+        var bytes = Encoding.ASCII.GetBytes(fragment);
+        var span = transport.InputWriter.GetSpan(bytes.Length);
+        bytes.CopyTo(span);
+        transport.InputWriter.Advance(bytes.Length);
+        var flush = transport.InputWriter.FlushAsync();
+        if (!flush.IsCompletedSuccessfully)
+        {
+            throw new InvalidOperationException("Pipe flush did not complete synchronously");
+        }
+
+        sm.DecodeServerData(new TransportConnected(ConnectionInfo.None, transport));
+        DrainBodyMessages(sm, ops);
+        return transport;
+    }
+
+    private static void FeedFragment(
+        TestPipeTransport transport, Http11ClientStateMachine sm, FakeClientOps ops, string fragment)
+    {
+        var bytes = Encoding.ASCII.GetBytes(fragment);
+        var span = transport.InputWriter.GetSpan(bytes.Length);
+        bytes.CopyTo(span);
+        transport.InputWriter.Advance(bytes.Length);
+        var flush = transport.InputWriter.FlushAsync();
+        if (!flush.IsCompletedSuccessfully)
+        {
+            throw new InvalidOperationException("Pipe flush did not complete synchronously");
+        }
+
+        DrainBodyMessages(sm, ops);
+    }
+
+    private static void DrainBodyMessages(Http11ClientStateMachine sm, FakeClientOps ops)
+    {
+        SpinWait.SpinUntil(() => ops.BodyMessages.Count > 0, TimeSpan.FromSeconds(2));
+        while (ops.BodyMessages.Count > 0)
+        {
+            var snapshot = ops.BodyMessages.ToArray();
+            ops.BodyMessages.Clear();
+            foreach (var msg in snapshot)
+            {
+                sm.OnBodyMessage(msg);
+            }
+
+            if (ops.BodyMessages.Count == 0)
+            {
+                Thread.Sleep(1);
+                SpinWait.SpinUntil(() => ops.BodyMessages.Count > 0, TimeSpan.FromMilliseconds(50));
+            }
+        }
     }
 
     [Fact(Timeout = 5000)]
@@ -40,8 +91,8 @@ public sealed class Http11ClientFragmentedResponseSpec
         const string full = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\nOK";
         const int split = 35; // mid "Content-Type: appl|ication/json"
 
-        sm.DecodeServerData(TransportData.Rent(Buf(full[..split])));
-        sm.DecodeServerData(TransportData.Rent(Buf(full[split..])));
+        var transport = ConnectWithFragment(sm, ops, full[..split]);
+        FeedFragment(transport, sm, ops, full[split..]);
 
         Assert.Single(ops.Responses);
         Assert.Equal((int)HttpStatusCode.OK, (int)ops.Responses[0].StatusCode);
@@ -58,8 +109,8 @@ public sealed class Http11ClientFragmentedResponseSpec
         const string full = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
         const int split = 11; // mid "HTTP/1.1 20|0 OK"
 
-        sm.DecodeServerData(TransportData.Rent(Buf(full[..split])));
-        sm.DecodeServerData(TransportData.Rent(Buf(full[split..])));
+        var transport = ConnectWithFragment(sm, ops, full[..split]);
+        FeedFragment(transport, sm, ops, full[split..]);
 
         Assert.Single(ops.Responses);
         Assert.Equal((int)HttpStatusCode.OK, (int)ops.Responses[0].StatusCode);
@@ -80,8 +131,8 @@ public sealed class Http11ClientFragmentedResponseSpec
             "HTTP/1.1 201 Created\r\nContent-Length: 7\r\n\r\nCreated";
         const int split = 55; // somewhere inside the second response's header block
 
-        sm.DecodeServerData(TransportData.Rent(Buf(full[..split])));
-        sm.DecodeServerData(TransportData.Rent(Buf(full[split..])));
+        var transport = ConnectWithFragment(sm, ops, full[..split]);
+        FeedFragment(transport, sm, ops, full[split..]);
 
         Assert.Equal(2, ops.Responses.Count);
         Assert.Equal((int)HttpStatusCode.OK, (int)ops.Responses[0].StatusCode);

@@ -105,6 +105,13 @@ public sealed class Http2ContinuationStateSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -150,6 +157,13 @@ public sealed class Http2ContinuationStateSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -200,6 +214,13 @@ public sealed class Http2ContinuationStateSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -232,6 +253,13 @@ public sealed class Http2ContinuationStateSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.ScheduledTimers.Clear();
@@ -266,6 +294,13 @@ public sealed class Http2ContinuationStateSpec
         var baseOptions = new GaudiServerOptions();
         var options = baseOptions.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.ScheduledTimers.Clear();

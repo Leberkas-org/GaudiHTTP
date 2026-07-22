@@ -41,6 +41,23 @@ not apply to H3.
 - **AND** MUST NOT `Push(_outNetwork, ...)` a `TransportData` item
 - **AND** all byte-level I/O happens through the SM's `IConnectionTransport` reference, not the port
 
+#### Scenario: TCP stage-test uses pipe transport for data
+- **WHEN** a TCP protocol stage-test uses `TestConnectionStage` with `AutoConnectWithTransport()`
+- **THEN** `TransportConnected` MUST carry a non-null `IConnectionTransport`
+- **AND** the SM MUST read inbound data via `transport.ReadAsync()`
+- **AND** the SM MUST write outbound data via `transport.GetMemory`/`Advance`/`FlushAsync`
+- **AND** no `TransportData` items MUST flow through the Akka Streams port
+
+#### Scenario: Test feeds response data via pipe transport
+- **WHEN** a stage-test needs to provide response data to the SM
+- **THEN** it MUST call `stage.Transport!.FeedInput(data)` instead of `stage.PushData(data)`
+- **AND** the SM receives it via its pipe read loop
+
+#### Scenario: Test reads request data from pipe transport
+- **WHEN** a stage-test needs to capture encoded request data from the SM
+- **THEN** it MUST call `stage.Transport!.ReadOutputAsync()` or `TryReadOutput()`
+- **AND** no `TransportData` items are available via `stage.ReceivedOutbound`
+
 #### Scenario: Client stage routes lifecycle events and async results to the SM
 - **WHEN** `TransportConnected` or `TransportDisconnected` arrives on `_inNetwork`
 - **THEN** the stage logic calls `_sm.OnTransportEvent(item)` and re-pulls `_inNetwork`

@@ -14,6 +14,7 @@ public sealed class Http2KeepAliveCloseSpec
         var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
+        sm.ConnectTransport(ops: ops);
 
         sm.OnTimerFired("keep-alive-timeout");
 

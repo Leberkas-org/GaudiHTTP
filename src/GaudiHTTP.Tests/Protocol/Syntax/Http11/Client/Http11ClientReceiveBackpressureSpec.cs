@@ -1,5 +1,4 @@
 using System.Text;
-using Servus.Akka.Transport;
 using GaudiHTTP.Client;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
 using GaudiHTTP.Tests.Shared;
@@ -25,15 +24,6 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http11.Client;
 /// </summary>
 public sealed class Http11ClientReceiveBackpressureSpec
 {
-    private static TransportData Inbound(string ascii)
-    {
-        var bytes = Encoding.ASCII.GetBytes(ascii);
-        var buf = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buf.FullMemory.Span);
-        buf.Length = bytes.Length;
-        return TransportData.Rent(buf);
-    }
-
     // A chunked response with `chunks` 4-byte chunks, deliberately NOT terminated (no "0\r\n\r\n"),
     // so the body stays mid-stream with the receive queue full.
     private static string ChunkedResponse(int chunks)
@@ -54,7 +44,8 @@ public sealed class Http11ClientReceiveBackpressureSpec
         sm.PreStart();
         sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "http://example.com/download") { Version = new Version(1, 1) });
 
-        sm.DecodeServerData(Inbound(ChunkedResponse(chunks)));
+        var responseBytes = Encoding.ASCII.GetBytes(ChunkedResponse(chunks));
+        sm.ConnectTransport(initialData: responseBytes, ops: ops);
 
         Assert.Single(ops.Responses);
         Assert.True(sm.ShouldPauseNetwork,

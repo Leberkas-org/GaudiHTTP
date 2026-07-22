@@ -70,7 +70,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private void EmitBytes(ReadOnlySpan<byte> data)
     {
-        EmitData!(data);
+        EmitData?.Invoke(data);
     }
 
     private Span<byte> EnsureScratch(int size)

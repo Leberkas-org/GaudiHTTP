@@ -1,5 +1,7 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
+using System.Buffers;
+using System.IO.Pipelines;
 using System.Net;
 using System.Text;
 using Akka.Streams;
@@ -8,6 +10,7 @@ using Akka.Streams.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Streams.Stages.Client;
 using GaudiHTTP.Tests.Shared;
+using static GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
@@ -20,24 +23,6 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             Version = new Version(2, 0)
         };
     }
-
-    private static WireBuffer MakeResponseBuffer(string raw)
-    {
-        var bytes = Encoding.ASCII.GetBytes(raw);
-        var buf = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buf.FullMemory.Span);
-        buf.Length = bytes.Length;
-        return buf;
-    }
-
-    // The client SM defers request encoding until it observes TransportConnected on the network
-    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
-    // manually, so they must inject this after ConnectTransport before expecting encoded data.
-    private static TransportConnected MakeTransportConnected()
-        => new(new ConnectionInfo(
-            new IPEndPoint(IPAddress.Loopback, 0),
-            new IPEndPoint(IPAddress.Loopback, 443),
-            TransportProtocol.Tcp));
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-3.2")]
@@ -79,13 +64,20 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
 
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
-        serverSubscription.SendNext(MakeTransportConnected());
 
-        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var prefaceData = Assert.IsType<TransportData>(preface);
-        var data = Encoding.ASCII.GetString(prefaceData.Buffer.Span);
+        // Send TransportConnected with an InMemoryTransport — the preface is written to the transport.
+        var transport = new InMemoryTransport();
+        serverSubscription.SendNext(CreateTransportConnected(transport));
+
+        // Wait for stage to process TransportConnected and write preface to transport.
+        // ConnectTransport was the only OutNetwork item; nothing else arrives on networkSub.
+        // Use a brief delay for the actor to process the message.
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        var prefaceBytes = transport.WrittenSpan;
+        Assert.True(prefaceBytes.Length > 0, "Preface must be written to transport");
+        var data = Encoding.ASCII.GetString(prefaceBytes[..Math.Min(prefaceBytes.Length, 24)]);
         Assert.StartsWith("PRI * HTTP/2.0", data);
-        prefaceData.Buffer.Dispose();
     }
 
     [Fact(Timeout = 10_000)]
@@ -124,22 +116,19 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Send request
         appSubscription.SendNext(MakeRequest("/test"));
 
-        // First request: ConnectTransport → preface → HEADERS frame
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
-        serverSubscription.SendNext(MakeTransportConnected());
 
-        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var prefaceData = Assert.IsType<TransportData>(preface);
-        var data = Encoding.ASCII.GetString(prefaceData.Buffer.Span);
-        Assert.StartsWith("PRI * HTTP/2.0", data);
-        prefaceData.Buffer.Dispose();
+        var transport = new InMemoryTransport();
+        serverSubscription.SendNext(CreateTransportConnected(transport));
 
-        var headers = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(headers);
+        // Preface + SETTINGS + HEADERS are written to transport.
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        var frames = DecodeFrames(transport.WrittenMemory, skipPreface: true);
+        Assert.Contains(frames, f => f is GaudiHTTP.Protocol.Syntax.Http2.HeadersFrame);
     }
 
     [Fact(Timeout = 10_000)]
@@ -177,23 +166,26 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(20);
         resSubscription.Request(10);
 
-        // Send two requests simultaneously (multiplexing)
+        // Send first request to trigger ConnectTransport
         appSubscription.SendNext(MakeRequest("/req1"));
-        appSubscription.SendNext(MakeRequest("/req2"));
 
-        // First request: ConnectTransport + preface + HEADERS, second request: HEADERS
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
-        serverSubscription.SendNext(MakeTransportConnected());
 
-        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(preface);
+        // Connect transport — this flushes the pending initial request (req1)
+        var transport = new InMemoryTransport();
+        serverSubscription.SendNext(CreateTransportConnected(transport));
 
-        var headers1 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(headers1);
+        // Send second request after transport is connected (multiplexing)
+        appSubscription.SendNext(MakeRequest("/req2"));
 
-        var headers2 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(headers2);
+        // Preface + SETTINGS + 2x HEADERS written to transport.
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        var frames = DecodeFrames(transport.WrittenMemory, skipPreface: true);
+        var headersFrames = frames.OfType<GaudiHTTP.Protocol.Syntax.Http2.HeadersFrame>().ToList();
+        Assert.True(headersFrames.Count >= 2,
+            $"Expected at least 2 HEADERS frames for multiplexed requests, got {headersFrames.Count}");
     }
 
     [Fact(Timeout = 10_000)]
@@ -231,9 +223,15 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Server sends SETTINGS frame before any client request
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer("\x00\x00\x00\x04\x00\x00\x00\x00\x00")));
+        // Feed a SETTINGS frame via the transport. The SM processes it through DecodeData.
+        var settingsBytes = Encoding.ASCII.GetBytes("\x00\x00\x00\x04\x00\x00\x00\x00\x00");
+        var transport = new InMemoryTransport();
+        transport.Feed(settingsBytes);
+        serverSubscription.SendNext(CreateTransportConnected(transport));
 
+        // The SM reads the SETTINGS from the transport and emits a SETTINGS ACK back to it.
+        // No crash = success.
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.True(true);
     }
 
@@ -272,11 +270,10 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Server sends GOAWAY before any client request
+        // TransportDisconnected is a lifecycle event, not data — still flows through InNetwork.
         serverSubscription.SendNext(new TransportDisconnected(DisconnectReason.Graceful));
         serverSubscription.SendComplete();
 
-        // Stage completes when server upstream finishes
         networkSub.ExpectComplete(TestContext.Current.CancellationToken);
     }
 
@@ -315,16 +312,14 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Complete app without sending request
         appSubscription.SendComplete();
 
-        // Stage should complete
         responseSub.ExpectComplete(TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-4.1")]
-    public async Task Http20ConnectionStage_should_fail_when_decode_throws_unexpectedly()
+    public async Task Http20ConnectionStage_should_fail_when_transport_read_throws_unexpectedly()
     {
         var stage = new Http20ClientConnectionStage(new GaudiClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
 
@@ -357,16 +352,36 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // A poisoned inbound buffer — Length claiming more data than the backing array holds,
-        // the observable shape of cross-connection pool corruption — makes DecodeServerData throw
-        // outside the protocol-error path. (The pre-WireBuffer construction was dispose-with-
-        // non-zero-Length; WireBuffer.Dispose zeroes Length, so the lie must live in Wrap now.)
-        // The stage must FAIL the connection: swallowing the exception leaves the FrameDecoder
-        // mid-buffer and desynchronized, wedging every subsequent frame and in-flight response
-        // body (repro: LargeDownloadRegressionSpec).
-        var poisoned = WireBuffer.Wrap(new byte[4], 0, 100);
-        serverSubscription.SendNext(TransportData.Rent(poisoned));
+        // A transport whose ReadAsync always throws simulates catastrophic I/O corruption.
+        // The stage must FAIL the connection: swallowing the exception would leave the transport
+        // in an undefined state. With pipe transport, the exception propagates through
+        // TransportIo.RequestRead -> DispatchLifecycleEvent -> OnNetworkPush -> catch -> FailStage.
+        serverSubscription.SendNext(new TransportConnected(
+            new ConnectionInfo(
+                new IPEndPoint(IPAddress.Loopback, 0),
+                new IPEndPoint(IPAddress.Loopback, 443),
+                TransportProtocol.Tcp),
+            new ThrowOnReadTransport()));
 
         responseSub.ExpectError(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class ThrowOnReadTransport : IConnectionTransport
+    {
+        public ConnectionInfo Info => ConnectionInfo.None;
+
+        public ValueTask<ReadResult> ReadAsync(CancellationToken ct = default)
+            => throw new InvalidOperationException("Simulated transport I/O corruption");
+
+        public void AdvanceTo(SequencePosition consumed) { }
+        public void AdvanceTo(SequencePosition consumed, SequencePosition examined) { }
+        public Memory<byte> GetMemory(int sizeHint = 0) => new byte[sizeHint > 0 ? sizeHint : 256];
+        public void Advance(int bytes) { }
+
+        public ValueTask<FlushResult> FlushAsync(CancellationToken ct = default)
+            => new(new FlushResult(false, false));
+
+        public void CompleteOutput() { }
+        public void Abort() { }
     }
 }

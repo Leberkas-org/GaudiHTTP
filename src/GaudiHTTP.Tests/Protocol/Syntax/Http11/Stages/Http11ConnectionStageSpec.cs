@@ -3,6 +3,7 @@ using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Streams.Stages.Client;
 using GaudiHTTP.Tests.Shared;
@@ -20,23 +21,15 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         };
     }
 
-    private static WireBuffer MakeResponseBuffer(string raw)
-    {
-        var bytes = SysEncoding.ASCII.GetBytes(raw);
-        var buf = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buf.FullMemory.Span);
-        buf.Length = bytes.Length;
-        return buf;
-    }
-
     // The client SM defers request encoding until it observes TransportConnected on the network
     // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
     // manually, so they must inject this after ConnectTransport before expecting encoded data.
-    private static TransportConnected MakeTransportConnected()
+    private static TransportConnected MakeTransportConnected(TestPipeTransport transport)
         => new(new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 0),
             new IPEndPoint(IPAddress.Loopback, 80),
-            TransportProtocol.Tcp));
+            TransportProtocol.Tcp),
+            transport);
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9112-6")]
@@ -65,6 +58,8 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
+        var transport = new TestPipeTransport();
+
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
@@ -80,16 +75,14 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         // ConnectTransport emitted first when endpoint is known from the first request
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
+        serverSubscription.SendNext(MakeTransportConnected(transport));
 
-        // TransportData with encoded request
-        var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var td = Assert.IsType<TransportData>(item);
-        var buffer = td.Buffer;
-        var encoded = SysEncoding.ASCII.GetString(buffer.Span);
+        // Encoded request written to pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        var encoded = SysEncoding.ASCII.GetString(output.FirstSpan);
         Assert.StartsWith("GET /test HTTP/1.1\r\n", encoded);
         Assert.Contains("Host: example.com", encoded);
-        buffer.Dispose();
+        transport.AdvanceOutput(output.End);
     }
 
     [Fact(Timeout = 10_000)]
@@ -119,6 +112,8 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
+        var transport = new TestPipeTransport();
+
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
@@ -129,13 +124,16 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
 
         appSubscription.SendNext(MakeRequest("/hello"));
 
-        // Consume outbound (ConnectTransport + TransportData)
+        // Consume ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
 
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
-            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")));
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
+
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"));
 
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -175,30 +173,36 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(20);
         resSubscription.Request(10);
 
         // Send two requests (pipelined)
         appSubscription.SendNext(MakeRequest("/first"));
-        // ConnectTransport + WireBuffer for first request
+        // ConnectTransport emitted first
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded first request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         appSubscription.SendNext(MakeRequest("/second"));
-        // WireBuffer for second request (endpoint already known)
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        // Consume encoded second request from pipe
+        output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // Send first response
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
-            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nfirst")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nfirst"));
 
         var resp1 = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal("/first", resp1.RequestMessage!.RequestUri!.AbsolutePath);
 
         // Send second response
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
-            "HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecond")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecond"));
 
         var resp2 = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal("/second", resp2.RequestMessage!.RequestUri!.AbsolutePath);
@@ -236,6 +240,8 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(100);
         resSubscription.Request(100);
 
@@ -247,22 +253,20 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // First item is ConnectTransport — reply with TransportConnected before the SM will
         // encode and emit the (now deferred) request data.
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
+        serverSubscription.SendNext(MakeTransportConnected(transport));
 
-        // Consume remaining 3 items: WireBuffer for req1, req2 and req3
-        for (var i = 0; i < 3; i++)
-        {
-            await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        }
+        // Consume encoded requests from pipe (may arrive as a single coalesced read)
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // All 3 requests should have been accepted and encoded.
         // Now send the 3 responses
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres1")));
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres2")));
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres3")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres1"));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres2"));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres3"));
 
         // Should get 3 responses
         var resp1 = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -310,20 +314,25 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(100);
         resSubscription.Request(100);
 
         // Send first request
         appSubscription.SendNext(MakeRequest("/req1"));
 
-        // Consume ConnectTransport + WireBuffer
+        // Consume ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // Send response with Connection: close header
-        var responseWithClose = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 4\r\n\r\nres1";
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(responseWithClose)));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 4\r\n\r\nres1"));
 
         // Get response
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -333,12 +342,13 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // Send a second request to verify it's still accepted
         appSubscription.SendNext(MakeRequest("/req2"));
 
-        // Consume WireBuffer for req2
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        // Consume encoded req2 from pipe
+        output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // Send response for req2
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres2")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nres2"));
 
         var response2 = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
@@ -377,18 +387,23 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(10);
         resSubscription.Request(10);
 
         appSubscription.SendNext(MakeRequest());
 
-        // ConnectTransport + WireBuffer
+        // ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
 
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
-            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK")));
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
+
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK"));
 
         await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         // HTTP/1.1 default is keep-alive (RFC 9112)
@@ -426,22 +441,27 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(20);
         resSubscription.Request(10);
 
         appSubscription.SendNext(MakeRequest("/upload"));
 
-        // Consume ConnectTransport + WireBuffer
+        // Consume ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // Send 100 Continue (informational, not final)
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer("HTTP/1.1 100 Continue\r\n\r\n")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n"));
 
         // 100 Continue is now forwarded downstream
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nSuccess")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nSuccess"));
 
         var continueResponse = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Continue, continueResponse.StatusCode);
@@ -482,19 +502,24 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
+        var transport = new TestPipeTransport();
+
         netSubscription.Request(10);
         resSubscription.Request(10);
 
         appSubscription.SendNext(MakeRequest("/close"));
 
-        // Consume ConnectTransport + WireBuffer
+        // Consume ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
 
         // Server sends Connection: close header
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(
-            "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK")));
+        await transport.FeedInputAsync(SysEncoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK"));
 
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

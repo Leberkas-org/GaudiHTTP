@@ -43,6 +43,13 @@ public sealed class Http2RapidResetSpec
         var ops = new FakeServerOps();
         var options = new GaudiServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
         var sm = new Http2ServerSessionManager(options.ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -75,6 +82,13 @@ public sealed class Http2RapidResetSpec
         var ops = new FakeServerOps();
         var options = new GaudiServerOptions { Limits = { MaxResetStreamsPerWindow = 5 } };
         var sm = new Http2ServerSessionManager(options.ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 

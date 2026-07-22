@@ -15,11 +15,13 @@ public sealed class Http2StateMachineKeepAliveSpec
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(keepAlivePingDelay: TimeSpan.FromSeconds(10), keepAlivePingTimeout: TimeSpan.FromSeconds(20)), ops);
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
         ops.Outbound.Clear();
 
         sm.OnTimerFired("keep-alive-ping");
 
-        Assert.Single(ops.Outbound.OfType<TransportData>());
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -29,12 +31,16 @@ public sealed class Http2StateMachineKeepAliveSpec
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(keepAlivePingDelay: TimeSpan.FromSeconds(10), keepAlivePingTimeout: TimeSpan.FromSeconds(20)), ops);
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
         ops.Outbound.Clear();
 
         sm.OnTimerFired("keep-alive-ping");
+        var afterFirst = transport.WrittenCount;
         sm.OnTimerFired("keep-alive-ping");
 
-        Assert.Single(ops.Outbound.OfType<TransportData>());
+        Assert.True(afterFirst > 0);
+        Assert.Equal(afterFirst, transport.WrittenCount);
     }
 
     [Fact(Timeout = 5000)]
@@ -44,6 +50,8 @@ public sealed class Http2StateMachineKeepAliveSpec
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(keepAlivePingDelay: TimeSpan.FromSeconds(10), keepAlivePingTimeout: TimeSpan.FromSeconds(20)), ops);
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
         ops.Outbound.Clear();
 
         sm.OnTimerFired("keep-alive-ping");

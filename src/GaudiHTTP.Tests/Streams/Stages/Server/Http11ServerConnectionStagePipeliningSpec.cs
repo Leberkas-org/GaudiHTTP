@@ -6,6 +6,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Server;
 using GaudiHTTP.Streams;
@@ -31,13 +32,13 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
         public void DisposeContext(IFeatureCollection context, Exception? exception) { }
     }
 
-    private static TransportConnected Connected()
+    private static TransportConnected Connected(TestPipeTransport transport)
         => new(new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 80),
             new IPEndPoint(IPAddress.Loopback, 50000),
-            TransportProtocol.Tcp));
+            TransportProtocol.Tcp), transport);
 
-    private static TransportData PipelinedRequests(params string[] paths)
+    private static TestPipeTransport CreateTransportWithData(params string[] paths)
     {
         var sb = new StringBuilder();
         foreach (var path in paths)
@@ -45,11 +46,18 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
             sb.Append("GET ").Append(path).Append(" HTTP/1.1\r\nHost: example.com\r\n\r\n");
         }
 
+        var transport = new TestPipeTransport();
         var bytes = Encoding.ASCII.GetBytes(sb.ToString());
-        var buffer = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = bytes.Length;
-        return TransportData.Rent(buffer);
+        var span = transport.InputWriter.GetSpan(bytes.Length);
+        bytes.CopyTo(span);
+        transport.InputWriter.Advance(bytes.Length);
+        var flush = transport.InputWriter.FlushAsync();
+        if (!flush.IsCompletedSuccessfully)
+        {
+            throw new InvalidOperationException("Pipe flush did not complete synchronously");
+        }
+
+        return transport;
     }
 
     [Fact(Timeout = 15000)]
@@ -86,8 +94,8 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
             .Run(Materializer);
 
         netOut.Request(100);
-        netIn.SendNext(Connected(), TestContext.Current.CancellationToken);
-        netIn.SendNext(PipelinedRequests("/p/1", "/p/2", "/p/3"), TestContext.Current.CancellationToken);
+        var transport = CreateTransportWithData("/p/1", "/p/2", "/p/3");
+        netIn.SendNext(Connected(transport), TestContext.Current.CancellationToken);
 
         var first = probe.ExpectMsg<string>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("/p/1", first);

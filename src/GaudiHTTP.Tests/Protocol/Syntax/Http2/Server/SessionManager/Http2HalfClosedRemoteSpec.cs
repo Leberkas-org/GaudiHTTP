@@ -68,6 +68,13 @@ public sealed class Http2HalfClosedRemoteSpec
     private static Http2ServerSessionManager CreateSm(FakeServerOps ops)
     {
         var sm = new Http2ServerSessionManager(new GaudiServerOptions().ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
         return sm;

@@ -1,5 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
-using Servus.Akka.Transport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -110,17 +110,17 @@ public sealed class Http2ServerTimeoutSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
 
         // Fire the keep-alive timeout
         sm.OnTimerFired("keep-alive-timeout");
 
         // Should emit a GOAWAY frame
-        Assert.Single(ops.Outbound);
-        Assert.IsType<TransportData>(ops.Outbound[0]);
-        var transportData = (TransportData)ops.Outbound[0];
-        var frameType = transportData.Buffer.Span[3];
-        Assert.Equal((byte)FrameType.GoAway, frameType);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var goAwayFrame = frames.OfType<GoAwayFrame>().FirstOrDefault();
+        Assert.NotNull(goAwayFrame);
     }
 
     [Fact(Timeout = 5000)]
@@ -138,11 +138,7 @@ public sealed class Http2ServerTimeoutSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         // Keep-alive should be cancelled
         Assert.Contains("keep-alive-timeout", ops.CancelledTimers);
@@ -173,11 +169,7 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         // Headers timeout should be scheduled
         var headersTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name.StartsWith("headers-timeout:"));
@@ -185,17 +177,16 @@ public sealed class Http2ServerTimeoutSpec
         Assert.Equal("headers-timeout:1", headersTimer.Name);
         Assert.Equal(TimeSpan.FromSeconds(30), headersTimer.Delay);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
 
         // Fire the headers timeout
         sm.OnTimerFired("headers-timeout:1");
 
         // Should emit a RST_STREAM frame
-        Assert.Single(ops.Outbound);
-        Assert.IsType<TransportData>(ops.Outbound[0]);
-        var transportData = (TransportData)ops.Outbound[0];
-        var frameType = transportData.Buffer.Span[3];
-        Assert.Equal((byte)FrameType.RstStream, frameType);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var rstFrame = frames.OfType<RstStreamFrame>().FirstOrDefault();
+        Assert.NotNull(rstFrame);
     }
 
     [Fact(Timeout = 5000)]
@@ -224,11 +215,7 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         var headersTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "headers-timeout:1");
         Assert.Equal("headers-timeout:1", headersTimer.Name);
@@ -260,21 +247,13 @@ public sealed class Http2ServerTimeoutSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         ops.CancelledTimers.Clear();
 
         // Send CONTINUATION with EndHeaders
         var continuationData = BuildContinuationFrame(streamId: 1, headerBlock[partSize..], endHeaders: true);
-        buffer = WireBuffer.Rent(continuationData.Length);
-        continuationData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = continuationData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        transport.FeedMore(sm, ops, continuationData);
 
         // Headers timeout should be cancelled
         Assert.Contains("headers-timeout:1", ops.CancelledTimers);
@@ -316,11 +295,7 @@ public sealed class Http2ServerTimeoutSpec
         var headerBlock = EncodeHeaders("POST", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         ops.ScheduledTimers.Clear();
 
@@ -328,11 +303,7 @@ public sealed class Http2ServerTimeoutSpec
         var data = new byte[100];
         var dataFrameData = BuildDataFrame(streamId: 1, data, endStream: false);
 
-        buffer = WireBuffer.Rent(dataFrameData.Length);
-        dataFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = dataFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        transport.FeedMore(sm, ops, dataFrameData);
 
         // Data rate check timer should be scheduled
         var rateTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "data-rate-check");

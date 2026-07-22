@@ -13,8 +13,6 @@ namespace GaudiHTTP.Tests.Shared;
 
 public abstract class EngineTestBase : StreamTestBase
 {
-    // WireBuffer.Rent has no implicit byte[] conversion (the deleted TransportBuffer did); test
-    // helpers below deal exclusively in byte[] scripted responses, so wrap explicitly at each site.
     internal static WireBuffer ToWireBuffer(byte[] data)
     {
         var buffer = WireBuffer.Rent(data.Length);
@@ -26,14 +24,65 @@ public abstract class EngineTestBase : StreamTestBase
     internal static TestConnectionStage CreateFakeConnection(Func<byte[]> responseFactory)
     {
         var stage = new TestConnectionStageBuilder()
-            .AutoConnect()
+            .OnOutbound<ConnectTransport>((_, ctx) =>
+            {
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(outputBytes =>
+                {
+                    var requestCount = CountHttpRequests(outputBytes);
+                    return requestCount > 0 ? ConcatResponses(responseFactory, requestCount) : null;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
+            })
             .Build();
-
-        stage.PushResponse(outbound => outbound is TransportData
-            ? TransportData.Rent(ToWireBuffer(responseFactory()))
-            : null);
-
         return stage;
+    }
+
+    private static int CountHttpRequests(byte[] data)
+    {
+        var span = data.AsSpan();
+        var terminator = "\r\n\r\n"u8;
+        var count = 0;
+        var pos = 0;
+        while (pos < span.Length)
+        {
+            var idx = span[pos..].IndexOf(terminator);
+            if (idx < 0)
+            {
+                break;
+            }
+
+            count++;
+            pos += idx + 4;
+        }
+
+        return count;
+    }
+
+    private static byte[] ConcatResponses(Func<byte[]> factory, int count)
+    {
+        if (count == 1)
+        {
+            return factory();
+        }
+
+        var responses = new List<byte[]>(count);
+        for (var i = 0; i < count; i++)
+        {
+            responses.Add(factory());
+        }
+
+        var total = responses.Sum(r => r.Length);
+        var result = new byte[total];
+        var offset = 0;
+        foreach (var r in responses)
+        {
+            r.CopyTo(result, offset);
+            offset += r.Length;
+        }
+
+        return result;
     }
 
     internal static Flow<ITransportOutbound, ITransportInbound, NotUsed> CreateFakeConnectionFlow(
@@ -44,18 +93,21 @@ public abstract class EngineTestBase : StreamTestBase
     {
         var index = 0;
         var stage = new TestConnectionStageBuilder()
-            .AutoConnect()
-            .OnOutbound<TransportData>((data, ctx) =>
+            .OnOutbound<ConnectTransport>((_, ctx) =>
             {
-                var bytes = data.Buffer.Span.ToArray();
-                var response = responseFactory(index++, bytes);
-                if (response is null)
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(requestBytes =>
                 {
-                    ctx.Complete();
-                    return;
-                }
+                    var response = responseFactory(index++, requestBytes);
+                    if (response is null)
+                    {
+                        transport.CompleteInput();
+                    }
 
-                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
+                    return response;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
             })
             .Build();
         return stage;
@@ -67,34 +119,38 @@ public abstract class EngineTestBase : StreamTestBase
         var accumulated = new List<byte>();
 
         var stage = new TestConnectionStageBuilder()
-            .AutoConnect()
-            .OnOutbound<TransportData>((data, ctx) =>
+            .OnOutbound<ConnectTransport>((_, ctx) =>
             {
-                accumulated.AddRange(data.Buffer.Span.ToArray());
-
-                var (headerEnd, contentLength) = TryParseRequest(accumulated);
-                if (headerEnd < 0)
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(requestBytes =>
                 {
-                    return;
-                }
+                    accumulated.AddRange(requestBytes);
 
-                var totalExpected = headerEnd + 4 + contentLength;
-                if (accumulated.Count < totalExpected)
-                {
-                    return;
-                }
+                    var (headerEnd, contentLength) = TryParseRequest(accumulated);
+                    if (headerEnd < 0)
+                    {
+                        return null;
+                    }
 
-                var completeRequest = accumulated.GetRange(0, totalExpected).ToArray();
-                accumulated.RemoveRange(0, totalExpected);
+                    var totalExpected = headerEnd + 4 + contentLength;
+                    if (accumulated.Count < totalExpected)
+                    {
+                        return null;
+                    }
 
-                var response = responseFactory(index++, completeRequest);
-                if (response is null)
-                {
-                    ctx.Complete();
-                    return;
-                }
+                    var completeRequest = accumulated.GetRange(0, totalExpected).ToArray();
+                    accumulated.RemoveRange(0, totalExpected);
 
-                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
+                    var response = responseFactory(index++, completeRequest);
+                    if (response is null)
+                    {
+                        transport.CompleteInput();
+                    }
+
+                    return response;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
             })
             .Build();
         return stage;
@@ -127,19 +183,27 @@ public abstract class EngineTestBase : StreamTestBase
     {
         var index = 0;
         var stage = new TestConnectionStageBuilder()
-            .AutoConnect()
-            .OnOutbound<TransportData>((data, ctx) =>
+            .OnOutbound<ConnectTransport>((_, ctx) =>
             {
-                var bytes = data.Buffer.Span.ToArray();
-                var response = responseFactory(index++, bytes);
-                if (response is null)
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(requestBytes =>
                 {
-                    ctx.Complete();
-                    return;
-                }
+                    var response = responseFactory(index++, requestBytes);
+                    if (response is null)
+                    {
+                        transport.CompleteInput();
+                        return null;
+                    }
 
-                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
-                ctx.Push(new TransportDisconnected(DisconnectReason.Graceful));
+                    Task.Run(async () =>
+                    {
+                        await transport.FeedInputAsync(response);
+                        transport.CompleteInput();
+                    });
+                    return null;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
             })
             .Build();
         return stage;
@@ -148,30 +212,22 @@ public abstract class EngineTestBase : StreamTestBase
     internal static TestConnectionStage CreateProxyConnection(Func<int, byte[], byte[]?> responseFactory)
     {
         var index = 0;
-        var tunnelEstablished = false;
-        var connectEstablishedBytes = Encoding.Latin1.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
         var stage = new TestConnectionStageBuilder()
             .OnOutbound<ConnectTransport>((_, ctx) =>
             {
-                tunnelEstablished = true;
-                ctx.Push(TransportData.Rent(ToWireBuffer(connectEstablishedBytes)));
-            })
-            .OnOutbound<TransportData>((data, ctx) =>
-            {
-                if (!tunnelEstablished)
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(requestBytes =>
                 {
-                    return;
-                }
+                    var response = responseFactory(index++, requestBytes);
+                    if (response is null)
+                    {
+                        transport.CompleteInput();
+                    }
 
-                var bytes = data.Buffer.Span.ToArray();
-                var response = responseFactory(index++, bytes);
-                if (response is null)
-                {
-                    ctx.Complete();
-                    return;
-                }
-
-                ctx.Push(TransportData.Rent(ToWireBuffer(response)));
+                    return response;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
             })
             .Build();
         return stage;
@@ -180,32 +236,27 @@ public abstract class EngineTestBase : StreamTestBase
     internal static TestConnectionStage CreateH2Connection(params byte[][] serverFrames)
     {
         var frameIndex = 0;
-        var transportDataCount = 0;
+        var outputCount = 0;
 
         var stage = new TestConnectionStageBuilder()
-            .AutoConnect()
-            .OnOutbound<TransportData>((_, ctx) =>
+            .OnOutbound<ConnectTransport>((_, ctx) =>
             {
-                transportDataCount++;
-
-                if (transportDataCount == 1)
+                var transport = new TestPipeTransport();
+                ctx.SetTransport(transport);
+                transport.OnOutputReceived(_ =>
                 {
-                    // Skip first TransportData (HTTP/2 preface + SETTINGS)
-                    return;
-                }
+                    outputCount++;
+                    if (outputCount == 1)
+                    {
+                        return null;
+                    }
 
-                PushNextFrame(ctx);
+                    return frameIndex < serverFrames.Length ? serverFrames[frameIndex++] : null;
+                });
+                ctx.Push(new TransportConnected(ConnectionInfo.None, transport));
             })
             .Build();
         return stage;
-
-        void PushNextFrame(IStageContext ctx)
-        {
-            if (frameIndex < serverFrames.Length)
-            {
-                ctx.Push(TransportData.Rent(ToWireBuffer(serverFrames[frameIndex++])));
-            }
-        }
     }
 
     internal static TestConnectionStage CreateH3Connection(params byte[][] serverFrames)
@@ -249,16 +300,11 @@ public abstract class EngineTestBase : StreamTestBase
             engine.Join(stage.AsFlow()), request, Materializer,
             ct: TestContext.Current.CancellationToken);
 
-        var rawBuilder = new StringBuilder();
-        foreach (var outbound in stage.ReceivedOutbound)
-        {
-            if (outbound is TransportData { Buffer: var buf })
-            {
-                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
-            }
-        }
+        var rawRequest = stage.Transport is { } transport
+            ? Encoding.Latin1.GetString(transport.CapturedOutputBytes)
+            : string.Empty;
 
-        return (response, rawBuilder.ToString());
+        return (response, rawRequest);
     }
 
     internal async Task<(IReadOnlyList<HttpResponseMessage> Responses, string RawRequests)> SendManyAsync(
@@ -273,16 +319,11 @@ public abstract class EngineTestBase : StreamTestBase
             engine.Join(stage.AsFlow()), requests, expectedCount, Materializer, ct:
             TestContext.Current.CancellationToken);
 
-        var rawBuilder = new StringBuilder();
-        foreach (var outbound in stage.ReceivedOutbound)
-        {
-            if (outbound is TransportData { Buffer: var buf })
-            {
-                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
-            }
-        }
+        var rawRequests = stage.Transport is { } transport
+            ? Encoding.Latin1.GetString(transport.CapturedOutputBytes)
+            : string.Empty;
 
-        return (results, rawBuilder.ToString());
+        return (results, rawRequests);
     }
 
     internal async Task<(HttpResponseMessage Response, IReadOnlyList<Http2Frame> OutboundFrames)> SendH2EngineAsync(
@@ -308,8 +349,8 @@ public abstract class EngineTestBase : StreamTestBase
 
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
-        var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes.ToArray()), out _)
+        var frames = outboundBytes.Length > 0
+            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes), out _)
             : [];
 
         return (response, frames);
@@ -329,15 +370,12 @@ public abstract class EngineTestBase : StreamTestBase
             .Via(flow)
             .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
 
-        // Sink.Seq keeps the stream alive until the source completes, which allows
-        // any buffered DATA frames from async body encoders to be flushed through the outlet.
-        // Additional delay to allow actor system to process any remaining messages.
         await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
-        var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes.ToArray()), out _)
+        var frames = outboundBytes.Length > 0
+            ? new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(outboundBytes), out _)
             : [];
 
         return (results.ToList(), frames);
@@ -415,36 +453,25 @@ public abstract class EngineTestBase : StreamTestBase
         return (response, frames);
     }
 
-    private static List<byte> DrainOutboundBytes(TestConnectionStage stage, bool stripH2Preface)
+    private static byte[] DrainOutboundBytes(TestConnectionStage stage, bool stripH2Preface)
     {
         var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
-        var bytes = new List<byte>();
-        var prefaceStripped = false;
 
-        while (stage.TryGetOutbound(out var outbound))
+        if (stage.Transport is not { } transport)
         {
-            if (outbound is not TransportData { Buffer: var buf })
-            {
-                continue;
-            }
+            return [];
+        }
 
-            var span = buf.Span;
-            if (stripH2Preface && !prefaceStripped)
-            {
-                prefaceStripped = true;
-                if (span.Length >= 24 && span[..24].SequenceEqual(preface))
-                {
-                    var remainder = span[24..];
-                    if (remainder.Length > 0)
-                    {
-                        bytes.AddRange(remainder.ToArray());
-                    }
+        var bytes = transport.CapturedOutputBytes;
+        if (!stripH2Preface || bytes.Length < 24)
+        {
+            return bytes;
+        }
 
-                    continue;
-                }
-            }
-
-            bytes.AddRange(span.ToArray());
+        var span = bytes.AsSpan();
+        if (span[..24].SequenceEqual(preface))
+        {
+            return span[24..].ToArray();
         }
 
         return bytes;

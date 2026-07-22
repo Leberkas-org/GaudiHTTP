@@ -1,10 +1,10 @@
 using System.Buffers;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
 using GaudiHTTP.Tests.TestSupport;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 
@@ -18,6 +18,15 @@ public sealed class ResponseRetentionSpec
         var encoder = new HpackEncoder(useHuffman: false);
         var hpack = encoder.Encode([(":status", "200"), ("content-type", "text/plain")]);
         return new HeadersFrame(streamId, hpack, endStream, endHeaders: true);
+    }
+
+    private static byte[] SerializeFrameBytes(Http2Frame frame)
+    {
+        var buffer = WireBuffer.Rent(frame.SerializedSize);
+        var span = buffer.FullMemory.Span;
+        frame.WriteTo(ref span);
+        buffer.Length = frame.SerializedSize;
+        return buffer.Span.ToArray();
     }
 
     [Fact(Timeout = 5000)]
@@ -34,24 +43,18 @@ public sealed class ResponseRetentionSpec
         // Simulate server sending response headers without END_STREAM, then RST_STREAM with NO_ERROR
         // The response should be retained and emitted to the caller
         var headersFrame = MakeResponseHeaders(1, endStream: false);
-        var buffer = WireBuffer.Rent(headersFrame.SerializedSize);
-        var span = buffer.FullMemory.Span;
-        headersFrame.WriteTo(ref span);
-        buffer.Length = headersFrame.SerializedSize;
+        var headersBytes = SerializeFrameBytes(headersFrame);
 
-        sm.DecodeServerData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersBytes, ops: ops);
 
         // After headers without END_STREAM, response should be available
         Assert.Single(ops.Responses);
 
         // Now send RST_STREAM with NO_ERROR
         var rstFrame = new RstStreamFrame(1, Http2ErrorCode.NoError);
-        var rstBuffer = WireBuffer.Rent(rstFrame.SerializedSize);
-        var rstSpan = rstBuffer.FullMemory.Span;
-        rstFrame.WriteTo(ref rstSpan);
-        rstBuffer.Length = rstFrame.SerializedSize;
+        var rstBytes = SerializeFrameBytes(rstFrame);
 
-        sm.DecodeServerData(TransportData.Rent(rstBuffer));
+        transport.FeedMore(sm, ops, rstBytes);
 
         // Response should still be retained (still single response)
         Assert.Single(ops.Responses);

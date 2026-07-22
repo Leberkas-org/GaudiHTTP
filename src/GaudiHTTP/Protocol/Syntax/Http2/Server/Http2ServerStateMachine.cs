@@ -49,7 +49,10 @@ internal sealed class Http2ServerStateMachine :
     protected override void OnFlushCompleted() { }
     protected override void OnFlushDeferred() { }
     protected override void OnTransportLost(Exception? ex) => _sessionManager.ShouldComplete = true;
-    protected override void OnTransportConnected(Servus.Akka.Transport.ConnectionInfo info) { }
+    protected override void OnTransportConnected(Servus.Akka.Transport.ConnectionInfo info)
+    {
+        _sessionManager.PreStart();
+    }
     protected override void OnTransportDisconnected(DisconnectReason reason) =>
         _sessionManager.ShouldComplete = true;
 
@@ -63,7 +66,6 @@ internal sealed class Http2ServerStateMachine :
 
     public void PreStart()
     {
-        _sessionManager.PreStart();
         Ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
         ScheduleKeepAlivePing();
     }

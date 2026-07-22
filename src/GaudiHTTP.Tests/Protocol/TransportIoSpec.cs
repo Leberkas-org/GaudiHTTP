@@ -41,10 +41,11 @@ public sealed class TransportIoSpec
         transport.EnqueuePendingRead();
 
         _tio.OnConnected(transport);
+        _tio.RequestRead();
         Assert.Empty(_decodedData);
         Assert.Equal(1, transport.ReadCount);
 
-        // Simulate async delivery of the first read result — budget resets to MaxSyncReads
+        // Simulate async delivery of the first read result
         transport.EnqueueSyncRead(new byte[] { 2, 3 });
         transport.EnqueueSyncRead(new byte[] { 4, 5 });
         transport.EnqueuePendingRead(); // terminal
@@ -67,6 +68,7 @@ public sealed class TransportIoSpec
         transport.EnqueuePendingRead();
 
         _tio.OnConnected(transport);
+        _tio.RequestRead();
         Assert.Empty(_decodedData);
 
         var gen = _tio.TransportGen;
@@ -108,6 +110,7 @@ public sealed class TransportIoSpec
         var transport = new ScriptableTransport();
         transport.EnqueuePendingRead();
         _tio.OnConnected(transport);
+        _tio.RequestRead();
         Assert.Equal(1, transport.ReadCount);
 
         // Simulate async read completion, but next read would be paused
@@ -175,8 +178,9 @@ public sealed class TransportIoSpec
         var transport = new ScriptableTransport();
         transport.EnqueuePendingRead();
         _tio.OnConnected(transport);
+        _tio.RequestRead();
 
-        // After first async dispatch, budget resets to MaxSyncReads
+        // After first async dispatch, budget = MaxSyncReads
         for (var i = 0; i < TransportIo.MaxSyncReads + 3; i++)
         {
             transport.EnqueueSyncRead(new byte[] { (byte)(i + 1) });

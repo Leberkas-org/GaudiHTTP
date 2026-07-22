@@ -1,10 +1,9 @@
 using GaudiHTTP.Client;
 using System.Net;
 using System.Text;
-using Servus.Akka.TestKit;
-using Servus.Akka.Transport;
 using GaudiHTTP.Streams;
 using GaudiHTTP.Tests.Shared;
+using Servus.Akka.TestKit;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http10.Stages;
 
@@ -60,16 +59,9 @@ public sealed class Http10EngineEndToEndSpec : EngineTestBase
             Engine.CreateFlow().Join(stage.AsFlow()), request, Materializer,
             ct: TestContext.Current.CancellationToken);
 
-        var rawBuilder = new StringBuilder();
-        foreach (var outbound in stage.ReceivedOutbound)
-        {
-            if (outbound is TransportData { Buffer: var buf })
-            {
-                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
-            }
-        }
-
-        var rawRequest = rawBuilder.ToString();
+        var rawRequest = stage.Transport is { } transport
+            ? Encoding.Latin1.GetString(transport.CapturedOutputBytes)
+            : string.Empty;
 
         // Wire must contain the POST body
         Assert.Contains(payload, rawRequest);

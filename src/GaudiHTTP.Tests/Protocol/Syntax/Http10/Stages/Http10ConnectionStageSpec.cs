@@ -4,6 +4,7 @@ using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Streams.Stages.Client;
 using GaudiHTTP.Tests.Shared;
@@ -20,23 +21,12 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         };
     }
 
-    private static WireBuffer MakeResponseBuffer(string raw)
-    {
-        var bytes = Encoding.ASCII.GetBytes(raw);
-        var buf = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buf.FullMemory.Span);
-        buf.Length = bytes.Length;
-        return buf;
-    }
-
-    // The client SM defers request encoding until it observes TransportConnected on the network
-    // inlet (mirrors the real TcpConnectionStage handshake). Stage-level tests drive InNetwork
-    // manually, so they must inject this after ConnectTransport before expecting encoded data.
-    private static TransportConnected MakeTransportConnected()
+    private static TransportConnected MakeTransportConnected(TestPipeTransport transport)
         => new(new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 0),
             new IPEndPoint(IPAddress.Loopback, 80),
-            TransportProtocol.Tcp));
+            TransportProtocol.Tcp),
+            transport);
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC1945-4")]
@@ -81,14 +71,14 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Simulate transport connect handshake completing — request encoding is deferred until this
-        serverSubscription.SendNext(MakeTransportConnected());
+        var transport = new TestPipeTransport();
+        serverSubscription.SendNext(MakeTransportConnected(transport));
 
-        // Should get TransportBuffer on network outlet
-        var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var buffer = Assert.IsType<TransportData>(item);
-        var encoded = Encoding.ASCII.GetString(buffer.Buffer.Span);
+        // Should get encoded request data on the transport pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        var encoded = Encoding.ASCII.GetString(output);
+        transport.AdvanceOutput(output.End);
         Assert.StartsWith("GET /test HTTP/1.0\r\n", encoded);
-        buffer.Buffer.Dispose();
     }
 
     [Fact(Timeout = 10_000)]
@@ -129,14 +119,19 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         // Send request
         appSubscription.SendNext(MakeRequest("/hello"));
 
-        // Consume outbound items (ConnectTransport + TransportData)
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
+        // Consume ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
-        // Send response from server
-        const string responseRaw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello";
-        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(responseRaw)));
+        // Simulate transport connect — encoded request goes through pipe
+        var transport = new TestPipeTransport();
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
+
+        // Send response from server via pipe
+        await transport.FeedInputAsync(Encoding.ASCII.GetBytes("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello"));
 
         // Should get correlated response
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -183,13 +178,20 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         // Send request + response
         appSubscription.SendNext(MakeRequest());
 
-        // ConnectTransport + TransportBuffer
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        serverSubscription.SendNext(MakeTransportConnected());
+        // ConnectTransport
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
-        serverSubscription.SendNext(
-            TransportData.Rent(MakeResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nOK")));
+        // Simulate transport connect — encoded request goes through pipe
+        var transport = new TestPipeTransport();
+        serverSubscription.SendNext(MakeTransportConnected(transport));
+
+        // Consume encoded request from pipe
+        var output = await transport.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport.AdvanceOutput(output.End);
+
+        // Send response via pipe
+        await transport.FeedInputAsync(
+            Encoding.ASCII.GetBytes("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nOK"));
 
         // Response
         await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);

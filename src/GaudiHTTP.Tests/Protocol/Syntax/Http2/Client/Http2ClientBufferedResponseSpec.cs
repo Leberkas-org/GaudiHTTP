@@ -23,7 +23,9 @@ public sealed class Http2ClientBufferedResponseSpec
             options.MaxBufferedResponseBodySize = max;
         }
 
-        return new Http2ClientSessionManager(options, ops);
+        var sm = new Http2ClientSessionManager(options, ops);
+        sm.EmitData = _ => { };
+        return sm;
     }
 
     private static HeadersFrame MakeResponseHeaders(int streamId, long? contentLength, bool endStream = false)

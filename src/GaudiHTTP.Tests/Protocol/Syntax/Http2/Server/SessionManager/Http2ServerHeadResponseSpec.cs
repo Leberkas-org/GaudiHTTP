@@ -1,7 +1,5 @@
 ﻿using System.Buffers;
-using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -50,27 +48,10 @@ public sealed class Http2ServerHeadResponseSpec
         return frame;
     }
 
-    private static void Feed(Http2ServerStateMachine sm, byte[] data)
-    {
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
-    }
-
-    private static List<Http2Frame> Frames(List<ITransportOutbound> outbound)
+    private static List<Http2Frame> DecodeFrames(ReadOnlyMemory<byte> data)
     {
         var decoder = new FrameDecoder();
-        var frames = new List<Http2Frame>();
-        foreach (var o in outbound)
-        {
-            if (o is TransportData td)
-            {
-                frames.AddRange(decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _));
-            }
-        }
-
-        return frames;
+        return decoder.DecodeAll(new ReadOnlySequence<byte>(data), out _).ToList();
     }
 
     [Fact(Timeout = 5000)]
@@ -81,7 +62,7 @@ public sealed class Http2ServerHeadResponseSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
-        Feed(sm, BuildHeadersFrame(1, EncodeHeaders("HEAD", "/resource")));
+        var transport = sm.ConnectTransport(initialData: BuildHeadersFrame(1, EncodeHeaders("HEAD", "/resource")), ops: ops);
 
         var features = ops.Requests[^1];
         features.Get<IHttpResponseFeature>()!.StatusCode = 200;
@@ -91,10 +72,10 @@ public sealed class Http2ServerHeadResponseSpec
         writer.Advance(5);
         writer.Complete();
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes(); // clear preface + initial frames
         sm.OnResponse(features);
 
-        var frames = Frames(ops.Outbound);
+        var frames = DecodeFrames(transport.WrittenMemory);
         Assert.Empty(frames.OfType<DataFrame>());
         Assert.Contains(frames.OfType<HeadersFrame>(), h => h.EndStream);
     }

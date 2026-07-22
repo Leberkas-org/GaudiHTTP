@@ -57,16 +57,8 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
 
         await RunSingleAsync(flow, request);
 
-        var rawBuilder = new StringBuilder();
-        foreach (var outbound in fake.ReceivedOutbound)
-        {
-            if (outbound is TransportData { Buffer: var buf })
-            {
-                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
-            }
-        }
-
-        Assert.DoesNotContain("Cookie:", rawBuilder.ToString());
+        var rawText = Encoding.Latin1.GetString(fake.Transport!.CapturedOutputBytes);
+        Assert.DoesNotContain("Cookie:", rawText);
     }
 
     [Fact(Timeout = 10_000)]
@@ -146,16 +138,7 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
 
         await RunSingleAsync(flow, request);
 
-        var rawBuilder = new StringBuilder();
-        foreach (var outbound in fake.ReceivedOutbound)
-        {
-            if (outbound is TransportData { Buffer: var buf })
-            {
-                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
-            }
-        }
-
-        var rawText = rawBuilder.ToString();
+        var rawText = Encoding.Latin1.GetString(fake.Transport!.CapturedOutputBytes);
         Assert.Contains("Cookie:", rawText);
         Assert.Contains("session=abc", rawText);
     }

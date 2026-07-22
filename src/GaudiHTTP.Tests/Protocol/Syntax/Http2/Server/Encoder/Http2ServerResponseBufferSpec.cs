@@ -1,7 +1,6 @@
 ﻿using System.Buffers;
 using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Options;
@@ -87,29 +86,10 @@ public sealed class Http2ServerResponseBufferSpec
         return new Memory<byte>(buffer, 0, written);
     }
 
-    private static void DecodeFramesAsStream(Http2ServerStateMachine sm, byte[] frameData)
+    private static List<Http2Frame> DecodeFrames(ReadOnlyMemory<byte> data)
     {
-        var buffer = WireBuffer.Rent(frameData.Length);
-        frameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = frameData.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
-    }
-
-    private static List<Http2Frame> ExtractFrames(List<ITransportOutbound> outbound, int startIndex = 0)
-    {
-        var frames = new List<Http2Frame>();
         var decoder = new FrameDecoder();
-
-        for (var i = startIndex; i < outbound.Count; i++)
-        {
-            if (outbound[i] is TransportData td)
-            {
-                var decodedFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _);
-                frames.AddRange(decodedFrames);
-            }
-        }
-
-        return frames;
+        return decoder.DecodeAll(new ReadOnlySequence<byte>(data), out _).ToList();
     }
 
     [Fact(Timeout = 5000)]
@@ -122,11 +102,12 @@ public sealed class Http2ServerResponseBufferSpec
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/status", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
-        DecodeFramesAsStream(sm, headersFrameData);
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.Single(ops.Requests);
 
-        var initialOutboundCount = ops.Outbound.Count;
+        // Clear initial transport bytes (settings, etc.)
+        transport.TakeWrittenBytes();
 
         // Send response
         var requestContext = ops.Requests[0];
@@ -135,7 +116,7 @@ public sealed class Http2ServerResponseBufferSpec
         sm.OnResponse(requestContext);
 
         // Extract frames after response
-        var frames = ExtractFrames(ops.Outbound, initialOutboundCount);
+        var frames = DecodeFrames(transport.WrittenMemory);
 
         // Should only have HEADERS frame with EndStream set
         Assert.Single(frames);
@@ -154,11 +135,12 @@ public sealed class Http2ServerResponseBufferSpec
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
-        DecodeFramesAsStream(sm, headersFrameData);
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.Single(ops.Requests);
 
-        var initialOutboundCount = ops.Outbound.Count;
+        // Clear initial transport bytes (settings, etc.)
+        transport.TakeWrittenBytes();
 
         // Send response
         var requestContext = ops.Requests[0];
@@ -167,7 +149,7 @@ public sealed class Http2ServerResponseBufferSpec
         sm.OnResponse(requestContext);
 
         // Extract frames after response
-        var framesAfterResponse = ExtractFrames(ops.Outbound, initialOutboundCount);
+        var framesAfterResponse = DecodeFrames(transport.WrittenMemory);
 
         // Should have only HEADERS frame without EndStream
         Assert.NotEmpty(framesAfterResponse);
@@ -184,7 +166,7 @@ public sealed class Http2ServerResponseBufferSpec
 
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
-        DecodeFramesAsStream(sm, headersFrameData);
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.Single(ops.Requests);
 
@@ -193,7 +175,7 @@ public sealed class Http2ServerResponseBufferSpec
         sm.OnResponse(requestContext);
 
         var windowUpdateData = BuildWindowUpdateFrame(streamId: 1, increment: 50000);
-        DecodeFramesAsStream(sm, windowUpdateData);
+        transport.FeedMore(sm, ops, windowUpdateData);
     }
 
     [Fact(Timeout = 5000)]

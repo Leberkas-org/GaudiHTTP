@@ -4,6 +4,7 @@ using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using GaudiHTTP.Streams.Stages.Client;
 using GaudiHTTP.Tests.Shared;
@@ -18,14 +19,9 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
             Version = new Version(1, 1)
         };
 
-    private static WireBuffer MakeResponseBuffer(string raw)
-    {
-        var bytes = Encoding.ASCII.GetBytes(raw);
-        var buf = WireBuffer.Rent(bytes.Length);
-        bytes.CopyTo(buf.FullMemory.Span);
-        buf.Length = bytes.Length;
-        return buf;
-    }
+    private static TransportConnected MakeTransportConnected(
+        TestPipeTransport transport, IPEndPoint local, IPEndPoint remote)
+        => new(new ConnectionInfo(local, remote, TransportProtocol.Tcp), transport);
 
     [Fact(Timeout = 10000)]
     [Trait("RFC", "RFC9112-9.3")]
@@ -66,19 +62,19 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         // Send a request
         appSub.SendNext(MakeRequest());
 
-        // Consume ConnectTransport + TransportData
+        // Consume ConnectTransport
         var item0 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connect0 = Assert.IsType<ConnectTransport>(item0);
 
         // Simulate initial connect success — request encoding is deferred until TransportConnected
+        var transport1 = new TestPipeTransport();
         var initialRemote = new IPEndPoint(IPAddress.Loopback, connect0.Options.Port);
         var initialLocal = new IPEndPoint(IPAddress.Loopback, 0);
-        serverSub.SendNext(
-            new TransportConnected(new ConnectionInfo(initialLocal, initialRemote, TransportProtocol.Tcp)));
+        serverSub.SendNext(MakeTransportConnected(transport1, initialLocal, initialRemote));
 
-        var item1 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var td = Assert.IsType<TransportData>(item1);
-        td.Buffer.Dispose();
+        // Consume encoded request from pipe
+        var output = await transport1.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport1.AdvanceOutput(output.End);
 
         // Connection drops while request is in-flight
         serverSub.SendNext(new TransportDisconnected(DisconnectReason.Error));
@@ -87,19 +83,19 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         var reconnectRaw = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var reconnect = Assert.IsType<ConnectTransport>(reconnectRaw);
 
-        // Simulate reconnect success → sends TransportConnected
+        // Simulate reconnect success → new transport for the new connection
+        var transport2 = new TestPipeTransport();
         var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, reconnect.Options.Port);
         var localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-        serverSub.SendNext(
-            new TransportConnected(new ConnectionInfo(localEndPoint, remoteEndPoint, TransportProtocol.Tcp)));
+        serverSub.SendNext(MakeTransportConnected(transport2, localEndPoint, remoteEndPoint));
 
-        // Stage must replay the request — expect TransportData again
-        var item2Retry = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        var tdRetry = Assert.IsType<TransportData>(item2Retry);
-        tdRetry.Buffer.Dispose();
+        // Stage must replay the request — consume encoded data from pipe
+        output = await transport2.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport2.AdvanceOutput(output.End);
 
         // Now respond normally
-        serverSub.SendNext(TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")));
+        await transport2.FeedInputAsync(Encoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"));
 
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -145,13 +141,14 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         var connect0Raw = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // ConnectTransport
         var connect0 = Assert.IsType<ConnectTransport>(connect0Raw);
 
+        var transport1 = new TestPipeTransport();
         var initialRemote = new IPEndPoint(IPAddress.Loopback, connect0.Options.Port);
         var initialLocal = new IPEndPoint(IPAddress.Loopback, 0);
-        serverSub.SendNext(
-            new TransportConnected(new ConnectionInfo(initialLocal, initialRemote, TransportProtocol.Tcp)));
+        serverSub.SendNext(MakeTransportConnected(transport1, initialLocal, initialRemote));
 
-        var item = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // TransportData
-        Assert.IsType<TransportData>(item);
+        // Consume encoded request from pipe
+        var output = await transport1.ReadOutputAsync(TestContext.Current.CancellationToken);
+        transport1.AdvanceOutput(output.End);
 
         // First drop → reconnect attempt 1 (hits max immediately)
         serverSub.SendNext(new TransportDisconnected(DisconnectReason.Error));

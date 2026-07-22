@@ -1,4 +1,4 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -18,6 +18,8 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
         int initialWindowSize,
         params Http2Frame[] serverFrames)
     {
+        var transport = CreateTransportWithFrames(serverFrames);
+
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
 
@@ -34,7 +36,8 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
                             InitialStreamWindowSize = DefaultStreamWindow
                         }
                     }));
-                    var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -50,10 +53,10 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
 
         var downstream = await downstreamTask.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        var networkItems = await networkTask.WaitAsync(
+        await networkTask.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: false));
+        return (downstream, DecodeFrames(transport.WrittenMemory, skipPreface: false));
     }
 
     [Fact(Timeout = 5_000)]
@@ -70,15 +73,12 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_flush_stream_pending_on_stream_close_when_below_threshold()
     {
-        // 1024 bytes is well below the 16384 threshold → no immediate WINDOW_UPDATE.
-        // On stream close the stream-level pending is flushed; connection-level is NOT.
         var data = new DataFrame(streamId: 1, data: new byte[1024], endStream: true);
 
         var (_, serverBound) = await RunAsync(65535, data);
 
         var windowUpdates = serverBound.OfType<WindowUpdateFrame>().ToList();
 
-        // Stream-level flushed; connection-level batched (not yet at threshold).
         var streamUpdate = Assert.Single(windowUpdates, f => f.StreamId == 1);
         Assert.Equal(1024, streamUpdate.Increment);
         Assert.DoesNotContain(windowUpdates, f => f.StreamId == 0);
@@ -89,7 +89,6 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_send_both_window_updates_when_threshold_crossed_in_single_frame()
     {
-        // 40000 bytes crosses both connection and stream threshold (65535/4 = 16383) at once.
         var data = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
 
         var (_, serverBound) = await RunAsync(65535, data);
@@ -106,7 +105,6 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_send_single_batched_window_update_when_multiple_frames_accumulate_to_threshold()
     {
-        // Two 10000-byte frames accumulate to 20000 → threshold (65535/4 = 16383) crossed on second frame.
         var frame1 = new DataFrame(streamId: 1, data: new byte[10000], endStream: false);
         var frame2 = new DataFrame(streamId: 1, data: new byte[10000], endStream: true);
 
@@ -119,11 +117,9 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
             .Where(f => f.StreamId == 1)
             .ToList();
 
-        // Exactly one connection-level WINDOW_UPDATE with the full batched increment
         var connUpdate = Assert.Single(connectionUpdates);
         Assert.Equal(20000, connUpdate.Increment);
 
-        // Exactly one stream-level WINDOW_UPDATE (threshold flush; stream close pending = 0)
         var streamUpdate = Assert.Single(streamUpdates);
         Assert.Equal(20000, streamUpdate.Increment);
     }
@@ -133,8 +129,6 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_batch_streams_independently_when_two_streams_send_data_below_threshold()
     {
-        // Stream 1: 40000 bytes → hits threshold (65535/4 = 16383) → stream WU(1) sent.
-        // Stream 3: 8192 bytes → below threshold → stream WU(3) flushed only at close.
         var s1 = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
         var s3 = new DataFrame(streamId: 3, data: new byte[8192], endStream: true);
 
@@ -142,10 +136,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
 
         var windowUpdates = serverBound.OfType<WindowUpdateFrame>().ToList();
 
-        // Stream 1 threshold hit → WU(1, 40000)
         Assert.Contains(windowUpdates, f => f is { StreamId: 1, Increment: 40000 });
-
-        // Stream 3 close-flush → WU(3, 8192)
         Assert.Contains(windowUpdates, f => f is { StreamId: 3, Increment: 8192 });
     }
 }

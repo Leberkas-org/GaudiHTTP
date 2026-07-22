@@ -1,6 +1,6 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -69,21 +69,13 @@ public sealed class Http2ServerStreamCorrelationSpec
         var headerBlock1 = EncodeHeaders("GET", "/path1", "example.com");
         var headersFrameData1 = BuildHeadersFrame(streamId: 1, headerBlock1, endStream: true, endHeaders: true);
 
-        var buffer1 = WireBuffer.Rent(headersFrameData1.Length);
-        headersFrameData1.CopyTo(buffer1.FullMemory.Span);
-        buffer1.Length = headersFrameData1.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer1));
+        var transport = sm.ConnectTransport(initialData: headersFrameData1, ops: ops);
 
         // Send HEADERS on stream 3
         var headerBlock3 = EncodeHeaders("GET", "/path3", "example.com");
         var headersFrameData3 = BuildHeadersFrame(streamId: 3, headerBlock3, endStream: true, endHeaders: true);
 
-        var buffer3 = WireBuffer.Rent(headersFrameData3.Length);
-        headersFrameData3.CopyTo(buffer3.FullMemory.Span);
-        buffer3.Length = headersFrameData3.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer3));
+        transport.FeedMore(sm, ops, headersFrameData3);
 
         // Verify both requests were emitted
         Assert.Equal(2, ops.Requests.Count);
@@ -102,62 +94,23 @@ public sealed class Http2ServerStreamCorrelationSpec
         Assert.Equal("/path3", context3.Get<IHttpRequestFeature>()?.Path);
 
         // Now respond to stream 3 first
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         var responseContext3 = ServerTestContext.CreateStreamResponse(streamId: 3);
         sm.OnResponse(responseContext3);
 
         // Verify HEADERS frame for stream 3 was emitted
-        Assert.NotEmpty(ops.Outbound);
-        var headersEmitted = false;
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                var frameData = td.Buffer.Span;
-                if (frameData.Length >= 9 && frameData[3] == (byte)FrameType.Headers)
-                {
-                    // Extract stream ID from frame
-                    var sid = (frameData[5] << 24) | (frameData[6] << 16)
-                                                   | (frameData[7] << 8) | frameData[8];
-                    if (sid == 3)
-                    {
-                        headersEmitted = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        Assert.True(headersEmitted, "Expected HEADERS frame for stream 3 to be emitted");
+        var decoder = new FrameDecoder();
+        var frames3 = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        Assert.Contains(frames3, f => f is HeadersFrame { StreamId: 3 });
 
         // Now respond to stream 1
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         var responseContext1 = ServerTestContext.CreateStreamResponse(streamId: 1);
         sm.OnResponse(responseContext1);
 
         // Verify HEADERS frame for stream 1 was emitted
-        Assert.NotEmpty(ops.Outbound);
-        var headers1Emitted = false;
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                var frameData = td.Buffer.Span;
-                if (frameData.Length >= 9 && frameData[3] == (byte)FrameType.Headers)
-                {
-                    // Extract stream ID from frame
-                    var sid = (frameData[5] << 24) | (frameData[6] << 16)
-                                                   | (frameData[7] << 8) | frameData[8];
-                    if (sid == 1)
-                    {
-                        headers1Emitted = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        Assert.True(headers1Emitted, "Expected HEADERS frame for stream 1 to be emitted");
+        var frames1 = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        Assert.Contains(frames1, f => f is HeadersFrame { StreamId: 1 });
     }
 
     [Fact(Timeout = 5000)]
@@ -168,16 +121,13 @@ public sealed class Http2ServerStreamCorrelationSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         // Send three requests on streams 1, 3, 5
+        var transport = sm.ConnectTransport(ops: ops);
         for (var streamId = 1; streamId <= 5; streamId += 2)
         {
             var headerBlock = EncodeHeaders("GET", $"/path{streamId}", "example.com");
             var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: true, endHeaders: true);
 
-            var buffer = WireBuffer.Rent(headersFrameData.Length);
-            headersFrameData.CopyTo(buffer.FullMemory.Span);
-            buffer.Length = headersFrameData.Length;
-
-            sm.DecodeClientData(TransportData.Rent(buffer));
+            transport.FeedMore(sm, ops, headersFrameData);
         }
 
         Assert.Equal(3, ops.Requests.Count);
@@ -197,7 +147,7 @@ public sealed class Http2ServerStreamCorrelationSpec
 
         // Respond in reverse order (5, 3, 1) and verify correct stream IDs are used
         var responseOrder = new[] { 2, 1, 0 };
-        ops.Outbound.Clear();
+        var decoder = new FrameDecoder();
 
         foreach (var idx in responseOrder)
         {
@@ -205,29 +155,13 @@ public sealed class Http2ServerStreamCorrelationSpec
             var reqStreamIdFeature = reqContext.Get<IHttpStreamIdFeature>();
             var reqStreamId = reqStreamIdFeature?.StreamId ?? 0;
 
-            ops.Outbound.Clear();
+            transport.TakeWrittenBytes();
             var context = ServerTestContext.CreateStreamResponse(streamId: reqStreamId);
             sm.OnResponse(context);
 
-            // Find HEADERS frame in outbound
-            var foundCorrectStreamId = false;
-            foreach (var item in ops.Outbound)
-            {
-                if (item is TransportData td)
-                {
-                    var frameData = td.Buffer.Span;
-                    if (frameData.Length >= 9 && frameData[3] == (byte)FrameType.Headers)
-                    {
-                        var emittedStreamId = (frameData[5] << 24) | (frameData[6] << 16)
-                                                                   | (frameData[7] << 8) | frameData[8];
-                        if (emittedStreamId == reqStreamId)
-                        {
-                            foundCorrectStreamId = true;
-                            break;
-                        }
-                    }
-                }
-            }
+            // Find HEADERS frame in transport output
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+            var foundCorrectStreamId = frames.OfType<HeadersFrame>().Any(h => h.StreamId == reqStreamId);
 
             Assert.True(foundCorrectStreamId,
                 $"Expected HEADERS frame for stream {reqStreamId} to be emitted");
@@ -250,20 +184,9 @@ public sealed class Http2ServerStreamCorrelationSpec
         var headersData2 = BuildHeadersFrame(3, headerBlock2, endStream: true, endHeaders: true);
         var headersData3 = BuildHeadersFrame(5, headerBlock3, endStream: true, endHeaders: true);
 
-        var buf1 = WireBuffer.Rent(headersData1.Length);
-        headersData1.CopyTo(buf1.FullMemory.Span);
-        buf1.Length = headersData1.Length;
-        sm.DecodeClientData(TransportData.Rent(buf1));
-
-        var buf2 = WireBuffer.Rent(headersData2.Length);
-        headersData2.CopyTo(buf2.FullMemory.Span);
-        buf2.Length = headersData2.Length;
-        sm.DecodeClientData(TransportData.Rent(buf2));
-
-        var buf3 = WireBuffer.Rent(headersData3.Length);
-        headersData3.CopyTo(buf3.FullMemory.Span);
-        buf3.Length = headersData3.Length;
-        sm.DecodeClientData(TransportData.Rent(buf3));
+        var transport = sm.ConnectTransport(initialData: headersData1, ops: ops);
+        transport.FeedMore(sm, ops, headersData2);
+        transport.FeedMore(sm, ops, headersData3);
 
         // All three requests should have been emitted
         Assert.Equal(3, ops.Requests.Count);

@@ -16,6 +16,7 @@ internal sealed class Http2ClientStateMachine :
     private readonly Http2ClientSessionManager _clientSession;
     private readonly ReconnectionManager _reconnect;
     private TransportOptions? _transportOptions;
+    private List<HttpRequestMessage>? _pendingRequests;
 
     private const string KeepAlivePingTimerKey = "keep-alive-ping";
     private const string KeepAlivePingTimeoutKey = "keep-alive-ping-timeout";
@@ -73,6 +74,12 @@ internal sealed class Http2ClientStateMachine :
 
     public void OnRequest(HttpRequestMessage request)
     {
+        if (Transport is null && _clientSession.Endpoint != default)
+        {
+            (_pendingRequests ??= []).Add(request);
+            return;
+        }
+
         _clientSession.EncodeRequest(request);
     }
 
@@ -294,6 +301,15 @@ internal sealed class Http2ClientStateMachine :
         _clientSession.TryEmitPreface();
 
         _clientSession.FlushPendingInitialRequest();
+
+        if (_pendingRequests is { Count: > 0 } pending)
+        {
+            _pendingRequests = null;
+            foreach (var req in pending)
+            {
+                _clientSession.EncodeRequest(req);
+            }
+        }
 
         var toReplay = _reconnect.OnConnectionRestored();
         for (var i = 0; i < toReplay.Count; i++)

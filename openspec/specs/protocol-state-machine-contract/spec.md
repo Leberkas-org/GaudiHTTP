@@ -50,27 +50,21 @@ The state machine lifecycle is: construction (inert) -> `PreStart()` (initialize
 ---
 
 ### Requirement: Inbound data arrives via DecodeServerData / DecodeClientData
-For TCP protocols (H1.0, H1.1, H2), inbound byte data continues to arrive through
-`DecodeServerData`/`DecodeClientData` as `TransportConnected`, `TransportData`, `TransportDisconnected` when
-`_transport` is null (legacy path). When `TransportConnected` carries a non-null `Transport`, the SM stores
-it and switches to pipe mode: byte data is instead delivered by `RequestRead()`/`OnReadCompleted` and
-processed via a new `DecodeData(ReadOnlySequence<byte>)` method (see `sm-transport-io` spec);
-`TransportData` items MUST NOT appear on the port for a connection that has switched to pipe mode.
+For TCP protocols (H1.0, H1.1, H2), `DecodeServerData`/`DecodeClientData` MUST only dispatch
+lifecycle events (`TransportConnected`, `TransportDisconnected`) via `DispatchLifecycleEvent`.
+If a `TransportData` item is received on a TCP SM, the SM MUST throw
+`InvalidOperationException`. There is no fallback path for `TransportData` on TCP SMs.
 
-For QUIC/H3 protocols, `DecodeClientData`/`DecodeServerData` is unchanged (still receives `MultiplexedData`
-via port; H3 is out of scope for pipe transport).
+For QUIC/H3 protocols, `DecodeClientData`/`DecodeServerData` is unchanged.
 
 #### Scenario: TransportConnected routed through base class
 - **WHEN** `TransportConnected` is received in `DecodeServerData` / `DecodeClientData`
 - **THEN** the SM MUST call the base class lifecycle dispatch
-- **THEN** the base class MUST initialize the transport, start the read loop, and call
-  `OnTransportConnected`
+- **THEN** the base class MUST initialize the transport, start the read loop, and call `OnTransportConnected`
 
-#### Scenario: TransportData fallback for pre-connect
-- **WHEN** `TransportData` is received and `Transport` is null
-- **THEN** the SM MAY decode the buffer directly (pre-connect data buffered before `TransportConnected`)
-- **WHEN** `TransportData` is received and `Transport` is not null
-- **THEN** this MUST NOT happen in normal operation (all data arrives via the read loop)
+#### Scenario: TransportData on TCP SM throws
+- **WHEN** `TransportData` is received on a TCP SM's `DecodeServerData`/`DecodeClientData`
+- **THEN** the SM MUST throw `InvalidOperationException`
 
 #### Scenario: TransportDisconnected triggers teardown or reconnect
 - **WHEN** `TransportDisconnected` is received via the port dispatch
@@ -81,46 +75,31 @@ via port; H3 is out of scope for pipe transport).
   state
 - **THEN** if no reconnect is possible, the state machine MUST fail all in-flight requests
 
-#### Scenario: Byte data is decoded via DecodeData (pipe mode)
-- **WHEN** the SM's read loop delivers a `ReadResult` (via sync fast-path or PipeTo dispatch) with
-  `_transport != null`
-- **THEN** the SM MUST call `DecodeData(ReadOnlySequence<byte>)` to process the bytes synchronously
+#### Scenario: Byte data decoded via pipe read loop
+- **WHEN** the SM's read loop delivers a `ReadResult` with `_transport != null`
+- **THEN** the SM MUST call `DecodeData(ReadOnlySequence<byte>)` to process the bytes
 - **THEN** the SM MUST call `_transport.AdvanceTo(consumed, examined)` after decode
-- **THEN** the returned `consumed` position indicates how many bytes were fully processed
 
 ---
 
 ### Requirement: Outbound messages are submitted via OnRequest / OnResponse
 Client state machines receive outbound work via `OnRequest(HttpRequestMessage)`. Server state machines
-receive outbound work via `OnResponse(IFeatureCollection)`. When `_transport` is null, the state machine
-encodes the message and emits transport data via `ops.OnOutbound(TransportData)`, unchanged from prior
-behavior. When `_transport != null`, the state machine encodes directly into `_transport` via
-`GetMemory`/`Advance` (see `sm-transport-io` spec) and calls `RequestFlush()`; it MUST NOT call
-`ops.OnOutbound(TransportData)` for byte data in this mode.
+receive outbound work via `OnResponse(IFeatureCollection)`. The state machine encodes directly into
+`Transport` via `GetMemory`/`Advance` and calls `RequestFlush()`; it MUST NOT call
+`ops.OnOutbound(TransportData)` for byte data. `Transport` MUST NOT be null when encoding runs
+(see `deferred-request-encoding` spec for the deferral mechanism).
 
-#### Scenario: Client encodes a request onto the wire (legacy)
-- **WHEN** `OnRequest(HttpRequestMessage)` is called with `_transport == null`
-- **THEN** the state machine MUST encode the request headers and emit them via `ops.OnOutbound`, unchanged
-  from prior behavior
-- **THEN** if the request has a body, the state machine MUST arrange for body data to be pumped to the
-  transport via the same legacy mechanism
-
-#### Scenario: Client encodes a request onto the wire (pipe mode)
-- **WHEN** `OnRequest(HttpRequestMessage)` is called with `_transport != null`
-- **THEN** the state machine MUST encode the request headers directly into `_transport` via
+#### Scenario: Client encodes a request onto the wire
+- **WHEN** `OnRequest(HttpRequestMessage)` is called with `Transport` connected
+- **THEN** the state machine MUST encode the request headers directly into `Transport` via
   `GetMemory`/`Advance`
 - **THEN** the state machine MUST call `RequestFlush()` to trigger `FlushAsync`
 - **THEN** if the request has a body, the state machine MUST arrange for body data to be pumped to
-  `_transport`
+  `Transport`
 
-#### Scenario: Server encodes a response onto the wire (legacy)
-- **WHEN** `OnResponse(IFeatureCollection)` is called with `_transport == null`
-- **THEN** the state machine MUST encode the response headers and emit them via `ops.OnOutbound`, unchanged
-  from prior behavior
-
-#### Scenario: Server encodes a response onto the wire (pipe mode)
-- **WHEN** `OnResponse(IFeatureCollection)` is called with `_transport != null`
-- **THEN** the state machine MUST encode the response headers directly into `_transport` via
+#### Scenario: Server encodes a response onto the wire
+- **WHEN** `OnResponse(IFeatureCollection)` is called with `Transport` connected
+- **THEN** the state machine MUST encode the response headers directly into `Transport` via
   `GetMemory`/`Advance` and call `RequestFlush()`
 
 #### Scenario: OnRequest is only called when CanAcceptRequest is true

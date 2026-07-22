@@ -89,6 +89,13 @@ public sealed class Http2ServerBufferedRequestSpec
         var options = new GaudiServerOptions().ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -120,6 +127,13 @@ public sealed class Http2ServerBufferedRequestSpec
         var options = baseOptions.ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -138,6 +152,13 @@ public sealed class Http2ServerBufferedRequestSpec
         var options = new GaudiServerOptions().ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 
@@ -161,6 +182,13 @@ public sealed class Http2ServerBufferedRequestSpec
         var options = new GaudiServerOptions().ToHttp2Options();
         var encoder = new HpackEncoder(useHuffman: false);
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
 

@@ -1,6 +1,5 @@
-﻿using GaudiHTTP.Tests.TestSupport;
-using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -45,14 +44,6 @@ public sealed class Http2ServerTimerErrorSpec
         return frame;
     }
 
-    private static TransportData WrapAsTransportData(byte[] frameData)
-    {
-        var buffer = WireBuffer.Rent(frameData.Length);
-        frameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = frameData.Length;
-        return TransportData.Rent(buffer);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
     public void PreStart_should_schedule_keep_alive_timer()
@@ -76,19 +67,15 @@ public sealed class Http2ServerTimerErrorSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
 
         sm.OnTimerFired("keep-alive-timeout");
 
-        Assert.Single(ops.Outbound);
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
-
-        var transportData = (TransportData)outbound;
-        var frameData = transportData.Buffer.Span;
-
-        // Frame type should be GOAWAY (0x7)
-        Assert.Equal((byte)FrameType.GoAway, frameData[3]);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var goAway = frames.OfType<GoAwayFrame>().FirstOrDefault();
+        Assert.NotNull(goAway);
     }
 
     [Fact(Timeout = 5000)]
@@ -105,8 +92,7 @@ public sealed class Http2ServerTimerErrorSpec
 
         // Decode a HEADERS frame to open a stream
         var headersFrame = BuildHeadersFrame(streamId: 1, endStream: true);
-        var transportData = WrapAsTransportData(headersFrame);
-        sm.DecodeClientData(transportData);
+        var transport = sm.ConnectTransport(initialData: headersFrame, ops: ops);
 
         // ShouldComplete should still be false for HTTP/2
         Assert.False(sm.ShouldComplete);
@@ -124,8 +110,7 @@ public sealed class Http2ServerTimerErrorSpec
 
         // Decode a HEADERS frame to open a stream
         var headersFrame = BuildHeadersFrame(streamId: 1, endStream: false);
-        var transportData = WrapAsTransportData(headersFrame);
-        sm.DecodeClientData(transportData);
+        var transport = sm.ConnectTransport(initialData: headersFrame, ops: ops);
 
         // Keep-alive timer should be cancelled when streams open
         Assert.Contains("keep-alive-timeout", ops.CancelledTimers);
@@ -139,19 +124,15 @@ public sealed class Http2ServerTimerErrorSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
 
         sm.OnTimerFired("headers-timeout:1");
 
-        Assert.Single(ops.Outbound);
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
-
-        var transportData = (TransportData)outbound;
-        var frameData = transportData.Buffer.Span;
-
-        // Frame type should be RST_STREAM (0x3)
-        Assert.Equal((byte)FrameType.RstStream, frameData[3]);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var rstStream = frames.OfType<RstStreamFrame>().FirstOrDefault();
+        Assert.NotNull(rstStream);
     }
 
     [Fact(Timeout = 5000)]
@@ -177,6 +158,7 @@ public sealed class Http2ServerTimerErrorSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
 
         // Should not throw when responding on unknown stream
         var context = ServerTestContext.CreateStreamResponse(999);

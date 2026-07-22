@@ -1,7 +1,5 @@
 ﻿using System.Buffers;
-using GaudiHTTP.Tests.TestSupport;
 using Akka.Actor;
-using Akka.Event;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -19,22 +17,14 @@ public sealed class Http2ClientBodyFrameBatchingSpec
         public int OutboundDataItems { get; private set; }
         public List<(int StreamId, byte[] Payload, bool EndStream)> DataFrames { get; } = [];
 
-        public void OnResponse(HttpResponseMessage response) { }
-
-        public void OnOutbound(ITransportOutbound item)
+        public void CaptureEmittedBytes(ReadOnlySpan<byte> data)
         {
-            if (item is not TransportData { Buffer: var buf })
-            {
-                return;
-            }
-
-            var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
+            var frames = new FrameDecoder().DecodeAll(new ReadOnlySequence<byte>(data.ToArray()), out _);
             var sawData = false;
             foreach (var frame in frames)
             {
                 if (frame is DataFrame d)
                 {
-                    // Snapshot the payload: Data spans into the reused transport buffer.
                     DataFrames.Add((d.StreamId, d.Data.ToArray(), d.EndStream));
                     sawData = true;
                 }
@@ -46,11 +36,13 @@ public sealed class Http2ClientBodyFrameBatchingSpec
             }
         }
 
+        public void OnResponse(HttpResponseMessage response) { }
+
+        public void OnOutbound(ITransportOutbound item) { }
+
         public void OnScheduleTimer(string name, TimeSpan duration) { }
 
         public void OnCancelTimer(string name) { }
-
-        public ILoggingAdapter Log => throw new NotImplementedException();
 
         public IActorRef StageActor => throw new NotImplementedException();
     }
@@ -69,6 +61,7 @@ public sealed class Http2ClientBodyFrameBatchingSpec
 
         var ops = new CapturingClientStageOperations();
         var sm = new Http2ClientSessionManager(new GaudiClientOptions(), ops, new FakeTimeProvider());
+        sm.EmitData = ops.CaptureEmittedBytes;
 
         ((IBodyDrainTarget)sm).EmitDataFrames(streamId, body, endStream: true);
 

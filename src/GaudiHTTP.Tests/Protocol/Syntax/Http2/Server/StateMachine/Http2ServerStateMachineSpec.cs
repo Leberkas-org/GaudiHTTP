@@ -1,6 +1,6 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -111,10 +111,12 @@ public sealed class Http2ServerStateMachineSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
+        var transport = sm.ConnectTransport(ops: ops);
 
-        Assert.Equal(2, ops.Outbound.Count);
-        Assert.IsType<TransportData>(ops.Outbound[0]);
-        Assert.IsType<TransportData>(ops.Outbound[1]);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        Assert.True(frames.Count >= 2, $"Expected at least 2 frames on PreStart, got {frames.Count}");
+        Assert.Contains(frames, f => f is SettingsFrame);
     }
 
     [Fact(Timeout = 5000)]
@@ -127,11 +129,7 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.Single(ops.Requests);
         var context = ops.Requests[0];
@@ -162,11 +160,7 @@ public sealed class Http2ServerStateMachineSpec
             endStream: false,
             endHeaders: false);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         // No request emitted yet, waiting for CONTINUATION
         Assert.Empty(ops.Requests);
@@ -180,25 +174,17 @@ public sealed class Http2ServerStateMachineSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
+
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
 
         var pingFrameData = BuildPingFrame(isAck: false);
-        var buffer = WireBuffer.Rent(pingFrameData.Length);
-        pingFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = pingFrameData.Length;
+        transport.FeedMore(sm, ops, pingFrameData);
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
-
-        Assert.Single(ops.Outbound);
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
-
-        var transportData = (TransportData)outbound;
-        var responseData = transportData.Buffer.Span;
-
-        // Frame type should be PING (0x6), flags should include ACK (0x1)
-        Assert.Equal((byte)FrameType.Ping, responseData[3]);
-        Assert.True((responseData[4] & (byte)Pings.Ack) != 0);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var pingAck = frames.OfType<PingFrame>().FirstOrDefault(p => p.IsAck);
+        Assert.NotNull(pingAck);
     }
 
     [Fact(Timeout = 5000)]
@@ -209,25 +195,17 @@ public sealed class Http2ServerStateMachineSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
+
+        var transport = sm.ConnectTransport(ops: ops);
+        transport.TakeWrittenBytes();
 
         var settingsFrameData = BuildSettingsFrame(isAck: false);
-        var buffer = WireBuffer.Rent(settingsFrameData.Length);
-        settingsFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = settingsFrameData.Length;
+        transport.FeedMore(sm, ops, settingsFrameData);
 
-        sm.DecodeClientData(TransportData.Rent(buffer));
-
-        Assert.Single(ops.Outbound);
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
-
-        var transportData = (TransportData)outbound;
-        var responseData = transportData.Buffer.Span;
-
-        // Frame type should be SETTINGS (0x4), flags should include ACK (0x1)
-        Assert.Equal((byte)FrameType.Settings, responseData[3]);
-        Assert.True((responseData[4] & (byte)Settings.Ack) != 0);
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var settingsAck = frames.OfType<SettingsFrame>().FirstOrDefault(s => s.IsAck);
+        Assert.NotNull(settingsAck);
     }
 
     [Fact(Timeout = 5000)]
@@ -241,26 +219,23 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.Single(ops.Requests);
 
         // Now send a response
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         var requestContext = ops.Requests[0];
-        requestContext.Get<IHttpResponseFeature>()?.StatusCode = 200;
+        requestContext.Get<IHttpResponseFeature>()!.StatusCode = 200;
         sm.OnResponse(requestContext);
 
-        // Should emit response frames
-        Assert.NotEmpty(ops.Outbound);
+        // Should emit response frames via transport
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        Assert.NotEmpty(frames);
 
         // At minimum, should have HEADERS frame
-        var outbound = ops.Outbound[0];
-        Assert.IsType<TransportData>(outbound);
+        Assert.Contains(frames, f => f is HeadersFrame);
     }
 
     [Fact(Timeout = 5000)]
@@ -275,11 +250,7 @@ public sealed class Http2ServerStateMachineSpec
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         Assert.True(sm.CanAcceptResponse);
     }

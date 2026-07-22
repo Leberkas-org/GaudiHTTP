@@ -1,4 +1,4 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -12,10 +12,11 @@ namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Stages;
 
 public sealed class Http2ConnectionPingSpec : StreamTestBase
 {
-    private async Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound,
-        IReadOnlyList<ITransportOutbound> Signals)> RunAsync(
+    private async Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)> RunAsync(
         params Http2Frame[] serverFrames)
     {
+        var transport = CreateTransportWithFrames(serverFrames);
+
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
 
@@ -26,7 +27,8 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
                 {
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
-                    var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -41,9 +43,9 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
         var (downstreamTask, networkTask) = (mat.m1, mat.m2);
 
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: false), ExtractSignals(networkItems));
+        return (downstream, DecodeFrames(transport.WrittenMemory, skipPreface: false));
     }
 
     [Fact(Timeout = 10_000)]
@@ -52,7 +54,7 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
     {
         var ping = new PingFrame(new byte[8], isAck: false);
 
-        var (_, serverBound, _) = await RunAsync(ping);
+        var (_, serverBound) = await RunAsync(ping);
 
         var response = Assert.Single(serverBound);
         var pingAck = Assert.IsType<PingFrame>(response);
@@ -66,7 +68,7 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
         var payload = new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
         var ping = new PingFrame(payload, isAck: false);
 
-        var (_, serverBound, _) = await RunAsync(ping);
+        var (_, serverBound) = await RunAsync(ping);
 
         var pingAck = Assert.IsType<PingFrame>(Assert.Single(serverBound));
         Assert.True(pingAck.IsAck);
@@ -79,7 +81,7 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
     {
         var pingAck = new PingFrame(new byte[8], isAck: true);
 
-        var (_, serverBound, _) = await RunAsync(pingAck);
+        var (_, serverBound) = await RunAsync(pingAck);
 
         Assert.Empty(serverBound);
     }
@@ -90,7 +92,7 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
     {
         var ping = new PingFrame(new byte[] { 0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8 }, isAck: false);
 
-        var (_, serverBound, _) = await RunAsync(ping);
+        var (_, serverBound) = await RunAsync(ping);
 
         var pingAck = Assert.IsType<PingFrame>(Assert.Single(serverBound));
         Assert.Equal(0, pingAck.StreamId);

@@ -76,6 +76,13 @@ public sealed class Http2HeadersTimerLeakSpec
     {
         var options = new GaudiServerOptions().ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
         ops.ScheduledTimers.Clear();
@@ -143,6 +150,13 @@ public sealed class Http2HeadersTimerLeakSpec
         var ops = new FakeServerOps();
         var baseOptions = new GaudiServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
         var sm = new Http2ServerSessionManager(baseOptions.ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
         sm.PreStart();
         ops.Outbound.Clear();
         ops.ScheduledTimers.Clear();

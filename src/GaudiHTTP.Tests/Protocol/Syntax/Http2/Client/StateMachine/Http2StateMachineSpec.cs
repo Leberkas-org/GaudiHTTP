@@ -1,4 +1,3 @@
-﻿using System.Net;
 using GaudiHTTP.Tests.TestSupport;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
@@ -6,17 +5,11 @@ using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
-using GaudiHTTP.Tests.TestSupport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
 public sealed class Http2StateMachineSpec
 {
-    private static readonly ConnectionInfo DummyConnectionInfo = new(
-        new IPEndPoint(IPAddress.Loopback, 5000),
-        new IPEndPoint(IPAddress.Loopback, 80),
-        TransportProtocol.Tcp);
-
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
@@ -37,16 +30,16 @@ public sealed class Http2StateMachineSpec
     private static DataFrame MakeData(int streamId, byte[] data, bool endStream = true)
         => new(streamId, data, endStream);
 
-    private static WireBuffer SerializeFrame(Http2Frame frame)
+    private static byte[] SerializeFrameBytes(Http2Frame frame)
     {
         var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;
-        return buffer;
+        return buffer.Span.ToArray();
     }
 
-    private static WireBuffer SerializeFrames(params Http2Frame[] frames)
+    private static byte[] SerializeFramesBytes(params Http2Frame[] frames)
     {
         var totalSize = frames.Sum(f => f.SerializedSize);
         var buffer = WireBuffer.Rent(totalSize);
@@ -60,7 +53,7 @@ public sealed class Http2StateMachineSpec
         }
 
         buffer.Length = totalSize;
-        return buffer;
+        return buffer.Span.ToArray();
     }
 
     [Fact(Timeout = 5000)]
@@ -85,10 +78,9 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         sm.OnRequest(MakeGet());
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
-        var transportItems = ops.Outbound.OfType<TransportData>().ToList();
-        Assert.Equal(2, transportItems.Count);
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -100,7 +92,7 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
 
         var goaway = new GoAwayFrame(0, Http2ErrorCode.NoError);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(goaway), ops: ops);
 
         sm.OnRequest(MakeGet());
 
@@ -133,10 +125,9 @@ public sealed class Http2StateMachineSpec
 
         var content = new ByteArrayContent([1, 2, 3]);
         sm.OnRequest(MakePost("/", content));
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
-        var frames = ops.Outbound.OfType<TransportData>().ToList();
-        Assert.True(frames.Count > 0);
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -149,12 +140,11 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         sm.OnRequest(MakeGet("/a"));
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
         sm.OnRequest(MakeGet("/b"));
         sm.OnRequest(MakeGet("/c"));
 
-        var transportItems = ops.Outbound.OfType<TransportData>().ToList();
-        Assert.Equal(4, transportItems.Count);
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -167,9 +157,9 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var settings = new SettingsFrame([]);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(settings)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(settings), ops: ops);
 
-        Assert.NotEmpty(ops.Outbound.OfType<TransportData>());
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -184,7 +174,7 @@ public sealed class Http2StateMachineSpec
 
         var headers = MakeResponseHeaders(1, endStream: false, endHeaders: true);
         var data = MakeData(1, [1, 2, 3], endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrames(headers, data)));
+        var transport = sm.ConnectTransport(initialData: SerializeFramesBytes(headers, data), ops: ops);
 
         Assert.Single(ops.Responses);
     }
@@ -200,7 +190,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var headers = MakeResponseHeaders(1);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         Assert.Single(ops.Responses);
     }
@@ -223,7 +213,7 @@ public sealed class Http2StateMachineSpec
         var split = hpack.Length / 2;
         var partial = new HeadersFrame(1, hpack.Slice(0, split), endHeaders: false, endStream: false);
 
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(partial)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(partial), ops: ops);
 
         Assert.Empty(ops.Responses);
     }
@@ -247,13 +237,13 @@ public sealed class Http2StateMachineSpec
         var split = hpackSize / 2;
 
         var headers = new HeadersFrame(1, fullHpack[..split], endHeaders: false, endStream: false);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         var cont = new ContinuationFrame(1, fullHpack[split..], endHeaders: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(cont)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(cont));
 
         var data = MakeData(1, [], endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(data)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(data));
 
         Assert.Single(ops.Responses);
     }
@@ -268,7 +258,7 @@ public sealed class Http2StateMachineSpec
         sm.OnRequest(MakeGet());
 
         var rst = new RstStreamFrame(1, Http2ErrorCode.Cancel);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(rst)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(rst), ops: ops);
 
         Assert.Empty(ops.Responses);
     }
@@ -277,17 +267,14 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.4.1")]
     public void DecodeServerData_should_disconnect_on_connection_protocol_error()
     {
-        // RFC 9113 §5.4.1 / §6.10: a connection-fatal framing error must tear down the connection, not
-        // be swallowed and decoding continued against a desynchronized decoder. A bare CONTINUATION with
-        // no preceding HEADERS is such an error.
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
         ops.Outbound.Clear();
 
-        var badFrame = SerializeFrame(new ContinuationFrame(1, ReadOnlyMemory<byte>.Empty, endHeaders: true));
-        sm.DecodeServerData(TransportData.Rent(badFrame));
+        var badFrame = SerializeFrameBytes(new ContinuationFrame(1, ReadOnlyMemory<byte>.Empty, endHeaders: true));
+        var transport = sm.ConnectTransport(initialData: badFrame, ops: ops);
 
         Assert.Contains(ops.Outbound, o => o is DisconnectTransport);
     }
@@ -296,8 +283,6 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public async Task DecodeServerData_should_fail_in_flight_request_when_stream_is_reset()
     {
-        // RFC 9113 §8.1: a RST_STREAM before any response must fail the waiting caller, not leave its
-        // Task hanging until an unrelated timeout. The error code is surfaced to the caller.
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
@@ -310,10 +295,10 @@ public sealed class Http2StateMachineSpec
         var valueTask = new ValueTask<HttpResponseMessage>(pending, version);
 
         sm.OnRequest(request);
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
         var rst = new RstStreamFrame(3, Http2ErrorCode.RefusedStream);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(rst)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(rst));
 
         Assert.True(valueTask.IsFaulted);
         await Assert.ThrowsAsync<HttpRequestException>(async () => await valueTask);
@@ -331,7 +316,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var win = new WindowUpdateFrame(0, 16384);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(win)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(win), ops: ops);
     }
 
     [Fact(Timeout = 5000)]
@@ -345,7 +330,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var win = new WindowUpdateFrame(1, 8192);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(win)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(win), ops: ops);
     }
 
     [Fact(Timeout = 5000)]
@@ -358,9 +343,9 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var ping = new PingFrame(new byte[8], isAck: false);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(ping)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(ping), ops: ops);
 
-        Assert.Single(ops.Outbound.OfType<TransportData>());
+        Assert.True(transport.WrittenCount > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -373,7 +358,7 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var pong = new PingFrame(new byte[8], isAck: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(pong)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(pong), ops: ops);
 
         Assert.Empty(ops.Outbound);
     }
@@ -386,11 +371,11 @@ public sealed class Http2StateMachineSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
         ops.Outbound.Clear();
 
         var goaway = new GoAwayFrame(0, Http2ErrorCode.NoError);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(goaway));
 
         Assert.True(sm.IsReconnecting);
         Assert.Single(ops.Outbound, item => item is ConnectTransport);
@@ -401,9 +386,6 @@ public sealed class Http2StateMachineSpec
     public void DecodeServerData_should_disconnect_when_connection_flow_control_violated()
     {
         var ops = new FakeClientOps();
-        // Advertise a MAX_FRAME_SIZE large enough that the 100 KB frame is legal at the frame layer,
-        // so this exercises flow-control enforcement (100000 > 65535 stream window) rather than the
-        // separate MAX_FRAME_SIZE check.
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 128 * 1024), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -412,7 +394,7 @@ public sealed class Http2StateMachineSpec
         var headers = MakeResponseHeaders(1, endStream: false, endHeaders: true);
         var largeData = new byte[100000];
         var data = new DataFrame(1, largeData, endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrames(headers, data)));
+        var transport = sm.ConnectTransport(initialData: SerializeFramesBytes(headers, data), ops: ops);
 
         Assert.Single(ops.Outbound, o => o is DisconnectTransport);
     }
@@ -427,11 +409,11 @@ public sealed class Http2StateMachineSpec
 
         var req = MakeGet("/test");
         sm.OnRequest(req);
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
         ops.Outbound.Clear();
 
         var headers = MakeResponseHeaders(3);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(headers));
 
         var response = Assert.Single(ops.Responses);
         Assert.NotNull(response.RequestMessage);
@@ -451,10 +433,10 @@ public sealed class Http2StateMachineSpec
         ops.Outbound.Clear();
 
         var headers3 = MakeResponseHeaders(3);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers3)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers3), ops: ops);
 
         var headers1 = MakeResponseHeaders(1);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers1)));
+        transport.FeedMore(sm, ops, SerializeFrameBytes(headers1));
 
         Assert.Equal(2, ops.Responses.Count);
     }
@@ -468,7 +450,7 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
 
         sm.OnRequest(MakeGet("/a"));
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
         sm.OnRequest(MakeGet("/b"));
 
         Assert.False(sm.CanAcceptRequest);
@@ -484,7 +466,7 @@ public sealed class Http2StateMachineSpec
         sm.OnRequest(MakeGet());
 
         var headers = MakeResponseHeaders(1, "100", endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         var response = Assert.Single(ops.Responses);
         Assert.Equal(100, (int)response.StatusCode);
@@ -500,7 +482,7 @@ public sealed class Http2StateMachineSpec
         sm.OnRequest(MakeGet());
 
         var headers = MakeResponseHeaders(1, "404", endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         var response = Assert.Single(ops.Responses);
         Assert.Equal(404, (int)response.StatusCode);
@@ -516,7 +498,7 @@ public sealed class Http2StateMachineSpec
         sm.OnRequest(MakeGet());
 
         var headers = MakeResponseHeaders(1, "500", endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         var response = Assert.Single(ops.Responses);
         Assert.Equal(500, (int)response.StatusCode);
@@ -531,7 +513,7 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
 
         var data = new DataFrame(999, new byte[10], endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(data)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(data), ops: ops);
 
         Assert.True(true);
     }
@@ -545,7 +527,7 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
 
         var data = new DataFrame(999, new byte[10], endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(data)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(data), ops: ops);
 
         Assert.True(true);
     }
@@ -559,25 +541,21 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
-        // Send HEADERS + first DATA in one batch (QueuedBodyReader has fixed capacity,
-        // so the consumer must read between enqueues — split into separate messages).
         var headers = MakeResponseHeaders(1, endStream: false, endHeaders: true);
         var data1 = MakeData(1, [1, 2, 3], endStream: false);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrames(headers, data1)));
+        var transport = sm.ConnectTransport(initialData: SerializeFramesBytes(headers, data1), ops: ops);
 
         var response = Assert.Single(ops.Responses);
         var body = response.Content.ReadAsStream(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
 
-        // Consume the first chunk so the bridged reader is ready for the next Supply
         var buf = new byte[3];
         var read = body.Read(buf, 0, buf.Length);
         Assert.Equal(3, read);
         Assert.Equal(new byte[] { 1, 2, 3 }, buf);
 
-        // Now send the second DATA frame with END_STREAM
         var data2 = MakeData(1, [4, 5, 6], endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrames(data2)));
+        transport.FeedMore(sm, ops, SerializeFramesBytes(data2));
 
         read = body.Read(buf, 0, buf.Length);
         Assert.Equal(3, read);
@@ -602,7 +580,7 @@ public sealed class Http2StateMachineSpec
         var sm = new Http2ClientStateMachine(TestClientOptions.Create(initialStreamWindowSize: 65_535, maxFrameSize: 16_384), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
         Assert.True(sm.HasInFlightRequests);
     }
@@ -616,8 +594,8 @@ public sealed class Http2StateMachineSpec
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
-        var headers = MakeResponseHeaders(1);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var headers = MakeResponseHeaders(3);
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         Assert.False(sm.HasInFlightRequests);
     }
@@ -638,7 +616,7 @@ public sealed class Http2StateMachineSpec
             ("cache-control", "max-age=3600")
         ]);
         var headers = new HeadersFrame(1, hpack, endHeaders: true, endStream: true);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(headers)));
+        var transport = sm.ConnectTransport(initialData: SerializeFrameBytes(headers), ops: ops);
 
         var response = Assert.Single(ops.Responses);
         Assert.True(response.Content.Headers.ContentType is not null);

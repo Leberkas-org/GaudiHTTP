@@ -1,7 +1,5 @@
 ﻿using System.Buffers;
-using GaudiHTTP.Tests.TestSupport;
 using Akka.Actor;
-using Akka.Event;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
 using GaudiHTTP.Client;
@@ -17,23 +15,20 @@ public sealed class Http2ClientSessionManagerScalingSpec
     {
         public List<Http2Frame> EmittedFrames { get; } = [];
 
+        public void CaptureEmittedBytes(ReadOnlySpan<byte> data)
+        {
+            var decoder = new FrameDecoder();
+            var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(data.ToArray()), out _);
+            EmittedFrames.AddRange(frames);
+        }
+
         public void OnResponse(HttpResponseMessage response) { }
 
-        public void OnOutbound(ITransportOutbound item)
-        {
-            if (item is TransportData { Buffer: var buf })
-            {
-                var decoder = new FrameDecoder();
-                var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(buf.Memory), out _);
-                EmittedFrames.AddRange(frames);
-            }
-        }
+        public void OnOutbound(ITransportOutbound item) { }
 
         public void OnScheduleTimer(string name, TimeSpan duration) { }
 
         public void OnCancelTimer(string name) { }
-
-        public ILoggingAdapter Log => throw new NotImplementedException();
 
         public IActorRef StageActor => throw new NotImplementedException();
     }
@@ -55,6 +50,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         var ops = new FakeClientStageOperations();
         var sm = new Http2ClientSessionManager(options, ops, clock);
+        sm.EmitData = ops.CaptureEmittedBytes;
 
         // Trigger a measurement PING by processing an inbound DATA frame.
         var dataFrame = new DataFrame(streamId: 1, data: new byte[100], endStream: false);
@@ -86,6 +82,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         var ops = new FakeClientStageOperations();
         var sm = new Http2ClientSessionManager(options, ops, clock);
+        sm.EmitData = ops.CaptureEmittedBytes;
 
         // Process inbound DATA to trigger measurement PING.
         var dataFrame = new DataFrame(streamId: 1, data: new byte[100], endStream: false);
@@ -120,6 +117,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         var ops = new FakeClientStageOperations();
         var sm = new Http2ClientSessionManager(options, ops, clock);
+        sm.EmitData = ops.CaptureEmittedBytes;
 
         // Process inbound DATA.
         var dataFrame = new DataFrame(streamId: 1, data: new byte[100], endStream: false);
@@ -152,6 +150,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         var ops = new FakeClientStageOperations();
         var sm = new Http2ClientSessionManager(options, ops, clock);
+        sm.EmitData = ops.CaptureEmittedBytes;
 
         // Process multiple DATA frames until window grows to max.
         for (int i = 0; i < 20; i++)

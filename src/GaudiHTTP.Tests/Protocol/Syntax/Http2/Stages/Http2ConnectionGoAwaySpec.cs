@@ -1,4 +1,4 @@
-﻿using GaudiHTTP.Tests.TestSupport;
+using GaudiHTTP.Tests.TestSupport;
 using GaudiHTTP.Client;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -15,6 +15,8 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
     private async Task<(IReadOnlyList<HttpResponseMessage> Downstream, IReadOnlyList<Http2Frame> ServerBound)> RunAsync(
         params Http2Frame[] serverFrames)
     {
+        var transport = CreateTransportWithFrames(serverFrames);
+
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
 
@@ -25,7 +27,8 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                 {
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
-                    var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
+                    var serverSource = b.Add(
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
                     b.From(serverSource).To(stage.InNetwork);
@@ -40,9 +43,9 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
         var (downstreamTask, networkTask) = (mat.m1, mat.m2);
 
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: true));
+        return (downstream, DecodeFrames(transport.WrittenMemory, skipPreface: true));
     }
 
     [Fact(Timeout = 10_000)]
@@ -64,6 +67,8 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
         var goAway = new GoAwayFrame(lastStreamId: 1, Http2ErrorCode.InternalError);
         var request = (new HttpRequestMessage(HttpMethod.Get, "http://example.com/"), 3);
 
+        var transport = CreateTransportWithFrames(goAway);
+
         var downstreamSink = Sink.Seq<HttpResponseMessage>();
         var networkSink = Sink.Seq<ITransportOutbound>();
 
@@ -75,11 +80,12 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                     var stage = b.Add(new Http20ClientConnectionStage(new GaudiClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
 
-                    // Server sends GOAWAY then stays open (never finishes)
+                    // TransportConnected delivers the transport (carries the GOAWAY).
+                    // Source.Never keeps InNetwork alive after the transport data is consumed.
                     var serverSource = b.Add(
-                        Source.From(FramesToInputs([goAway])).Concat(Source.Never<ITransportInbound>()));
+                        Source.Single<ITransportInbound>(CreateTransportConnected(transport))
+                            .Concat(Source.Never<ITransportInbound>()));
 
-                    // Client sends a request after GOAWAY is processed
                     var requestSource = b.Add(
                         Source.Single(request.Item1)
                             .InitialDelay(TimeSpan.FromMilliseconds(200))

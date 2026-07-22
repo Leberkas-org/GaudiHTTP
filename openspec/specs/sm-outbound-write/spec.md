@@ -6,28 +6,26 @@ Direct pipe-writer outbound path for TCP state machines. When a TCP state machin
 
 ### Requirement: SM writes outbound data directly to PipeWriter when connected
 When a TCP state machine has an active `IConnectionTransport` (post-`TransportConnected`), all
-outbound byte data (encoded headers, body frames, control frames) MUST be written to
-`IConnectionTransport.GetMemory`/`Advance` and flushed via `FlushAsync`, bypassing the
-`ITransportOutbound` network port entirely. The stage logic MUST NOT intercept or bridge
-`TransportData` items.
+outbound byte data MUST be written to `IConnectionTransport.GetMemory`/`Advance` and flushed via
+`FlushAsync`. There is no fallback path — `Transport` MUST NOT be null when the SM produces
+outbound data.
 
 #### Scenario: Connected SM writes headers directly to pipe
-- **WHEN** a TCP client SM encodes request headers while `Transport` is not null
+- **WHEN** a TCP SM encodes request/response headers
 - **THEN** the encoded bytes MUST be written to `Transport.GetMemory`/`Advance`
 - **AND** `RequestFlush()` MUST be called after the write
-- **AND** no `TransportData` MUST be created
+- **AND** no `WireBuffer.Rent` MUST be called
+- **AND** no `Ops.OnOutbound(TransportData)` MUST be called
 
 #### Scenario: Connected SM writes body data directly to pipe
-- **WHEN** a TCP SM emits body data frames while `Transport` is not null
+- **WHEN** a TCP SM emits body data frames
 - **THEN** the body bytes MUST be written to `Transport.GetMemory`/`Advance`
 - **AND** `RequestFlush()` MUST be called after the write
-- **AND** no `WireBuffer.Rent` MUST be called for the body data path
 
-#### Scenario: Pre-connect client SM buffers via OnOutbound
-- **WHEN** a TCP client SM encodes data before `TransportConnected` has been received
-- **THEN** it MAY use `WireBuffer.Rent` + `TransportData.Rent` + `_ops.OnOutbound` for buffering
-- **AND** the stage logic MUST queue the item in `_outboundQueue`
-- **AND** when the transport connects, queued `TransportData` items MUST be bridged to the pipe
+#### Scenario: Transport is always present when SM writes
+- **WHEN** a TCP SM's write method is called (header encoding, body emit, frame emit)
+- **THEN** `Transport` MUST NOT be null
+- **AND** no `if (Transport is null)` guard MUST exist in the write path
 
 ---
 

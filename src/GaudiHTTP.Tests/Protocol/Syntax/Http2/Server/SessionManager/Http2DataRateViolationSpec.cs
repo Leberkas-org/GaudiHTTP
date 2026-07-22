@@ -96,6 +96,13 @@ public sealed class Http2DataRateViolationSpec
             Http2 = { MinRequestBodyDataRate = 1000, MinRequestBodyDataRateGracePeriod = TimeSpan.FromSeconds(1) }
         }.ToHttp2Options();
         var sm = new Http2ServerSessionManager(options, ops, clock);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
 
         sm.PreStart();
         ops.Outbound.Clear();

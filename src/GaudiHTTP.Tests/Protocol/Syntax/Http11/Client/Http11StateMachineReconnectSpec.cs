@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Servus.Akka.Transport;
 using GaudiHTTP.Internal;
 using GaudiHTTP.Protocol.Syntax.Http11.Client;
@@ -128,11 +129,13 @@ public sealed class Http11StateMachineReconnectSpec
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         ops.Outbound.Clear();
 
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
         Assert.False(sm.IsReconnecting);
         Assert.True(sm.HasInFlightRequests);
-        Assert.Equal(2, ops.Outbound.OfType<TransportData>().Count());
+        var written = Encoding.ASCII.GetString(transport.WrittenSpan);
+        Assert.Contains("GET /a", written);
+        Assert.Contains("GET /b", written);
     }
 
     [Fact(Timeout = 5000)]
@@ -200,8 +203,8 @@ public sealed class Http11StateMachineReconnectSpec
         Assert.True(postPending.GetValueTask().IsFaulted);
 
         // On restore there is nothing safe to replay — no request bytes go back out.
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
-        Assert.Empty(ops.Outbound.OfType<TransportData>());
+        var transport = sm.ConnectTransport(ops: ops);
+        Assert.Equal(0, transport.WrittenCount);
     }
 
     [Fact(Timeout = 5000)]
@@ -221,10 +224,12 @@ public sealed class Http11StateMachineReconnectSpec
         Assert.False(getPending.GetValueTask().IsFaulted);
 
         ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport = sm.ConnectTransport(ops: ops);
 
         // Only the idempotent GET is replayed.
-        Assert.Single(ops.Outbound.OfType<TransportData>());
+        var written = Encoding.ASCII.GetString(transport.WrittenSpan);
+        Assert.Contains("GET /a", written);
+        Assert.DoesNotContain("POST", written);
     }
 
     [Fact(Timeout = 5000)]
@@ -251,9 +256,13 @@ public sealed class Http11StateMachineReconnectSpec
         };
 
         // First attempt: the 64 KB body fits within the 256 KB pump budget, so it fully drains.
+        var transport1 = sm.ConnectTransport(ops: ops);
         sm.OnRequest(request);
         DrainBodyMessages(sm, ops);
-        Assert.Equal(bodySize, ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length));
+        // Headers + body written to transport; extract body portion after \r\n\r\n.
+        var firstWritten = transport1.TakeWrittenBytes();
+        var firstHeaderEnd = FindHeaderEnd(firstWritten);
+        Assert.Equal(bodySize, firstWritten.Length - firstHeaderEnd);
 
         // Ungraceful disconnect: the idempotent PUT is buffered for reconnect replay.
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -262,12 +271,20 @@ public sealed class Http11StateMachineReconnectSpec
         // Reconnect replay MUST re-send the FULL body. Before the fix the cached, already-consumed
         // content stream (Position == Length) yields 0 body bytes while headers still declare the
         // full Content-Length — the server then blocks forever on ReadAsync.
-        ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport2 = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
 
-        var replayedBody = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);
+        var replayedWritten = transport2.TakeWrittenBytes();
+        var replayedHeaderEnd = FindHeaderEnd(replayedWritten);
+        var replayedBody = replayedWritten.Length - replayedHeaderEnd;
         Assert.Equal(bodySize, replayedBody);
+    }
+
+    private static int FindHeaderEnd(byte[] data)
+    {
+        var text = Encoding.ASCII.GetString(data);
+        var idx = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        return idx >= 0 ? idx + 4 : data.Length;
     }
 
     [Fact(Timeout = 5000)]
@@ -295,6 +312,7 @@ public sealed class Http11StateMachineReconnectSpec
         request.Options.Set(OptionsKey.Key, pending);
         request.Options.Set(OptionsKey.VersionKey, version);
 
+        var transport1 = sm.ConnectTransport(ops: ops);
         sm.OnRequest(request);
         DrainBodyMessages(sm, ops);
 
@@ -303,12 +321,11 @@ public sealed class Http11StateMachineReconnectSpec
 
         // A consumed forward-only body cannot be rewound. Replaying it would advertise the full
         // Content-Length but send a truncated body, hanging the server. Fail fast instead.
-        ops.Outbound.Clear();
-        sm.DecodeServerData(new TransportConnected(DummyConnectionInfo));
+        var transport2 = sm.ConnectTransport(ops: ops);
         DrainBodyMessages(sm, ops);
 
         Assert.True(pending.GetValueTask().IsFaulted);
-        Assert.Empty(ops.Outbound.OfType<TransportData>());
+        Assert.Equal(0, transport2.WrittenCount);
     }
 
     [Fact(Timeout = 5000)]

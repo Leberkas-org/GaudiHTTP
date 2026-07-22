@@ -12,7 +12,15 @@ public sealed class Http2ConnectionErrorTeardownSpec
     private static Http2ServerSessionManager CreateSessionManager(FakeServerOps ops)
     {
         var options = new GaudiServerOptions();
-        return new Http2ServerSessionManager(options.ToHttp2Options(), ops);
+        var sm = new Http2ServerSessionManager(options.ToHttp2Options(), ops);
+        sm.EmitData = data =>
+        {
+            var buf = WireBuffer.Rent(data.Length);
+            data.CopyTo(buf.FullMemory.Span);
+            buf.Length = data.Length;
+            ops.OnOutbound(TransportData.Rent(buf));
+        };
+        return sm;
     }
 
     private static WireBuffer WrapFrame(byte[] frame)

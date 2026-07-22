@@ -1,7 +1,6 @@
-﻿using GaudiHTTP.Tests.TestSupport;
-using System.Buffers.Binary;
+﻿using System.Buffers;
+using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -135,11 +134,7 @@ public sealed class Http2ServerFlowControlSpec
         var headerBlock = EncodeHeaders("POST", "/upload", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         // Request should be emitted immediately when headers arrive (with endStream=false)
         Assert.Single(ops.Requests);
@@ -147,17 +142,13 @@ public sealed class Http2ServerFlowControlSpec
         var bodyFeature = context.Get<IHttpResponseBodyFeature>();
         Assert.NotNull(bodyFeature);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
 
         // Send first DATA frame (small, under threshold)
         var dataPayload1 = new byte[1000];
         var dataFrameData1 = BuildDataFrame(streamId: 1, dataPayload1, endStream: false);
 
-        var dataBuf1 = WireBuffer.Rent(dataFrameData1.Length);
-        dataFrameData1.CopyTo(dataBuf1.FullMemory.Span);
-        dataBuf1.Length = dataFrameData1.Length;
-
-        sm.DecodeClientData(TransportData.Rent(dataBuf1));
+        transport.FeedMore(sm, ops, dataFrameData1);
 
         var bodyStream = context.Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
@@ -167,12 +158,12 @@ public sealed class Http2ServerFlowControlSpec
 
         // No window update yet (threshold not exceeded)
         ops.Requests.Clear();
-        var windowUpdates1 = ops.Outbound.OfType<TransportData>()
-            .Where(td => td.Buffer.Span.Length >= 9 && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate)
-            .ToList();
+        var decoder = new FrameDecoder();
+        var windowUpdates1 = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _)
+            .OfType<WindowUpdateFrame>().ToList();
         Assert.Empty(windowUpdates1);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
 
         // Send second DATA frame to exceed half the window (threshold for WINDOW_UPDATE)
         // We've sent 1000, stream window is 16384, threshold is 8192, so send 7200 more
@@ -184,52 +175,22 @@ public sealed class Http2ServerFlowControlSpec
 
         var dataFrameData2 = BuildDataFrame(streamId: 1, dataPayload2, endStream: false);
 
-        var dataBuf2 = WireBuffer.Rent(dataFrameData2.Length);
-        dataFrameData2.CopyTo(dataBuf2.FullMemory.Span);
-        dataBuf2.Length = dataFrameData2.Length;
-
-        sm.DecodeClientData(TransportData.Rent(dataBuf2));
+        transport.FeedMore(sm, ops, dataFrameData2);
 
         // Stream-level WINDOW_UPDATE is deferred — not emitted immediately after DATA.
-        var immediateStreamWu = ops.Outbound.OfType<TransportData>()
-            .Any(td =>
-            {
-                var s = td.Buffer.Span;
-                if (s.Length < 13 || s[3] != (byte)FrameType.WindowUpdate)
-                {
-                    return false;
-                }
-
-                var sid = (s[5] << 24) | (s[6] << 16) | (s[7] << 8) | s[8];
-                return sid == 1;
-            });
+        var immediateFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var immediateStreamWu = immediateFrames.OfType<WindowUpdateFrame>().Any(wf => wf.StreamId == 1);
 
         Assert.False(immediateStreamWu, "Stream-level WINDOW_UPDATE must not be emitted before app consumes body");
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
 
         // Simulate app consumption: trigger the deferred WU
         sm.OnBodyMessage(new Http2ServerSessionManager.StreamBodyConsumed(1));
 
         // Now the deferred stream WU should appear
-        var foundWindowUpdate = false;
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                var frameData = td.Buffer.Span;
-                if (frameData.Length >= 13 && frameData[3] == (byte)FrameType.WindowUpdate)
-                {
-                    var sid = (frameData[5] << 24) | (frameData[6] << 16)
-                                                   | (frameData[7] << 8) | frameData[8];
-                    if (sid == 1)
-                    {
-                        foundWindowUpdate = true;
-                        break;
-                    }
-                }
-            }
-        }
+        var deferredFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var foundWindowUpdate = deferredFrames.OfType<WindowUpdateFrame>().Any(wf => wf.StreamId == 1);
 
         Assert.True(foundWindowUpdate, "Expected WINDOW_UPDATE frame for stream 1 after app body consumption");
     }
@@ -242,32 +203,17 @@ public sealed class Http2ServerFlowControlSpec
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
-        ops.Outbound.Clear();
 
         // Send WINDOW_UPDATE on stream 0 (connection-level)
         var windowUpdateData = BuildWindowUpdateFrame(streamId: 0, increment: 16384);
 
-        var buffer = WireBuffer.Rent(windowUpdateData.Length);
-        windowUpdateData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = windowUpdateData.Length;
-
         // This should not throw or emit GOAWAY
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: windowUpdateData, ops: ops);
 
         // Verify no GOAWAY was emitted
-        var hasGoAway = false;
-        foreach (var item in ops.Outbound)
-        {
-            if (item is TransportData td)
-            {
-                var frameData = td.Buffer.Span;
-                if (frameData.Length >= 9 && frameData[3] == (byte)FrameType.GoAway)
-                {
-                    hasGoAway = true;
-                    break;
-                }
-            }
-        }
+        var decoder = new FrameDecoder();
+        var frames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var hasGoAway = frames.OfType<GoAwayFrame>().Any();
 
         Assert.False(hasGoAway, "Expected no GOAWAY frame after successful WINDOW_UPDATE");
     }
@@ -293,23 +239,18 @@ public sealed class Http2ServerFlowControlSpec
         var headerBlock = EncodeHeaders("POST", "/", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
 
-        var buffer = WireBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(TransportData.Rent(buffer));
+        var transport = sm.ConnectTransport(initialData: headersFrameData, ops: ops);
 
         var bodyStream = ops.Requests[0].Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
+
+        var decoder = new FrameDecoder();
 
         // Send first DATA frame (5000 bytes)
         var data1 = new byte[5000];
         var frame1Data = BuildDataFrame(streamId: 1, data1, endStream: false);
-        var buf1 = WireBuffer.Rent(frame1Data.Length);
-        frame1Data.CopyTo(buf1.FullMemory.Span);
-        buf1.Length = frame1Data.Length;
-        sm.DecodeClientData(TransportData.Rent(buf1));
+        transport.FeedMore(sm, ops, frame1Data);
 
         // Consume body data (backpressure contract)
         var drain1 = new byte[5000];
@@ -318,26 +259,21 @@ public sealed class Http2ServerFlowControlSpec
         // Send second DATA frame (6000 bytes) - accumulates deferred stream WU
         var data2 = new byte[6000];
         var frame2Data = BuildDataFrame(streamId: 1, data2, endStream: false);
-        var buf2 = WireBuffer.Rent(frame2Data.Length);
-        frame2Data.CopyTo(buf2.FullMemory.Span);
-        buf2.Length = frame2Data.Length;
-        sm.DecodeClientData(TransportData.Rent(buf2));
+        transport.FeedMore(sm, ops, frame2Data);
 
         // No stream WU yet — it is deferred until app reads
-        var immediateStreamWu = ops.Outbound.Any(item =>
-            item is TransportData { Buffer.Span.Length: >= 13 } td
-            && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate
-            && BinaryPrimitives.ReadUInt32BigEndian(td.Buffer.Span[5..]) == 1u);
+        var immediateFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var immediateStreamWu = immediateFrames.OfType<WindowUpdateFrame>().Any(wf => wf.StreamId == 1);
         Assert.False(immediateStreamWu, "Stream WU must not be emitted before app reads");
+
+        transport.TakeWrittenBytes();
 
         // Trigger deferred WU by simulating app read completion
         sm.OnBodyMessage(new Http2ServerSessionManager.StreamBodyConsumed(1));
 
         // Now the deferred stream WU must appear
-        var deferredStreamWu = ops.Outbound.Any(item =>
-            item is TransportData { Buffer.Span.Length: >= 13 } td
-            && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate
-            && BinaryPrimitives.ReadUInt32BigEndian(td.Buffer.Span[5..]) == 1u);
+        var deferredFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var deferredStreamWu = deferredFrames.OfType<WindowUpdateFrame>().Any(wf => wf.StreamId == 1);
         Assert.True(deferredStreamWu, "Expected a stream-level WINDOW_UPDATE after app reads");
     }
 }

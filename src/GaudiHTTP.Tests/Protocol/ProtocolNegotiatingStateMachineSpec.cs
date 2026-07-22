@@ -1,9 +1,10 @@
+using System.IO.Pipelines;
 using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
-using static Servus.Akka.Transport.WireBuffer;
 using GaudiHTTP.Protocol;
 using GaudiHTTP.Server;
 using GaudiHTTP.Tests.Shared;
@@ -13,7 +14,8 @@ namespace GaudiHTTP.Tests.Protocol;
 public sealed class ProtocolNegotiatingStateMachineSpec
 {
 
-    private static TransportConnected MakeConnected(SslApplicationProtocol? alpn = null)
+    private static TransportConnected MakeConnected(SslApplicationProtocol? alpn = null,
+        TestPipeTransport? transport = null)
     {
         var security = alpn is not null
             ? new SecurityInfo(SslProtocols.Tls13, alpn.Value)
@@ -25,15 +27,29 @@ public sealed class ProtocolNegotiatingStateMachineSpec
             alpn is not null ? TransportProtocol.Tls : TransportProtocol.Tcp,
             security);
 
-        return new TransportConnected(info);
+        return new TransportConnected(info, transport);
     }
 
-    private static TransportData MakeData(byte[] data)
+    private static TransportConnected MakeConnected(TestPipeTransport transport)
+        => new(new ConnectionInfo(
+            new IPEndPoint(IPAddress.Loopback, 443),
+            new IPEndPoint(IPAddress.Loopback, 50000),
+            TransportProtocol.Tcp),
+            transport);
+
+    /// <summary>
+    /// Feeds data to the transport's input pipe without awaiting <see cref="PipeWriter.FlushAsync"/>.
+    /// The default <see cref="Pipe"/> pauses the writer when unflushed bytes exceed 64 KB, which would
+    /// deadlock if no reader is consuming yet. The data is committed (visible to a subsequent
+    /// <see cref="PipeReader.ReadAsync"/>) even though the flush task is not awaited.
+    /// </summary>
+    private static void FeedInputDirect(TestPipeTransport transport, byte[] data)
     {
-        var buffer = WireBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return TransportData.Rent(buffer);
+        var writer = transport.InputWriter;
+        var mem = writer.GetMemory(data.Length);
+        data.CopyTo(mem);
+        writer.Advance(data.Length);
+        _ = writer.FlushAsync();
     }
 
     // Task 2: ALPN Detection Tests
@@ -44,7 +60,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
+        var transport = new TestPipeTransport();
+        sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2, transport));
 
         Assert.True(sm.CanAcceptResponse || !sm.ShouldComplete);
         Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
@@ -78,30 +95,30 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     // Task 3: Preface Sniffing Tests
 
     [Fact(Timeout = 5000)]
-    public void DecodeClientData_should_select_http2_for_pri_preface()
+    public async Task DecodeClientData_should_select_http2_for_pri_preface()
     {
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray());
 
-        var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
-        sm.DecodeClientData(MakeData(preface));
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
             "keep-alive-timeout should be scheduled");
     }
 
     [Fact(Timeout = 5000)]
-    public void DecodeClientData_should_select_http11_for_get_request()
+    public async Task DecodeClientData_should_select_http11_for_get_request()
     {
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray());
 
-        var request = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        sm.DecodeClientData(MakeData(request));
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.Single(ops.Requests);
         var ctx = ops.Requests[0];
@@ -111,15 +128,15 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void DecodeClientData_should_select_http11_for_post_request()
+    public async Task DecodeClientData_should_select_http11_for_post_request()
     {
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray());
 
-        var request = "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        sm.DecodeClientData(MakeData(request));
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.Single(ops.Requests);
         var ctx = ops.Requests[0];
@@ -129,18 +146,19 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void DecodeClientData_should_stay_sniffing_for_insufficient_data()
+    public async Task DecodeClientData_should_stay_sniffing_for_insufficient_data()
     {
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
-        sm.DecodeClientData(MakeData("PR"u8.ToArray()));
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("PR"u8.ToArray());
+
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.False(sm.CanAcceptResponse);
         Assert.False(sm.ShouldComplete);
         Assert.Empty(ops.Requests);
-        // The negotiation idle-timeout is armed while sniffing.
         Assert.Single(ops.ScheduledTimers);
     }
 
@@ -150,39 +168,41 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
-
+        var transport = new TestPipeTransport();
         var garbage = new byte[128 * 1024];
         Array.Fill(garbage, (byte)'A');
-        sm.DecodeClientData(MakeData(garbage));
+        FeedInputDirect(transport, garbage);
+
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.True(sm.ShouldComplete);
     }
 
     [Fact(Timeout = 5000)]
-    public void Cleartext_h2_preface_should_be_rejected_when_http2_not_allowed()
+    public async Task Cleartext_h2_preface_should_be_rejected_when_http2_not_allowed()
     {
-        // An Http1-only cleartext endpoint must reject a prior-knowledge h2c preface instead of
-        // silently switching to HTTP/2 (the per-endpoint Protocols restriction was previously ignored).
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops, HttpProtocols.Http1);
 
-        sm.DecodeClientData(MakeConnected());
-        sm.DecodeClientData(MakeData("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray()));
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray());
+
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.True(sm.ShouldComplete, "h2c prior-knowledge must be rejected on an Http1-only endpoint");
         Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name == "keep-alive-timeout");
     }
 
     [Fact(Timeout = 5000)]
-    public void Cleartext_h2_preface_should_be_accepted_when_http2_allowed()
+    public async Task Cleartext_h2_preface_should_be_accepted_when_http2_allowed()
     {
-        // Default (Http1AndHttp2) endpoint still accepts the h2c preface.
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops, HttpProtocols.Http1AndHttp2);
 
-        sm.DecodeClientData(MakeConnected());
-        sm.DecodeClientData(MakeData("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray()));
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray());
+
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.False(sm.ShouldComplete);
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "keep-alive-timeout");
@@ -194,16 +214,13 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
-
-        // A large first TCP segment: the HTTP/2 preface coalesced with SETTINGS + request frames,
-        // exceeding the 64 KiB sniff cap (common for concurrent / large HTTP/2). The preface MUST be
-        // recognized (HTTP/2 activated, keep-alive scheduled) rather than aborted by the cap before
-        // identification — the regression that broke concurrent HTTP/2 large-payload round-trips.
+        var transport = new TestPipeTransport();
         var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
         var segment = new byte[96 * 1024];
         preface.CopyTo(segment.AsSpan());
-        sm.DecodeClientData(MakeData(segment));
+        FeedInputDirect(transport, segment);
+
+        sm.DecodeClientData(MakeConnected(transport));
 
         Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
             "HTTP/2 should have been activated despite the oversized first segment, not aborted by the sniff cap.");
@@ -215,7 +232,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
+        var transport = new TestPipeTransport();
+        sm.DecodeClientData(MakeConnected(transport));
 
         var timer = Assert.Single(ops.ScheduledTimers);
         Assert.False(sm.ShouldComplete);
@@ -227,17 +245,16 @@ public sealed class ProtocolNegotiatingStateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3.2")]
-    public void MaxConcurrentRequests_should_serialize_dispatch_for_negotiated_http11()
+    public async Task MaxConcurrentRequests_should_serialize_dispatch_for_negotiated_http11()
     {
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
-        sm.DecodeClientData(MakeData("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray()));
+        var transport = new TestPipeTransport();
+        await transport.FeedInputAsync("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray());
 
-        // HTTP/1.1 responses are positional on the wire, so the negotiator must forward the inner
-        // machine's one-at-a-time dispatch limit — otherwise the shared, completion-ordered bridge
-        // can reorder pipelined responses (RFC 9112 §9.3.2).
+        sm.DecodeClientData(MakeConnected(transport));
+
         Assert.Equal(1, sm.MaxConcurrentRequests);
     }
 
@@ -247,7 +264,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
+        var transport = new TestPipeTransport();
+        sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2, transport));
 
         // HTTP/2 routes responses to streams by id, so concurrent dispatch must remain unbounded.
         Assert.Equal(int.MaxValue, sm.MaxConcurrentRequests);
@@ -259,7 +277,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var ops = new FakeServerOps();
         var sm = new ProtocolNegotiatingStateMachine(new GaudiServerOptions(), ops);
 
-        sm.DecodeClientData(MakeConnected());
+        var transport = new TestPipeTransport();
+        sm.DecodeClientData(MakeConnected(transport));
         sm.Cleanup();
 
         Assert.False(sm.ShouldComplete);

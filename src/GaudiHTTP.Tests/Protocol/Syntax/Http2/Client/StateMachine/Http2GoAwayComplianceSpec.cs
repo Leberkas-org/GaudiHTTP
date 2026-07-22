@@ -1,10 +1,9 @@
-﻿using GaudiHTTP.Tests.TestSupport;
-using Servus.Akka.Transport;
-using GaudiHTTP.Protocol.Syntax.Http2;
+﻿using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Client;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Tests.Shared;
 using GaudiHTTP.Tests.TestSupport;
+using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Tests.Protocol.Syntax.Http2.Client.StateMachine;
 
@@ -13,13 +12,13 @@ public sealed class Http2GoAwayComplianceSpec
     private static HttpRequestMessage MakeGet(string path = "/")
         => new(HttpMethod.Get, $"https://example.com{path}");
 
-    private static WireBuffer SerializeFrame(Http2Frame frame)
+    private static byte[] SerializeFrameBytes(Http2Frame frame)
     {
         var buffer = WireBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;
-        return buffer;
+        return buffer.Span.ToArray();
     }
 
     [Fact(Timeout = 5000)]
@@ -31,7 +30,7 @@ public sealed class Http2GoAwayComplianceSpec
         sm.PreStart();
 
         var goaway = new GoAwayFrame(5, Http2ErrorCode.NoError);
-        sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
+        sm.ConnectTransport(initialData: SerializeFrameBytes(goaway), ops: ops);
 
         Assert.False(sm.CanAcceptRequest);
     }

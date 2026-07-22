@@ -1,7 +1,6 @@
 ﻿using System.Buffers;
 using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -106,56 +105,37 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         return new Memory<byte>(buffer, 0, written);
     }
 
-    private static void DecodeFramesAsStream(Http2ServerStateMachine sm, byte[] frameData)
+    private static List<Http2Frame> ExtractFrames(InMemoryTransport transport)
     {
-        var buffer = WireBuffer.Rent(frameData.Length);
-        frameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = frameData.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
-    }
-
-    private static List<Http2Frame> ExtractFrames(List<ITransportOutbound> outbound, int startIndex = 0)
-    {
-        var frames = new List<Http2Frame>();
         var decoder = new FrameDecoder();
-
-        for (var i = startIndex; i < outbound.Count; i++)
-        {
-            if (outbound[i] is TransportData td)
-            {
-                var decodedFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _);
-                frames.AddRange(decodedFrames);
-            }
-        }
-
-        return frames;
+        return decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
     }
 
-    private static Http2ServerStateMachine CreateSmWithClientMaxFrameSize(
+    private static (Http2ServerStateMachine Sm, InMemoryTransport Transport) CreateSmWithClientMaxFrameSize(
         FakeServerOps ops, uint clientMaxFrameSize, int connectionWindow = 1024 * 1024)
     {
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
         var settingsFrame = BuildSettingsFrameWithMaxFrameSize(clientMaxFrameSize);
-        DecodeFramesAsStream(sm, settingsFrame);
+        var transport = sm.ConnectTransport(initialData: settingsFrame, ops: ops);
 
         if (connectionWindow > 65535)
         {
             var connWindowUpdate = BuildWindowUpdateFrame(0, (uint)(connectionWindow - 65535));
-            DecodeFramesAsStream(sm, connWindowUpdate);
+            transport.FeedMore(sm, ops, connWindowUpdate);
         }
 
         ops.Outbound.Clear();
-        return sm;
+        return (sm, transport);
     }
 
     private static IFeatureCollection SendGetAndWriteBufferedBody(
-        Http2ServerStateMachine sm, FakeServerOps ops, int streamId, int bodySize)
+        Http2ServerStateMachine sm, FakeServerOps ops, InMemoryTransport transport, int streamId, int bodySize)
     {
         var headerBlock = EncodeHeaders("GET", "/large", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: true, endHeaders: true);
-        DecodeFramesAsStream(sm, headersFrameData);
+        transport.FeedMore(sm, ops, headersFrameData);
 
         var features = ops.Requests[^1];
         var responseFeature = features.Get<IHttpResponseFeature>()!;
@@ -187,16 +167,16 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 16 * 1024;
         const int bodySize = 48 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
         var streamWindowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, streamWindowUpdate);
+        transport.FeedMore(sm, ops, streamWindowUpdate);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var frames = ExtractFrames(ops.Outbound);
+        var frames = ExtractFrames(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
 
         Assert.True(dataFrames.Count >= 3, $"Expected at least 3 DATA frames for {bodySize} bytes at {clientMaxFrameSize} max frame size, got {dataFrames.Count}");
@@ -224,16 +204,16 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 32 * 1024;
         const int bodySize = 96 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
         var streamWindowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, streamWindowUpdate);
+        transport.FeedMore(sm, ops, streamWindowUpdate);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var frames = ExtractFrames(ops.Outbound);
+        var frames = ExtractFrames(transport);
         var dataFrames = frames.OfType<DataFrame>().ToList();
 
         foreach (var df in dataFrames)
@@ -253,25 +233,25 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 16 * 1024;
         const int bodySize = 48 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var framesBeforeWindowUpdate = ExtractFrames(ops.Outbound);
+        var framesBeforeWindowUpdate = ExtractFrames(transport);
         var dataBeforeWindowUpdate = framesBeforeWindowUpdate.OfType<DataFrame>().ToList();
 
         var totalSentBefore = dataBeforeWindowUpdate.Sum(df => df.Data.Length);
         Assert.True(totalSentBefore <= 65535, "Should not exceed initial send window of 65535");
         Assert.True(totalSentBefore > 0, "Should send at least some data within the initial window");
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         var windowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, windowUpdate);
+        transport.FeedMore(sm, ops, windowUpdate);
 
-        var framesAfterWindowUpdate = ExtractFrames(ops.Outbound);
+        var framesAfterWindowUpdate = ExtractFrames(transport);
         var dataAfterWindowUpdate = framesAfterWindowUpdate.OfType<DataFrame>().ToList();
         var totalSentAfter = dataAfterWindowUpdate.Sum(df => df.Data.Length);
 

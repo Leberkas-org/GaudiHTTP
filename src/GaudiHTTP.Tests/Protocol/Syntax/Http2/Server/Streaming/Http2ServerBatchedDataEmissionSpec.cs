@@ -1,7 +1,6 @@
 ﻿using System.Buffers;
 using GaudiHTTP.Tests.TestSupport;
 using Microsoft.AspNetCore.Http.Features;
-using Servus.Akka.Transport;
 using GaudiHTTP.Protocol.Syntax.Http2;
 using GaudiHTTP.Protocol.Syntax.Http2.Hpack;
 using GaudiHTTP.Protocol.Syntax.Http2.Server;
@@ -106,78 +105,46 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         return new Memory<byte>(buffer, 0, written);
     }
 
-    private static void DecodeFramesAsStream(Http2ServerStateMachine sm, byte[] frameData)
-    {
-        var buffer = WireBuffer.Rent(frameData.Length);
-        frameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = frameData.Length;
-        sm.DecodeClientData(TransportData.Rent(buffer));
-    }
-
     private sealed record FrameExtractionResult(
         List<Http2Frame> AllFrames,
         List<DataFrame> DataFrames,
         int DataCarryingBufferCount);
 
-    private static FrameExtractionResult ExtractFramesAndCountBuffers(
-        List<ITransportOutbound> outbound, int startIndex = 0)
+    private static FrameExtractionResult ExtractFramesAndCountBuffers(InMemoryTransport transport)
     {
-        var allFrames = new List<Http2Frame>();
-        var dataFrames = new List<DataFrame>();
-        var dataBufferCount = 0;
         var decoder = new FrameDecoder();
-
-        for (var i = startIndex; i < outbound.Count; i++)
-        {
-            if (outbound[i] is TransportData td)
-            {
-                var decoded = decoder.DecodeAll(new ReadOnlySequence<byte>(td.Buffer.Memory), out _);
-                var hasData = false;
-                foreach (var frame in decoded)
-                {
-                    allFrames.Add(frame);
-                    if (frame is DataFrame df)
-                    {
-                        dataFrames.Add(df);
-                        hasData = true;
-                    }
-                }
-
-                if (hasData)
-                {
-                    dataBufferCount++;
-                }
-            }
-        }
+        var allFrames = decoder.DecodeAll(new ReadOnlySequence<byte>(transport.WrittenMemory), out _).ToList();
+        var dataFrames = allFrames.OfType<DataFrame>().ToList();
+        var dataBufferCount = dataFrames.Count > 0 ? 1 : 0;
 
         return new FrameExtractionResult(allFrames, dataFrames, dataBufferCount);
     }
 
-    private static Http2ServerStateMachine CreateSmWithClientMaxFrameSize(
+    private static (Http2ServerStateMachine Sm, InMemoryTransport Transport) CreateSmWithClientMaxFrameSize(
         FakeServerOps ops, uint clientMaxFrameSize, int connectionWindow = 1024 * 1024)
     {
         var sm = new Http2ServerStateMachine(new GaudiServerOptions().ToHttp2Options(), ops);
         sm.PreStart();
 
         var settingsFrame = BuildSettingsFrameWithMaxFrameSize(clientMaxFrameSize);
-        DecodeFramesAsStream(sm, settingsFrame);
+        var transport = sm.ConnectTransport(initialData: settingsFrame, ops: ops);
 
         if (connectionWindow > 65535)
         {
             var connWindowUpdate = BuildWindowUpdateFrame(0, (uint)(connectionWindow - 65535));
-            DecodeFramesAsStream(sm, connWindowUpdate);
+            transport.FeedMore(sm, ops, connWindowUpdate);
         }
 
         ops.Outbound.Clear();
-        return sm;
+        return (sm, transport);
     }
 
     private static IFeatureCollection SendGetAndWriteBufferedBody(
-        Http2ServerStateMachine sm, FakeServerOps ops, int streamId, int bodySize)
+        Http2ServerStateMachine sm, FakeServerOps ops, InMemoryTransport transport, int streamId, int bodySize)
     {
         var headerBlock = EncodeHeaders("GET", "/large", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId, headerBlock, endStream: true, endHeaders: true);
-        DecodeFramesAsStream(sm, headersFrameData);
+        transport.FeedMore(sm, ops, headersFrameData);
 
         var features = ops.Requests[^1];
         var responseFeature = features.Get<IHttpResponseFeature>()!;
@@ -206,16 +173,16 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 16 * 1024;
         const int bodySize = 48 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
         var streamWindowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, streamWindowUpdate);
+        transport.FeedMore(sm, ops, streamWindowUpdate);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var result = ExtractFramesAndCountBuffers(ops.Outbound);
+        var result = ExtractFramesAndCountBuffers(transport);
 
         Assert.Equal(3, result.DataFrames.Count);
 
@@ -237,16 +204,16 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 16 * 1024;
         const int bodySize = 2 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
         var streamWindowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, streamWindowUpdate);
+        transport.FeedMore(sm, ops, streamWindowUpdate);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var result = ExtractFramesAndCountBuffers(ops.Outbound);
+        var result = ExtractFramesAndCountBuffers(transport);
 
         Assert.Single(result.DataFrames);
         Assert.Equal(bodySize, result.DataFrames[0].Data.Length);
@@ -260,16 +227,16 @@ public sealed class Http2ServerBatchedDataEmissionSpec
         var ops = new FakeServerOps();
         const uint clientMaxFrameSize = 16 * 1024;
         const int bodySize = 128 * 1024;
-        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+        var (sm, transport) = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
 
-        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+        var features = SendGetAndWriteBufferedBody(sm, ops, transport, streamId: 1, bodySize);
         var streamWindowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
-        DecodeFramesAsStream(sm, streamWindowUpdate);
+        transport.FeedMore(sm, ops, streamWindowUpdate);
 
-        ops.Outbound.Clear();
+        transport.TakeWrittenBytes();
         sm.OnResponse(features);
 
-        var result = ExtractFramesAndCountBuffers(ops.Outbound);
+        var result = ExtractFramesAndCountBuffers(transport);
 
         Assert.Equal(8, result.DataFrames.Count);
 
