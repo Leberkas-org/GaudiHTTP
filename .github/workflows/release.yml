@@ -46,7 +46,7 @@ jobs:
           submodules: true
 
       - name: Install .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: ${{ env.GLOBAL_JSON_PATH }}
 
@@ -100,7 +100,7 @@ jobs:
           path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}
 
       - name: Install .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
 
       - name: NuGet login (OIDC)
         uses: NuGet/login@v1
