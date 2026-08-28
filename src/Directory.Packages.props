@@ -11,7 +11,7 @@
     <PackageVersion Include="Servus.Akka" Version="0.3.13" />
     <PackageVersion Include="Servus" Version="0.34.0" />
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
-    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.12" />
   </ItemGroup>
   <ItemGroup Label="Testing">
     <PackageVersion Include="Akka.Streams.TestKit" Version="1.5.68" />
