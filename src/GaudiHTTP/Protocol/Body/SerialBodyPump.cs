@@ -1,6 +1,5 @@
 using System.Buffers;
 using Akka.Actor;
-using Servus.Akka.Transport;
 using static Servus.Senf;
 
 namespace GaudiHTTP.Protocol.Body;
@@ -157,12 +156,7 @@ internal sealed class SerialBodyPump(
 
         var token = _linkedCts?.Token ?? connectionCts.Token;
         _isReadInFlight = true;
-        // WireBuffer.Rent leaves Length unset (0); ReadAsync below slices Memory[..chunkSize], so
-        // Length must span the full rented capacity, matching the deleted PooledArrayMemoryOwner's
-        // semantics.
-        var buffer = WireBuffer.Rent(chunkSize);
-        buffer.Length = buffer.Capacity;
-        _activeOwner = buffer;
+        _activeOwner = MemoryPool<byte>.Shared.Rent(chunkSize);
         var vt = _activeStream.ReadAsync(_activeOwner.Memory[..chunkSize], token);
 
         if (vt.IsCompletedSuccessfully)

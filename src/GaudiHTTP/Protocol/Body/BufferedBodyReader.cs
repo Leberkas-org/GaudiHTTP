@@ -1,12 +1,11 @@
 using System.Buffers;
 using GaudiHTTP.Pooling;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
 internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBufferedBodyReader
 {
-    private WireBuffer? _owner;
+    private IMemoryOwner<byte>? _owner;
     private int _expected;
     private int _received;
 
@@ -25,7 +24,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
         if (contentLength > 0 && (_owner is null || _owner.Memory.Length < contentLength))
         {
             _owner?.Dispose();
-            _owner = RentFullCapacity(contentLength);
+            _owner = RentBuffer(contentLength);
         }
     }
 
@@ -39,19 +38,12 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
         if (_owner is null || _owner.Memory.Length < 4 * 1024)
         {
             _owner?.Dispose();
-            _owner = RentFullCapacity(4 * 1024);
+            _owner = RentBuffer(4 * 1024);
         }
     }
 
-    // WireBuffer.Rent leaves Length unset (0); this reader treats the owner's Memory as the
-    // whole rented capacity (matching the deleted PooledArrayMemoryOwner's semantics) and tracks
-    // the actually-received byte count itself via _received.
-    private static WireBuffer RentFullCapacity(int minimumSize)
-    {
-        var buffer = WireBuffer.Rent(minimumSize);
-        buffer.Length = buffer.Capacity;
-        return buffer;
-    }
+    private static IMemoryOwner<byte> RentBuffer(int minimumSize)
+        => MemoryPool<byte>.Shared.Rent(minimumSize);
 
     protected override void OnReset()
     {
@@ -105,7 +97,7 @@ internal sealed class BufferedBodyReader : Poolable<BufferedBodyReader>, IBuffer
         }
 
         var newSize = Math.Max(needed, (_owner?.Memory.Length ?? 4 * 1024) * 2);
-        var next = RentFullCapacity(newSize);
+        var next = RentBuffer(newSize);
         if (_owner is not null && _received > 0)
         {
             _owner.Memory[.._received].CopyTo(next.Memory);

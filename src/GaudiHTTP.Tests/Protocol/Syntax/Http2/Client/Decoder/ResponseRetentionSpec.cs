@@ -22,11 +22,10 @@ public sealed class ResponseRetentionSpec
 
     private static byte[] SerializeFrameBytes(Http2Frame frame)
     {
-        var buffer = WireBuffer.Rent(frame.SerializedSize);
-        var span = buffer.FullMemory.Span;
+        var bytes = new byte[frame.SerializedSize];
+        var span = bytes.AsSpan();
         frame.WriteTo(ref span);
-        buffer.Length = frame.SerializedSize;
-        return buffer.Span.ToArray();
+        return bytes;
     }
 
     [Fact(Timeout = 5000)]

@@ -32,28 +32,23 @@ public sealed class Http2StateMachineSpec
 
     private static byte[] SerializeFrameBytes(Http2Frame frame)
     {
-        var buffer = WireBuffer.Rent(frame.SerializedSize);
-        var span = buffer.FullMemory.Span;
+        var bytes = new byte[frame.SerializedSize];
+        var span = bytes.AsSpan();
         frame.WriteTo(ref span);
-        buffer.Length = frame.SerializedSize;
-        return buffer.Span.ToArray();
+        return bytes;
     }
 
     private static byte[] SerializeFramesBytes(params Http2Frame[] frames)
     {
         var totalSize = frames.Sum(f => f.SerializedSize);
-        var buffer = WireBuffer.Rent(totalSize);
-        var span = buffer.FullMemory.Span;
-        var offset = 0;
+        var bytes = new byte[totalSize];
+        var span = bytes.AsSpan();
         foreach (var frame in frames)
         {
-            var frameSpan = span[offset..];
-            frame.WriteTo(ref frameSpan);
-            offset += frame.SerializedSize;
+            frame.WriteTo(ref span);
         }
 
-        buffer.Length = totalSize;
-        return buffer.Span.ToArray();
+        return bytes;
     }
 
     [Fact(Timeout = 5000)]

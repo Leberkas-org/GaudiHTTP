@@ -1,6 +1,5 @@
 using System.Buffers;
 using GaudiHTTP.Pooling;
-using Servus.Akka.Transport;
 
 namespace GaudiHTTP.Protocol.Body;
 
@@ -62,12 +61,7 @@ internal sealed class PumpSlot<TStreamId> : Poolable<PumpSlot<TStreamId>>
             return;
         }
 
-        // WireBuffer.Rent leaves Length unset (0); callers (FlowControlledBodyPump/MultiplexedBodyPump/
-        // PumpSlotLifecycle) slice Buffer.Memory[..chunkSize], so Length must span the full rented
-        // capacity, matching the deleted PooledArrayMemoryOwner's semantics.
-        var buffer = WireBuffer.Rent(Math.Max(chunkSize, 256));
-        buffer.Length = buffer.Capacity;
-        Buffer = buffer;
+        Buffer = MemoryPool<byte>.Shared.Rent(Math.Max(chunkSize, 256));
     }
 
     public void BeginRead() => IsReadInFlight = true;
